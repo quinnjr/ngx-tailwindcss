@@ -18,7 +18,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { ClefType, getStaffLayout, KeySignature, StaffTimeSignature } from './staff.component';
-import { NoteAccidental, NoteData, NoteDuration, NoteName } from './note.component';
+import {
+  AccidentalContext,
+  createAccidentalContext,
+  NoteAccidental,
+  NoteData,
+  NoteDuration,
+  NoteName,
+  spellMidiPitch,
+} from './note.component';
 import { PlacedNote, TwNoteInputComponent } from './note-input.component';
 import {
   MeasureData,
@@ -77,9 +85,13 @@ export interface TransposeOptions {
   semitones: number;
   partIds?: string[]; // If not specified, transpose all parts
   /**
-   * Keep each note's accidental spelling family: notes written with a flat are respelled with
-   * flats (Bb +1 -> B, Eb +3 -> Gb). When false (default), black-key results are spelled
-   * with sharps (Eb +3 -> F#).
+   * Keep each note's accidental spelling family: notes sounding flat (written with a flat or
+   * flatted by the key signature) are respelled with flats, sharp ones with sharps
+   * (Bb +1 -> B, Eb +3 -> Gb). When false (default), results are spelled with the key
+   * signature's letters where possible, otherwise with sharps (flats in flat keys):
+   * Eb +3 -> F# in C major.
+   * Written accidentals of the result follow standard notation (see `NoteData.accidental`):
+   * accidentals implied by the key signature or earlier in the measure are omitted.
    */
   preserveEnharmonic?: boolean;
 }
@@ -102,38 +114,6 @@ export const INSTRUMENT_PRESETS: Record<string, Partial<InstrumentPart>> = {
   guitar: { name: 'Guitar', abbreviation: 'Gtr.', clef: 'treble', transposition: 12 },
   'bass-guitar': { name: 'Bass Guitar', abbreviation: 'Bass', clef: 'bass', transposition: 12 },
 };
-
-// Note names for transposition
-const NOTE_NAMES: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const CHROMATIC_TO_NOTE: Array<{ note: NoteName; accidental: NoteAccidental }> = [
-  { note: 'C', accidental: null },
-  { note: 'C', accidental: 'sharp' },
-  { note: 'D', accidental: null },
-  { note: 'D', accidental: 'sharp' },
-  { note: 'E', accidental: null },
-  { note: 'F', accidental: null },
-  { note: 'F', accidental: 'sharp' },
-  { note: 'G', accidental: null },
-  { note: 'G', accidental: 'sharp' },
-  { note: 'A', accidental: null },
-  { note: 'A', accidental: 'sharp' },
-  { note: 'B', accidental: null },
-];
-
-const CHROMATIC_TO_NOTE_FLAT: Array<{ note: NoteName; accidental: NoteAccidental }> = [
-  { note: 'C', accidental: null },
-  { note: 'D', accidental: 'flat' },
-  { note: 'D', accidental: null },
-  { note: 'E', accidental: 'flat' },
-  { note: 'E', accidental: null },
-  { note: 'F', accidental: null },
-  { note: 'G', accidental: 'flat' },
-  { note: 'G', accidental: null },
-  { note: 'A', accidental: 'flat' },
-  { note: 'A', accidental: null },
-  { note: 'B', accidental: 'flat' },
-  { note: 'B', accidental: null },
-];
 
 // tw-note-input's default grid: a note's `beat` is in eighths of a measure
 const NOTE_INPUT_GRID_DIVISION = 8;
@@ -413,6 +393,7 @@ export class TwScoreEditorComponent implements OnInit {
         octave: note.octave,
         duration: note.duration,
         accidental: note.accidental,
+        ...(note.isRest ? { isRest: true } : {}),
         dotted: note.dotted,
         doubleDotted: note.doubleDotted,
         tied: note.tied,
@@ -457,78 +438,74 @@ export class TwScoreEditorComponent implements OnInit {
 
     this.saveHistory(`Transpose ${semitones > 0 ? '+' : ''}${semitones}`);
 
+    const key = this.keySignature();
     this.parts.update(parts =>
       parts.map(part => {
         if (partIds && !partIds.includes(part.id)) return part;
-
-        const transposedNotes = part.notes.map(note =>
-          this.transposeNote(note, semitones, preserveEnharmonic)
-        );
-
-        return { ...part, notes: transposedNotes };
+        return {
+          ...part,
+          notes: this.transposeNotes(part.notes, semitones, preserveEnharmonic, key),
+        };
       })
     );
 
     this.emitScoreChanged();
   }
 
-  private transposeNote(
-    note: PlacedNote,
+  // Transpose one staff's notes. Pitches are resolved with the key signature and earlier
+  // accidentals in the measure, and the results are re-spelled the same way.
+  private transposeNotes(
+    notes: PlacedNote[],
     semitones: number,
-    preserveEnharmonic: boolean
-  ): PlacedNote {
-    // Convert note to chromatic position
-    let chromaticPosition = NOTE_TO_CHROMATIC[note.name];
+    preserveEnharmonic: boolean,
+    key: KeySignature
+  ): PlacedNote[] {
+    const source = createAccidentalContext(key);
+    const target = createAccidentalContext(key);
+    const result = [...notes];
 
-    // Add accidental offset
-    switch (note.accidental) {
-      case 'sharp': {
-        chromaticPosition += 1;
-        break;
+    this.forEachInTimeOrder(notes, [source, target], (note, index) => {
+      if (note.isRest) return;
+      const alteration = source.resolve(note);
+      const midi = (note.octave + 1) * 12 + NOTE_TO_CHROMATIC[note.name] + alteration + semitones;
+      // preserveEnharmonic keeps the sharp/flat family of altered notes; otherwise prefer the
+      // key's own letters (F# in G major, Bb in F major)
+      const spelled =
+        preserveEnharmonic && alteration !== 0
+          ? spellMidiPitch(midi, 'C', alteration < 0)
+          : spellMidiPitch(midi, key);
+      result[index] = {
+        ...note,
+        name: spelled.name,
+        octave: spelled.octave,
+        accidental: target.spell(spelled.name, spelled.octave, spelled.alteration),
+      };
+    });
+
+    return result;
+  }
+
+  /**
+   * Visit one staff's notes in time order (measure, then beat), starting a new measure on the
+   * given accidental contexts at every bar line. `index` is the note's index in `notes`.
+   */
+  private forEachInTimeOrder(
+    notes: PlacedNote[],
+    contexts: AccidentalContext[],
+    visit: (note: PlacedNote, index: number) => void
+  ): void {
+    const order = notes
+      .map((_, index) => index)
+      .sort((a, b) => notes[a].measure - notes[b].measure || notes[a].beat - notes[b].beat);
+    let measure: number | null = null;
+    for (const index of order) {
+      const note = notes[index];
+      if (note.measure !== measure) {
+        for (const context of contexts) context.nextMeasure();
+        measure = note.measure;
       }
-      case 'doubleSharp': {
-        chromaticPosition += 2;
-        break;
-      }
-      case 'flat': {
-        chromaticPosition -= 1;
-        break;
-      }
-      case 'doubleFlat': {
-        chromaticPosition -= 2;
-        // No default
-        break;
-      }
+      visit(note, index);
     }
-
-    // Add transposition
-    let newChromaticPosition = chromaticPosition + semitones;
-    let octaveChange = 0;
-
-    // Handle octave wrapping
-    while (newChromaticPosition < 0) {
-      newChromaticPosition += 12;
-      octaveChange -= 1;
-    }
-    while (newChromaticPosition >= 12) {
-      newChromaticPosition -= 12;
-      octaveChange += 1;
-    }
-
-    // Convert back to note name and accidental; with preserveEnharmonic, flat-spelled notes
-    // stay flat-spelled
-    const useFlats =
-      preserveEnharmonic && (note.accidental === 'flat' || note.accidental === 'doubleFlat');
-    const newNoteData = (useFlats ? CHROMATIC_TO_NOTE_FLAT : CHROMATIC_TO_NOTE)[
-      newChromaticPosition
-    ];
-
-    return {
-      ...note,
-      name: newNoteData.note,
-      octave: note.octave + octaveChange,
-      accidental: newNoteData.accidental,
-    };
   }
 
   transposeSelectedPart(semitones: number): void {
@@ -627,7 +604,7 @@ export class TwScoreEditorComponent implements OnInit {
       });
     }
 
-    const sounding = part.notes.filter(n => !(n as PlacedNote & { isRest?: boolean }).isRest);
+    const sounding = part.notes.filter(n => !n.isRest);
     const melody = sounding.some(n => n.voice === 1)
       ? sounding.filter(n => n.voice === 1)
       : sounding;
@@ -772,6 +749,7 @@ export class TwScoreEditorComponent implements OnInit {
         notes.push(note);
         measureNotes.set(note.measure, notes);
       }
+      const accidentals = createAccidentalContext(score.keySignature);
 
       for (let m = 0; m < score.measures; m++) {
         xml += `    <measure number="${m + 1}">\n`;
@@ -794,7 +772,8 @@ export class TwScoreEditorComponent implements OnInit {
           xml += '      </direction>\n';
         }
 
-        // Notes
+        // Notes (pitches resolved against the key signature and earlier accidentals)
+        accidentals.nextMeasure();
         const notes = measureNotes.get(m) || [];
         if (notes.length === 0) {
           // Add whole rest
@@ -805,8 +784,25 @@ export class TwScoreEditorComponent implements OnInit {
           xml += `        <duration>${measureDivisions}</duration>\n`;
           xml += '      </note>\n';
         } else {
+          // Place each note at its beat: notes sharing a beat form a chord, and gaps or
+          // overlapping voices move the cursor with <forward>/<backup>
+          const measureDivisions =
+            this.getQuartersPerMeasure(score.timeSignature) * MUSICXML_DIVISIONS;
+          let cursor = 0;
+          let previousStart: number | null = null;
           for (const note of notes.sort((a, b) => a.beat - b.beat)) {
-            xml += this.noteToXml(note);
+            const start = Math.round((note.beat / NOTE_INPUT_GRID_DIVISION) * measureDivisions);
+            const chord = start === previousStart && !note.isRest;
+            if (!chord) {
+              if (start > cursor) {
+                xml += `      <forward><duration>${start - cursor}</duration></forward>\n`;
+              } else if (start < cursor) {
+                xml += `      <backup><duration>${cursor - start}</duration></backup>\n`;
+              }
+              cursor = start + this.musicXmlDuration(note);
+              previousStart = start;
+            }
+            xml += this.noteToXml(note, accidentals, chord);
           }
         }
 
@@ -871,35 +867,8 @@ export class TwScoreEditorComponent implements OnInit {
     return `        <clef><sign>${c.sign}</sign><line>${c.line}</line></clef>\n`;
   }
 
-  private noteToXml(note: PlacedNote): string {
-    let xml = '      <note>\n';
-
-    // Pitch
-    xml += '        <pitch>\n';
-    xml += `          <step>${note.name}</step>\n`;
-    switch (note.accidental) {
-      case 'sharp': {
-        xml += '          <alter>1</alter>\n';
-        break;
-      }
-      case 'flat': {
-        xml += '          <alter>-1</alter>\n';
-        break;
-      }
-      case 'doubleSharp': {
-        xml += '          <alter>2</alter>\n';
-        break;
-      }
-      case 'doubleFlat': {
-        xml += '          <alter>-2</alter>\n';
-        // No default
-        break;
-      }
-    }
-    xml += `          <octave>${note.octave}</octave>\n`;
-    xml += '        </pitch>\n';
-
-    // Duration in divisions (MUSICXML_DIVISIONS per quarter, so every value is an integer)
+  // Note length in MusicXML divisions (MUSICXML_DIVISIONS per quarter, always an integer)
+  private musicXmlDuration(note: PlacedNote): number {
     const quarterFractions: Record<NoteDuration, number> = {
       whole: 4,
       half: 2,
@@ -909,19 +878,55 @@ export class TwScoreEditorComponent implements OnInit {
       thirtysecond: 0.125,
     };
     let dur = (quarterFractions[note.duration] ?? 1) * MUSICXML_DIVISIONS;
-    if (note.dotted) dur *= 1.5;
-    xml += `        <duration>${dur}</duration>\n`;
+    if (note.doubleDotted) dur *= 1.75;
+    else if (note.dotted) dur *= 1.5;
+    return dur;
+  }
 
-    // Type
-    xml += `        <type>${note.duration}</type>\n`;
+  private noteToXml(note: PlacedNote, accidentals: AccidentalContext, chord = false): string {
+    let xml = '      <note>\n';
+    if (chord) {
+      xml += '        <chord/>\n';
+    }
 
-    // Dot
-    if (note.dotted) {
+    if (note.isRest) {
+      xml += '        <rest/>\n';
+    } else {
+      // Pitch: <alter> is the sounding alteration (key signature included); <accidental>
+      // below is only the written sign
+      const alteration = accidentals.resolve(note);
+      xml += '        <pitch>\n';
+      xml += `          <step>${note.name}</step>\n`;
+      if (alteration !== 0) {
+        xml += `          <alter>${alteration}</alter>\n`;
+      }
+      xml += `          <octave>${note.octave}</octave>\n`;
+      xml += '        </pitch>\n';
+    }
+
+    xml += `        <duration>${this.musicXmlDuration(note)}</duration>\n`;
+
+    // Type (MusicXML names: 16th, 32nd)
+    const types: Record<NoteDuration, string> = {
+      whole: 'whole',
+      half: 'half',
+      quarter: 'quarter',
+      eighth: 'eighth',
+      sixteenth: '16th',
+      thirtysecond: '32nd',
+    };
+    xml += `        <type>${types[note.duration] ?? 'quarter'}</type>\n`;
+
+    // Dots
+    if (note.dotted || note.doubleDotted) {
+      xml += '        <dot/>\n';
+    }
+    if (note.doubleDotted) {
       xml += '        <dot/>\n';
     }
 
     // Accidental (display)
-    if (note.accidental) {
+    if (note.accidental && !note.isRest) {
       const accMap: Record<string, string> = {
         sharp: 'sharp',
         flat: 'flat',
@@ -990,26 +995,29 @@ export class TwScoreEditorComponent implements OnInit {
     const gridDivision = NOTE_INPUT_GRID_DIVISION;
     const timed: Array<{ tick: number; isOn: boolean; midiNote: number }> = [];
 
-    for (const note of part.notes) {
+    const accidentals = createAccidentalContext(this.keySignature());
+
+    this.forEachInTimeOrder(part.notes, [accidentals], note => {
+      if (note.isRest) return;
       const startQuarters =
         note.measure * quartersPerMeasure + (note.beat / gridDivision) * quartersPerMeasure;
       const tick = Math.round(startQuarters * ticksPerQuarter);
       const midiNote = this.noteToMidi(
         note.name,
         note.octave,
-        note.accidental ?? null,
+        accidentals.resolve(note),
         part.transposition
       );
       const durationTicks = this.durationToTicks(
         note.duration,
-        note.dotted ?? false,
+        note.doubleDotted ? 1.75 : note.dotted ? 1.5 : 1,
         ticksPerQuarter
       );
       timed.push(
         { tick, isOn: true, midiNote },
         { tick: tick + durationTicks, isOn: false, midiNote }
       );
-    }
+    });
 
     // At equal ticks, emit note-offs before note-ons so repeated pitches retrigger
     timed.sort((a, b) => a.tick - b.tick || Number(a.isOn) - Number(b.isOn));
@@ -1040,38 +1048,20 @@ export class TwScoreEditorComponent implements OnInit {
     return (beats * 4) / beatType;
   }
 
+  // `alteration` is the resolved sounding alteration (see AccidentalContext.resolve)
   private noteToMidi(
     name: NoteName,
     octave: number,
-    accidental: NoteAccidental,
+    alteration: number,
     transposition: number
   ): number {
-    let midi = NOTE_TO_CHROMATIC[name] + (octave + 1) * 12;
-    switch (accidental) {
-      case 'sharp': {
-        midi += 1;
-        break;
-      }
-      case 'flat': {
-        midi -= 1;
-        break;
-      }
-      case 'doubleSharp': {
-        midi += 2;
-        break;
-      }
-      case 'doubleFlat': {
-        midi -= 2;
-        // No default
-        break;
-      }
-    }
+    const midi = NOTE_TO_CHROMATIC[name] + (octave + 1) * 12 + alteration;
     return Math.max(0, Math.min(127, midi - transposition));
   }
 
   private durationToTicks(
     duration: NoteDuration,
-    dotted: boolean,
+    dotFactor: number,
     ticksPerQuarter: number
   ): number {
     const durationMap: Record<NoteDuration, number> = {
@@ -1082,9 +1072,7 @@ export class TwScoreEditorComponent implements OnInit {
       sixteenth: 0.25,
       thirtysecond: 0.125,
     };
-    let ticks = durationMap[duration] * ticksPerQuarter;
-    if (dotted) ticks *= 1.5;
-    return Math.round(ticks);
+    return Math.round(durationMap[duration] * ticksPerQuarter * dotFactor);
   }
 
   private toVariableLength(value: number): number[] {
@@ -1193,8 +1181,9 @@ export class TwScoreEditorComponent implements OnInit {
   private noteToABC(note: PlacedNote): string {
     let abc = '';
 
-    // Accidental
-    switch (note.accidental) {
+    // ABC applies the key signature and bar accidentals itself (same convention as
+    // NoteData.accidental), so the written accidental is exported as is
+    switch (note.isRest ? null : note.accidental) {
       case 'sharp': {
         abc += '^';
         break;
@@ -1218,15 +1207,18 @@ export class TwScoreEditorComponent implements OnInit {
       }
     }
 
-    // Note name (lowercase for octave 5+)
-    const name = note.octave >= 5 ? note.name.toLowerCase() : note.name;
-    abc += name;
+    if (note.isRest) {
+      abc += 'z';
+    } else {
+      // Note name (lowercase for octave 5+)
+      abc += note.octave >= 5 ? note.name.toLowerCase() : note.name;
 
-    // Octave modifiers
-    if (note.octave >= 6) {
-      abc += "'".repeat(note.octave - 5);
-    } else if (note.octave <= 3) {
-      abc += ','.repeat(4 - note.octave);
+      // Octave modifiers
+      if (note.octave >= 6) {
+        abc += "'".repeat(note.octave - 5);
+      } else if (note.octave <= 3) {
+        abc += ','.repeat(4 - note.octave);
+      }
     }
 
     // Duration in units of L:1/8 (dotted notes are 1.5x)
@@ -1238,7 +1230,8 @@ export class TwScoreEditorComponent implements OnInit {
       sixteenth: 0.5,
       thirtysecond: 0.25,
     };
-    const length = (eighths[note.duration] ?? 2) * (note.dotted ? 1.5 : 1);
+    const length =
+      (eighths[note.duration] ?? 2) * (note.doubleDotted ? 1.75 : note.dotted ? 1.5 : 1);
     abc += this.abcLength(length);
 
     return abc;

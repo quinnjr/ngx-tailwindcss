@@ -334,3 +334,15 @@ describe('TwSwitchComponent keyboard activation', () => {
     }
   });
 });
+
+describe('TwSwitchComponent (round 3)', () => {
+  it('should mark the control as touched when the switch loses focus', () => {
+    const fixture = TestBed.createComponent(FormControlTestComponent);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(fixture.componentInstance.control.touched).toBe(false);
+    button.dispatchEvent(new FocusEvent('blur'));
+    expect(fixture.componentInstance.control.touched).toBe(true);
+    expect(fixture.componentInstance.control.value).toBe(false);
+  });
+});

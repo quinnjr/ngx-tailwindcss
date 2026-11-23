@@ -240,54 +240,73 @@
           [class.cursor-grabbing]="draggedNote()?.id === note.id"
           (mousedown)="onNoteMouseDown($event, note)"
         >
-          <!-- Ledger lines -->
-          @for (
-            lineY of draggedNote()?.id === note.id
-              ? ledgerLines(draggedNote()!.name, draggedNote()!.octave)
-              : ledgerLines(note.name, note.octave);
-            track $index
-          ) {
-            <line
-              [attr.x1]="
-                (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) - lineSpacing() * 0.8
+          @if (note.isRest) {
+            <!-- Rest (drawn where it was placed so it can be selected and dragged) -->
+            <text
+              [attr.x]="draggedNote()?.id === note.id ? draggedNote()!.x : note.x"
+              [attr.y]="
+                draggedNote()?.id === note.id
+                  ? noteToY(draggedNote()!.name, draggedNote()!.octave)
+                  : noteToY(note.name, note.octave)
               "
-              [attr.y1]="lineY"
-              [attr.x2]="
-                (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) + lineSpacing() * 0.8
+              [attr.font-size]="lineSpacing() * 2.5"
+              [attr.fill]="getVoiceColor(note.voice)"
+              text-anchor="middle"
+              dominant-baseline="central"
+              [attr.aria-label]="note.duration + ' rest'"
+            >
+              {{ restSymbols[note.duration] }}
+            </text>
+          } @else {
+            <!-- Ledger lines -->
+            @for (
+              lineY of draggedNote()?.id === note.id
+                ? ledgerLines(draggedNote()!.name, draggedNote()!.octave)
+                : ledgerLines(note.name, note.octave);
+              track $index
+            ) {
+              <line
+                [attr.x1]="
+                  (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) - lineSpacing() * 0.8
+                "
+                [attr.y1]="lineY"
+                [attr.x2]="
+                  (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) + lineSpacing() * 0.8
+                "
+                [attr.y2]="lineY"
+                [attr.stroke]="getVoiceColor(note.voice)"
+                stroke-width="1"
+              />
+            }
+
+            <!-- Note head -->
+            <ellipse
+              [attr.cx]="draggedNote()?.id === note.id ? draggedNote()!.x : note.x"
+              [attr.cy]="
+                draggedNote()?.id === note.id
+                  ? noteToY(draggedNote()!.name, draggedNote()!.octave)
+                  : noteToY(note.name, note.octave)
               "
-              [attr.y2]="lineY"
+              [attr.rx]="lineSpacing() * 0.45"
+              [attr.ry]="lineSpacing() * 0.35"
+              [attr.fill]="
+                note.duration === 'whole' || note.duration === 'half'
+                  ? 'none'
+                  : getVoiceColor(note.voice)
+              "
               [attr.stroke]="getVoiceColor(note.voice)"
-              stroke-width="1"
+              [attr.stroke-width]="note.duration === 'whole' || note.duration === 'half' ? 1.5 : 0"
+              [attr.transform]="
+                'rotate(-15, ' +
+                (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) +
+                ', ' +
+                (draggedNote()?.id === note.id
+                  ? noteToY(draggedNote()!.name, draggedNote()!.octave)
+                  : noteToY(note.name, note.octave)) +
+                ')'
+              "
             />
           }
-
-          <!-- Note head -->
-          <ellipse
-            [attr.cx]="draggedNote()?.id === note.id ? draggedNote()!.x : note.x"
-            [attr.cy]="
-              draggedNote()?.id === note.id
-                ? noteToY(draggedNote()!.name, draggedNote()!.octave)
-                : noteToY(note.name, note.octave)
-            "
-            [attr.rx]="lineSpacing() * 0.45"
-            [attr.ry]="lineSpacing() * 0.35"
-            [attr.fill]="
-              note.duration === 'whole' || note.duration === 'half'
-                ? 'none'
-                : getVoiceColor(note.voice)
-            "
-            [attr.stroke]="getVoiceColor(note.voice)"
-            [attr.stroke-width]="note.duration === 'whole' || note.duration === 'half' ? 1.5 : 0"
-            [attr.transform]="
-              'rotate(-15, ' +
-              (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) +
-              ', ' +
-              (draggedNote()?.id === note.id
-                ? noteToY(draggedNote()!.name, draggedNote()!.octave)
-                : noteToY(note.name, note.octave)) +
-              ')'
-            "
-          />
 
           <!-- Selection highlight -->
           @if (isNoteSelected(note)) {
@@ -302,56 +321,58 @@
             />
           }
 
-          <!-- Accidental -->
-          @if (note.accidental) {
-            <text
-              [attr.x]="note.x - lineSpacing() * 0.8"
-              [attr.y]="noteToY(note.name, note.octave) + lineSpacing() * 0.15"
-              [attr.font-size]="lineSpacing() * 0.9"
-              [attr.fill]="getVoiceColor(note.voice)"
-              font-family="serif"
-              text-anchor="end"
-            >
-              @switch (note.accidental) {
-                @case ('sharp') {
-                  ♯
+          @if (!note.isRest) {
+            <!-- Accidental -->
+            @if (note.accidental) {
+              <text
+                [attr.x]="note.x - lineSpacing() * 0.8"
+                [attr.y]="noteToY(note.name, note.octave) + lineSpacing() * 0.15"
+                [attr.font-size]="lineSpacing() * 0.9"
+                [attr.fill]="getVoiceColor(note.voice)"
+                font-family="serif"
+                text-anchor="end"
+              >
+                @switch (note.accidental) {
+                  @case ('sharp') {
+                    ♯
+                  }
+                  @case ('flat') {
+                    ♭
+                  }
+                  @case ('natural') {
+                    ♮
+                  }
+                  @case ('doubleSharp') {
+                    𝄪
+                  }
+                  @case ('doubleFlat') {
+                    𝄫
+                  }
                 }
-                @case ('flat') {
-                  ♭
-                }
-                @case ('natural') {
-                  ♮
-                }
-                @case ('doubleSharp') {
-                  𝄪
-                }
-                @case ('doubleFlat') {
-                  𝄫
-                }
-              }
-            </text>
-          }
+              </text>
+            }
 
-          <!-- Stem (for notes that have stems) -->
-          @if (note.duration !== 'whole') {
-            <line
-              [attr.x1]="note.x + lineSpacing() * 0.4"
-              [attr.y1]="noteToY(note.name, note.octave)"
-              [attr.x2]="note.x + lineSpacing() * 0.4"
-              [attr.y2]="noteToY(note.name, note.octave) - lineSpacing() * 3.5"
-              [attr.stroke]="getVoiceColor(note.voice)"
-              stroke-width="1.5"
-            />
-          }
+            <!-- Stem (for notes that have stems) -->
+            @if (note.duration !== 'whole') {
+              <line
+                [attr.x1]="note.x + lineSpacing() * 0.4"
+                [attr.y1]="noteToY(note.name, note.octave)"
+                [attr.x2]="note.x + lineSpacing() * 0.4"
+                [attr.y2]="noteToY(note.name, note.octave) - lineSpacing() * 3.5"
+                [attr.stroke]="getVoiceColor(note.voice)"
+                stroke-width="1.5"
+              />
+            }
 
-          <!-- Dot -->
-          @if (note.dotted) {
-            <circle
-              [attr.cx]="note.x + lineSpacing() * 0.7"
-              [attr.cy]="noteToY(note.name, note.octave) - lineSpacing() * 0.1"
-              [attr.r]="lineSpacing() * 0.1"
-              [attr.fill]="getVoiceColor(note.voice)"
-            />
+            <!-- Dot -->
+            @if (note.dotted) {
+              <circle
+                [attr.cx]="note.x + lineSpacing() * 0.7"
+                [attr.cy]="noteToY(note.name, note.octave) - lineSpacing() * 0.1"
+                [attr.r]="lineSpacing() * 0.1"
+                [attr.fill]="getVoiceColor(note.voice)"
+              />
+            }
           }
         </g>
       }

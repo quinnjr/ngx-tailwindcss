@@ -141,8 +141,8 @@ describe('TwRatingComponent', () => {
 
     it('should select a half step when clicking the left half of a star', () => {
       const event = {
-        offsetX: 4,
-        currentTarget: { getBoundingClientRect: () => ({ width: 24 }) },
+        clientX: 104,
+        currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 24 }) },
       } as unknown as MouseEvent;
       component.rating.onStarClick(2, event);
       expect(component.onChangeSpy).toHaveBeenCalledWith(2.5);
@@ -150,8 +150,8 @@ describe('TwRatingComponent', () => {
 
     it('should select a full step when clicking the right half of a star', () => {
       const event = {
-        offsetX: 20,
-        currentTarget: { getBoundingClientRect: () => ({ width: 24 }) },
+        clientX: 120,
+        currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 24 }) },
       } as unknown as MouseEvent;
       component.rating.onStarClick(2, event);
       expect(component.onChangeSpy).toHaveBeenCalledWith(3);

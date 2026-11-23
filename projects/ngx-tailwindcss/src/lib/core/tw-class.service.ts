@@ -7,10 +7,15 @@ import { DEFAULT_TW_CONFIG, TW_CONFIG, TwConfig } from './tw-config';
 const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   // Layout
   [
-    /^(block|inline|inline-block|flex|inline-flex|grid|inline-grid|hidden|contents|flow-root)$/,
+    /^(block|inline|inline-block|flex|inline-flex|grid|inline-grid|hidden|contents|flow-root|list-item|(inline-)?table|table-(caption|cell|column|column-group|footer-group|header-group|row-group|row))$/,
     'display',
   ],
   [/^(static|fixed|absolute|relative|sticky)$/, 'position'],
+  // Inset: `inset-*` subsumes the axis and side utilities (`inset-shadow-*`/`inset-ring-*` are effects)
+  [/^inset-x-/, 'inset-x'],
+  [/^inset-y-/, 'inset-y'],
+  [/^inset-(?!shadow|ring)/, 'inset'],
+  [/^(top|right|bottom|left|start|end)-/, 'inset-$1'],
   [/^(visible|invisible|collapse)$/, 'visibility'],
   [/^overflow-x-/, 'overflow-x'],
   [/^overflow-y-/, 'overflow-y'],
@@ -20,9 +25,9 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   // Flexbox & Grid
   [/^flex-(row|col)(-reverse)?$/, 'flex-direction'],
   [/^flex-(wrap|nowrap|wrap-reverse)$/, 'flex-wrap'],
+  [/^(?:flex-)?grow(-|$)/, 'flex-grow'],
+  [/^(?:flex-)?shrink(-|$)/, 'flex-shrink'],
   [/^flex-/, 'flex'],
-  [/^grow(-|$)/, 'flex-grow'],
-  [/^shrink(-|$)/, 'flex-shrink'],
   [/^basis-/, 'flex-basis'],
   [/^justify-items-/, 'justify-items'],
   [/^justify-self-/, 'justify-self'],
@@ -52,6 +57,8 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^pr-/, 'padding-right'],
   [/^pb-/, 'padding-bottom'],
   [/^pl-/, 'padding-left'],
+  [/^ps-/, 'padding-start'],
+  [/^pe-/, 'padding-end'],
   [/^p-/, 'padding'],
   [/^mx-/, 'margin-x'],
   [/^my-/, 'margin-y'],
@@ -59,6 +66,8 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^mr-/, 'margin-right'],
   [/^mb-/, 'margin-bottom'],
   [/^ml-/, 'margin-left'],
+  [/^ms-/, 'margin-start'],
+  [/^me-/, 'margin-end'],
   [/^m-/, 'margin'],
   [/^space-x-/, 'space-x'],
   [/^space-y-/, 'space-y'],
@@ -103,12 +112,14 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^to-/, 'gradient-to'],
 
   // Borders
-  [
-    /^border(?:$|-[blrtxy](?:$|-\d)|-\d|-(?:solid|dashed|dotted|double|hidden|none)$)/,
-    'border-width',
-  ],
+  // Border width/color per side are separate groups; the bare `border-*` and the
+  // `-x`/`-y` axis utilities subsume their sides. Style is independent of width.
+  [/^border-(solid|dashed|dotted|double|hidden|none)$/, 'border-style'],
+  [/^border-([xytrblse])(?:$|-\d|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'border-width-$1'],
+  [/^border(?:$|-\d|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'border-width'],
   [/^border-(collapse|separate)$/, 'border-collapse'],
   [/^border-spacing-/, 'border-spacing'],
+  [/^border-([xytrblse])-/, 'border-color-$1'],
   [/^border-/, 'border-color'],
   // Corner/side radii are separate groups; the bare `rounded-*` shorthand subsumes them
   [/^rounded-(tl|tr|br|bl|ss|se|ee|es|t|r|b|l|s|e)(-|$)/, 'border-radius-$1'],
@@ -163,6 +174,8 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
 /**
  * Shorthand groups that subsume their longhand groups when applied later
  */
+const SIDES = ['x', 'y', 't', 'r', 'b', 'l', 's', 'e'] as const;
+
 const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
   padding: [
     'padding-x',
@@ -171,8 +184,42 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'padding-right',
     'padding-bottom',
     'padding-left',
+    'padding-start',
+    'padding-end',
   ],
-  margin: ['margin-x', 'margin-y', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
+  'padding-x': ['padding-right', 'padding-left', 'padding-start', 'padding-end'],
+  'padding-y': ['padding-top', 'padding-bottom'],
+  margin: [
+    'margin-x',
+    'margin-y',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'margin-start',
+    'margin-end',
+  ],
+  'margin-x': ['margin-right', 'margin-left', 'margin-start', 'margin-end'],
+  'margin-y': ['margin-top', 'margin-bottom'],
+  inset: [
+    'inset-x',
+    'inset-y',
+    'inset-top',
+    'inset-right',
+    'inset-bottom',
+    'inset-left',
+    'inset-start',
+    'inset-end',
+  ],
+  'inset-x': ['inset-right', 'inset-left', 'inset-start', 'inset-end'],
+  'inset-y': ['inset-top', 'inset-bottom'],
+  size: ['width', 'height'],
+  'border-width': SIDES.map(side => `border-width-${side}`),
+  'border-width-x': ['border-width-r', 'border-width-l', 'border-width-s', 'border-width-e'],
+  'border-width-y': ['border-width-t', 'border-width-b'],
+  'border-color': SIDES.map(side => `border-color-${side}`),
+  'border-color-x': ['border-color-r', 'border-color-l', 'border-color-s', 'border-color-e'],
+  'border-color-y': ['border-color-t', 'border-color-b'],
   gap: ['gap-x', 'gap-y'],
   overflow: ['overflow-x', 'overflow-y'],
   scale: ['scale-x', 'scale-y'],
@@ -192,8 +239,55 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'border-radius-ee',
     'border-radius-es',
   ],
+  'border-radius-t': ['border-radius-tl', 'border-radius-tr'],
+  'border-radius-r': ['border-radius-tr', 'border-radius-br'],
+  'border-radius-b': ['border-radius-br', 'border-radius-bl'],
+  'border-radius-l': ['border-radius-tl', 'border-radius-bl'],
+  'border-radius-s': ['border-radius-ss', 'border-radius-es'],
+  'border-radius-e': ['border-radius-se', 'border-radius-ee'],
   translate: ['translate-x', 'translate-y'],
 };
+
+/**
+ * Variants whose position relative to other variants changes the generated
+ * selector (pseudo-elements, child selectors). Other variants are sorted so
+ * that e.g. `md:hover:p-2` and `hover:md:p-4` conflict, as in tailwind-merge.
+ */
+const ORDER_SENSITIVE_VARIANTS = new Set([
+  '*',
+  '**',
+  'after',
+  'backdrop',
+  'before',
+  'details-content',
+  'file',
+  'first-letter',
+  'first-line',
+  'marker',
+  'placeholder',
+  'selection',
+]);
+
+/**
+ * Normalizes a variant list: arbitrary (`[...]`) and order-sensitive variants
+ * stay in place, the runs of plain variants between them are sorted.
+ */
+function normalizeVariants(variants: string[]): string {
+  const result: string[] = [];
+  let run: string[] = [];
+
+  for (const variant of variants) {
+    if (variant.startsWith('[') || ORDER_SENSITIVE_VARIANTS.has(variant)) {
+      result.push(...run.sort(), variant);
+      run = [];
+    } else {
+      run.push(variant);
+    }
+  }
+  result.push(...run.sort());
+
+  return result.join(':');
+}
 
 /**
  * Memoized class -> group lookups
@@ -233,7 +327,12 @@ export class TwClassService {
 
   constructor() {
     const injectedConfig = inject(TW_CONFIG, { optional: true });
-    this.config = { ...DEFAULT_TW_CONFIG, ...injectedConfig };
+    // Deep-merge `theme` so a raw TW_CONFIG with a partial theme keeps the other variants
+    this.config = {
+      ...DEFAULT_TW_CONFIG,
+      ...injectedConfig,
+      theme: { ...DEFAULT_TW_CONFIG.theme, ...injectedConfig?.theme },
+    };
   }
 
   /**
@@ -297,7 +396,7 @@ export class TwClassService {
     // Handle responsive/state prefixes (ignoring colons inside arbitrary values)
     const parts = splitVariants(cls);
     let baseClass = parts.at(-1) ?? cls;
-    const prefix = parts.slice(0, -1).join(':');
+    const prefix = normalizeVariants(parts.slice(0, -1));
 
     // Strip important (leading `!` in v3, trailing `!` in v4) and negative (-)
     // markers for group matching

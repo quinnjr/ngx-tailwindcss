@@ -103,19 +103,19 @@ describe('TwSliderComponent', () => {
 
   describe('min/max/step', () => {
     it('should set min attribute', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.min).toBe('0');
     });
 
     it('should set max attribute', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.max).toBe('100');
     });
 
     it('should set step attribute', () => {
       component.step.set(5);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.step).toBe('5');
     });
 
@@ -123,7 +123,7 @@ describe('TwSliderComponent', () => {
       component.min.set(10);
       component.max.set(200);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.min).toBe('10');
       expect(input.max).toBe('200');
     });
@@ -145,14 +145,14 @@ describe('TwSliderComponent', () => {
       component.label.set('Volume');
       fixture.detectChanges();
       const label = sliderEl.querySelector('label')!;
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.id).toBeTruthy();
       expect(label.getAttribute('for')).toBe(input.id);
       expect(input.getAttribute('aria-label')).toBe('Volume');
     });
 
     it('should leave the range input unnamed when no label is provided', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.getAttribute('aria-label')).toBeNull();
     });
   });
@@ -230,7 +230,7 @@ describe('TwSliderComponent', () => {
     it('should set disabled attribute', () => {
       component.disabled.set(true);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.disabled).toBe(true);
     });
 
@@ -263,14 +263,14 @@ describe('TwSliderComponent', () => {
 
   describe('events', () => {
     it('should emit onInput during drag', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       input.value = '50';
       input.dispatchEvent(new Event('input'));
       expect(component.inputValue).toBe(50);
     });
 
     it('should emit onChange on release', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       input.value = '75';
       input.dispatchEvent(new Event('change'));
       expect(component.changeValue).toBe(75);
@@ -402,5 +402,28 @@ describe('TwSliderComponent (regressions)', () => {
       ) as NodeListOf<HTMLElement>),
     ].map(t => t.textContent?.trim());
     expect(ticks).toEqual(['0', '0.25', '0.5', '0.75', '1']);
+  });
+});
+
+describe('TwSliderComponent (round 3)', () => {
+  it('should expose the formatted value as aria-valuetext', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.getAttribute('aria-valuetext')).toBe('150');
+  });
+
+  it('should end the drag state on change even if the pointer is released elsewhere', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    input.dispatchEvent(new MouseEvent('mousedown'));
+    fixture.detectChanges();
+    const thumb = () => fixture.nativeElement.querySelector('.pointer-events-none > div');
+    expect(thumb().className).toContain('scale-110');
+    input.value = '40';
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(thumb().className).not.toContain('scale-110');
   });
 });

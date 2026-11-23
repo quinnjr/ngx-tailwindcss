@@ -2,8 +2,9 @@
   <!-- Canvas for waveform rendering -->
   <canvas
     #waveformCanvas
-    [width]="effectiveWidth()"
-    [height]="effectiveHeight()"
+    [style.width.px]="responsive() ? null : effectiveWidth()"
+    [style.height.px]="responsive() ? null : effectiveHeight()"
+    [style.aspect-ratio]="responsive() ? effectiveWidth() + ' / ' + effectiveHeight() : null"
     [class]="canvasClasses()"
     [class.w-full]="responsive()"
     [class.cursor-grab]="isPanning()"

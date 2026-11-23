@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwOverlayComponent } from './overlay.component';
 import { TwClassService } from '../core/tw-class.service';
 
@@ -116,10 +116,38 @@ describe('TwOverlayComponent', () => {
       component.visible.set(true);
       fixture.detectChanges();
 
+      overlayEl()!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
       overlayEl()!.click();
       fixture.detectChanges();
 
       expect(component.closeCount).toBe(1);
+    });
+
+    it('should not emit close when a press in the content is released on the overlay', () => {
+      component.visible.set(true);
+      fixture.detectChanges();
+
+      const content = fixture.debugElement.query(
+        By.css('[data-testid="overlay-content"]')
+      ).nativeElement;
+      content.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      overlayEl()!.click();
+      fixture.detectChanges();
+
+      expect(component.closeCount).toBe(0);
+    });
+
+    it('should let clicks inside the content reach document listeners', () => {
+      component.visible.set(true);
+      fixture.detectChanges();
+
+      const listener = vi.fn();
+      document.addEventListener('click', listener);
+      fixture.debugElement.query(By.css('[data-testid="overlay-content"]')).nativeElement.click();
+      document.removeEventListener('click', listener);
+
+      expect(listener).toHaveBeenCalled();
+      expect(component.closeCount).toBe(0);
     });
 
     it('should not emit close when clicking content', () => {

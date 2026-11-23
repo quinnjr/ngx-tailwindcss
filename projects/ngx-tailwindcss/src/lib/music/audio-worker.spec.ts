@@ -95,6 +95,18 @@ describe('audio-worker', () => {
       expect(levels.rms).toBe(0);
     });
 
+    it('smoothData returns an empty array for empty input', () => {
+      const result = run('smoothData', { data: [] }) as { data: number[] };
+      expect(result.data).toEqual([]);
+    });
+
+    it('rejects inherited Object.prototype keys as unknown message types', () => {
+      const event = { data: { id: '1', type: 'constructor', data: {} } };
+      const response = handleMessage(event as unknown as MessageEvent<WorkerMessage>);
+      expect(response.error).toBe('Unknown message type: constructor');
+      expect(response.result).toBeNull();
+    });
+
     it('generated worker script still evaluates (handlers stay closure-free)', () => {
       const posted: unknown[] = [];
       const self: {

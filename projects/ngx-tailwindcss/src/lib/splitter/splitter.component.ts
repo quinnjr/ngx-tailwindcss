@@ -12,7 +12,7 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
 export type SplitterDirection = 'horizontal' | 'vertical';
@@ -74,6 +74,8 @@ const KEYBOARD_RESIZE_STEP = 2;
 })
 export class TwSplitterComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
+  /** Injected (not the global) so destroy on the server, where no global exists, is safe */
+  private readonly document = inject(DOCUMENT);
 
   @ViewChild('container') containerRef!: ElementRef<HTMLElement>;
   @ViewChild('gutter') gutterRef!: ElementRef<HTMLElement>;
@@ -172,8 +174,8 @@ export class TwSplitterComponent implements OnDestroy {
     if (this.disabled()) return;
     event.preventDefault();
     this.startDrag(this.direction() === 'horizontal' ? event.clientX : event.clientY);
-    document.addEventListener('mousemove', this.mouseMoveHandler);
-    document.addEventListener('mouseup', this.mouseUpHandler);
+    this.document.addEventListener('mousemove', this.mouseMoveHandler);
+    this.document.addEventListener('mouseup', this.mouseUpHandler);
   }
 
   protected onGutterTouchStart(event: TouchEvent): void {
@@ -181,9 +183,9 @@ export class TwSplitterComponent implements OnDestroy {
     event.preventDefault();
     const touch = event.touches[0];
     this.startDrag(this.direction() === 'horizontal' ? touch.clientX : touch.clientY);
-    document.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
-    document.addEventListener('touchend', this.touchEndHandler);
-    document.addEventListener('touchcancel', this.touchEndHandler);
+    this.document.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
+    this.document.addEventListener('touchend', this.touchEndHandler);
+    this.document.addEventListener('touchcancel', this.touchEndHandler);
   }
 
   protected onGutterKeydown(event: KeyboardEvent): void {
@@ -304,11 +306,11 @@ export class TwSplitterComponent implements OnDestroy {
   }
 
   private removeListeners(): void {
-    document.removeEventListener('mousemove', this.mouseMoveHandler);
-    document.removeEventListener('mouseup', this.mouseUpHandler);
-    document.removeEventListener('touchmove', this.touchMoveHandler);
-    document.removeEventListener('touchend', this.touchEndHandler);
-    document.removeEventListener('touchcancel', this.touchEndHandler);
+    this.document.removeEventListener('mousemove', this.mouseMoveHandler);
+    this.document.removeEventListener('mouseup', this.mouseUpHandler);
+    this.document.removeEventListener('touchmove', this.touchMoveHandler);
+    this.document.removeEventListener('touchend', this.touchEndHandler);
+    this.document.removeEventListener('touchcancel', this.touchEndHandler);
   }
 
   /** Programmatically set sizes */

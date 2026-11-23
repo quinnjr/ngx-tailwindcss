@@ -52,6 +52,13 @@ export class TwMenuBarComponent {
   protected readonly hoveredItemId = signal<string | null>(null);
   /** Index of the top-level item that holds the roving tabindex. */
   protected readonly focusedMenuIndex = signal(0);
+  /**
+   * `focusedMenuIndex` clamped to the current items, so the menubar stays
+   * reachable by Tab when `items` shrinks below the remembered index.
+   */
+  protected readonly rovingIndex = computed(() =>
+    Math.max(0, Math.min(this.focusedMenuIndex(), this.items().length - 1))
+  );
 
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
@@ -239,7 +246,7 @@ export class TwMenuBarComponent {
       this.elementRef.nativeElement.contains(document.activeElement);
     this.closeMenu();
     if (menuHadFocus) {
-      this.getTriggerElements()[this.focusedMenuIndex()]?.focus();
+      this.getTriggerElements()[this.rovingIndex()]?.focus();
     }
 
     // Handle checkbox toggle

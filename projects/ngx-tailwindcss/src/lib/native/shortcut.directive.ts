@@ -12,6 +12,7 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { NativeAppPlatformService } from './platform.service';
 import { KeyboardShortcut } from './native.types';
+import { splitShortcut } from './shortcut-keys.util';
 
 /**
  * Directive for binding keyboard shortcuts to actions
@@ -83,10 +84,8 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
   }
 
   private parseShortcut(shortcutStr: string): KeyboardShortcut | null {
-    const parts = shortcutStr
-      .toLowerCase()
-      .split('+')
-      .map(p => p.trim());
+    // `ctrl++` / `ctrl+plus` both bind the plus key
+    const parts = splitShortcut(shortcutStr.toLowerCase());
 
     if (parts.length === 0) return null;
 
@@ -196,7 +195,11 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
     // Check that we don't have extra modifiers
     if (!shortcut.ctrl && event.ctrlKey) return false;
     if (!shortcut.alt && event.altKey) return false;
-    if (!shortcut.shift && event.shiftKey) return false;
+    // A shifted symbol such as '+', '?' or '!' already encodes Shift in
+    // `event.key` (e.g. '+' is Shift+= on US layouts), so an unrequested Shift
+    // is only "extra" for letters, digits, Space and named keys.
+    const shiftEncodedInKey = shortcut.key.length === 1 && !/^[A-Z0-9 ]$/.test(shortcut.key);
+    if (!shortcut.shift && event.shiftKey && !shiftEncodedInKey) return false;
     if (!shortcut.meta && event.metaKey) return false;
 
     // Check key

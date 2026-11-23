@@ -420,6 +420,32 @@ describe('TwTreeComponent', () => {
       fixture.detectChanges();
     };
 
+    it('should keep a tabbable treeitem after the focused node is collapsed away', () => {
+      const tabbable = () =>
+        rows()
+          .filter(r => r.nativeElement.getAttribute('tabindex') === '0')
+          .map(r => r.nativeElement.getAttribute('aria-label'));
+
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      rows()[1].nativeElement.focus(); // focus Work
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Work']);
+
+      component.tree.toggleNode(component.nodes()[0]); // collapse Documents
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Documents']);
+
+      pressKey(rows()[0], 'ArrowRight');
+      rows()[1].nativeElement.focus();
+      component.tree.collapseAll();
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Documents']);
+
+      component.nodes.set([{ key: 'x', label: 'Fresh' }]);
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Fresh']);
+    });
+
     it('should re-render when expandAll/collapseAll are called programmatically', () => {
       component.tree.expandAll();
       fixture.detectChanges();

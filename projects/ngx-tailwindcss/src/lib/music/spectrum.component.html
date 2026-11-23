@@ -1,8 +1,8 @@
 <div [class]="containerClasses()" [ngStyle]="cssVarStyles()">
   <canvas
     #spectrumCanvas
-    [width]="effectiveWidth()"
-    [height]="effectiveHeight()"
+    [style.width.px]="effectiveWidth()"
+    [style.height.px]="effectiveHeight()"
     class="block rounded"
     role="img"
     aria-label="Audio spectrum analyzer"

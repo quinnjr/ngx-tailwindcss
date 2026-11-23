@@ -79,18 +79,21 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
   };
 
   private readonly onMouseLeave = (): void => {
-    if (this.hoverDisabled) return;
-
     if (this.hoverTimeout) {
       clearTimeout(this.hoverTimeout);
+      this.hoverTimeout = null;
     }
+
+    // Always undo applied hover classes, even if the directive was disabled
+    // while hovered; otherwise the hover state would stick
+    if (!this.isHovered) return;
 
     const remove = () => {
       this.isHovered = false;
       this.removeHoverClasses();
     };
 
-    if (this.hoverLeaveDelay > 0) {
+    if (this.hoverLeaveDelay > 0 && !this.hoverDisabled) {
       this.hoverTimeout = setTimeout(remove, this.hoverLeaveDelay);
     } else {
       remove();

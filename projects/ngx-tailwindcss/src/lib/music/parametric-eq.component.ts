@@ -16,6 +16,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type EQFilterType =
   'lowpass' | 'highpass' | 'bandpass' | 'lowshelf' | 'highshelf' | 'peaking' | 'notch';
@@ -344,13 +345,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     const height = this.height();
     const colors = this.colors();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
-    }
+    // Size the backing store for the device pixel ratio; drawing and pointer
+    // hit-testing both stay in CSS pixels
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
 
     // Clear and fill background
     this.ctx.fillStyle = colors.background;

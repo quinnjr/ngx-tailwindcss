@@ -419,7 +419,7 @@ describe('TwButtonComponent form type', () => {
     template: `
       <form (submit)="onSubmit($event)">
         <input name="field" value="initial" />
-        <tw-button [type]="type()" (click)="onClick($event)">Go</tw-button>
+        <tw-button [type]="type()" [disabled]="disabled()" (click)="onClick($event)">Go</tw-button>
       </form>
     `,
     standalone: true,
@@ -427,6 +427,7 @@ describe('TwButtonComponent form type', () => {
   })
   class FormHostComponent {
     type = signal<'button' | 'submit' | 'reset'>('submit');
+    disabled = signal(false);
     cancelClick = false;
     submitCount = 0;
     onSubmit(event: Event): void {
@@ -457,6 +458,58 @@ describe('TwButtonComponent form type', () => {
     buttonNative.click();
     await flushTimers();
     expect(host.submitCount).toBe(1);
+  });
+
+  it('should render a hidden native submit button for implicit submission', () => {
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(native).toBeTruthy();
+    expect(native.getAttribute('tabindex')).toBe('-1');
+    expect(native.getAttribute('aria-hidden')).toBe('true');
+    expect(native.disabled).toBe(false);
+  });
+
+  it('should submit exactly once on implicit submission (Enter in a field)', async () => {
+    // Browsers implement implicit submission by firing a click on the form's
+    // default (first) submit button, which is the hidden native button.
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    let submitter: unknown;
+    form.addEventListener('submit', e => (submitter = e.submitter));
+    native.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+    expect(submitter).toBe(native);
+  });
+
+  it('should submit exactly once on click, using the native button as submitter', async () => {
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    let submitter: unknown;
+    form.addEventListener('submit', e => (submitter = e.submitter));
+    (buttonNative.querySelector('span') as HTMLElement).click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+    expect(submitter).toBe(native);
+  });
+
+  it('should disable the hidden native submit button when disabled', async () => {
+    host.disabled.set(true);
+    fixture.detectChanges();
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(native.disabled).toBe(true);
+    native.click();
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should not render a native submit button for type="button" or "reset"', () => {
+    host.type.set('button');
+    fixture.detectChanges();
+    expect(buttonNative.querySelector('button')).toBeNull();
+    host.type.set('reset');
+    fixture.detectChanges();
+    expect(buttonNative.querySelector('button')).toBeNull();
   });
 
   it('should submit on keyboard activation when type="submit"', async () => {

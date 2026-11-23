@@ -15,6 +15,10 @@ import {
 import { TwClassService } from '../core/tw-class.service';
 import { TwModalComponent } from '../modal/modal.component';
 
+/** Reads the protected open state without widening the component's public API */
+const isDropdownOpen = (dropdown: TwDropdownComponent): boolean =>
+  (dropdown as unknown as { isOpen: () => boolean }).isOpen();
+
 @Component({
   template: `
     <tw-dropdown
@@ -86,14 +90,14 @@ describe('TwDropdownComponent', () => {
 
   it('should not be open initially', () => {
     // Test internal state since portal is created dynamically
-    expect(component.dropdown.isOpen()).toBe(false);
+    expect(isDropdownOpen(component.dropdown)).toBe(false);
   });
 
   it('should open when trigger is clicked', () => {
     trigger.click();
     fixture.detectChanges();
 
-    expect(component.dropdown.isOpen()).toBe(true);
+    expect(isDropdownOpen(component.dropdown)).toBe(true);
     expect(component.openedCount).toBe(1);
   });
 
@@ -104,7 +108,7 @@ describe('TwDropdownComponent', () => {
     trigger.click();
     fixture.detectChanges();
 
-    expect(component.dropdown.isOpen()).toBe(false);
+    expect(isDropdownOpen(component.dropdown)).toBe(false);
     expect(component.closedCount).toBe(1);
   });
 
@@ -123,6 +127,24 @@ describe('TwDropdownComponent', () => {
     expect(menu.parentElement).toBe(originalParent);
   });
 
+  it('should not emit closed when close() is called while already closed', () => {
+    component.dropdown.close();
+    expect(component.closedCount).toBe(0);
+  });
+
+  it('should apply a menuClass changed after the first open', () => {
+    trigger.click();
+    fixture.detectChanges();
+    trigger.click();
+    fixture.detectChanges();
+
+    component.dropdown.menuClass = 'custom-late-menu';
+    trigger.click();
+    fixture.detectChanges();
+
+    expect(document.querySelector('[role="menu"]')?.classList).toContain('custom-late-menu');
+  });
+
   it('should not open when disabled', () => {
     component.disabled.set(true);
     fixture.detectChanges();
@@ -130,7 +152,7 @@ describe('TwDropdownComponent', () => {
     trigger.click();
     fixture.detectChanges();
 
-    expect(component.dropdown.isOpen()).toBe(false);
+    expect(isDropdownOpen(component.dropdown)).toBe(false);
   });
 
   describe('trigger aria-expanded', () => {
@@ -189,7 +211,7 @@ describe('TwDropdownComponent', () => {
       keydown('ArrowDown');
       keydown('Escape');
 
-      expect(component.dropdown.isOpen()).toBe(false);
+      expect(isDropdownOpen(component.dropdown)).toBe(false);
       expect(document.activeElement).toBe(trigger);
     });
   });
@@ -214,7 +236,7 @@ describe('TwDropdownComponent', () => {
         trigger.click();
         fixture.detectChanges();
 
-        expect(component.dropdown.isOpen()).toBe(true);
+        expect(isDropdownOpen(component.dropdown)).toBe(true);
       });
     });
   });
@@ -224,7 +246,7 @@ describe('TwDropdownComponent', () => {
       component.dropdown.open();
       fixture.detectChanges();
 
-      expect(component.dropdown.isOpen()).toBe(true);
+      expect(isDropdownOpen(component.dropdown)).toBe(true);
     });
 
     it('should close via close()', () => {
@@ -234,19 +256,19 @@ describe('TwDropdownComponent', () => {
       component.dropdown.close();
       fixture.detectChanges();
 
-      expect(component.dropdown.isOpen()).toBe(false);
+      expect(isDropdownOpen(component.dropdown)).toBe(false);
     });
 
     it('should toggle via toggle()', () => {
       component.dropdown.toggle();
       fixture.detectChanges();
 
-      expect(component.dropdown.isOpen()).toBe(true);
+      expect(isDropdownOpen(component.dropdown)).toBe(true);
 
       component.dropdown.toggle();
       fixture.detectChanges();
 
-      expect(component.dropdown.isOpen()).toBe(false);
+      expect(isDropdownOpen(component.dropdown)).toBe(false);
     });
   });
 });
@@ -335,15 +357,15 @@ describe('TwDropdownComponent inside a modal', () => {
     const fixture = TestBed.createComponent(DropdownInModalHostComponent);
     fixture.detectChanges();
 
-    const ddTrigger = document.querySelector('.dd-trigger')!;
+    const ddTrigger = document.querySelector<HTMLElement>('.dd-trigger')!;
     ddTrigger.click();
     fixture.detectChanges();
-    expect(fixture.componentInstance.dropdown.isOpen()).toBe(true);
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(true);
 
     ddTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.dropdown.isOpen()).toBe(false);
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(false);
     expect(fixture.componentInstance.modalOpen()).toBe(true);
     fixture.destroy();
   });
@@ -356,11 +378,11 @@ describe('TwDropdownComponent inside a modal', () => {
     const fixture = TestBed.createComponent(DropdownInModalHostComponent);
     fixture.detectChanges();
 
-    const ddTrigger = document.querySelector('.dd-trigger')!;
+    const ddTrigger = document.querySelector<HTMLElement>('.dd-trigger')!;
     ddTrigger.click();
     fixture.detectChanges();
 
-    const item = document.querySelector('[twdropdownitem]')!;
+    const item = document.querySelector<HTMLElement>('[twdropdownitem]')!;
     const itemHandler = vi.fn();
     item.addEventListener('keydown', itemHandler);
     const escape = () =>
@@ -369,7 +391,7 @@ describe('TwDropdownComponent inside a modal', () => {
     item.dispatchEvent(escape());
     fixture.detectChanges();
     expect(itemHandler).toHaveBeenCalledTimes(1);
-    expect(fixture.componentInstance.dropdown.isOpen()).toBe(false);
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(false);
     expect(fixture.componentInstance.modalOpen()).toBe(true);
 
     ddTrigger.dispatchEvent(escape());
@@ -385,7 +407,7 @@ describe('TwDropdownComponent inside a modal', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(DropdownInModalHostComponent);
     fixture.detectChanges();
-    document.querySelector('.dd-trigger')!.click();
+    document.querySelector<HTMLElement>('.dd-trigger')!.click();
     fixture.detectChanges();
 
     const input = document.createElement('input');

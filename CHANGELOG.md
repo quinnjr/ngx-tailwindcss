@@ -18,7 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rxjs` (`^7.4.0`) is now a declared peer dependency
 - `tw-button` gains a `type` input (`'button' | 'submit' | 'reset'`, default
   `'button'`): `type="submit"` submits and `type="reset"` resets the enclosing
-  `<form>`. Previously a `tw-button` could not submit a form
+  `<form>`. Previously a `tw-button` could not submit a form. A
+  `type="submit"` button renders a visually hidden native submit button, so
+  pressing Enter in a form field submits the form (implicit submission)
+- `@angular/cdk` is now an optional peer dependency (nothing imports it)
+- `tw-breadcrumb` item `icon` accepts a `TemplateRef` or a `SafeHtml` value
+  (`BreadcrumbIcon`); plain strings are still sanitized, which strips `<svg>`
+- `tw-popover` with `trigger="click"`/`"manual"` uses dialog semantics
+  (`role="dialog"`, trigger `aria-haspopup`/`aria-expanded`/`aria-controls`);
+  `hover`/`focus` popovers keep `role="tooltip"` with `aria-describedby`
 - Boolean inputs on `tw-stack` (`wrap`, `fullWidth`), `tw-hstack` (`wrap`),
   `tw-progress` (`showValue`, `striped`, `animated`, `indeterminate`) and
   `tw-progress-circular` (`showValue`, `indeterminate`) accept bare attributes
@@ -42,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   avatar initials/status are exposed to assistive technology
 - `tw-grid` honors `rowGap` or `colGap` when only one of them is set
 - `tw-spacer size="auto"` grows inside a flex container
+- `tw-bleed` `customAmount` accepts `var(...)`/`calc(...)` values (negative
+  margins are built with `calc(-1 * ...)` instead of an invalid `-` prefix)
 - `tw-progress` uses its `label` as the progressbar's accessible name
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes

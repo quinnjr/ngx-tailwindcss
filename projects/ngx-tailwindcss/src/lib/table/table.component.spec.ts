@@ -233,6 +233,21 @@ describe('TwTableComponent', () => {
       expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith([]);
     });
 
+    it('should not toggle selection when a row-action button is clicked', () => {
+      const action = bodyRows()[0].query(By.css('[data-testid="row-action"]'));
+      action.nativeElement.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should still toggle selection when a plain cell is clicked', () => {
+      const cell = bodyRows()[0].queryAll(By.css('td'))[1];
+      cell.nativeElement.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(true);
+    });
+
     it('should apply the selected row class', () => {
       bodyRows()[0].nativeElement.click();
       fixture.detectChanges();

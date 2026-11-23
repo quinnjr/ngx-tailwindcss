@@ -415,6 +415,8 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
 
     // Keep the accumulated rotation within what the value range can absorb
     const range = this.max() - this.min();
+    // An empty range would divide by zero and write NaN
+    if (!(range > 0)) return;
     const minAngle = ((this.min() - this.startValue) / range) * this.totalAngle;
     const maxAngle = ((this.max() - this.startValue) / range) * this.totalAngle;
     this.accumulatedAngle = Math.max(

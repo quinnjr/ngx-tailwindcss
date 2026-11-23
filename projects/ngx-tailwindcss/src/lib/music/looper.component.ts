@@ -16,6 +16,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, interval, switchMap } from 'rxjs';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type LooperVariant = 'default' | 'minimal' | 'compact' | 'studio';
 export type LooperSize = 'sm' | 'md' | 'lg';
@@ -137,6 +138,10 @@ export class TwLooperComponent implements OnDestroy {
   private destroyed = false;
   // Start playback automatically once the first recording has been decoded
   private pendingAutoPlay = false;
+  // A take is being set up (awaiting mic access / count-in); blocks re-entry
+  private takeStarting = false;
+  // Bumped by clear(): a take still being set up must not start afterwards
+  private takeGeneration = 0;
   // Playhead anchor: loop position (s) at playbackAnchorTime (AudioContext time)
   private playbackAnchorTime = 0;
   private playbackAnchorPosition = 0;
@@ -229,23 +234,37 @@ export class TwLooperComponent implements OnDestroy {
 
   // Main control methods
   async record(): Promise<void> {
-    // Starting a second take would orphan the running MediaRecorder (and the mic)
-    if (this.disabled() || this.state() === 'recording' || this.state() === 'overdubbing') return;
+    // Starting a second take (including while one is still being set up, e.g.
+    // during the count-in) would orphan the running MediaRecorder and the mic
+    if (this.disabled() || this.takeStarting || this.isTakeActive()) return;
 
-    await this.initAudio();
-    if (this.destroyed || !this.audioContext) return;
+    this.takeStarting = true;
+    const generation = this.takeGeneration;
+    try {
+      await this.initAudio();
+      if (this.destroyed || !this.audioContext || generation !== this.takeGeneration) return;
 
-    // Microphone unavailable: surface the error and do NOT enter recording state
-    if (!this.mediaStream) {
-      this.error.emit(this.micErrorMessage ?? 'No microphone available for recording');
-      return;
-    }
+      // Microphone unavailable: surface the error and do NOT enter recording state
+      if (!this.mediaStream) {
+        this.error.emit(this.micErrorMessage ?? 'No microphone available for recording');
+        return;
+      }
 
-    // Count-in if enabled
-    if (this.countIn() && this.state() === 'idle') {
-      await this.performCountIn();
-      // Destroyed during the count-in: the audio graph is gone
-      if (this.destroyed || !this.audioContext || !this.mediaStream) return;
+      // Count-in if enabled
+      if (this.countIn() && this.state() === 'idle') {
+        await this.performCountIn();
+        // Destroyed or cleared during the count-in
+        if (
+          this.destroyed ||
+          !this.audioContext ||
+          !this.mediaStream ||
+          generation !== this.takeGeneration
+        ) {
+          return;
+        }
+      }
+    } finally {
+      this.takeStarting = false;
     }
 
     this.setState('recording');
@@ -291,7 +310,13 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   play(): void {
-    if (this.disabled() || this.layers().length === 0) return;
+    if (this.disabled()) return;
+    // Finish an in-progress take first; otherwise its recorder and click track
+    // keep running with no way to stop them once the state is 'playing'
+    if (this.isTakeActive()) {
+      void this.stopRecording();
+    }
+    if (this.layers().length === 0) return;
 
     this.setState('playing');
     this.currentPosition.set(0);
@@ -301,6 +326,12 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   stop(): void {
+    // Finish an in-progress take (its layer is still added), but an explicit
+    // stop must not be followed by auto-play
+    if (this.isTakeActive()) {
+      void this.stopRecording();
+    }
+    this.pendingAutoPlay = false;
     this.stopAllPlayback();
     this.setState('stopped');
     this.currentPosition.set(0);
@@ -308,10 +339,19 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   async overdub(): Promise<void> {
-    if (this.disabled() || this.loopDuration() === 0) return;
+    // Same re-entry guard as record(): never orphan a running MediaRecorder
+    if (this.disabled() || this.loopDuration() === 0 || this.takeStarting || this.isTakeActive()) {
+      return;
+    }
 
-    await this.initAudio();
-    if (this.destroyed || !this.audioContext) return;
+    this.takeStarting = true;
+    const generation = this.takeGeneration;
+    try {
+      await this.initAudio();
+    } finally {
+      this.takeStarting = false;
+    }
+    if (this.destroyed || !this.audioContext || generation !== this.takeGeneration) return;
 
     // Microphone unavailable: surface the error and do NOT enter overdub state
     if (!this.mediaStream) {
@@ -341,6 +381,8 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   clear(): void {
+    // Cancel a take that is still being set up (mic prompt / count-in)
+    this.takeGeneration++;
     // Abandon any in-progress take: otherwise the recorder (and click track)
     // keeps running with no way to stop it once the state is 'idle'
     this.stopClickTrack();
@@ -479,6 +521,10 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   // Helper methods
+  private isTakeActive(): boolean {
+    return this.state() === 'recording' || this.state() === 'overdubbing';
+  }
+
   private setState(newState: LooperState): void {
     this.state.set(newState);
     this.stateChange.emit(newState);
@@ -737,8 +783,10 @@ export class TwLooperComponent implements OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width } = canvas;
-    const { height } = canvas;
+    // Size the backing store for the device pixel ratio; drawing uses the
+    // nominal (CSS) canvas size
+    const { width, height } = this.canvasSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
 
     // Clear canvas
     ctx.fillStyle = 'rgb(30, 41, 59)'; // slate-800
@@ -802,8 +850,10 @@ export class TwLooperComponent implements OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const { width, height } = this.canvasSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     ctx.fillStyle = 'rgb(30, 41, 59)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, width, height);
   }
 
   // Computed classes

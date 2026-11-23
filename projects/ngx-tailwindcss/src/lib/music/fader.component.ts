@@ -70,6 +70,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   ngOnDestroy(): void {
     if (this.peakHoldTimeout) {
       clearTimeout(this.peakHoldTimeout);
+      this.peakHoldTimeout = null;
     }
     this.dragController?.abort();
     this.dragController = null;
@@ -403,8 +404,12 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
       // Set decay timeout
       this.peakHoldTimeout = setTimeout(() => {
+        this.peakHoldTimeout = null;
         this.peakHoldLevel.set(this.peakLevel());
       }, this.peakHoldTime());
+    } else if (this.peakHoldTimeout === null) {
+      // Hold period over: the indicator follows the level down instead of sticking
+      this.peakHoldLevel.set(level);
     }
   }
 

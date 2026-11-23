@@ -304,6 +304,52 @@ describe('TwClassService', () => {
         );
       });
 
+      it.each([
+        // [input, expected] - mirrors tailwind-merge semantics
+        ['rounded-lg rounded-t-none', 'rounded-lg rounded-t-none'],
+        ['rounded-t-none rounded-lg', 'rounded-lg'],
+        ['rounded-tl-none rounded-t-lg', 'rounded-t-lg'],
+        ['shadow-none shadow-lg', 'shadow-lg'],
+        ['bg-gradient-to-r bg-linear-to-r', 'bg-linear-to-r'],
+        ['text-sm/6 text-lg', 'text-lg'],
+        [
+          'text-[length:var(--x)] text-[color:var(--y)]',
+          'text-[length:var(--x)] text-[color:var(--y)]',
+        ],
+        ['outline-none outline', 'outline-none outline'],
+        ['ring ring-0', 'ring-0'],
+        ['border-t-2 border-2', 'border-2'],
+        ['border-2 border-t-4', 'border-2 border-t-4'],
+        ['border border-t-0', 'border border-t-0'],
+        ['border-l-2 border-x-4', 'border-x-4'],
+        ['border-2 border-dashed', 'border-2 border-dashed'],
+        ['border-dashed border-solid', 'border-solid'],
+        ['border-[3px] border-[#fff]', 'border-[3px] border-[#fff]'],
+        ['border-red-500 border-t-blue-500', 'border-red-500 border-t-blue-500'],
+        ['border-t-blue-500 border-red-500', 'border-red-500'],
+        [
+          'border-separate border-s-2 border-emerald-500',
+          'border-separate border-s-2 border-emerald-500',
+        ],
+        ['p-2 px-4', 'p-2 px-4'],
+        ['pl-2 px-4', 'px-4'],
+        ['ms-2 mx-4', 'mx-4'],
+        ['inset-0 top-2', 'inset-0 top-2'],
+        ['top-2 inset-0', 'inset-0'],
+        ['top-2 top-4', 'top-4'],
+        ['left-2 inset-x-0', 'inset-x-0'],
+        ['inset-0 inset-shadow-sm', 'inset-0 inset-shadow-sm'],
+        ['w-4 h-4 size-6', 'size-6'],
+        ['grid-cols-2 grid-cols-[1fr_2fr]', 'grid-cols-[1fr_2fr]'],
+        ['md:hover:p-2 hover:md:p-4', 'hover:md:p-4'],
+        ['before:hover:p-2 hover:before:p-4', 'before:hover:p-2 hover:before:p-4'],
+        ['-mt-2 mt-4', 'mt-4'],
+        ['flex-1 flex-grow-0 grow', 'flex-1 grow'],
+        ['hidden table', 'table'],
+      ])('merges %s -> %s', (input, expected) => {
+        expect(service.merge(input)).toBe(expected);
+      });
+
       it('should honor the Tailwind v4 trailing important modifier', () => {
         expect(service.merge('flex!', 'grid')).toBe('grid');
         expect(service.merge('ring-2! ring-blue-500')).toBe('ring-2! ring-blue-500');
@@ -527,6 +573,18 @@ describe('TwClassService', () => {
     it('should return empty string for unconfigured variant', () => {
       const result = service.getVariantClasses('tertiary');
       expect(result).toBe('');
+    });
+  });
+
+  describe('with a raw TW_CONFIG partial theme', () => {
+    it('should keep default variants that the partial theme omits', () => {
+      TestBed.configureTestingModule({
+        providers: [{ provide: TW_CONFIG, useValue: { theme: { primary: 'bg-purple-600' } } }],
+      });
+      const service = TestBed.inject(TwClassService);
+
+      expect(service.getVariantClasses('primary')).toBe('bg-purple-600');
+      expect(service.getVariantClasses('danger')).toContain('bg-rose-600');
     });
   });
 

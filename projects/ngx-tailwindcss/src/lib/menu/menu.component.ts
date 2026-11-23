@@ -1,10 +1,12 @@
 import {
+  afterNextRender,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
   inject,
+  Injector,
   input,
   output,
   signal,
@@ -57,6 +59,7 @@ export class TwMenuComponent {
   private readonly twClass = inject(TwClassService);
   private readonly elementRef = inject(ElementRef);
   private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
 
   /** Menu items */
   readonly items = input<MenuItem[]>([]);
@@ -135,6 +138,42 @@ export class TwMenuComponent {
     this.openSubmenu.set(null);
   }
 
+  /**
+   * ArrowRight / Enter / Space on a submenu trigger: open the submenu and move
+   * focus to its first enabled item (WAI-ARIA menu pattern).
+   */
+  protected openSubmenuFromKeyboard(item: MenuItem, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (item.disabled) return;
+    const trigger = event.currentTarget as HTMLElement;
+    this.openSubmenu.set(item);
+    afterNextRender(
+      () => {
+        const submenu = trigger.parentElement?.querySelector<HTMLElement>(':scope > [role="menu"]');
+        if (submenu) this.menuItemsOf(submenu)[0]?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  /** ArrowLeft / Escape inside a submenu: close it and return focus to its trigger */
+  protected closeSubmenuToTrigger(trigger: HTMLElement, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.onSubmenuLeave();
+    trigger.focus();
+  }
+
+  /** Enabled items that belong directly to `menu` (not to a nested submenu) */
+  private menuItemsOf(menu: HTMLElement): HTMLElement[] {
+    return [
+      ...menu.querySelectorAll<HTMLElement>(
+        '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+      ),
+    ].filter(el => el.parentElement?.closest('[role="menu"]') === menu);
+  }
+
   onItemClick(item: MenuItem): void {
     if (item.disabled) return;
 
@@ -157,11 +196,13 @@ export class TwMenuComponent {
     const { key } = event;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) return;
 
-    const menuItems = [
-      ...(this.elementRef.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
-        '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
-      ),
-    ];
+    // Navigate within the (sub)menu the key was pressed in, not across all levels
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const menu =
+      (event.target as HTMLElement | null)?.closest<HTMLElement>('[role="menu"]') ??
+      host.querySelector<HTMLElement>('[role="menu"]');
+    if (!menu || !host.contains(menu)) return;
+    const menuItems = this.menuItemsOf(menu);
     if (menuItems.length === 0) return;
 
     event.preventDefault();

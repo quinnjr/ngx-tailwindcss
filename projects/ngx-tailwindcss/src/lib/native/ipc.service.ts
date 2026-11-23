@@ -2,7 +2,11 @@ import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { IpcResponse } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
-import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
+import {
+  isElectronIpcAvailable,
+  loadElectronIpc,
+  subscribeElectronIpc,
+} from './electron-bridge.util';
 
 type IpcCallback<T> = (data: T) => void;
 
@@ -46,7 +50,11 @@ export class NativeIpcService implements OnDestroy {
     if (this.platformService.isTauri()) {
       this._isConnected.set(true);
     } else if (this.platformService.isElectron()) {
-      this._isConnected.set(true);
+      // Electron detected (e.g. by user agent) does not imply a reachable
+      // ipcRenderer: that needs a preload bridge or nodeIntegration.
+      void isElectronIpcAvailable().then(available => {
+        this._isConnected.set(available);
+      });
     }
   }
 
@@ -162,7 +170,20 @@ export class NativeIpcService implements OnDestroy {
     if (!this.listeners.has(channel)) {
       this.listeners.set(channel, new Map());
     }
-    this.listeners.get(channel)!.set(callback as IpcCallback<unknown>, unlisten);
+    const channelListeners = this.listeners.get(channel)!;
+    // The same callback registered twice keeps both platform listeners; chain
+    // their teardowns so neither leaks when the entry is overwritten.
+    const previous = channelListeners.get(callback as IpcCallback<unknown>);
+    const current = unlisten;
+    channelListeners.set(
+      callback as IpcCallback<unknown>,
+      previous
+        ? () => {
+            previous();
+            current();
+          }
+        : current
+    );
 
     return () => {
       this.off(channel, callback as IpcCallback<unknown>);
@@ -195,10 +216,11 @@ export class NativeIpcService implements OnDestroy {
             callback(data);
           });
         });
+        return;
       } catch (error) {
+        // No reachable ipcRenderer: fall back to window events, like on()
         console.warn('Electron once failed:', error);
       }
-      return;
     }
 
     // Browser fallback

@@ -399,6 +399,13 @@ export class AudioContextService implements OnDestroy {
   async loadAudioBuffer(url: string): Promise<AudioBuffer> {
     const ctx = this.getContext();
     const response = await fetch(url);
+    if (!response.ok) {
+      // Otherwise the error page body is handed to decodeAudioData, which
+      // fails with an opaque EncodingError instead of the HTTP status
+      throw new Error(
+        `Failed to load audio from ${url}: ${response.status} ${response.statusText}`
+      );
+    }
     const arrayBuffer = await response.arrayBuffer();
     return ctx.decodeAudioData(arrayBuffer);
   }
@@ -694,6 +701,16 @@ export class AudioContextService implements OnDestroy {
   disconnectSource(id: string): void {
     const source = this._sources().get(id);
     if (!source) return;
+
+    // A started oscillator/buffer source keeps rendering (and stays alive)
+    // even once disconnected from the graph; stop it so it is released
+    if (source.type === 'oscillator' || source.type === 'buffer') {
+      try {
+        (source.node as AudioScheduledSourceNode).stop();
+      } catch {
+        // Never started (stop() before start() throws InvalidStateError)
+      }
+    }
 
     try {
       source.node.disconnect();

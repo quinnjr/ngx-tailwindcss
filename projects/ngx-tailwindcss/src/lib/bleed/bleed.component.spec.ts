@@ -145,6 +145,33 @@ describe('TwBleedComponent', () => {
       expect(getInner().style.marginRight).toBe('-3rem');
       expect(getInner().style.width || '').toBe('');
     });
+
+    it('should negate var() custom amounts with calc() instead of a "-" prefix', () => {
+      component.direction.set('all');
+      component.customAmount.set('var(--gutter)');
+      fixture.detectChanges();
+
+      const styles = (
+        component.bleed as unknown as { bleedStyles: () => Record<string, string> }
+      ).bleedStyles();
+      for (const side of ['marginLeft', 'marginRight', 'marginTop', 'marginBottom']) {
+        expect(styles[side]).toBe('calc(-1 * var(--gutter))');
+      }
+    });
+
+    it('should negate calc() custom amounts with calc()', () => {
+      component.direction.set('left');
+      component.customAmount.set('calc(1rem + 2px)');
+      component.preservePadding.set(true);
+      fixture.detectChanges();
+
+      const styles = (
+        component.bleed as unknown as { bleedStyles: () => Record<string, string> }
+      ).bleedStyles();
+      expect(styles['marginLeft']).toBe('calc(-1 * calc(1rem + 2px))');
+      expect(styles['paddingLeft']).toBe('calc(1rem + 2px)');
+      expect(getInner().style.marginLeft).not.toBe('');
+    });
   });
 
   describe('class customization', () => {

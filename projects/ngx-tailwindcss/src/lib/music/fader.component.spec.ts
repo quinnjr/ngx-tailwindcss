@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwFaderComponent } from './fader.component';
 
 describe('TwFaderComponent', () => {
@@ -112,6 +112,25 @@ describe('TwFaderComponent', () => {
       fixture.detectChanges();
 
       expect(held()).toBe(80);
+    });
+
+    it('should follow the level down once the hold time has elapsed', () => {
+      vi.useFakeTimers();
+      try {
+        fixture.componentRef.setInput('peakHoldTime', 100);
+        fixture.componentRef.setInput('peakLevel', 80);
+        fixture.detectChanges();
+        fixture.componentRef.setInput('peakLevel', 30);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(150);
+        expect(held()).toBe(30);
+
+        fixture.componentRef.setInput('peakLevel', 0);
+        fixture.detectChanges();
+        expect(held()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

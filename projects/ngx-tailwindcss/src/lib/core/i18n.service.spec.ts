@@ -169,6 +169,16 @@ describe('TwI18nService', () => {
       expect(service.translate('common.close')).toBe('Fermer');
       expect(service.translate('common.loading')).toBe('Loading...');
     });
+
+    it('should accept a partial section without spreading the defaults', () => {
+      TestBed.configureTestingModule({
+        providers: [provideTwTranslations({ common: { close: 'Fermer' } })],
+      });
+      const service = TestBed.inject(TwI18nService);
+
+      expect(service.translate('common.close')).toBe('Fermer');
+      expect(service.translate('common.cancel')).toBe(TW_DEFAULT_TRANSLATIONS.common.cancel);
+    });
   });
 
   describe('getComponentTranslations()', () => {

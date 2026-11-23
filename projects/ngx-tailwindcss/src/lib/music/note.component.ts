@@ -6,7 +6,7 @@ import {
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import type { ClefType } from './staff.component';
+import { type ClefType, getKeySignatureAlteration, type KeySignature } from './staff.component';
 
 export type NoteDuration = 'whole' | 'half' | 'quarter' | 'eighth' | 'sixteenth' | 'thirtysecond';
 export type NoteAccidental = 'sharp' | 'flat' | 'natural' | 'doubleSharp' | 'doubleFlat' | null;
@@ -35,13 +35,161 @@ export interface NoteData {
   name: NoteName;
   octave: number;
   duration: NoteDuration;
+  /**
+   * The accidental *written* in front of the note, following standard notation: when absent
+   * (null/undefined) the note takes its pitch from the key signature and from any accidental
+   * written earlier in the same measure on the same staff position (letter + octave). E.g. in
+   * G major an F with no accidental sounds F#; write `'natural'` for F natural.
+   * Rendering, playback/export (MIDI, MusicXML `<alter>`) and transposition all resolve
+   * pitches this way; use {@link createAccidentalContext} to do the same.
+   */
   accidental?: NoteAccidental;
+  /** A rest of `duration`; name/octave only set where it is drawn, accidental is ignored */
+  isRest?: boolean;
   dotted?: boolean;
   doubleDotted?: boolean;
   tied?: boolean;
   stemDirection?: StemDirection;
   tuplet?: TupletConfig;
   beam?: BeamConfig;
+}
+
+/** Note name/octave on the middle staff line of each clef (where rests are drawn) */
+export const CLEF_MIDDLE_LINE_NOTE: Record<ClefType, { name: NoteName; octave: number }> = {
+  treble: { name: 'B', octave: 4 },
+  bass: { name: 'D', octave: 3 },
+  alto: { name: 'C', octave: 4 },
+  tenor: { name: 'A', octave: 3 },
+  percussion: { name: 'B', octave: 4 },
+};
+
+/** Semitone alteration of each written accidental */
+export const ACCIDENTAL_ALTERATION: Record<Exclude<NoteAccidental, null>, number> = {
+  sharp: 1,
+  flat: -1,
+  natural: 0,
+  doubleSharp: 2,
+  doubleFlat: -2,
+};
+
+/**
+ * Resolves written accidentals (see {@link NoteData.accidental}) to sounding alterations for
+ * one staff. Feed it the notes of each measure in time order and call `nextMeasure()` at
+ * every bar line.
+ */
+export interface AccidentalContext {
+  /**
+   * Sounding alteration in semitones (-2..2) of a written note. An explicit accidental is
+   * remembered for the rest of the measure. Rests resolve to 0 and change nothing.
+   */
+  resolve(note: Pick<NoteData, 'name' | 'octave' | 'accidental' | 'isRest'>): number;
+  /**
+   * The accidental to write for a note that should sound with `alteration`: null when the
+   * key signature / earlier accidentals already imply it. The result is remembered like
+   * `resolve()` does.
+   */
+  spell(name: NoteName, octave: number, alteration: number): NoteAccidental;
+  /** Start a new measure (accidentals from the previous one no longer apply) */
+  nextMeasure(): void;
+}
+
+/** Written accidental for a semitone alteration (-2..2) */
+export const ACCIDENTAL_FOR_ALTERATION: Record<number, Exclude<NoteAccidental, null>> = {
+  [-2]: 'doubleFlat',
+  [-1]: 'flat',
+  0: 'natural',
+  1: 'sharp',
+  2: 'doubleSharp',
+};
+
+export function createAccidentalContext(keySignature: KeySignature): AccidentalContext {
+  const measureAccidentals = new Map<string, number>();
+  const implied = (name: NoteName, octave: number): number =>
+    measureAccidentals.get(`${name}${octave}`) ?? getKeySignatureAlteration(keySignature, name);
+
+  return {
+    resolve(note) {
+      if (note.isRest) return 0;
+      if (note.accidental) {
+        const alteration = ACCIDENTAL_ALTERATION[note.accidental];
+        measureAccidentals.set(`${note.name}${note.octave}`, alteration);
+        return alteration;
+      }
+      return implied(note.name, note.octave);
+    },
+    spell(name, octave, alteration) {
+      if (implied(name, octave) === alteration) return null;
+      measureAccidentals.set(`${name}${octave}`, alteration);
+      return ACCIDENTAL_FOR_ALTERATION[alteration] ?? null;
+    },
+    nextMeasure() {
+      measureAccidentals.clear();
+    },
+  };
+}
+
+const NATURAL_PITCH_CLASS: Record<NoteName, number> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+};
+const SHARP_SPELLINGS: Array<[NoteName, number]> = [
+  ['C', 0],
+  ['C', 1],
+  ['D', 0],
+  ['D', 1],
+  ['E', 0],
+  ['F', 0],
+  ['F', 1],
+  ['G', 0],
+  ['G', 1],
+  ['A', 0],
+  ['A', 1],
+  ['B', 0],
+];
+const FLAT_SPELLINGS: Array<[NoteName, number]> = [
+  ['C', 0],
+  ['D', -1],
+  ['D', 0],
+  ['E', -1],
+  ['E', 0],
+  ['F', 0],
+  ['G', -1],
+  ['G', 0],
+  ['A', -1],
+  ['A', 0],
+  ['B', -1],
+  ['B', 0],
+];
+
+/**
+ * Spell a MIDI pitch as a letter, octave and sounding alteration. The key signature's own
+ * letters are used when the pitch belongs to the key (F# in G major, Cb in Gb major);
+ * otherwise `preferFlats` (default: whether the key has flats) chooses sharps or flats.
+ */
+export function spellMidiPitch(
+  midi: number,
+  keySignature: KeySignature = 'C',
+  preferFlats?: boolean
+): { name: NoteName; octave: number; alteration: number } {
+  const pitchClass = ((midi % 12) + 12) % 12;
+  const names = Object.keys(NATURAL_PITCH_CLASS) as NoteName[];
+  const keyLetter = names.find(
+    n =>
+      (((NATURAL_PITCH_CLASS[n] + getKeySignatureAlteration(keySignature, n)) % 12) + 12) % 12 ===
+      pitchClass
+  );
+  const useFlats = preferFlats ?? names.some(n => getKeySignatureAlteration(keySignature, n) < 0);
+  const [name, alteration] = keyLetter
+    ? [keyLetter, getKeySignatureAlteration(keySignature, keyLetter)]
+    : (useFlats ? FLAT_SPELLINGS : SHARP_SPELLINGS)[pitchClass];
+  // Octave of the written letter (Cb5 sounds as B4, B#3 as C4)
+  const octave = Math.floor((midi - NATURAL_PITCH_CLASS[name] - alteration) / 12) - 1;
+  return { name, octave, alteration };
 }
 
 // Unicode musical symbols

@@ -420,4 +420,20 @@ describe('TwRadioGroupComponent (nested groups)', () => {
     expect(fixture.componentInstance.outer.value).toBe('b');
     expect(fixture.componentInstance.inner.value).toBe('x');
   });
+
+  it('should only mark the group whose own radio lost focus as touched', () => {
+    const fixture = TestBed.createComponent(NestedGroupsHostComponent);
+    fixture.detectChanges();
+    const [a, x]: HTMLInputElement[] = [
+      ...fixture.nativeElement.querySelectorAll('input[type="radio"]'),
+    ];
+    const { outer, inner } = fixture.componentInstance;
+
+    x.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(inner.touched).toBe(true);
+    expect(outer.touched).toBe(false);
+
+    a.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(outer.touched).toBe(true);
+  });
 });

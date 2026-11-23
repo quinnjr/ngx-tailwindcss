@@ -379,6 +379,13 @@ export class TwLeadSheetComponent {
     this.measureClick.emit({ section: sectionIndex, measure: measureIndex });
   }
 
+  // The per-measure button (keyboard access); stop the click reaching the measure's own
+  // click handler so measureClick is emitted once
+  protected activateMeasure(event: Event, sectionIndex: number, measureIndex: number): void {
+    event.stopPropagation();
+    this.onMeasureClick(sectionIndex, measureIndex);
+  }
+
   // Get chord diagram for a chord symbol
   protected getChordDiagram(chord: LeadSheetChord): ChordDefinition | null {
     // First check if diagram is explicitly provided

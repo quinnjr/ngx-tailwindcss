@@ -142,6 +142,13 @@ describe('TwMetronomeComponent subdivisions', () => {
   })
   class SubdivisionHostComponent {}
 
+  @Component({
+    template: `<tw-metronome [bpm]="120" [subdivisions]="0"></tw-metronome>`,
+    standalone: true,
+    imports: [TwMetronomeComponent],
+  })
+  class ZeroSubdivisionHostComponent {}
+
   beforeEach(() => {
     frequencies.length = 0;
     currentTime = 0;
@@ -173,6 +180,26 @@ describe('TwMetronomeComponent subdivisions', () => {
     expect(frequencies[3]).toBe(600);
     expect(frequencies[0]).not.toBe(600);
     expect(frequencies[2]).not.toBe(600);
+    fixture.destroy();
+  });
+
+  it('should keep the beat interval in step with the sanitized subdivision count', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ZeroSubdivisionHostComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ZeroSubdivisionHostComponent);
+    fixture.detectChanges();
+    const metronome = fixture.debugElement.query(By.directive(TwMetronomeComponent))
+      .componentInstance as unknown as { start(): Promise<void>; scheduler(): void; stop(): void };
+
+    await metronome.start();
+    // subdivisions=0 is treated as 1: 120 bpm => main beats at 0.05 and 0.55
+    currentTime = 0.9;
+    metronome.scheduler();
+    metronome.stop();
+
+    expect(frequencies.length).toBe(2);
+    expect(frequencies).not.toContain(600);
     fixture.destroy();
   });
 });

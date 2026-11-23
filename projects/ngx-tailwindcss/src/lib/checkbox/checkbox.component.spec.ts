@@ -391,3 +391,18 @@ describe('TwCheckboxComponent (regressions)', () => {
     expect(input.getAttribute('aria-checked')).toBe('true');
   });
 });
+
+@Component({
+  template: `<tw-checkbox disabled="true">X</tw-checkbox>`,
+  standalone: true,
+  imports: [TwCheckboxComponent],
+})
+class CheckboxStringAttrHostComponent {}
+
+describe('TwCheckboxComponent (round 3)', () => {
+  it('should treat disabled="true" as disabled', () => {
+    const fixture = TestBed.createComponent(CheckboxStringAttrHostComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('input').disabled).toBe(true);
+  });
+});

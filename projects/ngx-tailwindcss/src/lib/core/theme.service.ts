@@ -38,6 +38,8 @@ export class TwThemeService {
 
   private readonly STORAGE_KEY = 'tw-color-mode';
   private mediaQuery: MediaQueryList | null = null;
+  /** CSS custom properties written to the root element by the current theme */
+  private appliedProperties = new Set<string>();
 
   /** Current theme configuration */
   public readonly theme = signal<TwTheme>(this.injectedTheme ?? DEFAULT_THEME);
@@ -78,7 +80,7 @@ export class TwThemeService {
    * Sets up listener for system color scheme changes
    */
   private setupSystemPreferenceListener(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -95,9 +97,13 @@ export class TwThemeService {
    * Gets the saved color mode from localStorage
    */
   private getSavedColorMode(): ColorMode | null {
-    if (typeof localStorage === 'undefined') return null;
-
-    const saved = localStorage.getItem(this.STORAGE_KEY);
+    let saved: string | null;
+    try {
+      // Accessing localStorage throws when storage is blocked (e.g. privacy settings)
+      saved = typeof localStorage === 'undefined' ? null : localStorage.getItem(this.STORAGE_KEY);
+    } catch {
+      return null;
+    }
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }
@@ -111,7 +117,11 @@ export class TwThemeService {
     this.colorMode.set(mode);
 
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem(this.STORAGE_KEY, mode);
+      try {
+        localStorage.setItem(this.STORAGE_KEY, mode);
+      } catch {
+        // Storage unavailable or full; the mode still applies for this session
+      }
     }
 
     this.updateColorMode();
@@ -179,9 +189,16 @@ export class TwThemeService {
     const properties = mode === 'dark' ? cssProps.dark : cssProps.light;
 
     const root = this.document.documentElement;
+    // Drop properties set by a previous theme that the current one no longer defines
+    for (const prop of this.appliedProperties) {
+      if (!(prop in properties)) {
+        root.style.removeProperty(prop);
+      }
+    }
     for (const [prop, value] of Object.entries(properties)) {
       root.style.setProperty(prop, value);
     }
+    this.appliedProperties = new Set(Object.keys(properties));
   }
 
   /**

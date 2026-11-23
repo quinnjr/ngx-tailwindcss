@@ -759,10 +759,19 @@ export class NativePlatformService {
       return openExternal(path);
     }
 
-    // Browser fallback
+    // Browser fallback. Only navigable web schemes: a `javascript:` (or
+    // `data:`) URL would run script in a window that inherits this app's origin
+    const url = new URL(path, window.location.href);
+    if (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)) {
+      throw new UnsupportedOnPlatformError(
+        `openExternal (${url.protocol} URL)`,
+        'browser',
+        'Only http(s), mailto and tel URLs can be opened.'
+      );
+    }
     // noopener: the opened page must not get a window.opener handle to this
     // app (reverse tabnabbing)
-    window.open(path, '_blank', 'noopener,noreferrer');
+    window.open(url.href, '_blank', 'noopener,noreferrer');
   }
 
   // =========================================================================

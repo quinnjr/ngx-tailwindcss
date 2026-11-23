@@ -330,9 +330,10 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        if (this.isOpen() && event.key === 'Enter') {
+        // APG select-only combobox: when open, Enter/Space select the active option and close
+        if (this.isOpen()) {
           const active = this.navigableOptions()[this.activeIndex()];
-          if (active) {
+          if (active && !active.disabled) {
             this.selectOption(active);
             break;
           }
@@ -341,7 +342,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
         break;
       }
       case 'Escape': {
-        this.closeDropdown();
+        // Claim Escape only while open so an enclosing modal/overlay stays open
+        if (this.isOpen()) {
+          event.preventDefault();
+          this.closeDropdown();
+        }
         break;
       }
       case 'ArrowDown': {

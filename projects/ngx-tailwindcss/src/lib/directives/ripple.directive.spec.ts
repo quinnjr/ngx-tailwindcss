@@ -34,6 +34,22 @@ class TestHostComponent {
   rippleCentered = signal(false);
 }
 
+@Component({
+  template: `<button twRipple style="position: fixed" data-testid="fixed-button">Fab</button>`,
+  standalone: true,
+  imports: [TwRippleDirective],
+})
+class FixedHostComponent {}
+
+describe('TwRippleDirective on a positioned host', () => {
+  it('should not override a non-static host position', () => {
+    const fixture = TestBed.createComponent(FixedHostComponent);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('[data-testid="fixed-button"]');
+    expect(button.style.position).toBe('fixed');
+  });
+});
+
 describe('TwRippleDirective', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
@@ -58,6 +74,10 @@ describe('TwRippleDirective', () => {
 
   it('should set overflow hidden on host element', () => {
     expect(buttonNative.style.overflow).toBe('hidden');
+  });
+
+  it('should give a statically positioned host a containing block', () => {
+    expect(buttonNative.style.position).toBe('relative');
   });
 
   it('should have default ripple color', () => {

@@ -7,6 +7,7 @@ import {
   EventEmitter,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   Output,
   signal,
@@ -95,8 +96,14 @@ export class TwTreeComponent {
   /** Selection is held as a Set internally for O(1) lookups; emitted as an array. */
   protected selection = signal<ReadonlySet<TreeNode>>(new Set());
 
-  /** Node currently owning the roving tabindex. */
-  protected readonly focusedNode = signal<TreeNode | null>(null);
+  /**
+   * Node currently owning the roving tabindex. Reset when `nodes` is replaced, so a
+   * node from the old tree can't leave the new tree without any tabbable item.
+   */
+  protected readonly focusedNode = linkedSignal<TreeNode[], TreeNode | null>({
+    source: this.nodes,
+    computation: () => null,
+  });
 
   protected containerClasses = computed(() => {
     return this.twClass.merge('py-2', this.classOverride());
@@ -238,6 +245,9 @@ export class TwTreeComponent {
 
   toggleNode(node: TreeNode): void {
     node.expanded = !node.expanded;
+    // Collapsing hides the focused descendant: hand the roving tabindex to the
+    // collapsed node so the tree stays reachable with Tab
+    if (!node.expanded) this.ensureFocusedNodeVisible(node);
     // Node objects are mutated in place, so the OnPush view must be marked explicitly
     // (programmatic calls do not originate from a template event in this view)
     this.cdr.markForCheck();
@@ -421,7 +431,16 @@ export class TwTreeComponent {
       });
     };
     collapseNodes(this.nodes());
+    this.ensureFocusedNodeVisible(null);
     this.cdr.markForCheck();
+  }
+
+  /** Moves the roving tabindex to `fallback` (or the first root) if its node got hidden. */
+  private ensureFocusedNodeVisible(fallback: TreeNode | null): void {
+    const focused = this.focusedNode();
+    if (focused && !this.getVisibleNodes().includes(focused)) {
+      this.focusedNode.set(fallback);
+    }
   }
 
   /** Get selected nodes */

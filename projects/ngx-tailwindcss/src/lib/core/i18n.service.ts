@@ -544,9 +544,17 @@ export const TW_DEFAULT_TRANSLATIONS: TwTranslations = {
 };
 
 /**
+ * Partial translation overrides: any section, and any key within a section,
+ * may be omitted (missing keys fall back to the defaults).
+ */
+export type TwTranslationOverrides = {
+  [K in keyof TwTranslations]?: Partial<TwTranslations[K]>;
+};
+
+/**
  * Injection token for providing custom translations.
  */
-export const TW_TRANSLATIONS = new InjectionToken<Partial<TwTranslations>>('TW_TRANSLATIONS');
+export const TW_TRANSLATIONS = new InjectionToken<TwTranslationOverrides>('TW_TRANSLATIONS');
 
 /**
  * Injection token for the current locale.
@@ -564,7 +572,7 @@ const RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'yi', 'dv']);
 @Injectable({ providedIn: 'root' })
 export class TwI18nService {
   private readonly document = inject(DOCUMENT);
-  private readonly customTranslations = signal<Partial<TwTranslations> | null>(null);
+  private readonly customTranslations = signal<TwTranslationOverrides | null>(null);
   private readonly _locale = signal<string>('en');
   private readonly _direction = signal<'ltr' | 'rtl'>('ltr');
 
@@ -635,7 +643,7 @@ export class TwI18nService {
   /**
    * Set custom translations (merged with defaults).
    */
-  setTranslations(translations: Partial<TwTranslations>): void {
+  setTranslations(translations: TwTranslationOverrides): void {
     this.customTranslations.set(translations);
   }
 
@@ -716,7 +724,7 @@ export class TwI18nService {
 /**
  * Provider function for custom translations.
  */
-export function provideTwTranslations(translations: Partial<TwTranslations>) {
+export function provideTwTranslations(translations: TwTranslationOverrides) {
   return {
     provide: TW_TRANSLATIONS,
     useValue: translations,

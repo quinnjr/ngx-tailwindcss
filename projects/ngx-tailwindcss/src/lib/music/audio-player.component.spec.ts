@@ -57,6 +57,14 @@ describe('TwAudioPlayerComponent', () => {
     expect(audio.loop).toBe(true);
   });
 
+  it('should clamp an out-of-range volume input instead of throwing', () => {
+    fixture.componentRef.setInput('volume', 80);
+    expect(() => {
+      fixture.detectChanges();
+    }).not.toThrow();
+    expect(audio.volume).toBe(1);
+  });
+
   it('should give the icon-only mute button an accessible name', () => {
     const mute = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       'button[aria-label="Mute"]'

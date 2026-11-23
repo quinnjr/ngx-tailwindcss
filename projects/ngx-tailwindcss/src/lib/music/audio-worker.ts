@@ -480,7 +480,8 @@ function smoothData(options: SmoothDataOptions): SmoothDataResult {
       for (const [i, datum] of data.entries()) {
         result[i] = alpha * datum + (1 - alpha) * previousData[i];
       }
-    } else {
+    } else if (data.length > 0) {
+      // (guarded: assigning result[0] on empty input would yield [undefined])
       result[0] = data[0];
       for (let i = 1; i < data.length; i++) {
         result[i] = alpha * data[i] + (1 - alpha) * result[i - 1];
@@ -609,7 +610,11 @@ const WORKER_HANDLERS = {
 function handleMessage(event: MessageEvent<WorkerMessage>): WorkerResponse {
   const { id, type, data } = event.data;
 
-  const handler = WORKER_HANDLERS[type] as ((options: unknown) => unknown) | undefined;
+  // Own-property check: inherited keys such as 'constructor' or 'toString'
+  // must be rejected like any other unknown type, not invoked
+  const handler = Object.hasOwn(WORKER_HANDLERS, type)
+    ? (WORKER_HANDLERS[type] as (options: unknown) => unknown)
+    : undefined;
   if (!handler) {
     return { id, type, result: null, error: `Unknown message type: ${type}` };
   }

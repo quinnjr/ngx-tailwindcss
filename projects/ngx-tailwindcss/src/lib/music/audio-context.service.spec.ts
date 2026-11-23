@@ -226,6 +226,69 @@ describe('AudioContextService', () => {
       expect(track.stop).toHaveBeenCalledTimes(1);
     });
 
+    it('should stop a running oscillator when its source is disconnected', async () => {
+      const oscillator = Object.assign(new MockAudioNode(), {
+        frequency: { value: 0 },
+        type: 'sine',
+        start: vi.fn(),
+        stop: vi.fn(),
+      });
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createOscillator: ReturnType<typeof vi.fn>;
+      };
+      ctx.createOscillator = vi.fn(() => oscillator);
+
+      const source = await service.connectOscillator();
+      source.start();
+      service.disconnectSource(source.id);
+
+      expect(oscillator.stop).toHaveBeenCalledTimes(1);
+      expect(oscillator.disconnect).toHaveBeenCalled();
+      expect(service.sourceCount()).toBe(0);
+    });
+
+    it('should still disconnect a never-started buffer source', async () => {
+      const bufferSource = Object.assign(new MockAudioNode(), {
+        buffer: null as AudioBuffer | null,
+        start: vi.fn(),
+        stop: vi.fn(() => {
+          throw new DOMException('not started', 'InvalidStateError');
+        }),
+      });
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createBufferSource: ReturnType<typeof vi.fn>;
+      };
+      ctx.createBufferSource = vi.fn(() => bufferSource);
+
+      const buffer = Object.create(null) as AudioBuffer;
+      const source = await service.connectAudioBuffer(buffer);
+      expect(() => {
+        service.disconnectSource(source.id);
+      }).not.toThrow();
+
+      expect(bufferSource.disconnect).toHaveBeenCalled();
+      expect(service.sourceCount()).toBe(0);
+    });
+
+    it('should reject with the HTTP status when an audio file fails to load', async () => {
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        decodeAudioData: ReturnType<typeof vi.fn>;
+      };
+      ctx.decodeAudioData = vi.fn();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          arrayBuffer: vi.fn(),
+        })
+      );
+
+      await expect(service.loadAudioBuffer('/missing.mp3')).rejects.toThrow(/404/);
+      expect(ctx.decodeAudioData).not.toHaveBeenCalled();
+    });
+
     it('should forget loaded worklet modules when the context is closed', async () => {
       vi.stubGlobal('AudioWorkletNode', class {});
       const ctx = service.getContext() as unknown as MockAudioContext & {

@@ -35,6 +35,9 @@ export class PopoverDemoComponent {
   <tw-button twPopoverTrigger>Click to open</tw-button>
   <div>...</div>
 </tw-popover>
-<tw-popover trigger="hover">...</tw-popover>`;
+<tw-popover trigger="hover">...</tw-popover>
+
+<!-- click / manual: role="dialog" panel; trigger gets aria-haspopup="dialog" + aria-expanded -->
+<!-- hover / focus: role="tooltip" panel; trigger gets aria-describedby while open -->`;
 }
 

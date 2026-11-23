@@ -112,6 +112,35 @@
             >
               <!-- Repeat/Navigation Markers -->
               <div class="flex items-start justify-between text-xs mb-1">
+                @if (interactive()) {
+                  <!-- Keyboard access to measureClick: a sibling of the chord buttons, not a
+                       wrapper, so interactive elements are never nested -->
+                  <button
+                    type="button"
+                    class="sr-only focus:not-sr-only focus:px-1 focus:rounded focus:outline focus:outline-2 focus:outline-blue-500"
+                    [attr.aria-label]="
+                      'Measure ' +
+                      getMeasureGlobalIndex(
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    "
+                    (click)="
+                      activateMeasure(
+                        $event,
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    "
+                  >
+                    {{
+                      getMeasureGlobalIndex(
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    }}
+                  </button>
+                }
                 @if (measure.repeatStart) {
                   <span class="text-lg">𝄆</span>
                 }

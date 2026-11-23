@@ -1,4 +1,5 @@
 import {
+  booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -59,13 +60,13 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   // Signal-based inputs
   readonly variant = input<CheckboxVariant>('primary');
   readonly size = input<CheckboxSize>('md');
-  readonly disabled = input(false, { transform: (v: boolean | string) => v === '' || v === true });
+  readonly disabled = input(false, { transform: booleanAttribute });
   readonly indeterminate = input(false, {
-    transform: (v: boolean | string) => v === '' || v === true,
+    transform: booleanAttribute,
   });
   readonly name = input('');
   readonly value = input<any>();
-  readonly readonly = input(false, { transform: (v: boolean | string) => v === '' || v === true });
+  readonly readonly = input(false, { transform: booleanAttribute });
   readonly classOverride = input('');
 
   // Signal-based outputs

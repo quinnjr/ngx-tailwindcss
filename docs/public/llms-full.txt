@@ -156,7 +156,7 @@ The most commonly used component. Supports multiple variants, sizes, and states.
 **Inputs:**
 - `variant`: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'ghost' | 'outline' | 'link'
 - `size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-- `type`: 'button' | 'submit' | 'reset' (default: 'button'; `submit`/`reset` act on the enclosing `<form>`. Pressing Enter in a form field does not trigger implicit submission through a `tw-button`)
+- `type`: 'button' | 'submit' | 'reset' (default: 'button'; `submit`/`reset` act on the enclosing `<form>`. With `submit`, a visually hidden native submit button is rendered inside so pressing Enter in a form field submits the form too)
 - `disabled`: boolean
 - `loading`: boolean
 - `fullWidth`: boolean
@@ -391,6 +391,49 @@ export class MyComponent {
   }
 }
 ```
+
+---
+
+### Breadcrumb Component (tw-breadcrumb)
+
+```typescript
+import { BreadcrumbItem, TwBreadcrumbComponent } from '@quinnjr/ngx-tailwindcss';
+
+items: BreadcrumbItem[] = [
+  { label: 'Home', href: '/', icon: homeIconTpl },
+  { label: 'Components', href: '/components' },
+  { label: 'Breadcrumb' }, // last item is the current page (aria-current="page")
+];
+```
+
+```html
+<ng-template #homeIconTpl><svg viewBox="0 0 24 24">...</svg></ng-template>
+<tw-breadcrumb [items]="items" separator="chevron" size="md"></tw-breadcrumb>
+```
+
+**Inputs:**
+- `items`: `BreadcrumbItem[]` — `{ label: string; href?: string; icon?: BreadcrumbIcon }`
+- `separator`: 'slash' | 'chevron' | 'arrow' | 'dot' (default: 'chevron')
+- `size`: 'sm' | 'md' | 'lg' (default: 'md')
+
+`BreadcrumbIcon` = `TemplateRef` (recommended for inline SVG) | `SafeHtml` (markup you trust, from `DomSanitizer.bypassSecurityTrustHtml`) | `string` (rendered via `[innerHTML]` and sanitized by Angular, which strips `<svg>`). Icons are `aria-hidden`.
+
+---
+
+### Popover Component (tw-popover)
+
+```html
+<tw-popover header="Settings" position="bottom" trigger="click">
+  <tw-button twPopoverTrigger>Open</tw-button>
+  <div class="p-4">Popover content</div>
+</tw-popover>
+```
+
+**Inputs:** `position` ('top' | 'bottom' | 'left' | 'right', default 'bottom'), `trigger` ('click' | 'hover' | 'focus' | 'manual', default 'click'), `header`, `showArrow` (default true), `dismissible` (default true), `closeOnEscape` (default true), `hoverDelay` (ms, default 200), `classOverride`
+
+**Outputs:** `onShow`, `onHide`
+
+**Accessibility:** `hover`/`focus` popovers are tooltips — the panel has `role="tooltip"` and the `[twPopoverTrigger]` element gets `aria-describedby` while open. `click`/`manual` popovers may contain interactive content and use dialog semantics — the panel has `role="dialog"` (labelled by `header` when set) and the trigger gets `aria-haspopup="dialog"`, `aria-expanded`, and `aria-controls` while open.
 
 ---
 

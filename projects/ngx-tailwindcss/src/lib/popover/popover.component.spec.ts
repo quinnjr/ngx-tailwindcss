@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PopoverPosition, PopoverTrigger, TwPopoverComponent } from './popover.component';
 import { TwClassService } from '../core/tw-class.service';
 
+/** Reads the protected visibility state without widening the component's public API */
+const isPopoverVisible = (popover: TwPopoverComponent): boolean =>
+  (popover as unknown as { visible: () => boolean }).visible();
+
 @Component({
   template: `
     <tw-popover
@@ -93,7 +97,7 @@ describe('TwPopoverComponent', () => {
       triggerContainer.click();
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
       expect(component.showCount).toBe(1);
     });
 
@@ -104,7 +108,7 @@ describe('TwPopoverComponent', () => {
       triggerContainer.click();
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
       expect(component.hideCount).toBe(1);
     });
   });
@@ -130,7 +134,7 @@ describe('TwPopoverComponent', () => {
       component.popover.hide();
       fixture.detectChanges();
 
-      const source = popoverEl.querySelector('.popover-content-source')!;
+      const source = popoverEl.querySelector<HTMLElement>('.popover-content-source')!;
       expect(source).toBeTruthy();
       expect(source.style.display).toBe('none');
       expect(source.querySelector('[data-testid="action"]')).toBeTruthy();
@@ -152,12 +156,12 @@ describe('TwPopoverComponent', () => {
       triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
 
       triggerContainer.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
 
     it('should open on focusin for hover trigger (keyboard equivalence)', () => {
@@ -168,7 +172,7 @@ describe('TwPopoverComponent', () => {
       triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should close a keyboard-opened hover popover when focus leaves the trigger', () => {
@@ -181,7 +185,7 @@ describe('TwPopoverComponent', () => {
       triggerContainer.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
   });
 
@@ -189,7 +193,7 @@ describe('TwPopoverComponent', () => {
     it('should show popover via show()', () => {
       component.popover.show();
       fixture.detectChanges();
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should hide popover via hide()', () => {
@@ -197,14 +201,14 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
       component.popover.hide();
       fixture.detectChanges();
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
 
     it('should toggle popover via toggle()', () => {
       component.popover.toggle();
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
       component.popover.toggle();
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
   });
 
@@ -219,6 +223,33 @@ describe('TwPopoverComponent', () => {
       component.popover.hide();
       expect(component.hideCount).toBe(1);
     });
+
+    it('should emit only on actual open/close transitions', () => {
+      component.popover.hide();
+      expect(component.hideCount).toBe(0);
+
+      component.popover.show();
+      component.popover.show();
+      expect(component.showCount).toBe(1);
+
+      component.popover.hide();
+      component.popover.hide();
+      expect(component.hideCount).toBe(1);
+    });
+
+    it('should apply a classOverride changed after the first open', () => {
+      component.popover.show();
+      fixture.detectChanges();
+      component.popover.hide();
+      fixture.detectChanges();
+
+      component.classOverride.set('custom-late-class');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      expect(document.querySelector('[role="dialog"]')?.classList).toContain('custom-late-class');
+    });
   });
 
   describe('escape key', () => {
@@ -230,7 +261,20 @@ describe('TwPopoverComponent', () => {
       document.dispatchEvent(event);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
+    });
+
+    it('should return focus to the trigger when Escape closes with focus inside', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+      action.focus();
+      action.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.activeElement).toBe(popoverEl.querySelector('[twPopoverTrigger]'));
     });
   });
 
@@ -240,7 +284,7 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
 
       const portal = document.querySelector('[role="dialog"]');
-      const action = portal!.querySelector('[data-testid="action"]')!;
+      const action = portal!.querySelector<HTMLElement>('[data-testid="action"]')!;
       const inner = vi.fn((event: KeyboardEvent) => {
         event.preventDefault();
       });
@@ -251,7 +295,7 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
 
       expect(inner).toHaveBeenCalled();
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should close only the topmost of nested popovers', () => {
@@ -265,13 +309,13 @@ describe('TwPopoverComponent', () => {
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
       );
-      expect(component.popover.visible()).toBe(false);
-      expect(outer.componentInstance.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(isPopoverVisible(outer.componentInstance)).toBe(true);
 
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
       );
-      expect(outer.componentInstance.visible()).toBe(false);
+      expect(isPopoverVisible(outer.componentInstance)).toBe(false);
       outer.destroy();
     });
   });
@@ -338,7 +382,7 @@ describe('TwPopoverComponent', () => {
       vi.advanceTimersByTime(10);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should hide on mouseleave', () => {
@@ -351,7 +395,7 @@ describe('TwPopoverComponent', () => {
       vi.advanceTimersByTime(10);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
   });
 

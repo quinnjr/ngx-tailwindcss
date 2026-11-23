@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageBorderRadius, ImageFit, TwImageComponent } from './image.component';
 import { TwClassService } from '../core/tw-class.service';
+import { pushEscapeLayer, removeEscapeLayer } from '../overlay/escape-layer-stack';
 
 @Component({
   template: `
@@ -43,6 +44,14 @@ class TestHostComponent {
   onHideSpy = vi.fn();
   onLoadSpy = vi.fn();
   onErrorSpy = vi.fn();
+}
+
+/** Read the component's protected preview-state signals in tests */
+function previewState(image: TwImageComponent): {
+  zoomLevel: () => number;
+  rotation: () => number;
+} {
+  return image as unknown as { zoomLevel: () => number; rotation: () => number };
 }
 
 describe('TwImageComponent', () => {
@@ -218,6 +227,39 @@ describe('TwImageComponent', () => {
       expect(component.onHideSpy).toHaveBeenCalled();
     });
 
+    it('should close on a document Escape keydown and claim the key', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      document.dispatchEvent(event);
+      fixture.detectChanges();
+      expect(component.onHideSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should leave Escape to a layer opened above the preview', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const above = {};
+      pushEscapeLayer(above);
+      try {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        fixture.detectChanges();
+        expect(component.onHideSpy).not.toHaveBeenCalled();
+      } finally {
+        removeEscapeLayer(above);
+      }
+    });
+
+    it('should not react to Escape already handled by an inner layer', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      event.preventDefault();
+      document.dispatchEvent(event);
+      expect(component.onHideSpy).not.toHaveBeenCalled();
+    });
+
     it('should expose the thumbnail as a keyboard-operable button', () => {
       const container = imageEl.query(By.css('div')).nativeElement;
       expect(container.getAttribute('role')).toBe('button');
@@ -299,16 +341,16 @@ describe('TwImageComponent', () => {
     });
 
     it('should zoom in', () => {
-      const initialZoom = component.image.zoomLevel();
+      const initialZoom = previewState(component.image).zoomLevel();
       component.image.zoomIn();
-      expect(component.image.zoomLevel()).toBeGreaterThan(initialZoom);
+      expect(previewState(component.image).zoomLevel()).toBeGreaterThan(initialZoom);
     });
 
     it('should zoom out', () => {
       component.image.zoomIn();
-      const afterZoomIn = component.image.zoomLevel();
+      const afterZoomIn = previewState(component.image).zoomLevel();
       component.image.zoomOut();
-      expect(component.image.zoomLevel()).toBeLessThan(afterZoomIn);
+      expect(previewState(component.image).zoomLevel()).toBeLessThan(afterZoomIn);
     });
 
     it('should not zoom in beyond max', () => {
@@ -316,7 +358,7 @@ describe('TwImageComponent', () => {
       for (let i = 0; i < 20; i++) {
         component.image.zoomIn();
       }
-      expect(component.image.zoomLevel()).toBeLessThanOrEqual(3);
+      expect(previewState(component.image).zoomLevel()).toBeLessThanOrEqual(3);
     });
 
     it('should not zoom out beyond min', () => {
@@ -324,7 +366,7 @@ describe('TwImageComponent', () => {
       for (let i = 0; i < 20; i++) {
         component.image.zoomOut();
       }
-      expect(component.image.zoomLevel()).toBeGreaterThanOrEqual(0.5);
+      expect(previewState(component.image).zoomLevel()).toBeGreaterThanOrEqual(0.5);
     });
   });
 
@@ -338,18 +380,18 @@ describe('TwImageComponent', () => {
 
     it('should rotate left', () => {
       component.image.rotateLeft();
-      expect(component.image.rotation()).toBe(-90);
+      expect(previewState(component.image).rotation()).toBe(-90);
     });
 
     it('should rotate right', () => {
       component.image.rotateRight();
-      expect(component.image.rotation()).toBe(90);
+      expect(previewState(component.image).rotation()).toBe(90);
     });
 
     it('should accumulate rotation', () => {
       component.image.rotateRight();
       component.image.rotateRight();
-      expect(component.image.rotation()).toBe(180);
+      expect(previewState(component.image).rotation()).toBe(180);
     });
   });
 });

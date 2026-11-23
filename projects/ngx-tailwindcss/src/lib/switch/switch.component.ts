@@ -130,6 +130,11 @@ export class TwSwitchComponent implements ControlValueAccessor {
     this.onChange.emit(newValue);
   }
 
+  /** Marks the control as touched when focus leaves the switch */
+  onSwitchBlur(): void {
+    this.onTouchedFn();
+  }
+
   // ControlValueAccessor implementation
   writeValue(value: boolean | null | undefined): void {
     // Coerce null/undefined from form resets so aria-checked stays boolean

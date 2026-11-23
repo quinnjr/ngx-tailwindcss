@@ -14,6 +14,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type OscilloscopeVariant = 'default' | 'retro' | 'neon' | 'minimal';
 export type OscilloscopeTriggerMode = 'auto' | 'normal' | 'single';
@@ -159,20 +160,15 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     const width = this.width();
     const height = this.height();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
-    }
+    // Size the backing store for the device pixel ratio; drawing below uses CSS pixels
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
 
     const analyser = this.analyserNode();
     const colors = this.colors();
 
     // Clear and draw background
     this.ctx.fillStyle = colors.background;
-    this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    this.ctx.fillRect(0, 0, this.width(), this.height());
 
     // Draw grid
     if (this.showGrid()) {
@@ -184,8 +180,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       this.ctx.strokeStyle = colors.centerLine;
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
-      this.ctx.moveTo(0, canvas.height / 2);
-      this.ctx.lineTo(canvas.width, canvas.height / 2);
+      this.ctx.moveTo(0, this.height() / 2);
+      this.ctx.lineTo(this.width(), this.height() / 2);
       this.ctx.stroke();
     }
 
@@ -224,7 +220,6 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawGrid(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
     this.ctx.strokeStyle = colors.grid;
@@ -233,20 +228,20 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     // Vertical lines
     const vLines = 10;
     for (let i = 0; i <= vLines; i++) {
-      const x = (canvas.width / vLines) * i;
+      const x = (this.width() / vLines) * i;
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, canvas.height);
+      this.ctx.lineTo(x, this.height());
       this.ctx.stroke();
     }
 
     // Horizontal lines
     const hLines = 8;
     for (let i = 0; i <= hLines; i++) {
-      const y = (canvas.height / hLines) * i;
+      const y = (this.height() / hLines) * i;
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(canvas.width, y);
+      this.ctx.lineTo(this.width(), y);
       this.ctx.stroke();
     }
   }
@@ -254,7 +249,6 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawWaveform(): boolean {
     if (!this.ctx || !this.dataArray) return false;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
     const bufferLength = this.dataArray.length;
     const gain = this.gain();
@@ -273,7 +267,7 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
 
     this.ctx.beginPath();
 
-    const sliceWidth = (canvas.width / bufferLength) * timeScale;
+    const sliceWidth = (this.width() / bufferLength) * timeScale;
     let x = 0;
 
     // Find trigger point for stable display
@@ -290,10 +284,10 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       }
     }
 
-    for (let i = triggerIndex; i < bufferLength && x < canvas.width; i++) {
+    for (let i = triggerIndex; i < bufferLength && x < this.width(); i++) {
       const v = (this.dataArray[i] / 128 - 1) * gain;
       // Canvas y grows downward: positive samples must plot above the centre
-      const y = canvas.height / 2 - (v * canvas.height) / 2;
+      const y = this.height() / 2 - (v * this.height()) / 2;
 
       if (i === triggerIndex) {
         this.ctx.moveTo(x, y);
@@ -315,27 +309,25 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawFlatLine(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
     this.ctx.strokeStyle = `${colors.line}40`; // Faded
     this.ctx.lineWidth = this.lineWidth();
     this.ctx.beginPath();
-    this.ctx.moveTo(0, canvas.height / 2);
-    this.ctx.lineTo(canvas.width, canvas.height / 2);
+    this.ctx.moveTo(0, this.height() / 2);
+    this.ctx.lineTo(this.width(), this.height() / 2);
     this.ctx.stroke();
 
     // "No signal" text
     this.ctx.fillStyle = `${colors.line}80`;
     this.ctx.font = '12px monospace';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('No Signal', canvas.width / 2, canvas.height / 2 - 20);
+    this.ctx.fillText('No Signal', this.width() / 2, this.height() / 2 - 20);
   }
 
   private drawLabels(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
     this.ctx.fillStyle = colors.line;
@@ -343,17 +335,17 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     this.ctx.textAlign = 'left';
 
     // Time labels derived from the actual buffer length and sample rate
-    this.ctx.fillText('0ms', 4, canvas.height - 4);
+    this.ctx.fillText('0ms', 4, this.height() - 4);
     this.ctx.textAlign = 'right';
     const sampleRate = this.analyserNode()?.context.sampleRate ?? 44_100;
     const sampleCount = this.dataArray?.length ?? 1024;
     // timeScale > 1 zooms in (fewer samples span the width), so divide
     const timeMs = (sampleCount / sampleRate / this.timeScale()) * 1000;
-    this.ctx.fillText(`${timeMs.toFixed(1)}ms`, canvas.width - 4, canvas.height - 4);
+    this.ctx.fillText(`${timeMs.toFixed(1)}ms`, this.width() - 4, this.height() - 4);
 
     // Amplitude labels
     this.ctx.textAlign = 'left';
     this.ctx.fillText('+1', 4, 12);
-    this.ctx.fillText('-1', 4, canvas.height - 12);
+    this.ctx.fillText('-1', 4, this.height() - 12);
   }
 }

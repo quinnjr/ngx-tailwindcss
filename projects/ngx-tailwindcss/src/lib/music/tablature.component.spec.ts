@@ -56,6 +56,22 @@ describe('TwTablatureComponent', () => {
     expect(ledger('G', 5)).toBe(0);
   });
 
+  it('cancels a sharp earlier in the measure with a natural on the staff', () => {
+    // High E string: fret 2 = F#4, fret 1 = F4, fret 2 again = F#4; next measure F4 again
+    fixture.componentRef.setInput('measures', [
+      { notes: [[{ string: 1, fret: 2 }], [{ string: 1, fret: 1 }], [{ string: 1, fret: 2 }]] },
+      { notes: [[{ string: 1, fret: 1 }]] },
+    ]);
+    fixture.detectChanges();
+    const calculated = (
+      fixture.componentInstance as unknown as {
+        calculatedNotes: () => Array<Array<Array<{ accidental: string | null } | null>>>;
+      }
+    ).calculatedNotes();
+    expect(calculated[0].map(beat => beat[0]?.accidental)).toEqual(['sharp', 'natural', 'sharp']);
+    expect(calculated[1][0][0]?.accidental).toBeNull();
+  });
+
   it('renders every note position of a measure, even beyond beatsPerMeasure', () => {
     const eighths = Array.from({ length: 8 }, (_, i) => [{ string: 1, fret: i }]);
     fixture.componentRef.setInput('measures', [{ notes: eighths }]);

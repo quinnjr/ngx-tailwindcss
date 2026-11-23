@@ -21,6 +21,19 @@ const AMOUNT_MAP: Record<BleedAmount, string> = {
 };
 
 /**
+ * Negate a CSS length. Plain lengths (`2rem`) are prefixed with `-`; anything else
+ * (`var(--gutter)`, `calc(...)`, `min(...)`) is wrapped in `calc(-1 * ...)`, since
+ * `-var(...)` / `-calc(...)` are invalid CSS.
+ */
+function negateLength(value: string): string {
+  const trimmed = value.trim();
+  if (/^\+?(\d+\.?\d*|\.\d+)[a-z%]*$/i.test(trimmed)) {
+    return `-${trimmed.replace(/^\+/, '')}`;
+  }
+  return `calc(-1 * ${trimmed})`;
+}
+
+/**
  * Bleed component for breaking out of container constraints.
  * Useful for full-width images or backgrounds within constrained layouts.
  *
@@ -92,6 +105,7 @@ export class TwBleedComponent {
     const bleedValue = customAmount || AMOUNT_MAP[this.amount()];
     const fullMargin = 'calc(-50vw + 50%)';
     const fullPadding = 'calc(50vw - 50%)';
+    const negativeValue = negateLength(bleedValue);
 
     const styles: Record<string, string> = {};
 
@@ -106,8 +120,8 @@ export class TwBleedComponent {
           styles['paddingRight'] = fullPadding;
         }
       } else {
-        styles['marginLeft'] = `-${bleedValue}`;
-        styles['marginRight'] = `-${bleedValue}`;
+        styles['marginLeft'] = negativeValue;
+        styles['marginRight'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingLeft'] = bleedValue;
@@ -124,7 +138,7 @@ export class TwBleedComponent {
           styles['paddingLeft'] = fullPadding;
         }
       } else {
-        styles['marginLeft'] = `-${bleedValue}`;
+        styles['marginLeft'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingLeft'] = bleedValue;
@@ -140,7 +154,7 @@ export class TwBleedComponent {
           styles['paddingRight'] = fullPadding;
         }
       } else {
-        styles['marginRight'] = `-${bleedValue}`;
+        styles['marginRight'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingRight'] = bleedValue;
@@ -149,8 +163,8 @@ export class TwBleedComponent {
     }
 
     if (direction === 'all' && !isFull) {
-      styles['marginTop'] = `-${bleedValue}`;
-      styles['marginBottom'] = `-${bleedValue}`;
+      styles['marginTop'] = negativeValue;
+      styles['marginBottom'] = negativeValue;
 
       if (preservePadding) {
         styles['paddingTop'] = bleedValue;

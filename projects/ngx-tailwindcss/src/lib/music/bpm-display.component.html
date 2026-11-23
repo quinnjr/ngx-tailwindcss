@@ -101,6 +101,7 @@
         />
       } @else {
         <div
+          #valueDisplay
           [class]="bpmValueClasses()"
           [class.cursor-pointer]="editable() && !disabled()"
           (click)="editable() ? startEditing() : null"

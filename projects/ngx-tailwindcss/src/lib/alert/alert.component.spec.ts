@@ -148,7 +148,7 @@ describe('TwAlertComponent', () => {
       component.dismissible.set(true);
       fixture.detectChanges();
 
-      const dismissBtn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
       dismissBtn.click();
       fixture.detectChanges();
 
@@ -159,7 +159,7 @@ describe('TwAlertComponent', () => {
       component.dismissible.set(true);
       fixture.detectChanges();
 
-      const dismissBtn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
       dismissBtn.click();
       fixture.detectChanges();
 

@@ -14,7 +14,7 @@ import { TwClassService } from '../core/tw-class.service';
 export type CardVariant = 'elevated' | 'outlined' | 'filled' | 'ghost';
 
 const CARD_BASE_CLASSES = `
-  block
+  relative block
   rounded-xl
   transition-all duration-200
 `;

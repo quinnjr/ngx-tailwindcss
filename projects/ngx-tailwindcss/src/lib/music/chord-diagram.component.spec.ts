@@ -55,6 +55,37 @@ describe('TwChordDiagramComponent', () => {
     expect(barre).not.toBeNull();
   });
 
+  it('treats fret numbers as absolute when the diagram starts above the nut', () => {
+    // A-shape barre chord at the 5th fret (D major): frets 5 and 7, window starts at fret 5
+    fixture.componentRef.setInput('chord', {
+      name: 'D',
+      baseFret: 5,
+      fingerings: [
+        { string: 1, fret: 5, finger: 1 },
+        { string: 2, fret: 7, finger: 4 },
+        { string: 3, fret: 7, finger: 3 },
+        { string: 4, fret: 7, finger: 2 },
+        { string: 5, fret: 5, finger: 1 },
+        { string: 6, fret: -1 },
+      ],
+    });
+    fixture.detectChanges();
+    const internals = fixture.componentInstance as unknown as {
+      getFretY: (row: number) => number;
+      dimensions: () => { fretSpacing: number };
+    };
+    const rowCentre = (row: number): number =>
+      internals.getFretY(row) - internals.dimensions().fretSpacing / 2;
+    const dots = [...(fixture.nativeElement as HTMLElement).querySelectorAll('circle[r="7"]')].map(
+      c => Number(c.getAttribute('cy'))
+    );
+    expect(dots).toHaveLength(5);
+    // Fret 5 on the first row, fret 7 on the third
+    expect(dots.filter(y => y === rowCentre(1))).toHaveLength(2);
+    expect(dots.filter(y => y === rowCentre(3))).toHaveLength(3);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('5fr');
+  });
+
   it('sizes the padded container so the diagram SVG fits inside it', () => {
     fixture.detectChanges();
     const container = (fixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;

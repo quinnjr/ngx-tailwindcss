@@ -3,7 +3,6 @@ import {
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
-  computed,
   ContentChild,
   effect,
   ElementRef,
@@ -118,12 +117,13 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     return !!this.footerTemplate;
   }
 
-  protected popoverClasses = computed(() => {
+  /** A method, not a computed: `classOverride` is a plain @Input a computed can't track */
+  protected popoverClasses(): string {
     return this.twClass.merge(
       'min-w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700',
       this.classOverride
     );
-  });
+  }
 
   constructor() {
     // Create portal when visible state changes
@@ -243,6 +243,8 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   }
 
   show(): void {
+    // Emit only on an actual transition (focus + hover can both request a show)
+    if (this.visible()) return;
     this.visible.set(true);
     this.onShow.emit();
   }
@@ -250,6 +252,8 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   hide(): void {
     // Leave the Escape stack right away (the portal itself is torn down by the effect)
     removeEscapeLayer(this);
+    // Hover-leave timers and focusout fire even if the popover never opened
+    if (!this.visible()) return;
     this.visible.set(false);
     this.onHide.emit();
   }
@@ -347,7 +351,10 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
       this.keydownListener = (event: KeyboardEvent) => {
         if (shouldHandleEscape(this, event)) {
           event.preventDefault();
+          // Focus inside the portal would be lost when it is removed: return it to the trigger
+          const focusInside = !!this.portalElement?.contains(this.document.activeElement);
           this.hide();
+          if (focusInside) this.getTriggerElement()?.focus();
         }
       };
       this.document.addEventListener('keydown', this.keydownListener);

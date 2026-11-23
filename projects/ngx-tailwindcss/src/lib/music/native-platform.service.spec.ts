@@ -28,4 +28,31 @@ describe('NativePlatformService', () => {
       expect(revoke).toHaveBeenCalledWith('blob:test');
     });
   });
+
+  describe('openExternal (browser)', () => {
+    it('should open http(s) URLs in a new window without an opener', async () => {
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const service = TestBed.inject(NativePlatformService);
+
+      await service.openExternal('https://example.com/docs');
+
+      expect(open).toHaveBeenCalledWith(
+        'https://example.com/docs',
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+
+    it('should refuse script-bearing URL schemes', async () => {
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const service = TestBed.inject(NativePlatformService);
+
+      // eslint-disable-next-line no-script-url -- verifying such URLs are rejected
+      await expect(service.openExternal('javascript:alert(1)')).rejects.toThrow(/not supported/);
+      await expect(service.openExternal('data:text/html,<script>1</script>')).rejects.toThrow(
+        /not supported/
+      );
+      expect(open).not.toHaveBeenCalled();
+    });
+  });
 });

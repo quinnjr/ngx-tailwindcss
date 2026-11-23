@@ -21,9 +21,7 @@ npm install @quinnjr/ngx-tailwindcss
 
 ### Peer Dependencies
 
-```bash
-pnpm add @angular/cdk
-```
+The library requires `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/animations` (Angular 19+) and `rxjs`, which an Angular application already has. `@angular/cdk` is **not** required; it, `@tauri-apps/*` and `electron` are optional peers used only by the native/desktop integrations you opt into.
 
 ## Tailwind CSS Configuration
 

@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type SpectrumVariant = 'bars' | 'line' | 'gradient' | 'mirror';
 export type SpectrumColorScheme =
@@ -355,6 +356,12 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
     const w = this.effectiveWidth();
     const h = this.effectiveHeight();
     const variant = this.variant();
+
+    // Size the backing store for the device pixel ratio; drawing uses CSS pixels
+    const canvasEl = this.canvas()?.nativeElement;
+    if (canvasEl) {
+      prepareHiDpiCanvas(canvasEl, this.ctx, w, h);
+    }
 
     // Clear canvas
     const bgColor = this.backgroundColor() || '#0f172a';

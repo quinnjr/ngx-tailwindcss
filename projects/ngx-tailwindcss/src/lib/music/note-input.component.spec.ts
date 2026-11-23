@@ -111,6 +111,31 @@ describe('TwNoteInputComponent', () => {
     expect(second.x).toBeGreaterThan(first.x);
   });
 
+  it('spells MIDI notes against the key signature and earlier accidentals in the bar', () => {
+    fixture.componentRef.setInput('keySignature', 'G');
+    fixture.detectChanges();
+    // G major: F#4 is implied by the key, F4 needs a natural, a following F#4 a sharp
+    for (const pitch of [66, 65, 66]) {
+      internals.handleMidiMessage({ data: new Uint8Array([0x90, pitch, 100]) });
+    }
+    expect(internals.notes().map(n => [n.name, n.accidental])).toEqual([
+      ['F', null],
+      ['F', 'natural'],
+      ['F', 'sharp'],
+    ]);
+  });
+
+  it('keeps notes moved past the first beat on the staff', () => {
+    fixture.componentRef.setInput('initialNotes', [note('note-0', { measure: 0, beat: 0 })]);
+    fixture.detectChanges();
+    internals.selectedNotes.set([...internals.notes()]);
+    keydown({ key: 'ArrowLeft' });
+    const [moved] = internals.notes();
+    expect(moved.measure).toBe(0);
+    expect(moved.beat).toBe(0);
+    expect(moved.x).toBeGreaterThan(0);
+  });
+
   it('reloads notes when initialNotes changes and avoids id collisions', () => {
     fixture.componentRef.setInput('initialNotes', [note('note-0'), note('note-5')]);
     fixture.detectChanges();

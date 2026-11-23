@@ -250,6 +250,21 @@ describe('MidiService', () => {
       const activeNotes = service.activeNotes();
       expect(activeNotes.length).toBe(0);
     });
+
+    it('should track the same note on different channels independently', async () => {
+      await service.requestAccess();
+
+      mockMidiAccess._mockInput.simulateMessage([0x90, 60, 100]); // ch 0
+      mockMidiAccess._mockInput.simulateMessage([0x91, 60, 90]); // ch 1
+      expect(service.activeNotes().length).toBe(2);
+
+      mockMidiAccess._mockInput.simulateMessage([0x80, 60, 0]); // off on ch 0
+
+      const activeNotes = service.activeNotes();
+      expect(activeNotes.length).toBe(1);
+      expect(activeNotes[0].channel).toBe(1);
+      expect(activeNotes[0].data1).toBe(60);
+    });
   });
 
   describe('CC mapping', () => {
@@ -448,6 +463,15 @@ describe('MidiService', () => {
 
       expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0x7f, 0x7f]);
       expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0, 0]);
+    });
+
+    it('should keep out-of-range channels within the status byte nibble', async () => {
+      await service.requestAccess();
+
+      // Channel 32 must not turn a Note On (0x90) into a Control Change (0xB0)
+      service.sendNoteOn('output-1', 60, 100, 32);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x90, 60, 100]);
     });
 
     it('should look up outputs by id and ignore unknown output ids', async () => {

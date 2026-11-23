@@ -18,6 +18,29 @@ describe('TwCompressorMeterComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should be silent with no clip indication when no levels are bound', () => {
+    let clips = 0;
+    component.clipInput.subscribe(() => clips++);
+    component.clipOutput.subscribe(() => clips++);
+
+    internals.updateLevels();
+    fixture.detectChanges();
+
+    expect(clips).toBe(0);
+    expect(internals.inputClip()).toBe(false);
+    expect(internals.outputClip()).toBe(false);
+    expect(internals.inputMeterPercent()).toBe(0);
+    expect(internals.formatInputLevel()).toBe('-∞');
+  });
+
+  it('should not treat NaN levels as a clip', () => {
+    let clips = 0;
+    component.clipInput.subscribe(() => clips++);
+    fixture.componentRef.setInput('inputLevel', 'not-a-number');
+    internals.updateLevels();
+    expect(clips).toBe(0);
+  });
+
   it('should emit clipInput once per clip event rather than on every tick', () => {
     let clips = 0;
     component.clipInput.subscribe(() => clips++);

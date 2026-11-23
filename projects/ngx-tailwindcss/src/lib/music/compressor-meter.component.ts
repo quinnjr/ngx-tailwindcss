@@ -17,6 +17,7 @@ import {
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type CompressorMeterVariant =
   'default' | 'minimal' | 'studio' | 'vintage' | 'light' | 'highContrast';
@@ -89,8 +90,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   readonly size = input<CompressorMeterSize>('md');
 
   // Level inputs (dB)
-  readonly inputLevel = input(0, { transform: numberAttribute }); // -60 to 0
-  readonly outputLevel = input(0, { transform: numberAttribute }); // -60 to 0
+  // Default to silence (-Infinity dB) so an unbound meter is idle rather than
+  // sitting at 0 dBFS and lighting the clip indicators at mount.
+  readonly inputLevel = input(Number.NEGATIVE_INFINITY, { transform: numberAttribute }); // -60 to 0
+  readonly outputLevel = input(Number.NEGATIVE_INFINITY, { transform: numberAttribute }); // -60 to 0
   readonly gainReduction = input(0, { transform: numberAttribute }); // 0 to -40 (negative values)
 
   // Compressor settings
@@ -127,11 +130,11 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   readonly clipOutput = output();
 
   // Internal state
-  protected readonly internalInputLevel = signal(0);
-  protected readonly internalOutputLevel = signal(0);
+  protected readonly internalInputLevel = signal(Number.NEGATIVE_INFINITY);
+  protected readonly internalOutputLevel = signal(Number.NEGATIVE_INFINITY);
   protected readonly internalGainReduction = signal(0);
-  protected readonly inputPeakLevel = signal(0);
-  protected readonly outputPeakLevel = signal(0);
+  protected readonly inputPeakLevel = signal(Number.NEGATIVE_INFINITY);
+  protected readonly outputPeakLevel = signal(Number.NEGATIVE_INFINITY);
   protected readonly inputClip = signal(false);
   protected readonly outputClip = signal(false);
 
@@ -168,9 +171,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   }
 
   private updateLevels(): void {
-    const inputLevel = this.inputLevel();
-    const outputLevel = this.outputLevel();
-    const gr = this.gainReduction();
+    // NaN (e.g. an unparsable attribute) is treated as silence
+    const inputLevel = this.sanitizeLevel(this.inputLevel());
+    const outputLevel = this.sanitizeLevel(this.outputLevel());
+    const gr = Number.isFinite(this.gainReduction()) ? this.gainReduction() : 0;
     const now = Date.now();
 
     this.internalInputLevel.set(inputLevel);
@@ -231,7 +235,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Check for clipping: emit once per clip event (until reset), not on every tick
+    // Check for clipping: emit once per clip event (until reset), not on every tick.
+    // Silence (-Infinity) and NaN never count as a clip.
     if (inputLevel >= 0 && !this.inputClip()) {
       this.inputClip.set(true);
       this.clipInput.emit();
@@ -250,6 +255,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (this.attackReleaseDisplay() === 'envelope') {
       this.drawEnvelopeCurve();
     }
+  }
+
+  private sanitizeLevel(level: number): number {
+    return Number.isNaN(level) ? Number.NEGATIVE_INFINITY : level;
   }
 
   private updateEnvelopePosition(now: number, isCompressing: boolean): void {
@@ -375,8 +384,9 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     this.ctx = canvas.getContext('2d');
     if (!this.ctx) return;
 
-    const { width } = canvas;
-    const { height } = canvas;
+    // Backing store sized for the device pixel ratio; drawing uses CSS pixels
+    const { width, height } = this.curveSize();
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
     const settings = this.effectiveSettings();
 
     // Clear
@@ -465,7 +475,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
 
     // Draw current input level marker
     const inputX = (this.inputMeterPercent() / 100) * width;
-    const currentOutput = this.internalOutputLevel();
+    // Clamp so silence (-Infinity) parks the marker at the bottom edge
+    const currentOutput = Math.max(minDb, Math.min(maxDb, this.internalOutputLevel()));
     const outputY = height - ((currentOutput - minDb) / range) * height;
 
     this.ctx.fillStyle = 'rgb(239, 68, 68)'; // red-500
@@ -483,8 +494,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (!this.grHistoryCtx) return;
 
     const ctx = this.grHistoryCtx;
-    const { width } = canvas;
-    const { height } = canvas;
+    const { width, height } = this.grHistorySize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     const history = this.grHistory();
 
     // Clear
@@ -568,8 +579,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (!this.envelopeCtx) return;
 
     const ctx = this.envelopeCtx;
-    const { width } = canvas;
-    const { height } = canvas;
+    const { width, height } = this.envelopeSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     const settings = this.effectiveSettings();
 
     // Clear

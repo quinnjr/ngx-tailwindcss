@@ -81,4 +81,25 @@ describe('TwLeadSheetComponent', () => {
     chord!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(clicks).toHaveLength(1);
   });
+
+  it('gives each clickable measure its own focusable button, not wrapping the chords', () => {
+    const measureClicks: unknown[] = [];
+    fixture.componentInstance.measureClick.subscribe(m => measureClicks.push(m));
+    fixture.componentRef.setInput('interactive', true);
+    fixture.componentRef.setInput('data', {
+      sections: [{ measures: [{ chords: [{ chord: 'G' }] }, { chords: [{ chord: 'C' }] }] }],
+    });
+    fixture.detectChanges();
+    const buttons = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button[aria-label^="Measure"]'
+      ),
+    ];
+    expect(buttons.map(b => b.getAttribute('aria-label'))).toEqual(['Measure 1', 'Measure 2']);
+    for (const button of buttons) {
+      expect(button.querySelector('[role="button"], button')).toBeNull();
+    }
+    buttons[1].click();
+    expect(measureClicks).toEqual([{ section: 0, measure: 1 }]);
+  });
 });

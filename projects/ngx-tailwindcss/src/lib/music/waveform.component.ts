@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type WaveformVariant = 'bars' | 'line' | 'mirror' | 'gradient';
 export type WaveformColorScheme = 'blue' | 'green' | 'purple' | 'orange' | 'mono';
@@ -502,6 +503,7 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     // Get time domain data
     analyser.getByteTimeDomainData(this.timeDomainData);
 
+    this.prepareCanvas();
     const variant = this.variant();
     switch (variant) {
       case 'bars': {
@@ -720,17 +722,21 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     // In realtime mode, drawing is handled by drawRealTime loop
     if (this.mode() === 'realtime') return;
 
+    // A pending frame from earlier data must not paint over the empty state
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+
     if (!this.ctx || this.peakData.length === 0) {
       this.drawEmpty();
       return;
     }
 
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-    }
-
     this.zone.runOutsideAngular(() => {
       this.animationFrame = requestAnimationFrame(() => {
+        this.animationFrame = null;
+        this.prepareCanvas();
         const variant = this.variant();
         switch (variant) {
           case 'bars': {
@@ -754,9 +760,20 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     });
   }
 
+  /**
+   * Size the canvas backing store for the device pixel ratio and scale the
+   * context, so every draw method works in CSS pixels (effectiveWidth/Height).
+   */
+  private prepareCanvas(): void {
+    const canvasEl = this.canvas()?.nativeElement;
+    if (!canvasEl || !this.ctx) return;
+    prepareHiDpiCanvas(canvasEl, this.ctx, this.effectiveWidth(), this.effectiveHeight());
+  }
+
   private drawEmpty(): void {
     if (!this.ctx) return;
 
+    this.prepareCanvas();
     const colors = this.colors();
     this.ctx.fillStyle = colors.background;
     this.ctx.fillRect(0, 0, this.effectiveWidth(), this.effectiveHeight());

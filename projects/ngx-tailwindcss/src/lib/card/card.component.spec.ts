@@ -334,6 +334,16 @@ describe('TwCardMediaDirective', () => {
     const media = fixture.debugElement.query(By.directive(TwCardMediaDirective)).nativeElement;
     expect(media.className).toContain('rounded-b-xl');
   });
+
+  it('should contain full-bleed media within the card (card is positioned)', () => {
+    component.position.set('full');
+    fixture.detectChanges();
+
+    const media = fixture.debugElement.query(By.directive(TwCardMediaDirective)).nativeElement;
+    const card = fixture.debugElement.query(By.directive(TwCardComponent)).nativeElement;
+    expect(media.className).toContain('absolute');
+    expect(card.className.split(/\s+/)).toContain('relative');
+  });
 });
 
 @Component({

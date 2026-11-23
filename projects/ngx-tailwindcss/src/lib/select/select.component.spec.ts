@@ -522,4 +522,60 @@ describe('TwSelectComponent (round 2)', () => {
     press('Home');
     expect(activeText()).toContain('Option 1');
   });
+
+  it('should select the active option with Space when open (APG select-only combobox)', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const press = (key: string) => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+    press(' '); // opens with the first option active
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    press('ArrowDown');
+    press(' ');
+    expect(fixture.componentInstance.onChangeSpy).toHaveBeenCalledWith({
+      label: 'Option 2',
+      value: '2',
+    });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('should let Space type into the filter input', () => {
+    const fixture = TestBed.createComponent(KeyboardHostComponent);
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement.querySelectorAll('tw-select')[1];
+    const trigger = host.querySelector('button')!;
+    trigger.click();
+    fixture.detectChanges();
+    const filterInput = host.querySelector('input')!;
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    filterInput.dispatchEvent(event);
+    fixture.detectChanges();
+    expect(event.defaultPrevented).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.componentInstance.filtered).toBeFalsy();
+  });
+
+  it('should claim Escape only while the listbox is open', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const escape = () => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      });
+      trigger.dispatchEvent(event);
+      fixture.detectChanges();
+      return event;
+    };
+    trigger.click();
+    fixture.detectChanges();
+    expect(escape().defaultPrevented).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(escape().defaultPrevented).toBe(false);
+  });
 });

@@ -189,6 +189,52 @@ describe('MusicAccessibilityService', () => {
     });
   });
 
+  describe('environments without full matchMedia support', () => {
+    it('should construct and report defaults when window.matchMedia is unavailable', () => {
+      const original = window.matchMedia;
+      // Simulate jsdom / older webviews that do not implement matchMedia
+      (window as unknown as { matchMedia: undefined }).matchMedia = undefined;
+
+      try {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({ providers: [MusicAccessibilityService] });
+        const svc = TestBed.inject(MusicAccessibilityService);
+
+        expect(svc.prefersReducedMotion()).toBe(false);
+        expect(svc.prefersHighContrast()).toBe(false);
+        expect(svc.checkReducedMotion()).toBe(false);
+        expect(svc.checkHighContrast()).toBe(false);
+        expect(() => TestBed.resetTestingModule()).not.toThrow();
+      } finally {
+        window.matchMedia = original;
+      }
+    });
+
+    it('should fall back to addListener/removeListener on legacy MediaQueryList', () => {
+      const original = window.matchMedia;
+      const addListener = vi.fn();
+      const removeListener = vi.fn();
+      window.matchMedia = vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        addListener,
+        removeListener,
+      })) as unknown as typeof window.matchMedia;
+
+      try {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({ providers: [MusicAccessibilityService] });
+        TestBed.inject(MusicAccessibilityService);
+        expect(addListener).toHaveBeenCalledTimes(3);
+
+        TestBed.resetTestingModule();
+        expect(removeListener).toHaveBeenCalledTimes(3);
+      } finally {
+        window.matchMedia = original;
+      }
+    });
+  });
+
   describe('formatting helpers', () => {
     it('should have formatTime method', () => {
       expect(typeof service.formatTime).toBe('function');

@@ -12,7 +12,12 @@ export type ChordDiagramSize = 'sm' | 'md' | 'lg';
 
 export interface ChordFingering {
   string: number; // 1-6 (1 = high E, 6 = low E)
-  fret: number; // 0 = open, -1 = muted, 1+ = fret number
+  /**
+   * Absolute fret number on the neck: 0 = open, -1 = muted, 1+ = fret. With a `baseFret`
+   * above 1 the diagram shows frets baseFret..baseFret + fretCount - 1, so e.g. a barre
+   * at the 5th fret is `fret: 5` with `baseFret: 5` (drawn on the diagram's first row).
+   */
+  fret: number;
   finger?: number; // 1-4 (index to pinky), 0 = thumb
   barre?: boolean; // Part of a barre chord
 }
@@ -20,7 +25,8 @@ export interface ChordFingering {
 export interface ChordDefinition {
   name: string; // e.g., "C", "Am", "G7"
   fingerings: ChordFingering[];
-  baseFret?: number; // Starting fret position (default 1)
+  /** Fret shown in the diagram's first row (default 1 = nut); `fret` values stay absolute */
+  baseFret?: number;
   barreFrom?: number; // String number where barre starts
   barreTo?: number; // String number where barre ends
 }
@@ -114,6 +120,10 @@ export class TwChordDiagramComponent {
   readonly chord = input<ChordDefinition | string | null>(null);
   readonly customFingerings = input<ChordFingering[]>([]);
   readonly name = input<string>('');
+  /**
+   * Fret shown in the first row when the chord does not define `baseFret` (default 1 = nut).
+   * Fingering `fret` numbers are absolute, see ChordFingering.fret.
+   */
   readonly baseFret = input(1, { transform: numberAttribute });
   readonly fretCount = input(4, { transform: numberAttribute });
   readonly stringCount = input(6, { transform: numberAttribute }); // 6 for guitar, 4 for bass
@@ -155,8 +165,14 @@ export class TwChordDiagramComponent {
 
   protected readonly displayBaseFret = computed(() => {
     const chordData = this.chordData();
-    return chordData?.baseFret || this.baseFret();
+    return Math.max(1, Math.floor(chordData?.baseFret || this.baseFret() || 1));
   });
+
+  // Diagram row (1 = first row) of an absolute fret, or null when outside the window
+  protected fretRow(fret: number): number | null {
+    const row = fret - this.displayBaseFret() + 1;
+    return row >= 1 && row <= this.fretCount() ? row : null;
+  }
 
   protected readonly dimensions = computed(() => {
     const size = this.size();
@@ -271,9 +287,11 @@ export class TwChordDiagramComponent {
 
   protected getFingerPosition(fingering: ChordFingering): { x: number; y: number } | null {
     if (fingering.fret <= 0) return null;
+    const row = this.fretRow(fingering.fret);
+    if (row === null) return null;
 
     const x = this.getStringX(fingering.string);
-    const y = this.getFretY(fingering.fret) - this.dimensions().fretSpacing / 2;
+    const y = this.getFretY(row) - this.dimensions().fretSpacing / 2;
 
     return { x, y };
   }
@@ -287,7 +305,8 @@ export class TwChordDiagramComponent {
     const barreFingerings = fingerings.filter(f => f.barre && f.fret > 0);
     if (barreFingerings.length === 0) return null;
 
-    const barreFret = barreFingerings[0].fret;
+    const barreRow = this.fretRow(barreFingerings[0].fret);
+    if (barreRow === null) return null;
 
     // Prefer the explicit range from the chord definition (only when its fingerings are
     // the ones displayed); otherwise span the strings marked as barre.
@@ -301,7 +320,7 @@ export class TwChordDiagramComponent {
     return {
       x1: this.getStringX(from),
       x2: this.getStringX(to),
-      y: this.getFretY(barreFret) - this.dimensions().fretSpacing / 2,
+      y: this.getFretY(barreRow) - this.dimensions().fretSpacing / 2,
     };
   }
 

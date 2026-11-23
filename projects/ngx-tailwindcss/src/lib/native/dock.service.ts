@@ -1,13 +1,13 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
-import { loadElectronIpc } from './electron-bridge.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 @Injectable({
   providedIn: 'root',
 })
-export class DockService {
+export class DockService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
 
   public readonly isSupported = signal(false);
@@ -15,9 +15,20 @@ export class DockService {
   // Id -> action routing table for Electron dock menu clicks (see convertMenuForElectron)
   private readonly electronMenuActions = new Map<string, () => void>();
   private electronMenuListenerRegistered = false;
+  private unsubscribeMenuClick: (() => void) | null = null;
+  private destroyed = false;
 
   constructor() {
     this.checkSupport();
+  }
+
+  /** Remove the IPC menu-click listener (it would otherwise outlive the app). */
+  public ngOnDestroy(): void {
+    this.destroyed = true;
+    this.unsubscribeMenuClick?.();
+    this.unsubscribeMenuClick = null;
+    this.electronMenuListenerRegistered = false;
+    this.electronMenuActions.clear();
   }
 
   private checkSupport(): void {
@@ -181,9 +192,14 @@ export class DockService {
 
     try {
       const { ipcRenderer } = await loadElectronIpc();
-      ipcRenderer.on('dock-menu-click', (_event: unknown, id: unknown) => {
-        this.electronMenuActions.get(String(id))?.();
-      });
+      if (this.electronMenuListenerRegistered || this.destroyed) return;
+      this.unsubscribeMenuClick = subscribeElectronIpc(
+        ipcRenderer,
+        'dock-menu-click',
+        (_event: unknown, id: unknown) => {
+          this.electronMenuActions.get(String(id))?.();
+        }
+      );
       this.electronMenuListenerRegistered = true;
     } catch (error) {
       console.warn('Failed to register dock menu click listener:', error);

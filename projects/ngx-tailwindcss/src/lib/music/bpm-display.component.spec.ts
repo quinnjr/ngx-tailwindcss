@@ -66,6 +66,17 @@ describe('TwBpmDisplayComponent', () => {
     expect(host.changes).toEqual([140]);
   });
 
+  it('should return focus to the value display after a keyboard commit', async () => {
+    el.querySelector<HTMLElement>('[role="button"]')!.click();
+    fixture.detectChanges();
+    const editor = el.querySelector<HTMLInputElement>('input[type="number"]')!;
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(el.querySelector('[role="button"]'));
+  });
+
   it('should not commit on the blur after Escape cancels', () => {
     el.querySelector<HTMLElement>('[role="button"]')!.click();
     fixture.detectChanges();

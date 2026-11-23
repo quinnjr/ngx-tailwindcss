@@ -200,6 +200,8 @@ export class MidiService implements OnDestroy {
   private readonly _connected = signal(false);
   private readonly _inputs = signal<Map<string, MidiDeviceInfo>>(new Map());
   private readonly _outputs = signal<Map<string, MidiDeviceInfo>>(new Map());
+  // Keyed by channel * 128 + note so the same note held on two channels is
+  // tracked independently
   private readonly _activeNotes = signal<Map<number, MidiMessage>>(new Map());
   private readonly _ccMappings = signal<Map<string, MidiCCMapping>>(new Map());
   private readonly _ccValues = signal<Map<number, number>>(new Map());
@@ -416,13 +418,13 @@ export class MidiService implements OnDestroy {
     if (message.type === 'noteOn' && message.data2 > 0) {
       this._activeNotes.update(notes => {
         const newNotes = new Map(notes);
-        newNotes.set(message.data1, message);
+        newNotes.set(message.channel * 128 + message.data1, message);
         return newNotes;
       });
     } else if (message.type === 'noteOff' || (message.type === 'noteOn' && message.data2 === 0)) {
       this._activeNotes.update(notes => {
         const newNotes = new Map(notes);
-        newNotes.delete(message.data1);
+        newNotes.delete(message.channel * 128 + message.data1);
         return newNotes;
       });
     }
@@ -770,28 +772,28 @@ export class MidiService implements OnDestroy {
    * Send a Note On message
    */
   sendNoteOn(outputId: string, note: number, velocity: number = 127, channel: number = 0): void {
-    this.sendMessage(outputId, [0x90 | channel, note, velocity]);
+    this.sendMessage(outputId, [0x90 | (channel & 0x0f), note, velocity]);
   }
 
   /**
    * Send a Note Off message
    */
   sendNoteOff(outputId: string, note: number, velocity: number = 0, channel: number = 0): void {
-    this.sendMessage(outputId, [0x80 | channel, note, velocity]);
+    this.sendMessage(outputId, [0x80 | (channel & 0x0f), note, velocity]);
   }
 
   /**
    * Send a Control Change message
    */
   sendCC(outputId: string, cc: number, value: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xb0 | channel, cc, Math.round(value)]);
+    this.sendMessage(outputId, [0xb0 | (channel & 0x0f), cc, Math.round(value)]);
   }
 
   /**
    * Send a Program Change message
    */
   sendProgramChange(outputId: string, program: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xc0 | channel, program]);
+    this.sendMessage(outputId, [0xc0 | (channel & 0x0f), program]);
   }
 
   /**
@@ -803,7 +805,7 @@ export class MidiService implements OnDestroy {
     const normalized = Math.min(16_383, Math.max(0, Math.round(value + 8192)));
     const lsb = normalized & 0x7f;
     const msb = (normalized >> 7) & 0x7f;
-    this.sendMessage(outputId, [0xe0 | channel, lsb, msb]);
+    this.sendMessage(outputId, [0xe0 | (channel & 0x0f), lsb, msb]);
   }
 
   /**

@@ -47,6 +47,21 @@ const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 7] },
 };
 
+// Order in which sharps / flats are added to a key signature
+const KEY_SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const KEY_FLAT_ORDER = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+
+/**
+ * Semitone alteration the key signature applies to a note letter (C-B): +1 for a sharped
+ * letter, -1 for a flatted one, 0 otherwise. E.g. ('G', 'F') -> 1, ('Bb', 'E') -> -1.
+ */
+export function getKeySignatureAlteration(key: KeySignature, noteName: string): number {
+  const info = KEY_SIGNATURES[key] ?? KEY_SIGNATURES.C;
+  if (KEY_SHARP_ORDER.slice(0, info.sharps).includes(noteName)) return 1;
+  if (KEY_FLAT_ORDER.slice(0, info.flats).includes(noteName)) return -1;
+  return 0;
+}
+
 export interface StaffLayoutOptions {
   width: number;
   measures: number;

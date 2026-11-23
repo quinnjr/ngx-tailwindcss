@@ -1,8 +1,8 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
-import { loadElectronIpc } from './electron-bridge.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 export interface TrayConfig {
   icon: string;
@@ -14,7 +14,7 @@ export interface TrayConfig {
 @Injectable({
   providedIn: 'root',
 })
-export class SystemTrayService {
+export class SystemTrayService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
 
   public readonly isSupported = signal(false);
@@ -25,9 +25,20 @@ export class SystemTrayService {
   // Id -> action routing table for Electron menu clicks (see convertMenuForElectron)
   private readonly electronMenuActions = new Map<string, () => void>();
   private electronMenuListenerRegistered = false;
+  private unsubscribeMenuClick: (() => void) | null = null;
+  private destroyed = false;
 
   constructor() {
     this.checkSupport();
+  }
+
+  /** Remove the IPC menu-click listener (it would otherwise outlive the app). */
+  public ngOnDestroy(): void {
+    this.destroyed = true;
+    this.unsubscribeMenuClick?.();
+    this.unsubscribeMenuClick = null;
+    this.electronMenuListenerRegistered = false;
+    this.electronMenuActions.clear();
   }
 
   private checkSupport(): void {
@@ -246,9 +257,14 @@ export class SystemTrayService {
 
     try {
       const { ipcRenderer } = await loadElectronIpc();
-      ipcRenderer.on('tray-menu-click', (_event: unknown, id: unknown) => {
-        this.electronMenuActions.get(String(id))?.();
-      });
+      if (this.electronMenuListenerRegistered || this.destroyed) return;
+      this.unsubscribeMenuClick = subscribeElectronIpc(
+        ipcRenderer,
+        'tray-menu-click',
+        (_event: unknown, id: unknown) => {
+          this.electronMenuActions.get(String(id))?.();
+        }
+      );
       this.electronMenuListenerRegistered = true;
     } catch (error) {
       console.warn('Failed to register tray menu click listener:', error);

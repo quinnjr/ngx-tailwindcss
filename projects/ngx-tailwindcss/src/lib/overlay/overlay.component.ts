@@ -162,8 +162,19 @@ export class TwOverlayComponent implements OnDestroy {
     );
   });
 
+  /** Whether the current pointer press started on the overlay itself (not its content) */
+  private pointerDownOnOverlay = false;
+
+  protected onOverlayPointerDown(event: Event): void {
+    this.pointerDownOnOverlay = event.target === event.currentTarget;
+  }
+
   protected onOverlayClick(event: MouseEvent): void {
-    if (this.closeOnClick() && event.target === event.currentTarget) {
+    const startedOnOverlay = this.pointerDownOnOverlay;
+    this.pointerDownOnOverlay = false;
+    // A press inside the content released over the overlay dispatches its click on
+    // the overlay (the common ancestor): only close when both ends hit the overlay
+    if (this.closeOnClick() && startedOnOverlay && event.target === event.currentTarget) {
       this.close.emit();
     }
   }

@@ -9,6 +9,7 @@ import {
   inject,
   Input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
@@ -225,6 +226,13 @@ export class TwButtonComponent {
     return true;
   }
 
+  /**
+   * Visually hidden native submit button rendered when `type="submit"`. Browsers only
+   * perform implicit submission (Enter in a text field) when the form has a real submit
+   * button, so this proxy makes `<tw-button type="submit">` behave like a native one.
+   */
+  private readonly nativeSubmit = viewChild<ElementRef<HTMLButtonElement>>('nativeSubmit');
+
   constructor() {
     // Sync ripple directive state
     effect(() => {
@@ -242,6 +250,9 @@ export class TwButtonComponent {
         event.stopImmediatePropagation();
         return;
       }
+      // A click on the hidden native submit button (e.g. the browser's implicit
+      // submission) is already submitting the form natively; don't submit twice.
+      if (event.target === this.nativeSubmit()?.nativeElement) return;
       this.runFormAction(event);
     });
   }
@@ -263,7 +274,8 @@ export class TwButtonComponent {
       if (type === 'reset') {
         form.reset();
       } else if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
+        const submitter = this.nativeSubmit()?.nativeElement;
+        form.requestSubmit(submitter?.form === form ? submitter : undefined);
       } else {
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       }

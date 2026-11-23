@@ -2,7 +2,6 @@ import {
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
-  computed,
   contentChild,
   Directive,
   effect,
@@ -154,15 +153,16 @@ export class TwDropdownComponent implements OnDestroy {
   private escapeListener: ((event: KeyboardEvent) => void) | null = null;
   private menuClickListener: (() => void) | null = null;
 
-  protected menuClasses = computed(() => {
-    const widthClass = this.width === 'auto' ? 'min-w-[10rem]' : this.width === 'trigger' ? '' : '';
+  /** A method, not a computed: `width`/`menuClass` are plain @Inputs a computed can't track */
+  protected menuClasses(): string {
+    const widthClass = this.width === 'auto' ? 'min-w-[10rem]' : '';
 
     return this.twClass.merge(
       'rounded-lg bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-slate-700 overflow-auto py-1',
       widthClass,
       this.menuClass
     );
-  });
+  }
 
   constructor() {
     // Create portal when open state changes
@@ -201,6 +201,9 @@ export class TwDropdownComponent implements OnDestroy {
   }
 
   close(): void {
+    // Nothing to close (e.g. the deferred close after an item click already ran)
+    if (!this.isOpen()) return;
+
     // Restore trigger focus only when focus currently sits inside the menu,
     // so outside clicks don't have their focus stolen
     const shouldRestoreFocus = !!this.portalElement?.contains(this.document.activeElement);

@@ -64,7 +64,7 @@
               <!-- Calculate note data -->
               @let noteData =
                 autoCalculateNotes() && typeof note.fret === 'number'
-                  ? calculateNoteFromFret(note.string, note.fret)
+                  ? calculatedNotes()[measureIndex]?.[beat]?.[$index]
                   : note.noteName
                     ? { note: note.noteName, octave: note.octave || 4, accidental: note.accidental }
                     : null;

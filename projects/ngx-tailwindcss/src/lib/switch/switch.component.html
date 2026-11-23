@@ -7,6 +7,7 @@
     [class]="trackClasses()"
     [disabled]="isDisabled()"
     (click)="toggle()"
+    (blur)="onSwitchBlur()"
   >
     <span [class]="thumbClasses()"></span>
   </button>

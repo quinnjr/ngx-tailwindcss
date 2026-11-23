@@ -451,6 +451,14 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     const isFilterInput = event.target === this.filterInput?.nativeElement;
 
     switch (event.key) {
+      case 'Escape': {
+        // Claim Escape while open so an enclosing modal/overlay stays open
+        if (this.isOpen()) {
+          event.preventDefault();
+          this.closeDropdown(true);
+        }
+        break;
+      }
       case 'ArrowDown': {
         event.preventDefault();
         if (this.isOpen()) {

@@ -1,7 +1,12 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { NoteName, TwNoteComponent } from './note.component';
+import {
+  createAccidentalContext,
+  NoteName,
+  spellMidiPitch,
+  TwNoteComponent,
+} from './note.component';
 import { ClefType } from './staff.component';
 
 describe('TwNoteComponent', () => {
@@ -78,5 +83,27 @@ describe('TwNoteComponent', () => {
     expect(render('A', 3, 'bass').y).toBe(40);
     // Alto clef: middle line is C4
     expect(render('C', 4, 'alto').y).toBe(60);
+  });
+});
+
+describe('accidental helpers', () => {
+  it('resolves unmarked notes from the key signature and earlier accidentals in the bar', () => {
+    const context = createAccidentalContext('Bb');
+    expect(context.resolve({ name: 'B', octave: 4 })).toBe(-1);
+    expect(context.resolve({ name: 'B', octave: 4, accidental: 'natural' })).toBe(0);
+    expect(context.resolve({ name: 'B', octave: 4 })).toBe(0);
+    // Other octaves are not affected
+    expect(context.resolve({ name: 'B', octave: 3 })).toBe(-1);
+    context.nextMeasure();
+    expect(context.resolve({ name: 'B', octave: 4 })).toBe(-1);
+  });
+
+  it('spells MIDI pitches with the key signature letters', () => {
+    expect(spellMidiPitch(66, 'G')).toEqual({ name: 'F', octave: 4, alteration: 1 });
+    expect(spellMidiPitch(70, 'F')).toEqual({ name: 'B', octave: 4, alteration: -1 });
+    // Cb5 sounds as B4 in Gb major
+    expect(spellMidiPitch(71, 'Gb')).toEqual({ name: 'C', octave: 5, alteration: -1 });
+    expect(spellMidiPitch(61, 'C')).toEqual({ name: 'C', octave: 4, alteration: 1 });
+    expect(spellMidiPitch(61, 'Eb')).toEqual({ name: 'D', octave: 4, alteration: -1 });
   });
 });

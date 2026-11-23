@@ -195,6 +195,8 @@ export class TwSliderComponent implements ControlValueAccessor {
       variant.thumb,
       sizeClasses,
       this.isDragging() ? 'scale-110' : '',
+      // The native input is invisible, so show its keyboard focus on the thumb
+      'group-has-[input:focus-visible]:ring-2 group-has-[input:focus-visible]:ring-blue-500 group-has-[input:focus-visible]:ring-offset-2',
       this.isDisabled() ? 'opacity-50' : ''
     );
   });
@@ -210,6 +212,8 @@ export class TwSliderComponent implements ControlValueAccessor {
     const inputEl = event.target as HTMLInputElement;
     const newValue = Number.parseFloat(inputEl.value);
     this.value.set(newValue);
+    // `change` fires on release even when the pointer is released off the input
+    this.isDragging.set(false);
     this.onChangeFn(newValue);
     this.onChange.emit(newValue);
   }

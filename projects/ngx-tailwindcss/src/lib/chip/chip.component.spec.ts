@@ -383,3 +383,27 @@ describe('TwChipsComponent (regressions)', () => {
     expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(2);
   });
 });
+
+describe('TwChipsComponent (round 3)', () => {
+  it('should not add a chip for the Enter that commits an IME composition', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.value = 'にほん';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(0);
+    expect(input.value).toBe('にほん');
+  });
+
+  it('should name the remove button after the chip', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.value = 'Angular';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+    const remove: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    expect(remove.getAttribute('aria-label')).toBe('Remove Angular');
+  });
+});

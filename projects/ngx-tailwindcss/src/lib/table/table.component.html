@@ -110,7 +110,7 @@
       </thead>
       <tbody [class]="tbodyClasses()">
         @for (row of displayedData(); track trackByFn()(row); let i = $index; let odd = $odd) {
-          <tr [class]="trClasses(row, odd)" (click)="onRowClick(row)">
+          <tr [class]="trClasses(row, odd)" (click)="onRowClick(row, $event)">
             @if (selectable()) {
               <td class="px-4 py-3">
                 <input

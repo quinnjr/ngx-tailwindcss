@@ -7,7 +7,7 @@ import {
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NoteDuration, NoteName } from './note.component';
+import { createAccidentalContext, NoteAccidental, NoteDuration, NoteName } from './note.component';
 
 export type TablatureVariant = 'default' | 'minimal' | 'printed' | 'dark';
 export type TablatureTechnique =
@@ -284,6 +284,30 @@ export class TwTablatureComponent {
     if (!this.interactive()) return;
     this.measureClick.emit(measureIndex);
   }
+
+  /**
+   * Staff notes for fretted tab notes, indexed [measure][beat][note]. The staff has no key
+   * signature, so written accidentals follow standard notation in C major: a sharp carries
+   * through the rest of the measure and a later unaltered note on that line gets a natural.
+   */
+  protected readonly calculatedNotes = computed(() =>
+    this.measures().map(measure => {
+      const accidentals = createAccidentalContext('C');
+      return (measure.notes ?? []).map(beatNotes =>
+        (beatNotes ?? []).map(
+          (tabNote): { note: NoteName; octave: number; accidental: NoteAccidental } | null => {
+            const calculated = this.calculateNoteFromFret(tabNote.string, tabNote.fret);
+            if (!calculated) return null;
+            const alteration = calculated.accidental === 'sharp' ? 1 : 0;
+            return {
+              ...calculated,
+              accidental: accidentals.spell(calculated.note, calculated.octave, alteration),
+            };
+          }
+        )
+      );
+    })
+  );
 
   // Calculate note from fret position
   protected calculateNoteFromFret(

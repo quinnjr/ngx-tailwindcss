@@ -73,7 +73,7 @@ describe('TwBreadcrumbComponent', () => {
 
     it('should render span for last item without href', () => {
       const items = breadcrumbEl.querySelectorAll('li');
-      const lastItem = [...items].at(-1);
+      const lastItem = [...items].at(-1)!;
       // The last item contains a span with aria-current="page"
       const span = lastItem.querySelector('span[aria-current="page"]');
       expect(span).toBeTruthy();
@@ -82,7 +82,7 @@ describe('TwBreadcrumbComponent', () => {
 
     it('should mark last item as current', () => {
       const items = breadcrumbEl.querySelectorAll('li');
-      const lastItem = [...items].at(-1);
+      const lastItem = [...items].at(-1)!;
       // aria-current is on the span inside the li, not the li itself
       const currentSpan = lastItem.querySelector('[aria-current="page"]');
       expect(currentSpan).toBeTruthy();
@@ -220,7 +220,7 @@ describe('TwBreadcrumbComponent', () => {
 
     it('should apply current classes to last item', () => {
       const items = breadcrumbEl.querySelectorAll('li');
-      const lastItem = [...items].at(-1);
+      const lastItem = [...items].at(-1)!;
       const current = lastItem.querySelector('span[aria-current="page"]');
       expect(current?.className).toContain('font-medium');
     });

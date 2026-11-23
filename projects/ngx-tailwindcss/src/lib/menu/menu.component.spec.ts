@@ -206,6 +206,52 @@ describe('TwMenuComponent', () => {
       expect(menuItems().length).toBe(2);
     });
 
+    it('should move focus to the first enabled submenu item on ArrowRight', () => {
+      component.items.set([
+        {
+          id: 1,
+          label: 'File',
+          items: [
+            { id: 10, label: 'Disabled', disabled: true },
+            { id: 11, label: 'New' },
+            { id: 12, label: 'Open' },
+          ],
+        },
+        { id: 2, label: 'Edit' },
+      ]);
+      fixture.detectChanges();
+
+      const parent = menuItems()[0];
+      parent.focus();
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      const newItem = menuItems().find(el => el.textContent?.trim() === 'New');
+      expect(document.activeElement).toBe(newItem);
+
+      // Arrow navigation stays within the submenu
+      newItem!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(document.activeElement?.textContent?.trim()).toBe('Open');
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })
+      );
+      expect(document.activeElement).toBe(newItem);
+    });
+
+    it('should close the submenu on Escape and return focus to its trigger', () => {
+      const parent = menuItems()[0];
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      );
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+
     it('should close the submenu on ArrowLeft and return focus to its trigger', () => {
       const parent = menuItems()[0];
       parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));

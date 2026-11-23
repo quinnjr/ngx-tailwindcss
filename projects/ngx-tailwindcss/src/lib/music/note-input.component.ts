@@ -1,12 +1,10 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
   ElementRef,
   HostListener,
-  inject,
   input,
   numberAttribute,
   OnDestroy,
@@ -24,7 +22,14 @@ import {
   StaffTimeSignature,
   TwStaffComponent,
 } from './staff.component';
-import { NoteAccidental, NoteData, NoteDuration, NoteName } from './note.component';
+import {
+  createAccidentalContext,
+  NoteAccidental,
+  NoteData,
+  NoteDuration,
+  NoteName,
+  spellMidiPitch,
+} from './note.component';
 
 export type Voice = 1 | 2 | 3 | 4;
 
@@ -56,23 +61,6 @@ export interface ClipboardData {
   measureStart: number;
   measureEnd: number;
 }
-
-// MIDI note number to note name mapping
-const MIDI_NOTE_NAMES: NoteName[] = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'];
-const MIDI_NOTE_ACCIDENTALS: Array<NoteAccidental | null> = [
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-];
 
 // Keyboard shortcuts for note durations
 const DURATION_SHORTCUTS: Record<string, NoteDuration> = {
@@ -123,8 +111,7 @@ const NOTE_SHORTCUTS: Record<string, NoteName> = {
     '[attr.tabindex]': '0',
   },
 })
-export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
-  private readonly elementRef = inject(ElementRef);
+export class TwNoteInputComponent implements OnDestroy {
   private readonly staffContainer = viewChild<ElementRef<HTMLDivElement>>('staffContainer');
 
   // Staff configuration (pass-through to tw-staff)
@@ -191,6 +178,10 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   // Drag state
   private noteDragController: AbortController | null = null;
 
+  private destroyed = false;
+  // Incremented on every connect/disconnect so a stale requestMIDIAccess() result is ignored
+  private midiRequestId = 0;
+
   // Note ID counter
   private noteIdCounter = 0;
 
@@ -200,6 +191,15 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     2: '#2563EB', // Blue
     3: '#059669', // Emerald
     4: '#DC2626', // Red
+  };
+
+  protected readonly restSymbols: Record<NoteDuration, string> = {
+    whole: '𝄻',
+    half: '𝄼',
+    quarter: '𝄽',
+    eighth: '𝄾',
+    sixteenth: '𝄿',
+    thirtysecond: '𝅀',
   };
 
   protected getVoiceColorByNumber(voice: number): string {
@@ -268,6 +268,20 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
         this.selectedNotes.update(sel => sel.filter(n => ids.has(n.id)));
       });
     });
+
+    // Connect / disconnect MIDI whenever enableMidiInput changes (e.g. tw-score-editor only
+    // enables it on the selected part). The host is focusable (tabindex 0) for keyboard
+    // input; it is not focused automatically so rendering never steals the page's focus.
+    effect(() => {
+      const enabled = this.enableMidiInput();
+      untracked(() => {
+        if (enabled) {
+          if (!this.midiAccess) void this.initMidi();
+        } else {
+          this.disconnectMidi();
+        }
+      });
+    });
   }
 
   // Ensure generated ids never collide with ids already present ("note-<n>")
@@ -280,17 +294,8 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  ngAfterViewInit(): void {
-    // Setup MIDI if enabled
-    if (this.enableMidiInput()) {
-      void this.initMidi();
-    }
-
-    // Focus element for keyboard input
-    this.elementRef.nativeElement.focus();
-  }
-
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.disconnectMidi();
     this.noteDragController?.abort();
     this.noteDragController = null;
@@ -403,23 +408,20 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     },
     accidental: NoteAccidental = this.currentAccidental()
   ): void {
+    const isRest = this.isRest();
     const newNote: PlacedNote = {
       id: `note-${this.noteIdCounter++}`,
       name: position.note,
       octave: position.octave,
       duration: this.currentDuration(),
-      accidental,
+      accidental: isRest ? null : accidental,
       dotted: this.isDotted(),
       x: position.x,
       measure: position.measure,
       beat: position.beat,
       voice: this.currentVoice(),
+      ...(isRest ? { isRest: true } : {}),
     };
-
-    if (this.isRest()) {
-      // Place as rest - we store it but render differently
-      (newNote as any).isRest = true;
-    }
 
     this.saveUndoState();
     this.notes.update(notes => [...notes, newNote]);
@@ -670,8 +672,16 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   // ==================== MIDI INPUT ====================
 
   private async initMidi(): Promise<void> {
+    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
+      this.midiConnected.set(false);
+      return;
+    }
+    const requestId = ++this.midiRequestId;
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      const access = await navigator.requestMIDIAccess();
+      // Destroyed or disabled while the permission prompt was pending
+      if (this.destroyed || requestId !== this.midiRequestId) return;
+      this.midiAccess = access;
       this.midiConnected.set(true);
 
       const { inputs } = this.midiAccess;
@@ -722,31 +732,40 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
 
     // Note On (0x9) with velocity > 0
     if (command === 9 && velocity > 0) {
-      const { note, octave, accidental } = this.midiNoteToNote(noteNumber);
-
       // Place note at current cursor position or next available
       const hover = this.hoverPosition();
       const x = hover?.x ?? this.getNextNotePosition();
       const { measure, beat } = hover ?? this.xToMeasureBeat(x);
 
-      // The MIDI pitch fully determines the accidental (black key = sharp, white key = none)
+      const { note, octave, accidental } = this.midiNoteToNote(noteNumber, measure, beat);
       this.placeNote({ x, note, octave, measure, beat }, accidental);
     }
   }
 
-  private midiNoteToNote(midiNote: number): {
+  /**
+   * Spell a MIDI pitch for placement at measure/beat. The MIDI pitch fully determines the
+   * written accidental: none when the key signature or an earlier accidental in the measure
+   * already gives that pitch (see NoteData.accidental), otherwise an explicit one.
+   */
+  private midiNoteToNote(
+    midiNote: number,
+    measure: number,
+    beat: number
+  ): {
     note: NoteName;
     octave: number;
     accidental: NoteAccidental;
   } {
-    const noteIndex = midiNote % 12;
-    const octave = Math.floor(midiNote / 12) - 1;
+    const key = this.keySignature();
+    const { name, octave, alteration } = spellMidiPitch(midiNote, key);
 
-    return {
-      note: MIDI_NOTE_NAMES[noteIndex],
-      octave,
-      accidental: MIDI_NOTE_ACCIDENTALS[noteIndex],
-    };
+    const context = createAccidentalContext(key);
+    const earlier = this.notes()
+      .filter(n => n.measure === measure && n.beat < beat && !n.isRest)
+      .sort((a, b) => a.beat - b.beat);
+    for (const n of earlier) context.resolve(n);
+
+    return { note: name, octave, accidental: context.spell(name, octave, alteration) };
   }
 
   private xToMeasureBeat(x: number): { measure: number; beat: number } {
@@ -769,6 +788,7 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   }
 
   private disconnectMidi(): void {
+    this.midiRequestId++;
     if (this.midiAccess) {
       this.midiAccess.removeEventListener('statechange', this.midiStateChangeHandler);
       this.midiAccess.inputs.forEach(midiInput => {
@@ -963,6 +983,14 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
           newBeat -= grid;
           newMeasure++;
         }
+        // Keep the note on the staff (x, measure and beat must stay consistent)
+        if (newMeasure < 0) {
+          newMeasure = 0;
+          newBeat = 0;
+        } else if (newMeasure >= this.measures()) {
+          newMeasure = this.measures() - 1;
+          newBeat = grid - 1;
+        }
 
         // Calculate new X position
         const newX =
@@ -975,7 +1003,7 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
           name: noteNames[newNoteIndex],
           octave: newOctave,
           beat: newBeat,
-          measure: Math.max(0, newMeasure),
+          measure: newMeasure,
           x: newX,
         };
       })

@@ -4,9 +4,15 @@
     <div [class]="backdropClasses()"></div>
   </div>
 
-  <!-- Modal container (carries the backdrop click handler because it covers
-       the backdrop layer; the panel stops propagation) -->
-  <div class="fixed inset-0 z-50 overflow-y-auto" [@overlayAnimation] (click)="onBackdropClick()">
+  <!-- Modal container (carries the backdrop handlers because it covers the
+       backdrop layer). A click only closes when the press also started outside
+       the panel, so a drag from the panel onto the backdrop does not close. -->
+  <div
+    class="fixed inset-0 z-50 overflow-y-auto"
+    [@overlayAnimation]
+    (pointerdown)="onBackdropPointerDown($event)"
+    (click)="onBackdropClick($event)"
+  >
     <div [class]="containerClasses()">
       <!-- Modal panel -->
       <!-- Static classes for Tailwind JIT detection: bg-white dark:bg-slate-800 -->
@@ -22,7 +28,6 @@
         [attr.aria-modal]="true"
         [attr.aria-labelledby]="_ariaLabelledBy() || modalTitle()?.id || null"
         [attr.aria-describedby]="_ariaDescribedBy() || null"
-        (click)="$event.stopPropagation()"
       >
         <!-- Close button -->
         @if (_showCloseButton()) {

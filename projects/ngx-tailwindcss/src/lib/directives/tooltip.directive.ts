@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { AriaUtils } from '../core/aria.service';
+import { TwClassService } from '../core/tw-class.service';
 
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
 
@@ -40,6 +41,7 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
   private readonly el = inject(ElementRef);
   private readonly renderer = inject(Renderer2);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly twClass = inject(TwClassService);
   private readonly tooltipId = AriaUtils.generateId('tw-tooltip');
 
   /** The tooltip text content */
@@ -69,8 +71,24 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
   private isVisible = false;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['content'] && this.tooltipElement) {
-      this.tooltipElement.textContent = this.content;
+    if (!this.tooltipElement) return;
+
+    // Disabling the tooltip or clearing its text while it is open closes it
+    if (this.tooltipDisabled || !this.content) {
+      this.clearTimeouts();
+      this.destroyTooltip();
+      this.isVisible = false;
+      return;
+    }
+
+    if (changes['content']) {
+      // Setting textContent would also drop the arrow element, so only replace the text node
+      const textNode = this.tooltipElement.firstChild;
+      if (textNode?.nodeType === Node.TEXT_NODE) {
+        textNode.textContent = this.content;
+      } else {
+        this.tooltipElement.insertBefore(document.createTextNode(this.content), textNode);
+      }
       this.updatePosition();
     }
   }
@@ -113,9 +131,9 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
     this.tooltipElement!.textContent = this.content;
     this.renderer.setAttribute(this.tooltipElement, 'id', this.tooltipId);
     this.renderer.setAttribute(this.tooltipElement, 'role', 'tooltip');
-    this.renderer.setAttribute(this.el.nativeElement, 'aria-describedby', this.tooltipId);
+    this.addDescribedBy();
 
-    // Base tooltip styles using Tailwind classes
+    // Base tooltip styles using Tailwind classes; custom classes override conflicting ones
     const baseClasses = [
       'fixed',
       'px-2',
@@ -133,8 +151,10 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
       'duration-150',
     ];
 
-    // Add custom classes
-    const allClasses = [...baseClasses, ...this.tooltipClass.split(' ').filter(Boolean)];
+    const allClasses = this.twClass
+      .merge(baseClasses.join(' '), this.tooltipClass)
+      .split(' ')
+      .filter(Boolean);
     allClasses.forEach(cls => {
       this.renderer.addClass(this.tooltipElement, cls);
     });
@@ -246,9 +266,32 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
       document.removeEventListener('keydown', this.escapeHandler);
       window.removeEventListener('scroll', this.repositionHandler, true);
       window.removeEventListener('resize', this.repositionHandler);
-      this.renderer.removeAttribute(this.el.nativeElement, 'aria-describedby');
+      this.removeDescribedBy();
       this.renderer.removeChild(document.body, this.tooltipElement);
       this.tooltipElement = null;
+    }
+  }
+
+  /** Adds the tooltip id to the host's aria-describedby, keeping existing references */
+  private addDescribedBy(): void {
+    const host = this.el.nativeElement as HTMLElement;
+    const ids = (host.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    if (!ids.includes(this.tooltipId)) {
+      ids.push(this.tooltipId);
+      this.renderer.setAttribute(host, 'aria-describedby', ids.join(' '));
+    }
+  }
+
+  /** Removes only the tooltip id from the host's aria-describedby */
+  private removeDescribedBy(): void {
+    const host = this.el.nativeElement as HTMLElement;
+    const ids = (host.getAttribute('aria-describedby') ?? '')
+      .split(/\s+/)
+      .filter(id => id && id !== this.tooltipId);
+    if (ids.length > 0) {
+      this.renderer.setAttribute(host, 'aria-describedby', ids.join(' '));
+    } else {
+      this.renderer.removeAttribute(host, 'aria-describedby');
     }
   }
 

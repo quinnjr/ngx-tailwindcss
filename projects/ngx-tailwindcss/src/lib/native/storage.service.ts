@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { StorageOptions } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
-import { loadElectronIpc } from './electron-bridge.util';
+import { isElectronIpcAvailable, loadElectronIpc } from './electron-bridge.util';
 
 // Type definitions for dynamic imports
 interface TauriStore {
@@ -90,20 +90,38 @@ export class NativeStorageService {
     }
   }
 
+  // Like get/set, these are no-ops (or report "nothing stored") when Web
+  // Storage is unavailable: during SSR, or when the browser blocks access.
   public remove(key: string): void {
-    localStorage.removeItem(key);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // No localStorage (SSR / blocked)
+    }
   }
 
   public clear(): void {
-    localStorage.clear();
+    try {
+      localStorage.clear();
+    } catch {
+      // No localStorage (SSR / blocked)
+    }
   }
 
   public keys(): string[] {
-    return Object.keys(localStorage);
+    try {
+      return Object.keys(localStorage);
+    } catch {
+      return [];
+    }
   }
 
   public has(key: string): boolean {
-    return localStorage.getItem(key) !== null;
+    try {
+      return localStorage.getItem(key) !== null;
+    } catch {
+      return false;
+    }
   }
 
   // Persistent app-level storage on Tauri/Electron. NOT OS-keychain-backed;
@@ -143,7 +161,7 @@ export class NativeStorageService {
       }
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
         const electron = await loadElectronIpc();
         // Await so an IPC rejection is caught below rather than escaping to the caller
@@ -179,7 +197,7 @@ export class NativeStorageService {
       return;
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
         const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-set', key, value);
@@ -211,7 +229,7 @@ export class NativeStorageService {
       return;
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
         const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-remove', key);
@@ -244,11 +262,19 @@ export class NativeStorageService {
   }
 
   public removeSession(key: string): void {
-    sessionStorage.removeItem(key);
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // No sessionStorage (SSR / blocked)
+    }
   }
 
   public clearSession(): void {
-    sessionStorage.clear();
+    try {
+      sessionStorage.clear();
+    } catch {
+      // No sessionStorage (SSR / blocked)
+    }
   }
 
   // IndexedDB for larger data

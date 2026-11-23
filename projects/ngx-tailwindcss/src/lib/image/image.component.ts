@@ -15,6 +15,11 @@ import {
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export type ImageFit = 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
 export type ImageBorderRadius = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
@@ -104,6 +109,7 @@ export class TwImageComponent {
 
     // Restore body scrolling if the component is destroyed while the preview is open
     inject(DestroyRef).onDestroy(() => {
+      removeEscapeLayer(this);
       if (this.previewVisible() && isPlatformBrowser(this.platformId)) {
         this.document.body.style.overflow = this.previousOverflow;
       }
@@ -167,11 +173,14 @@ export class TwImageComponent {
     );
   });
 
-  @HostListener('document:keydown.escape')
-  onEscapePress(): void {
-    if (this.previewVisible()) {
-      this.closePreview();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapePress(event?: Event): void {
+    // The preview joins the shared overlay layer stack, so Escape closes only the
+    // topmost layer (e.g. the preview, not an enclosing modal as well)
+    if (!this.previewVisible()) return;
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.closePreview();
   }
 
   onImageLoad(): void {
@@ -205,6 +214,7 @@ export class TwImageComponent {
     this.previewVisible.set(true);
     this.zoomLevel.set(1);
     this.rotation.set(0);
+    pushEscapeLayer(this);
     this.onShow.emit();
     if (isPlatformBrowser(this.platformId)) {
       this.previousOverflow = this.document.body.style.overflow;
@@ -215,6 +225,7 @@ export class TwImageComponent {
   closePreview(): void {
     if (!this.previewVisible()) return;
     this.previewVisible.set(false);
+    removeEscapeLayer(this);
     this.onHide.emit();
     if (isPlatformBrowser(this.platformId)) {
       this.document.body.style.overflow = this.previousOverflow;

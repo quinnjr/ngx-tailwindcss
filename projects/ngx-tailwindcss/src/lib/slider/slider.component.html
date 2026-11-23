@@ -20,7 +20,7 @@
       }}</span>
     }
 
-    <div class="relative flex-1">
+    <div class="group relative flex-1">
       <!-- Track background -->
       <div [class]="trackClasses()">
         <!-- Fill -->
@@ -53,6 +53,7 @@
         [id]="inputId()"
         [class]="inputClasses()"
         [attr.aria-label]="label() || null"
+        [attr.aria-valuetext]="displayValue()"
         [min]="min()"
         [max]="max()"
         [step]="step()"

@@ -173,9 +173,9 @@
       <div class="flex flex-col items-center gap-1">
         <canvas
           #curveCanvas
-          [width]="curveSize().width"
-          [height]="curveSize().height"
-          class="rounded border border-slate-700"
+          [style.width.px]="curveSize().width"
+          [style.height.px]="curveSize().height"
+          class="rounded border border-slate-700 box-content"
         ></canvas>
         <span class="text-[10px] text-slate-500">Transfer Curve</span>
       </div>
@@ -198,8 +198,7 @@
       </div>
       <canvas
         #grHistoryCanvas
-        [width]="grHistorySize().width"
-        [height]="grHistorySize().height"
+        [style.aspect-ratio]="grHistorySize().width + ' / ' + grHistorySize().height"
         class="rounded border border-slate-700 w-full"
       ></canvas>
     </div>
@@ -281,8 +280,7 @@
               </div>
               <canvas
                 #envelopeCanvas
-                [width]="envelopeSize().width"
-                [height]="envelopeSize().height"
+                [style.aspect-ratio]="envelopeSize().width + ' / ' + envelopeSize().height"
                 class="rounded border border-slate-700 w-full"
               ></canvas>
             </div>

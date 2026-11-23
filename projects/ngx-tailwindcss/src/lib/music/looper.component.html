@@ -54,8 +54,7 @@
     <div class="relative rounded-lg overflow-hidden bg-slate-800">
       <canvas
         #waveformCanvas
-        [width]="canvasSize().width"
-        [height]="canvasSize().height"
+        [style.aspect-ratio]="canvasSize().width + ' / ' + canvasSize().height"
         class="w-full"
         role="img"
         aria-label="Loop waveform"

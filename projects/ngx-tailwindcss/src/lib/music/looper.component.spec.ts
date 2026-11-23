@@ -82,6 +82,65 @@ describe('TwLooperComponent', () => {
     expect(initSpy).not.toHaveBeenCalled();
   });
 
+  it('should ignore overdub() while a take is already in progress', async () => {
+    const initSpy = vi.spyOn(internals, 'initAudio');
+    internals.loopDuration.set(2);
+    internals.state.set('recording');
+
+    await internals.overdub();
+
+    expect(initSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not start a second take while the first is still being set up', async () => {
+    let resolveInit!: () => void;
+    const initSpy = vi.spyOn(internals, 'initAudio').mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          resolveInit = resolve;
+        })
+    );
+
+    const first = internals.record();
+    await internals.record();
+    expect(initSpy).toHaveBeenCalledTimes(1);
+
+    resolveInit();
+    await first;
+  });
+
+  it('should not start a take that was cleared while being set up', async () => {
+    let resolveInit!: () => void;
+    vi.spyOn(internals, 'initAudio').mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          resolveInit = resolve;
+        })
+    );
+    internals.audioContext = { currentTime: 0, close: () => Promise.resolve() };
+    internals.mediaStream = {};
+
+    const take = internals.record();
+    internals.clear();
+    resolveInit();
+    await take;
+
+    expect(internals.state()).toBe('idle');
+    expect(internals.mediaRecorder).toBeNull();
+  });
+
+  it('should finish the take (and not auto-play) when stopped while recording', () => {
+    const recorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
+    internals.mediaRecorder = recorder;
+    internals.state.set('recording');
+
+    internals.stop();
+
+    expect(recorder.stop).toHaveBeenCalled();
+    expect(internals.state()).toBe('stopped');
+    expect(internals.pendingAutoPlay).toBe(false);
+  });
+
   it('should draw positive samples above the centre of the loop waveform', () => {
     const points: Array<[number, number]> = [];
     const ctx = new Proxy(

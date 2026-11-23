@@ -154,4 +154,59 @@ describe('TwTooltipDirective', () => {
 
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
   });
+
+  const nextTick = (): Promise<void> =>
+    new Promise<void>(resolve => {
+      setTimeout(resolve, 0);
+    });
+
+  it('should preserve existing aria-describedby references on the host', async () => {
+    buttonEl.setAttribute('aria-describedby', 'hint-1');
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector('[role="tooltip"]');
+    expect(buttonEl.getAttribute('aria-describedby')).toBe(`hint-1 ${tooltip?.id}`);
+
+    buttonEl.dispatchEvent(new Event('mouseleave'));
+    await nextTick();
+    expect(buttonEl.getAttribute('aria-describedby')).toBe('hint-1');
+  });
+
+  it('should let tooltipClass override conflicting base classes', async () => {
+    component.tooltipClass.set('bg-red-500 text-xs');
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector('[role="tooltip"]')!;
+
+    expect(tooltip.classList.contains('bg-red-500')).toBe(true);
+    expect(tooltip.classList.contains('bg-slate-900')).toBe(false);
+    expect(tooltip.classList.contains('text-sm')).toBe(false);
+  });
+
+  it('should keep the arrow when the content changes while open', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+
+    component.tooltipContent.set('Updated');
+    fixture.detectChanges();
+
+    const tooltip = document.querySelector('[role="tooltip"]')!;
+    expect(tooltip.textContent).toBe('Updated');
+    expect(tooltip.querySelector('div')).toBeTruthy();
+  });
+
+  it('should close an open tooltip when it becomes disabled', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBeTruthy();
+
+    component.tooltipDisabled.set(true);
+    fixture.detectChanges();
+
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
 });

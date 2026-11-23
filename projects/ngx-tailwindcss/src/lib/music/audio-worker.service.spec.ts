@@ -36,4 +36,22 @@ describe('AudioWorkerService', () => {
     await firstRejected;
     expect(service.pendingCount()).toBe(2);
   });
+
+  it('should reject pending requests and become unavailable when the worker errors', async () => {
+    const worker = (service as unknown as { worker: MockWorker }).worker;
+    const errorListener = worker.addEventListener.mock.calls.find(
+      ([type]) => type === 'error'
+    )?.[1] as (e: { message: string }) => void;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const pending = service.smoothData({ data: [1] });
+    errorListener({ message: 'blocked by CSP' });
+
+    await expect(pending).rejects.toThrow('Worker terminated');
+    expect(worker.terminate).toHaveBeenCalled();
+    expect(service.isAvailable()).toBe(false);
+    expect(service.pendingCount()).toBe(0);
+    expect(service.lastError()).toBe('blocked by CSP');
+    errorSpy.mockRestore();
+  });
 });

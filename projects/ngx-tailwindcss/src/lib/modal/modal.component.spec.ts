@@ -169,11 +169,17 @@ describe('TwModalComponent', () => {
     const containerEl = (): HTMLElement | null =>
       fixture.debugElement.query(By.css('.overflow-y-auto'))?.nativeElement ?? null;
 
+    const pressAndRelease = (down: HTMLElement, up: HTMLElement): void => {
+      down.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      up.click();
+      fixture.detectChanges();
+    };
+
     it('should close when the backdrop area is clicked', () => {
       component.isOpen.set(true);
       fixture.detectChanges();
 
-      containerEl()!.click();
+      pressAndRelease(containerEl()!, containerEl()!);
       fixture.detectChanges();
 
       expect(component.isOpen()).toBe(false);
@@ -185,11 +191,45 @@ describe('TwModalComponent', () => {
       component.isOpen.set(true);
       fixture.detectChanges();
 
-      containerEl()!.click();
-      fixture.detectChanges();
+      pressAndRelease(containerEl()!, containerEl()!);
 
       expect(component.isOpen()).toBe(true);
       expect(component.closedCount).toBe(0);
+    });
+
+    it('should not close when the press starts in the panel and ends on the backdrop', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const panel = fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement;
+      pressAndRelease(panel, containerEl()!);
+
+      expect(component.isOpen()).toBe(true);
+      expect(component.closedCount).toBe(0);
+    });
+
+    it('should not close when the press starts on the backdrop and ends in the panel', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const content = fixture.debugElement.query(By.css('[data-testid="modal-content"]'));
+      pressAndRelease(containerEl()!, content.nativeElement);
+
+      expect(component.isOpen()).toBe(true);
+    });
+
+    it('should let clicks inside the panel reach document listeners', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const listener = vi.fn();
+      document.addEventListener('click', listener);
+      const content = fixture.debugElement.query(By.css('[data-testid="modal-content"]'));
+      content.nativeElement.click();
+      document.removeEventListener('click', listener);
+
+      expect(listener).toHaveBeenCalled();
+      expect(component.isOpen()).toBe(true);
     });
 
     it('should not close when the panel itself is clicked', () => {

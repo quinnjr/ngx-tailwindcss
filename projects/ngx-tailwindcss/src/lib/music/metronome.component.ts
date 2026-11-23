@@ -233,10 +233,16 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return `${baseClasses} ${levelClasses[level]}`;
   }
 
+  // Whole subdivisions per beat (>= 1); shared by the interval and the beat counter
+  private readonly effectiveSubdivisions = computed(() =>
+    Math.max(1, Math.floor(this.subdivisions()) || 1)
+  );
+
   protected readonly intervalMs = computed(() => {
+    // A zero/negative/NaN tempo would stall or (negative) spin the lookahead loop forever
     const bpm = this.currentBpm();
-    const subs = this.subdivisions();
-    return 60_000 / bpm / subs;
+    const safeBpm = Number.isFinite(bpm) && bpm > 0 ? bpm : 120;
+    return 60_000 / safeBpm / this.effectiveSubdivisions();
   });
 
   protected readonly containerClasses = computed(() => {
@@ -355,7 +361,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     const ctx = this.audioContext;
     if (!ctx) return;
 
-    const subs = Math.max(1, Math.floor(this.subdivisions()) || 1);
+    const subs = this.effectiveSubdivisions();
     const isMainBeat = this.subBeatCounter % subs === 0;
     this.subBeatCounter++;
     if (!isMainBeat) {

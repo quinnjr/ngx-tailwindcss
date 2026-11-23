@@ -83,7 +83,7 @@ describe('TwPaginationComponent', () => {
       component.currentPage.set(10);
       fixture.detectChanges();
       const buttons = paginationEl.querySelectorAll('button');
-      const nextButton = [...buttons].at(-1);
+      const nextButton = [...buttons].at(-1)!;
       expect(nextButton.disabled || nextButton.className.includes('cursor-not-allowed')).toBe(true);
     });
   });

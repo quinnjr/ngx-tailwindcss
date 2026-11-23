@@ -207,11 +207,106 @@ describe('TwScoreEditorComponent', () => {
       ['D', 'flat', 5],
     ]);
 
+    // The score is in G major: F# needs no written sharp there
     createWith(score(notes));
     editor.transpose({ semitones: 3 });
     expect(editor.parts()[0].notes.map(n => [n.name, n.accidental, n.octave])).toEqual([
-      ['F', 'sharp', 4],
+      ['F', null, 4],
       ['C', 'sharp', 5],
+    ]);
+  });
+
+  // Sounding MIDI pitches of the exported note-on events, in order
+  const midiNoteOns = (): number[] => {
+    const bytes = [...editor.exportToMidi()];
+    return bytes.flatMap((b, i) => (b === 0x90 ? [bytes[i + 1]] : []));
+  };
+
+  it('resolves unmarked notes with the key signature and earlier accidentals in MIDI export', () => {
+    // G major: F = F#; a natural lasts until the bar line
+    createWith(
+      score([
+        placed('n1', { name: 'F', beat: 0 }),
+        placed('n2', { name: 'F', beat: 2, accidental: 'natural' }),
+        placed('n3', { name: 'F', beat: 4 }),
+        placed('n4', { name: 'F', measure: 1, beat: 0 }),
+      ])
+    );
+    expect(midiNoteOns()).toEqual([66, 65, 65, 66]);
+  });
+
+  it('writes sounding <alter> values but only written <accidental> signs to MusicXML', () => {
+    createWith(
+      score([
+        placed('n1', { name: 'F', beat: 0, duration: 'sixteenth' }),
+        placed('n2', { name: 'F', beat: 4, accidental: 'natural' }),
+      ])
+    );
+    const xml = editor.exportToMusicXML();
+    const notes = [...xml.matchAll(/<note>([\s\S]*?)<\/note>/g)].map(m => m[1]);
+    expect(notes[0]).toContain('<alter>1</alter>');
+    expect(notes[0]).not.toContain('<accidental>');
+    expect(notes[0]).toContain('<type>16th</type>');
+    expect(notes[1]).not.toContain('<alter>');
+    expect(notes[1]).toContain('<accidental>natural</accidental>');
+    // The gap between the 16th at beat 0 and the note at half-measure is a <forward>
+    expect(xml).toContain('<forward><duration>28</duration></forward>');
+  });
+
+  it('exports notes sharing a beat as a MusicXML chord', () => {
+    createWith(score([placed('n1', { name: 'C' }), placed('n2', { name: 'E' })]));
+    const xml = editor.exportToMusicXML();
+    expect(xml.match(/<chord\/>/g)).toHaveLength(1);
+  });
+
+  it('transposes using accidentals carried through the measure', () => {
+    // C major: F# then an unmarked F in the same bar (also F#) -> G, G
+    createWith({
+      ...score([
+        placed('n1', { name: 'F', accidental: 'sharp', beat: 0 }),
+        placed('n2', { name: 'F', beat: 2 }),
+      ]),
+      keySignature: 'C',
+    });
+    editor.transpose({ semitones: 1 });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.accidental])).toEqual([
+      ['G', null],
+      ['G', null],
+    ]);
+  });
+
+  it('adds a natural when transposition cancels an accidental earlier in the bar', () => {
+    // C major: F#4 then F4 natural, an octave up: the second F needs its natural sign
+    createWith({
+      ...score([
+        placed('n1', { name: 'F', accidental: 'sharp', beat: 0 }),
+        placed('n2', { name: 'F', accidental: 'natural', beat: 2 }),
+      ]),
+      keySignature: 'C',
+    });
+    editor.transpose({ semitones: 12 });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.accidental, n.octave])).toEqual([
+      ['F', 'sharp', 5],
+      ['F', 'natural', 5],
+    ]);
+  });
+
+  it('exports rests as rests', () => {
+    createWith(score([placed('n1', { isRest: true }), placed('n2', { name: 'D', beat: 2 })]));
+    expect(midiNoteOns()).toEqual([62]);
+    expect(editor.exportToABC()).toContain('z2D2');
+    expect(editor.exportToMusicXML()).toContain('<rest/>');
+  });
+
+  it('keeps rests when importing ABC so later notes stay in place', () => {
+    createWith(null);
+    editor.importABC(['X:1', 'L:1/8', 'K:C', 'z2 C2 D4|z8|E8|'].join('\n'));
+    expect(editor.scoreData().measures).toBe(3);
+    const sounding = editor.parts()[0].notes.filter(n => !n.isRest);
+    expect(sounding.map(n => [n.name, n.measure, n.beat])).toEqual([
+      ['C', 0, 2],
+      ['D', 0, 4],
+      ['E', 2, 0],
     ]);
   });
 

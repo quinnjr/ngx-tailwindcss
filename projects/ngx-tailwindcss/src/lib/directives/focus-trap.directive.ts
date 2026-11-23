@@ -69,9 +69,9 @@ export class TwFocusTrapDirective implements OnInit, AfterViewInit, OnChanges, O
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
-    // Store the currently focused element
-    if (this.focusTrapRestoreFocus) {
-      this.previouslyFocusedElement = document.activeElement as HTMLElement;
+    // Store the currently focused element (before content can auto-focus)
+    if (this.enabled) {
+      this.captureFocusOrigin();
     }
   }
 
@@ -88,9 +88,34 @@ export class TwFocusTrapDirective implements OnInit, AfterViewInit, OnChanges, O
     if (!this.viewInitialized || !changes['enabled']) return;
 
     if (this.enabled) {
+      this.captureFocusOrigin();
       this.activateTrap();
     } else {
+      // Returning focus on deactivation lets a persistent `[twFocusTrap]="open"`
+      // container behave like a modal that is opened and closed repeatedly
       this.deactivateTrap();
+      this.restoreFocus();
+    }
+  }
+
+  private captureFocusOrigin(): void {
+    if (!this.focusTrapRestoreFocus || this.previouslyFocusedElement) return;
+
+    const active = document.activeElement as HTMLElement | null;
+    if (active && !this.el.nativeElement.contains(active)) {
+      this.previouslyFocusedElement = active;
+    }
+  }
+
+  private restoreFocus(): void {
+    const target = this.previouslyFocusedElement;
+    this.previouslyFocusedElement = null;
+    if (!this.focusTrapRestoreFocus || !target) return;
+
+    try {
+      target.focus();
+    } catch {
+      // Element may no longer be focusable
     }
   }
 
@@ -214,12 +239,6 @@ export class TwFocusTrapDirective implements OnInit, AfterViewInit, OnChanges, O
     this.deactivateTrap();
 
     // Restore focus to the previously focused element
-    if (this.focusTrapRestoreFocus && this.previouslyFocusedElement) {
-      try {
-        this.previouslyFocusedElement.focus();
-      } catch {
-        // Element may no longer be focusable
-      }
-    }
+    this.restoreFocus();
   }
 }

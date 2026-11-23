@@ -28,12 +28,26 @@ export class ButtonDemoComponent {
     gear: faGear,
   };
 
+  submitCount = signal(0);
+
+  onFormSubmit(event: Event): void {
+    event.preventDefault();
+    this.submitCount.update(count => count + 1);
+  }
+
   simulateLoading(): void {
     this.isLoading.set(true);
     setTimeout(() => this.isLoading.set(false), 2000);
   }
 
   // Code examples
+  formCode = `<form (submit)="save($event)">
+  <input name="title" />
+  <!-- Clicking it, or pressing Enter in the field, submits the form -->
+  <tw-button type="submit" variant="primary">Submit</tw-button>
+  <tw-button type="reset" variant="outline">Reset</tw-button>
+</form>`;
+
   variantsCode = `<tw-button variant="primary">Primary</tw-button>
 <tw-button variant="secondary">Secondary</tw-button>
 <tw-button variant="success">Success</tw-button>

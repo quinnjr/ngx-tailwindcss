@@ -176,6 +176,12 @@ export class AudioWorkerService implements OnDestroy {
         this._errorCount.update(n => n + 1);
         this._lastError.set(error.message || 'Worker error');
         console.error('Audio worker error:', error);
+        // The generated dispatcher catches every handler exception, so an
+        // error event means the worker itself is broken (e.g. the blob script
+        // was blocked by CSP or failed to load). Tear it down so pending
+        // requests reject now instead of each waiting for its timeout, and
+        // isAvailable() turns false so callers use their main-thread fallback.
+        this.terminate();
       });
 
       this._isInitialized.set(true);

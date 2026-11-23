@@ -34,6 +34,25 @@ const TABLE_SIZES: Record<TableSize, { cell: string; text: string }> = {
   lg: { cell: 'px-6 py-4', text: 'text-base' },
 };
 
+/** Elements whose clicks belong to themselves rather than to the enclosing row */
+const INTERACTIVE_SELECTOR = [
+  'a[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  'summary',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="button"]',
+  '[role="link"]',
+  '[role="checkbox"]',
+  '[role="switch"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="tab"]',
+].join(',');
+
 /**
  * Table/DataTable component with Tailwind CSS styling
  *
@@ -359,9 +378,19 @@ export class TwTableComponent {
     this.selectionChange.emit([...next]);
   }
 
-  onRowClick(row: any): void {
+  onRowClick(row: any, event?: Event): void {
     this.rowClick.emit(row);
-    if (this.selectable()) this.toggleSelection(row);
+    // Clicks on interactive content inside the row (e.g. row-action buttons,
+    // links, inputs) must not also toggle the row's selection
+    if (this.selectable() && !this.isFromInteractiveDescendant(event)) this.toggleSelection(row);
+  }
+
+  private isFromInteractiveDescendant(event?: Event): boolean {
+    const target = event?.target;
+    const row = event?.currentTarget;
+    if (!(target instanceof Element) || !(row instanceof Element)) return false;
+    const interactive = target.closest(INTERACTIVE_SELECTOR);
+    return !!interactive && interactive !== row && row.contains(interactive);
   }
 
   clearSelection(): void {

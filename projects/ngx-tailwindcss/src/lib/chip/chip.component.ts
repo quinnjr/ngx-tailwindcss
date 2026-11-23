@@ -201,6 +201,8 @@ export class TwChipsComponent {
   }
 
   onAddChip(event: Event): void {
+    // Enter that commits an IME composition must not add a chip
+    if ((event as KeyboardEvent).isComposing) return;
     event.preventDefault();
     const inputEl = event.target as HTMLInputElement;
     const value = inputEl.value.trim();

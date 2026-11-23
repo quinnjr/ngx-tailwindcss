@@ -6,8 +6,8 @@ import {
   HostListener,
   inject,
   Input,
+  numberAttribute,
   OnDestroy,
-  OnInit,
   Renderer2,
 } from '@angular/core';
 
@@ -25,7 +25,7 @@ import {
   selector: '[twRipple]',
   standalone: true,
   host: {
-    style: 'position: relative; overflow: hidden;',
+    style: 'overflow: hidden;',
   },
 })
 export class TwRippleDirective implements OnDestroy, AfterViewInit {
@@ -36,7 +36,7 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
   @Input() rippleColor = 'rgba(255, 255, 255, 0.4)';
 
   /** Duration of the ripple animation in milliseconds */
-  @Input() rippleDuration = 600;
+  @Input({ transform: numberAttribute }) rippleDuration = 600;
 
   /** Whether the ripple effect is disabled */
   @Input({ transform: booleanAttribute }) rippleDisabled = false;
@@ -54,6 +54,14 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.initialized = true;
+
+    // Ripples are absolutely positioned, so the host needs a containing block.
+    // Only promote statically positioned hosts: forcing `relative` inline would
+    // override `fixed`/`absolute`/`sticky` utility classes on the host.
+    const el = this.el.nativeElement as HTMLElement;
+    if (typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'static') {
+      this.renderer.setStyle(el, 'position', 'relative');
+    }
   }
 
   @HostListener('mousedown', ['$event'])

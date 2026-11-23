@@ -227,10 +227,27 @@ export class TwModalComponent implements OnDestroy {
     return this.twClass.merge(MODAL_SIZES[this._size()], this._panelClass());
   });
 
-  protected onBackdropClick(): void {
+  /** Whether the current pointer press started outside the panel (on the backdrop) */
+  private pointerDownOnBackdrop = false;
+
+  protected onBackdropPointerDown(event: Event): void {
+    this.pointerDownOnBackdrop = this.isOutsidePanel(event.target);
+  }
+
+  protected onBackdropClick(event?: Event): void {
+    const startedOnBackdrop = this.pointerDownOnBackdrop;
+    this.pointerDownOnBackdrop = false;
+    // Both the press and the release must land outside the panel: selecting text
+    // inside the panel and releasing over the backdrop must not close the modal
+    if (!startedOnBackdrop || (event && !this.isOutsidePanel(event.target))) return;
     if (this._closeOnBackdropClick()) {
       this.closeModal();
     }
+  }
+
+  private isOutsidePanel(target: EventTarget | null): boolean {
+    const panel = this.modalPanel?.nativeElement as HTMLElement | undefined;
+    return !(target instanceof Node && panel?.contains(target));
   }
 
   closeModal(): void {

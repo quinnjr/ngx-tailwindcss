@@ -289,3 +289,39 @@ describe('TwTabsComponent (dynamic panels)', () => {
     expect(tabs[1].textContent.trim()).toBe('B');
   });
 });
+
+@Component({
+  template: `
+    <tw-tabs value="first tab">
+      <tw-tab-panel value="first tab" label="First">First</tw-tab-panel>
+      <tw-tab-panel value="first_tab" label="Underscore">Underscore</tw-tab-panel>
+      <tw-tab-panel value='a"b#c' label="Quoted">Quoted</tw-tab-panel>
+    </tw-tabs>
+  `,
+  standalone: true,
+  imports: [TwTabsComponent, TwTabPanelComponent],
+})
+class SpacedValueTabsHostComponent {}
+
+describe('TwTabsComponent (values with id-invalid characters)', () => {
+  it('should produce valid, distinct, consistently linked ids', async () => {
+    await TestBed.configureTestingModule({
+      imports: [SpacedValueTabsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SpacedValueTabsHostComponent);
+    fixture.detectChanges();
+
+    const tabs: HTMLElement[] = [...fixture.nativeElement.querySelectorAll('[role="tab"]')];
+    const panels: HTMLElement[] = [...fixture.nativeElement.querySelectorAll('[role="tabpanel"]')];
+    const ids = [...tabs, ...panels].map(el => el.id);
+
+    expect(ids.every(id => /^[A-Za-z0-9_-]+$/.test(id))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    tabs.forEach((tab, i) => {
+      expect(tab.getAttribute('aria-controls')).toBe(panels[i].id);
+      expect(panels[i].getAttribute('aria-labelledby')).toBe(tab.id);
+    });
+  });
+});

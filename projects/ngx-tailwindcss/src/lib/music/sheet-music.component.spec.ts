@@ -1,7 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseABCNotation, SheetMusicData, TwSheetMusicComponent } from './sheet-music.component';
+import {
+  parseABCNotation,
+  parseMusicXML,
+  SheetMusicData,
+  TwSheetMusicComponent,
+} from './sheet-music.component';
 import { TwNoteComponent } from './note.component';
 
 describe('parseABCNotation', () => {
@@ -145,9 +150,51 @@ describe('TwSheetMusicComponent', () => {
     } satisfies SheetMusicData);
     fixture.componentRef.setInput('measuresPerLine', 2);
     fixture.detectChanges();
-    // The second line holds a single full-width measure (it starts at 10 padding + 50 clef,
-    // no key/time signature), so its only note is centred between 60 and the final bar line
+    // The second line holds a single full-width measure (it starts at 10 padding + 50 clef +
+    // 10 for the repeated C major key signature, no time signature), so its only note is
+    // centred between 70 and the final bar line
     const lastBar = Math.max(...barLineXs(1));
-    expect(noteXs()[2]).toBeCloseTo((60 + lastBar) / 2, 5);
+    expect(noteXs()[2]).toBeCloseTo((70 + lastBar) / 2, 5);
+  });
+
+  it('repeats the key signature on every line', () => {
+    const note = { name: 'C', octave: 5, duration: 'whole' } as const;
+    fixture.componentRef.setInput('music', {
+      clef: 'treble',
+      keySignature: 'D',
+      timeSignature: '4/4',
+      measures: [{ notes: [note] }, { notes: [note] }],
+    } satisfies SheetMusicData);
+    fixture.componentRef.setInput('measuresPerLine', 1);
+    fixture.detectChanges();
+    const staves = (fixture.nativeElement as HTMLElement).querySelectorAll('tw-staff');
+    expect(staves).toHaveLength(2);
+    const sharps = (staff: Element): number =>
+      [...staff.querySelectorAll('text')].filter(t => t.textContent?.includes('♯')).length;
+    expect(sharps(staves[0])).toBe(2);
+    expect(sharps(staves[1])).toBe(2);
+  });
+});
+
+describe('parseMusicXML accidentals', () => {
+  const xml = (notes: string): string =>
+    `<?xml version="1.0"?><score-partwise><part-list/><part id="P1"><measure number="1">
+      <attributes><key><fifths>1</fifths></key></attributes>${notes}</measure>
+      <measure number="2">${notes}</measure></part></score-partwise>`;
+  const pitch = (step: string, alter: number, extra = ''): string =>
+    `<note><pitch><step>${step}</step><alter>${alter}</alter><octave>4</octave></pitch>` +
+    `<duration>1</duration><type>quarter</type>${extra}</note>`;
+
+  it('stores written accidentals: implied ones are dropped, cancelled ones get a natural', () => {
+    // G major: F# (implied), F natural (needs a natural), F natural again (implied in the bar)
+    const parsed = parseMusicXML(xml(pitch('F', 1) + pitch('F', 0) + pitch('F', 0)))!;
+    for (const measure of parsed.measures) {
+      expect(measure.notes.map(n => n.accidental)).toEqual([null, 'natural', null]);
+    }
+  });
+
+  it('keeps an explicit courtesy accidental', () => {
+    const parsed = parseMusicXML(xml(pitch('F', 1, '<accidental>sharp</accidental>')))!;
+    expect(parsed.measures[0].notes[0].accidental).toBe('sharp');
   });
 });

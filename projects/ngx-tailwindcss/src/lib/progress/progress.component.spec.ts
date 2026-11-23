@@ -101,7 +101,7 @@ describe('TwProgressComponent', () => {
       component.value.set(150);
       component.max.set(100);
       fixture.detectChanges();
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('100%');
       const host = progressEl.querySelector('[role="progressbar"]');
       expect(host?.getAttribute('aria-valuenow')).toBe('100');
@@ -111,7 +111,7 @@ describe('TwProgressComponent', () => {
       component.value.set(-10);
       component.max.set(100);
       fixture.detectChanges();
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
     });
   });
@@ -237,7 +237,7 @@ describe('TwProgressComponent', () => {
       component.max.set(0);
       fixture.detectChanges();
 
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
       expect(progressEl.textContent).toContain('0%');
     });
@@ -246,7 +246,7 @@ describe('TwProgressComponent', () => {
       component.max.set(-5);
       fixture.detectChanges();
 
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
     });
   });

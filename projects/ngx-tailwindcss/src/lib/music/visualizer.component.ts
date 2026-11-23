@@ -14,6 +14,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type VisualizerVariant = 'circular' | 'bars' | 'wave' | 'particles' | 'rings';
 export type VisualizerColorScheme = 'rainbow' | 'fire' | 'ocean' | 'neon' | 'mono' | 'custom';
@@ -182,12 +183,13 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     const width = this.width();
     const height = this.height();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
+    // Size the backing store for the device pixel ratio (drawing uses CSS pixels).
+    // A resize clears the canvas, so the idle frame must be redrawn afterwards.
+    const prevBackingWidth = canvas.width;
+    const prevBackingHeight = canvas.height;
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
+    if (canvas.width !== prevBackingWidth || canvas.height !== prevBackingHeight) {
+      this.idleFrameDrawn = false;
     }
 
     const analyser = this.analyserNode();

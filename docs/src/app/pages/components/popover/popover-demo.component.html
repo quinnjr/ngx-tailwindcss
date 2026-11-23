@@ -46,7 +46,10 @@
   </app-demo-section>
 
   <!-- Trigger Types -->
-  <app-demo-section title="Trigger Types" [code]="triggersCode">
+  <app-demo-section
+    title="Trigger Types"
+    description="trigger accepts click (default), hover, focus or manual. Hover and focus popovers are non-interactive tooltips: the panel has role=&quot;tooltip&quot; and the trigger gets aria-describedby while open. Click and manual popovers may hold interactive content and use dialog semantics: the panel has role=&quot;dialog&quot; (labelled by the header when set) and the trigger gets aria-haspopup=&quot;dialog&quot;, aria-expanded and, while open, aria-controls."
+    [code]="triggersCode">
     <div class="flex flex-wrap gap-4">
       <tw-popover trigger="click">
         <tw-button twPopoverTrigger>Click to open</tw-button>

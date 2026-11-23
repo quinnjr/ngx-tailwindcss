@@ -35,6 +35,18 @@ class TestHostComponent {
   readonly longPresses: TouchEvent[] = [];
 }
 
+@Component({
+  template: `
+    <div id="a" twTouchGuard [cooldownMs]="0" (guardedDragStart)="dragStarts.push('a')"></div>
+    <div id="b" twTouchGuard [cooldownMs]="0" (guardedDragStart)="dragStarts.push('b')"></div>
+  `,
+  standalone: true,
+  imports: [TwTouchGuardDirective],
+})
+class MultiTouchHostComponent {
+  readonly dragStarts: string[] = [];
+}
+
 describe('TwTouchGuardDirective', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
@@ -211,6 +223,36 @@ describe('TwTouchGuardDirective', () => {
       expect(component.clicks.length).toBe(1);
       // The longPress output stays touch-only
       expect(component.longPresses.length).toBe(0);
+    });
+  });
+
+  describe('mouse buttons', () => {
+    it('should not emit guardedClick for a right-click', () => {
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 2 }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 2 }));
+
+      expect(component.clicks.length).toBe(0);
+    });
+  });
+
+  describe('concurrent touches on two guarded controls', () => {
+    it('should measure each drag from its own touch start', () => {
+      const multi = TestBed.createComponent(MultiTouchHostComponent);
+      multi.detectChanges();
+      const a = multi.nativeElement.querySelector('#a') as HTMLElement;
+      const b = multi.nativeElement.querySelector('#b') as HTMLElement;
+
+      a.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      // A second finger lands on control B far away
+      b.dispatchEvent(makeTouchEvent('touchstart', 200, 0));
+      // Finger on A moves only 3px: below the 10px drag threshold
+      a.dispatchEvent(makeTouchEvent('touchmove', 3, 0));
+
+      expect(multi.componentInstance.dragStarts).toEqual([]);
+
+      // A real drag on B is still recognized relative to B's start
+      b.dispatchEvent(makeTouchEvent('touchmove', 230, 0));
+      expect(multi.componentInstance.dragStarts).toEqual(['b']);
     });
   });
 });

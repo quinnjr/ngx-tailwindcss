@@ -76,7 +76,11 @@ export class TwAudioPlayerComponent implements OnDestroy {
   protected readonly duration = signal(0);
   protected readonly buffered = signal(0);
   // Track the inputs, but can be changed locally (volume slider, mute/loop buttons)
-  protected readonly internalVolume = linkedSignal(() => this.volume());
+  // (clamped: HTMLMediaElement.volume throws outside 0..1)
+  protected readonly internalVolume = linkedSignal(() => {
+    const v = this.volume();
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+  });
   protected readonly isMuted = linkedSignal(() => this.muted());
   protected readonly isLooping = linkedSignal(() => this.loop());
   protected readonly isExpanded = signal(false);
@@ -183,7 +187,8 @@ export class TwAudioPlayerComponent implements OnDestroy {
     } catch (error) {
       if (!this.destroyed) console.error('Error loading audio buffer:', error);
     } finally {
-      this.isLoading.set(false);
+      // A superseded load must not clear the spinner of the newer one
+      if (src === this.audioSrc()) this.isLoading.set(false);
     }
   }
 

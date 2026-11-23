@@ -60,6 +60,7 @@ export class TwBpmDisplayComponent implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly injector = inject(Injector);
   private readonly editInput = viewChild<ElementRef<HTMLInputElement>>('editInput');
+  private readonly valueDisplay = viewChild<ElementRef<HTMLElement>>('valueDisplay');
 
   // Configuration
   readonly variant = input<BpmDisplayVariant>('default');
@@ -250,10 +251,17 @@ export class TwBpmDisplayComponent implements OnDestroy {
   protected onEditKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       this.finishEditing();
+      this.restoreDisplayFocus();
     } else if (event.key === 'Escape') {
       this.isEditing.set(false);
       this.editValue.set(this.internalBpm().toString());
+      this.restoreDisplayFocus();
     }
+  }
+
+  // Keyboard commit/cancel removes the focused input: return focus to the value display
+  private restoreDisplayFocus(): void {
+    afterNextRender(() => this.valueDisplay()?.nativeElement.focus(), { injector: this.injector });
   }
 
   private setBpm(value: number): void {

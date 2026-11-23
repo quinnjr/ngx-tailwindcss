@@ -15,7 +15,7 @@
         [class.dark:hover:bg-gray-700/50]="openMenuId() !== menu.id"
         role="menuitem"
         data-menubar-trigger
-        [attr.tabindex]="focusedMenuIndex() === menuIndex ? 0 : -1"
+        [attr.tabindex]="rovingIndex() === menuIndex ? 0 : -1"
         aria-haspopup="menu"
         [attr.aria-expanded]="openMenuId() === menu.id"
         (click)="toggleMenu(menu.id)"

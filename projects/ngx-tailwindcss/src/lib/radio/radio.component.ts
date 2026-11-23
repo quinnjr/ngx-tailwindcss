@@ -6,6 +6,7 @@ import {
   computed,
   ContentChildren,
   effect,
+  ElementRef,
   forwardRef,
   HostListener,
   inject,
@@ -56,6 +57,9 @@ const TW_RADIO_GROUP = new InjectionToken<object>('TwRadioGroup');
 })
 export class TwRadioButtonComponent {
   private readonly twClass = inject(TwClassService);
+
+  /** Host element, used by the group to tell which radio focus left */
+  readonly _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Nearest enclosing radio group (resolved through the element injector) */
   readonly _group = inject(TW_RADIO_GROUP, { optional: true });
@@ -225,10 +229,17 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
     });
   }
 
-  /** Marks the control as touched when focus leaves any radio in the group. */
-  @HostListener('focusout')
-  onFocusOut(): void {
-    this.onTouchedFn();
+  /**
+   * Marks the control as touched when focus leaves one of this group's own radios
+   * (focusout bubbles, so ignore radios that belong to a nested group).
+   */
+  @HostListener('focusout', ['$event'])
+  onFocusOut(event: FocusEvent): void {
+    const target = event.target as Node | null;
+    if (!target || !this.radioButtons) return;
+    if (this.ownRadioButtons().some(radio => radio._elementRef.nativeElement.contains(target))) {
+      this.onTouchedFn();
+    }
   }
 
   ngAfterContentInit(): void {

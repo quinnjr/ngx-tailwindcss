@@ -289,8 +289,7 @@ export class MusicAccessibilityService implements OnDestroy {
    * Check if reduced motion is preferred (one-time check)
    */
   checkReducedMotion(): boolean {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return this.queryMatches('(prefers-reduced-motion: reduce)');
   }
 
   /**
@@ -324,19 +323,10 @@ export class MusicAccessibilityService implements OnDestroy {
    * Check if high contrast is preferred (one-time check)
    */
   checkHighContrast(): boolean {
-    if (typeof window === 'undefined') return false;
-
-    // Check for forced-colors (Windows High Contrast)
-    if (window.matchMedia('(forced-colors: active)').matches) {
-      return true;
-    }
-
-    // Check for prefers-contrast
-    if (window.matchMedia('(prefers-contrast: more)').matches) {
-      return true;
-    }
-
-    return false;
+    // Check for forced-colors (Windows High Contrast), then prefers-contrast
+    return (
+      this.queryMatches('(forced-colors: active)') || this.queryMatches('(prefers-contrast: more)')
+    );
   }
 
   /**
@@ -443,7 +433,40 @@ export class MusicAccessibilityService implements OnDestroy {
   // MEDIA QUERY LISTENERS
   // =========================================================================
 
+  /** Whether `window.matchMedia` exists (missing in jsdom and some webviews) */
+  private hasMatchMedia(): boolean {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function';
+  }
+
+  private queryMatches(query: string): boolean {
+    return this.hasMatchMedia() && window.matchMedia(query).matches;
+  }
+
+  /**
+   * Subscribe to a MediaQueryList's changes. Older Safari (< 14) only
+   * implements the deprecated addListener/removeListener pair.
+   */
+  private listen(mql: MediaQueryList, handler: (e: MediaQueryListEvent) => void): void {
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', handler);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy Safari fallback
+      mql.addListener?.(handler);
+    }
+  }
+
+  private unlisten(mql: MediaQueryList, handler: (e: MediaQueryListEvent) => void): void {
+    if (typeof mql.removeEventListener === 'function') {
+      mql.removeEventListener('change', handler);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy Safari fallback
+      mql.removeListener?.(handler);
+    }
+  }
+
   private initMediaQueryListeners(): void {
+    if (!this.hasMatchMedia()) return;
+
     // Reduced motion
     this.reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     this._reducedMotion.set(this.reducedMotionQuery.matches);
@@ -451,21 +474,21 @@ export class MusicAccessibilityService implements OnDestroy {
     this.reducedMotionHandler = (e: MediaQueryListEvent) => {
       this._reducedMotion.set(e.matches);
     };
-    this.reducedMotionQuery.addEventListener('change', this.reducedMotionHandler);
+    this.listen(this.reducedMotionQuery, this.reducedMotionHandler);
 
     // High contrast
     this.highContrastQuery = window.matchMedia('(prefers-contrast: more)');
-    this._highContrast.set(this.highContrastQuery.matches || this.checkHighContrast());
+    this._highContrast.set(this.checkHighContrast());
 
     // Re-evaluate both queries on either change: a prefers-contrast change
     // must not clear high contrast while forced-colors is still active
     this.highContrastHandler = () => {
       this._highContrast.set(this.checkHighContrast());
     };
-    this.highContrastQuery.addEventListener('change', this.highContrastHandler);
+    this.listen(this.highContrastQuery, this.highContrastHandler);
 
     this.forcedColorsQuery = window.matchMedia('(forced-colors: active)');
-    this.forcedColorsQuery.addEventListener('change', this.highContrastHandler);
+    this.listen(this.forcedColorsQuery, this.highContrastHandler);
   }
 
   private cleanup(): void {
@@ -484,13 +507,13 @@ export class MusicAccessibilityService implements OnDestroy {
 
     // Remove media query listeners
     if (this.reducedMotionQuery && this.reducedMotionHandler) {
-      this.reducedMotionQuery.removeEventListener('change', this.reducedMotionHandler);
+      this.unlisten(this.reducedMotionQuery, this.reducedMotionHandler);
     }
     if (this.highContrastQuery && this.highContrastHandler) {
-      this.highContrastQuery.removeEventListener('change', this.highContrastHandler);
+      this.unlisten(this.highContrastQuery, this.highContrastHandler);
     }
     if (this.forcedColorsQuery && this.highContrastHandler) {
-      this.forcedColorsQuery.removeEventListener('change', this.highContrastHandler);
+      this.unlisten(this.forcedColorsQuery, this.highContrastHandler);
     }
   }
 }

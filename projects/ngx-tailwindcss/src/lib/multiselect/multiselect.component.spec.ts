@@ -393,3 +393,26 @@ describe('TwMultiSelectComponent clear button', () => {
     expect(fixture.componentInstance.control.value).toEqual(['apple']);
   });
 });
+
+describe('TwMultiSelectComponent (round 3)', () => {
+  it('should claim Escape while open so enclosing overlays stay open', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    trigger.dispatchEvent(event);
+    fixture.detectChanges();
+    expect(event.defaultPrevented).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+
+    const closedEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    trigger.dispatchEvent(closedEvent);
+    expect(closedEvent.defaultPrevented).toBe(false);
+  });
+});

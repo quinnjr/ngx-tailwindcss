@@ -1,7 +1,8 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, Injectable, OnDestroy, signal } from '@angular/core';
 import { OsPlatform, PlatformTheme, WindowState } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
 import { getExposedElectronIpc, loadElectronIpc } from './electron-bridge.util';
+import { splitShortcut } from './shortcut-keys.util';
 
 // Type definitions for dynamic imports (Tauri/Electron may not be present)
 interface TauriWindow {
@@ -20,7 +21,10 @@ interface TauriWindow {
  * Supports Tauri, Electron, and web browsers
  */
 @Injectable({ providedIn: 'root' })
-export class NativeAppPlatformService {
+export class NativeAppPlatformService implements OnDestroy {
+  /** Teardown for the global listeners registered in the constructor. */
+  private readonly cleanups: Array<() => void> = [];
+
   // Platform detection
   private readonly _platform = signal<OsPlatform>(this.detectPlatform());
   private readonly _isTauri = signal(this.checkTauri());
@@ -125,30 +129,46 @@ export class NativeAppPlatformService {
     if (typeof window === 'undefined' || !window.matchMedia) return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', event => {
+    const onChange = (event: MediaQueryListEvent) => {
       // A same-value set on `_theme` would not notify; track the OS scheme directly
       this._systemPrefersDark.set(event.matches);
+    };
+    mediaQuery.addEventListener('change', onChange);
+    this.cleanups.push(() => {
+      mediaQuery.removeEventListener('change', onChange);
     });
   }
 
   private initWindowStateListener(): void {
     if (typeof window === 'undefined') return;
 
-    window.addEventListener('focus', () => {
-      this._windowState.update(s => ({ ...s, isFocused: true }));
-    });
-
-    window.addEventListener('blur', () => {
+    const onFocus = () => {
+      // A minimized window is restored before it can regain focus
+      this._windowState.update(s => ({ ...s, isFocused: true, isMinimized: false }));
+    };
+    const onBlur = () => {
       this._windowState.update(s => ({ ...s, isFocused: false }));
-    });
-
+    };
     // Fullscreen detection
-    document.addEventListener('fullscreenchange', () => {
+    const onFullscreenChange = () => {
       this._windowState.update(s => ({
         ...s,
         isFullscreen: !!document.fullscreenElement,
       }));
+    };
+
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    this.cleanups.push(() => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
     });
+  }
+
+  public ngOnDestroy(): void {
+    for (const cleanup of this.cleanups.splice(0)) cleanup();
   }
 
   // Theme methods
@@ -158,18 +178,23 @@ export class NativeAppPlatformService {
 
   // Window control methods
   public async minimize(): Promise<void> {
+    let minimized = false;
     if (this._isTauri()) {
       try {
         const tauriWindow = await dynamicImport('@tauri-apps/api/window');
         const win = tauriWindow.getCurrentWindow() as TauriWindow;
         await win.minimize();
+        minimized = true;
       } catch (error) {
         console.warn('Tauri minimize failed:', error);
       }
     } else if (this._isElectron()) {
-      await this.sendElectron('window-minimize');
+      minimized = await this.sendElectron('window-minimize');
     }
-    this._windowState.update(s => ({ ...s, isMinimized: true }));
+    // A browser tab can't be minimized; don't report a state that didn't happen
+    if (minimized) {
+      this._windowState.update(s => ({ ...s, isMinimized: true }));
+    }
   }
 
   public async maximize(): Promise<void> {
@@ -257,17 +282,30 @@ export class NativeAppPlatformService {
     return this._platform() === 'macos' ? '⌥' : 'Alt';
   }
 
+  /**
+   * Format a shortcut such as `Ctrl+Shift+P` for display on the current
+   * platform (`⌘⇧P` on macOS). `Ctrl++` / `Ctrl+Plus` denote the plus key.
+   */
   public formatShortcut(shortcut: string): string {
-    const platform = this._platform();
+    if (this._platform() !== 'macos') return shortcut;
 
-    if (platform === 'macos') {
-      return shortcut
-        .replaceAll(/Ctrl/gi, '⌘')
-        .replaceAll(/Alt/gi, '⌥')
-        .replaceAll(/Shift/gi, '⇧')
-        .replaceAll('+', '');
-    }
-
-    return shortcut;
+    // Map whole parts only: a substring replace would mangle e.g. `CmdOrCtrl`,
+    // and stripping every '+' would drop the plus key itself.
+    const macSymbols: Record<string, string> = {
+      ctrl: '⌘',
+      control: '⌘',
+      cmd: '⌘',
+      command: '⌘',
+      meta: '⌘',
+      cmdorctrl: '⌘',
+      commandorcontrol: '⌘',
+      alt: '⌥',
+      option: '⌥',
+      shift: '⇧',
+      plus: '+',
+    };
+    return splitShortcut(shortcut)
+      .map(part => macSymbols[part.toLowerCase()] ?? part)
+      .join('');
   }
 }

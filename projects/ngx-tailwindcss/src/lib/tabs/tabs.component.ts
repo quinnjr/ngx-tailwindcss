@@ -50,6 +50,15 @@ const TABS_VARIANTS: Record<TabsVariant, { list: string; tab: string; activeTab:
 
 let nextTabsId = 0;
 
+/**
+ * Encodes an arbitrary tab value into a valid, collision-free DOM id fragment:
+ * characters outside `[A-Za-z0-9-]` (including `_`, the escape marker) become
+ * `_<hex code point>_`, so `"a b"` and `"a_b"` still map to distinct ids.
+ */
+function encodeTabIdFragment(value: string): string {
+  return value.replaceAll(/[^A-Za-z0-9-]/gu, ch => `_${(ch.codePointAt(0) ?? 0).toString(16)}_`);
+}
+
 const TABS_SIZES: Record<TabsSize, string> = {
   sm: 'text-sm px-4 py-2',
   md: 'text-sm px-5 py-2.5',
@@ -68,7 +77,7 @@ const TABS_SIZES: Record<TabsSize, string> = {
   host: {
     '[class]': 'computedClasses()',
     role: 'tabpanel',
-    '[attr.id]': 'panelId() || "panel-" + value()',
+    '[attr.id]': 'panelId() || fallbackId()',
     '[attr.aria-labelledby]': 'labelledBy()',
     '[attr.tabindex]': '0',
     '[attr.hidden]': '!active() ? true : null',
@@ -119,6 +128,9 @@ export class TwTabPanelComponent {
 
   /** Unique DOM id of this panel (managed by the parent tabs component) */
   readonly panelId = signal('');
+
+  /** Id used when no parent tabs component has assigned one */
+  protected readonly fallbackId = computed(() => `panel-${encodeTabIdFragment(this.value())}`);
 
   /** Whether activation should animate (synced from the parent tabs component) */
   readonly animated = signal(true);
@@ -254,12 +266,12 @@ export class TwTabsComponent implements AfterContentInit {
 
   /** DOM id of the tab button for a panel */
   protected tabId(panel: TwTabPanelComponent): string {
-    return `${this.idPrefix}-tab-${panel.value()}`;
+    return `${this.idPrefix}-tab-${encodeTabIdFragment(panel.value())}`;
   }
 
   /** DOM id of a panel */
   protected panelDomId(panel: TwTabPanelComponent): string {
-    return `${this.idPrefix}-panel-${panel.value()}`;
+    return `${this.idPrefix}-panel-${encodeTabIdFragment(panel.value())}`;
   }
 
   private syncPanels(): void {

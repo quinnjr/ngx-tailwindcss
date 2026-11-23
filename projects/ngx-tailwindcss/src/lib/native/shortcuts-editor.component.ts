@@ -1,4 +1,13 @@
-import { Component, computed, HostListener, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -33,6 +42,21 @@ export class TwShortcutsEditorComponent {
   public readonly editingId = signal<string | null>(null);
   public readonly recordedKeys = signal<string[]>([]);
   public readonly conflictWarning = signal<string | null>(null);
+
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.clearSaveTimer();
+    });
+  }
+
+  private clearSaveTimer(): void {
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+  }
 
   public readonly categories = computed(() => {
     const cats = new Set<string>();
@@ -85,8 +109,11 @@ export class TwShortcutsEditorComponent {
 
       this.recordedKeys.set(keys);
 
-      // Save after a short delay
-      setTimeout(() => {
+      // Save after a short delay; a newer keypress or cancel supersedes it, so a
+      // stale timer can't save another recording (or another shortcut's).
+      this.clearSaveTimer();
+      this.saveTimer = setTimeout(() => {
+        this.saveTimer = null;
         if (this.editingId() && !this.conflictWarning()) {
           this.saveEdit();
         }
@@ -95,12 +122,14 @@ export class TwShortcutsEditorComponent {
   }
 
   public startEdit(shortcut: ShortcutBinding): void {
+    this.clearSaveTimer();
     this.editingId.set(shortcut.id);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);
   }
 
   public cancelEdit(): void {
+    this.clearSaveTimer();
     this.editingId.set(null);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);
@@ -140,6 +169,8 @@ export class TwShortcutsEditorComponent {
       ArrowRight: '→',
       Tab: '⇥',
       ' ': 'Space',
+      // Spelled out off macOS so it can't be mistaken for the '+' separator
+      '+': platform === 'mac' ? '+' : 'Plus',
     };
     return keyMap[key] || key.toUpperCase();
   }

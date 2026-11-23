@@ -530,3 +530,13 @@ describe('TwSheetMusicComponent keyboard interaction', () => {
     }
   );
 });
+
+describe('TwSheetMusicComponent accessible name', () => {
+  it('names the notation as a group (aria-label on a plain div is ignored)', async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwSheetMusicComponent);
+    fixture.detectChanges();
+    const group = (fixture.nativeElement as HTMLElement).querySelector('[role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Sheet music notation');
+  });
+});

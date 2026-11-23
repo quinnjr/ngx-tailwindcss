@@ -356,4 +356,31 @@ describe('TwLooperComponent', () => {
     expect(icon().classList).toContain('text-red-700');
     expect(icon().classList).toContain('dark:text-red-400');
   });
+
+  it('should disable the layer, volume and speed controls when disabled', () => {
+    fixture.componentRef.setInput('showSpeedControl', true);
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const controls = () => [
+      el.querySelector<HTMLButtonElement>('[aria-label="Mute L1"]')!,
+      el.querySelector<HTMLInputElement>('[aria-label="L1 volume"]')!,
+      el.querySelector<HTMLButtonElement>('[aria-label="Delete L1"]')!,
+      el.querySelector<HTMLInputElement>('[aria-label="Master volume"]')!,
+      ...[...el.querySelectorAll<HTMLButtonElement>('button')].filter(b =>
+        /^\d(\.\d)?x$/.test(b.textContent?.trim() ?? '')
+      ),
+    ];
+    expect(controls()).toHaveLength(7);
+    expect(controls().every(c => !c.disabled)).toBe(true);
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(controls().every(c => c.disabled)).toBe(true);
+
+    // A disabled looper no longer deletes layers on click
+    el.querySelector<HTMLButtonElement>('[aria-label="Delete L1"]')!.click();
+    expect(internals.layers().length).toBe(1);
+    internals.layers.set([]);
+  });
 });

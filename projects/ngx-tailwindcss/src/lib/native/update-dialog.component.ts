@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
 
@@ -39,6 +39,12 @@ export class TwUpdateDialogComponent {
     this.isDownloading.set(false);
     this.downloadProgress.set(0);
     this.isOpen.set(true);
+  }
+
+  /** Escape closes a non-mandatory update dialog, like its backdrop. */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isOpen()) this.close();
   }
 
   public close(): void {

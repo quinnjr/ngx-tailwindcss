@@ -9,6 +9,7 @@
     [attr.width]="dimensions().width"
     [attr.height]="dimensions().height"
     [attr.viewBox]="'0 0 ' + dimensions().width + ' ' + dimensions().height"
+    overflow="visible"
   >
     <!-- Background -->
     @if (colors().background !== 'transparent') {
@@ -48,15 +49,17 @@
       />
     }
 
-    <!-- Fret Number (if not at nut) -->
+    <!-- Fret Number (if not at nut). Right-aligned just left of the first string's finger
+         dots: at gridLeft - 12 the "5fr" of a small diagram started left of the SVG and its
+         number was clipped (the SVG may overflow into the container's 8px padding) -->
     @if (showFretNumber() && displayBaseFret() > 1) {
       <text
-        [attr.x]="dimensions().gridLeft - 12"
+        [attr.x]="dimensions().gridLeft - dimensions().fingerRadius - 3"
         [attr.y]="getFretY(1) - dimensions().fretSpacing / 2 + 4"
         [attr.fill]="colors().text"
-        font-size="12"
+        [attr.font-size]="size() === 'sm' ? 10 : 12"
         text-anchor="end"
-        class="select-none"
+        class="fret-number select-none"
       >
         {{ displayBaseFret() }}fr
       </text>

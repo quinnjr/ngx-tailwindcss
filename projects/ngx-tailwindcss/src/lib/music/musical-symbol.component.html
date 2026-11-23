@@ -54,23 +54,26 @@
         />
       }
       @case ('accent') {
+        <!-- Open '>' wedge pointing right (a filled triangle pointing left read as '<') -->
         <path
+          class="accent-mark"
           [attr.d]="
             'M ' +
             (x() - size() * 0.4) +
-            ' ' +
-            y() +
-            ' L ' +
-            (x() + size() * 0.4) +
             ' ' +
             (y() - size() * 0.2) +
             ' L ' +
             (x() + size() * 0.4) +
             ' ' +
-            (y() + size() * 0.2) +
-            ' Z'
+            y() +
+            ' L ' +
+            (x() - size() * 0.4) +
+            ' ' +
+            (y() + size() * 0.2)
           "
-          [attr.fill]="effectiveColor()"
+          [attr.stroke]="effectiveColor()"
+          stroke-width="2"
+          fill="none"
         />
       }
       @case ('marcato') {

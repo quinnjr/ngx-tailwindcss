@@ -241,12 +241,13 @@
           <!-- Mute Toggle -->
           <button
             type="button"
-            class="w-6 h-6 rounded flex items-center justify-center text-xs transition-colors"
+            class="w-6 h-6 rounded flex items-center justify-center text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             [class.bg-red-600]="layer.muted"
             [class.text-white]="layer.muted"
             [class.bg-slate-700]="!layer.muted"
             [class.text-slate-300]="!layer.muted"
             [class.hover:bg-slate-600]="!layer.muted"
+            [disabled]="disabled()"
             (click)="toggleLayerMute(layer.id)"
             [attr.aria-label]="(layer.muted ? 'Unmute ' : 'Mute ') + layer.name"
             [attr.aria-pressed]="layer.muted"
@@ -265,15 +266,17 @@
             min="0"
             max="100"
             step="1"
-            class="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            class="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             [attr.aria-label]="layer.name + ' volume'"
+            [disabled]="disabled()"
           />
 
           <!-- Delete Button -->
           <button
             type="button"
-            class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
+            class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             [class]="deleteButtonClass()"
+            [disabled]="disabled()"
             (click)="deleteLayer(layer.id)"
             [attr.aria-label]="'Delete ' + layer.name"
           >
@@ -303,8 +306,9 @@
         min="0"
         max="100"
         step="1"
-        class="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        class="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Master volume"
+        [disabled]="disabled()"
       />
       <span class="text-xs w-8 text-right" [class]="labelClass()"
         >{{ masterVolume() * 100 | number: '1.0-0' }}%</span
@@ -319,39 +323,42 @@
       <div class="flex gap-1">
         <button
           type="button"
-          class="px-2 py-1 rounded text-xs transition-colors"
+          class="px-2 py-1 rounded text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class.bg-blue-600]="playbackSpeed() === 0.5"
           [class.text-white]="playbackSpeed() === 0.5"
           [class.bg-slate-700]="playbackSpeed() !== 0.5"
           [class.text-slate-300]="playbackSpeed() !== 0.5"
           [class.hover:bg-slate-600]="playbackSpeed() !== 0.5"
           [attr.aria-pressed]="playbackSpeed() === 0.5"
+          [disabled]="disabled()"
           (click)="setPlaybackSpeed(0.5)"
         >
           0.5x
         </button>
         <button
           type="button"
-          class="px-2 py-1 rounded text-xs transition-colors"
+          class="px-2 py-1 rounded text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class.bg-blue-600]="playbackSpeed() === 1"
           [class.text-white]="playbackSpeed() === 1"
           [class.bg-slate-700]="playbackSpeed() !== 1"
           [class.text-slate-300]="playbackSpeed() !== 1"
           [class.hover:bg-slate-600]="playbackSpeed() !== 1"
           [attr.aria-pressed]="playbackSpeed() === 1"
+          [disabled]="disabled()"
           (click)="setPlaybackSpeed(1)"
         >
           1x
         </button>
         <button
           type="button"
-          class="px-2 py-1 rounded text-xs transition-colors"
+          class="px-2 py-1 rounded text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class.bg-blue-600]="playbackSpeed() === 2"
           [class.text-white]="playbackSpeed() === 2"
           [class.bg-slate-700]="playbackSpeed() !== 2"
           [class.text-slate-300]="playbackSpeed() !== 2"
           [class.hover:bg-slate-600]="playbackSpeed() !== 2"
           [attr.aria-pressed]="playbackSpeed() === 2"
+          [disabled]="disabled()"
           (click)="setPlaybackSpeed(2)"
         >
           2x

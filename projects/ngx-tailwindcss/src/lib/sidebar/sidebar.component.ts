@@ -104,6 +104,15 @@ export class TwSidebarComponent implements OnDestroy {
   /** Additional classes */
   readonly classOverride = input('');
 
+  /**
+   * Accessible name of the dialog when no `header` is shown. The panel lives inside
+   * the component, so attributes on the `tw-sidebar` host cannot name it.
+   */
+  readonly ariaLabel = input('');
+
+  /** Id of an element (e.g. a heading in the projected content) that names the dialog */
+  readonly ariaLabelledBy = input('');
+
   /** Show event */
   readonly onShow = output();
 

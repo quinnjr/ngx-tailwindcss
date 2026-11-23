@@ -961,3 +961,100 @@ describe('native defects (round 22)', () => {
     expect(cells[2].classList).toContain('text-gray-600');
   });
 });
+
+describe('native dialogs and popups close on Escape (round 24)', () => {
+  const escape = (target: EventTarget = document) =>
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+  it('preferences dialog closes on Escape and returns focus to its opener', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const fixture = TestBed.createComponent(TwPreferencesDialogComponent);
+    fixture.componentRef.setInput('tabs', [{ id: 'general', label: 'General' }]);
+    const closes: unknown[] = [];
+    fixture.componentInstance.closed.subscribe(() => closes.push(1));
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button')!.focus();
+
+    escape();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    expect(closes.length).toBe(1);
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('update dialog closes on Escape unless the update is mandatory', () => {
+    const fixture = TestBed.createComponent(TwUpdateDialogComponent);
+    const info: UpdateDialogInfo = { currentVersion: '1.0.0', newVersion: '2.0.0' };
+    fixture.componentRef.setInput('updateInfo', { ...info, mandatory: true });
+    fixture.componentInstance.open(info);
+    fixture.detectChanges();
+    escape();
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+
+    fixture.componentRef.setInput('updateInfo', info);
+    fixture.detectChanges();
+    escape();
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+  });
+
+  it('onboarding wizard skips on Escape only when skipping is allowed', () => {
+    const fixture = TestBed.createComponent(TwOnboardingWizardComponent);
+    fixture.componentRef.setInput('steps', [{ id: 'a', title: 'Welcome' }]);
+    fixture.componentRef.setInput('allowSkip', false);
+    const skips: unknown[] = [];
+    fixture.componentInstance.skipped.subscribe(() => skips.push(1));
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    escape();
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+
+    fixture.componentRef.setInput('allowSkip', true);
+    fixture.detectChanges();
+    escape();
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    expect(skips.length).toBe(1);
+  });
+
+  it('prompt dialog cancels once on Escape from a button as well as from the input', () => {
+    const fixture = TestBed.createComponent(TwPromptDialogComponent);
+    const cancels: unknown[] = [];
+    fixture.componentInstance.cancelled.subscribe(() => cancels.push(1));
+    document.body.append(fixture.nativeElement);
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    escape((fixture.nativeElement as HTMLElement).querySelector('button')!);
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    escape((fixture.nativeElement as HTMLElement).querySelector('input')!);
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    expect(cancels.length).toBe(2);
+    (fixture.nativeElement as HTMLElement).remove();
+  });
+
+  it('search bar suggestions close on Escape from a suggestion, focusing the input', () => {
+    const fixture = TestBed.createComponent(TwSearchBarComponent);
+    fixture.componentRef.setInput('suggestions', [{ id: 's', label: 'Alpha' }]);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector('input')!;
+    input.focus();
+    fixture.detectChanges();
+    const suggestion = [...el.querySelectorAll<HTMLButtonElement>('button')].find(b =>
+      b.textContent?.includes('Alpha')
+    )!;
+    suggestion.focus();
+
+    escape(suggestion);
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Alpha');
+    expect(document.activeElement).toBe(input);
+    el.remove();
+  });
+});

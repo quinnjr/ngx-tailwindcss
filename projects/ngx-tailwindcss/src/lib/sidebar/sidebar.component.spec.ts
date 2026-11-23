@@ -264,3 +264,49 @@ describe('TwSidebarComponent footer projection', () => {
     document.body.style.overflow = '';
   });
 });
+
+@Component({
+  template: `
+    <tw-sidebar [(visible)]="visible" [ariaLabel]="label()" [ariaLabelledBy]="labelledBy()">
+      <h3 id="nav-heading">Navigation</h3>
+    </tw-sidebar>
+  `,
+  standalone: true,
+  imports: [TwSidebarComponent],
+})
+class HeaderlessHostComponent {
+  visible = signal(true);
+  label = signal('');
+  labelledBy = signal('');
+}
+
+describe('TwSidebarComponent accessible name without a header', () => {
+  let fixture: ComponentFixture<HeaderlessHostComponent>;
+  const dialog = () =>
+    fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HeaderlessHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(HeaderlessHostComponent);
+  });
+
+  afterEach(() => {
+    document.body.style.overflow = '';
+  });
+
+  it('should name the dialog from the ariaLabel input', () => {
+    fixture.componentInstance.label.set('Main navigation');
+    fixture.detectChanges();
+    expect(dialog().getAttribute('aria-label')).toBe('Main navigation');
+  });
+
+  it('should name the dialog from a projected heading via ariaLabelledBy', () => {
+    fixture.componentInstance.labelledBy.set('nav-heading');
+    fixture.detectChanges();
+    expect(dialog().getAttribute('aria-labelledby')).toBe('nav-heading');
+    expect(dialog().hasAttribute('aria-label')).toBe(false);
+  });
+});

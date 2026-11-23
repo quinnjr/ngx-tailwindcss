@@ -1,4 +1,4 @@
-<div [class]="containerClasses()" [attr.aria-label]="'Piano keyboard'">
+<div [class]="containerClasses()" role="group" aria-label="Piano keyboard">
   <!-- MIDI Status Indicator -->
   @if (enableMidi()) {
     <div class="flex items-center gap-2 mb-2 px-2 text-xs">

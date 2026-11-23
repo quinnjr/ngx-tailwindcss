@@ -203,3 +203,28 @@ describe('TwChordDiagramComponent classOverride', () => {
     expect(classes).not.toContain('bg-white');
   });
 });
+
+describe('TwChordDiagramComponent fret number', () => {
+  it('keeps the "Nfr" label of a small diagram inside the drawable area', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwChordDiagramComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwChordDiagramComponent);
+    fixture.componentRef.setInput('size', 'sm');
+    fixture.componentRef.setInput('chord', {
+      name: 'A',
+      baseFret: 5,
+      fingerings: [{ string: 1, fret: 5, finger: 1 }],
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const label = host.querySelector<SVGTextElement>('text.fret-number')!;
+    expect(label.textContent?.trim()).toBe('5fr');
+    // sm: grid starts at x = 20 with 5px finger dots. The label used to end at x = 8 in 12px
+    // text, so "5fr" (~14px wide) started left of the SVG and its number was clipped
+    expect(Number(label.getAttribute('x'))).toBe(12);
+    expect(label.getAttribute('font-size')).toBe('10');
+    // Wider labels ("12fr") may extend into the container's padding instead of being cut off
+    expect(host.querySelector('svg')!.getAttribute('overflow')).toBe('visible');
+  });
+});

@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
 
@@ -39,6 +39,12 @@ export class TwPreferencesDialogComponent {
     } else if (this.tabs().length > 0) {
       this.selectedTabId.set(this.tabs()[0].id);
     }
+  }
+
+  /** Escape closes the dialog (focus returns to the opener via the focus trap). */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isOpen()) this.close();
   }
 
   public close(): void {

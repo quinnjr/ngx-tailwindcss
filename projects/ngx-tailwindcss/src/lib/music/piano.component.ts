@@ -262,12 +262,16 @@ export class TwPianoComponent implements OnDestroy {
   protected whiteKeyClasses(key: PianoKey): string {
     const variant = this.variant();
     const isActive = this.isKeyActive(key);
-    const isHighlighted = this.isKeyHighlighted(key);
+    // A pressed key shows its pressed colours: the highlight colours were merged last and
+    // replaced them, so pressing a highlighted key showed no change (e.g. on 'minimal')
+    const isHighlighted = this.isKeyHighlighted(key) && !isActive;
 
+    // Focus ring: blue-400 was ~2.5:1 on the white keys; blue-800 keeps >= 3:1 on the
+    // white, pressed and highlighted key colours in both colour schemes
     const baseClasses = `
       relative h-full border-r last:border-r-0
       transition-all duration-75
-      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400
+      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-800
     `;
 
     const variantClasses: Record<PianoVariant, string> = {
@@ -305,12 +309,14 @@ export class TwPianoComponent implements OnDestroy {
   protected blackKeyClasses(key: PianoKey): string {
     const variant = this.variant();
     const isActive = this.isKeyActive(key);
-    const isHighlighted = this.isKeyHighlighted(key);
+    const isHighlighted = this.isKeyHighlighted(key) && !isActive;
 
+    // Inset ring on the dark key itself: the outer blue-400 ring lay over the white keys
+    // (~2.5:1); blue-300 keeps >= 3:1 on every black key colour
     const baseClasses = `
       absolute top-0 z-10
       transition-all duration-75
-      focus:outline-none focus:ring-2 focus:ring-blue-400
+      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-300
     `;
 
     const variantClasses: Record<PianoVariant, string> = {

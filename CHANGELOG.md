@@ -339,6 +339,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   form writes different values; `tw-pan-control` knob L/R labels no longer
   overlap the value arc; `tw-fader` dB unit meets contrast on `minimal`;
   `tw-audio-stats` shows no lossy badge for unknown codecs
+- Forms with `updateOn: 'blur'` now commit `tw-rating` clears, `tw-graphic-eq`
+  preset and reset buttons, `tw-pan-control` drag and double-click reset, and
+  `tw-fader` double-click reset (the control is marked touched)
+- `twKeyboardShortcut` moves its listener when `shortcutGlobal` changes;
+  `twLazyImage` restarts a pending load when `lazyDisabled`,
+  `lazyRootMargin` or `lazyNative` change
+- Native: the `tw-toolbar` dropdown closes on outside click and on Escape,
+  returning focus to its trigger
+- Music: `minimal` `tw-piano-chord` chord-type label meets text contrast
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

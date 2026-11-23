@@ -25,6 +25,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^overflow-y-/, 'overflow-y'],
   [/^overflow-/, 'overflow'],
   [/^z-/, 'z-index'],
+  [/^aspect-/, 'aspect-ratio'],
+  [/^object-(contain|cover|fill|none|scale-down)$/, 'object-fit'],
+  [/^object-/, 'object-position'],
+  [/^order-/, 'order'],
 
   // Flexbox & Grid
   [/^flex-(row|col)(-reverse)?$/, 'flex-direction'],
@@ -157,6 +161,11 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^shadow-/, 'shadow-color'],
   [/^opacity-/, 'opacity'],
   [/^blur(-|$)/, 'blur'],
+  [/^(brightness|contrast|grayscale|hue-rotate|invert|saturate|sepia)(-|$)/, '$1'],
+  [
+    /^backdrop-(blur|brightness|contrast|grayscale|hue-rotate|invert|opacity|saturate|sepia)(-|$)/,
+    'backdrop-$1',
+  ],
 
   // Transitions & Animation
   [/^transition-(discrete|normal)$/, 'transition-behavior'],

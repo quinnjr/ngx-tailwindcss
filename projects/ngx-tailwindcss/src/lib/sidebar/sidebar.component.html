@@ -13,7 +13,8 @@
   [attr.inert]="visible() ? null : ''"
   role="dialog"
   [attr.aria-modal]="modal() ? 'true' : null"
-  [attr.aria-label]="header() || null"
+  [attr.aria-label]="header() || ariaLabel() || null"
+  [attr.aria-labelledby]="header() ? null : ariaLabelledBy() || null"
 >
   <!-- Header -->
   @if (header() || showCloseButton()) {

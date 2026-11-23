@@ -155,6 +155,21 @@ describe('TwClassService', () => {
         expect(result).toBe('opacity-100');
       });
 
+      it('should resolve filter, backdrop filter, object, aspect and order conflicts', () => {
+        expect(
+          service.merge('absolute inset-0 bg-slate-900/50 backdrop-blur-sm', 'backdrop-blur-none')
+        ).toBe('absolute inset-0 bg-slate-900/50 backdrop-blur-none');
+        expect(service.merge('backdrop-blur-sm backdrop-opacity-50', 'backdrop-blur-lg')).toBe(
+          'backdrop-blur-lg backdrop-opacity-50'
+        );
+        expect(service.merge('grayscale blur-sm', 'grayscale-0')).toBe('grayscale-0 blur-sm');
+        expect(service.merge('object-cover object-center', 'object-contain')).toBe(
+          'object-contain object-center'
+        );
+        expect(service.merge('aspect-video', 'aspect-square')).toBe('aspect-square');
+        expect(service.merge('order-1', 'order-last')).toBe('order-last');
+      });
+
       it('should handle transition', () => {
         const result = service.merge('transition', 'transition-all');
         expect(result).toBe('transition-all');

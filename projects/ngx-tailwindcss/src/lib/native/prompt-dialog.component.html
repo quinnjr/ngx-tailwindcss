@@ -38,7 +38,6 @@
           [attr.aria-invalid]="validationError() ? true : null"
           [attr.aria-describedby]="validationError() ? errorId : null"
           (keydown.enter)="confirm()"
-          (keydown.escape)="cancel()"
           class="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
           [class.border-red-500]="validationError()"
           [class.border-slate-200]="!validationError()"

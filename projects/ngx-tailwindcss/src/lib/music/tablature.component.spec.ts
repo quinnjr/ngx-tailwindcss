@@ -235,3 +235,23 @@ describe('TwTablatureComponent keyboard interaction', () => {
     expect(notes).toEqual(['0:5', '1:x']);
   });
 });
+
+describe('TwTablatureComponent accessibility', () => {
+  it('draws dark-variant string lines at >= 3:1 and names the tablature as a group', async () => {
+    await TestBed.configureTestingModule({ imports: [TwTablatureComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwTablatureComponent);
+    fixture.componentRef.setInput('variant', 'dark');
+    fixture.componentRef.setInput('showBarLines', false);
+    fixture.componentRef.setInput('measures', [{ notes: [[{ string: 1, fret: 3 }]] }]);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const strokes = [...host.querySelectorAll('line')].map(l => l.getAttribute('stroke'));
+    expect(strokes).toHaveLength(6);
+    // slate-600 (#475569) was ~1.9:1 on the slate-800 background
+    expect(strokes.every(s => s === '#64748B')).toBe(true);
+    // aria-label on a plain div is ignored by assistive technology
+    expect(host.querySelector('[role="group"]')?.getAttribute('aria-label')).toBe(
+      'Guitar tablature'
+    );
+  });
+});

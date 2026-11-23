@@ -225,3 +225,13 @@ describe('TwLeadSheetComponent classOverride', () => {
     }
   });
 });
+
+describe('TwLeadSheetComponent accessible name', () => {
+  it('names the lead sheet as a group (aria-label on a plain div is ignored)', async () => {
+    await TestBed.configureTestingModule({ imports: [TwLeadSheetComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwLeadSheetComponent);
+    fixture.detectChanges();
+    const group = (fixture.nativeElement as HTMLElement).querySelector('[role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Lead sheet');
+  });
+});

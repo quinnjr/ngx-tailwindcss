@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
 
@@ -46,6 +46,12 @@ export class TwOnboardingWizardComponent {
     this.currentIndex.set(startIndex);
     this.dontShowAgain.set(false);
     this.isOpen.set(true);
+  }
+
+  /** Escape skips the wizard when skipping is allowed, like the Skip button. */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isOpen() && this.allowSkip()) this.skip();
   }
 
   public close(): void {

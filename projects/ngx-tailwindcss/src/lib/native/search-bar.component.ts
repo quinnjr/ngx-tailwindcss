@@ -65,6 +65,19 @@ export class TwSearchBarComponent {
     }
   }
 
+  /**
+   * Escape from inside the suggestions closes them and returns focus to the
+   * input (Escape in the input itself is handled there and clears the query).
+   */
+  @HostListener('keydown.escape', ['$event'])
+  protected onHostEscape(event: Event): void {
+    const inputEl = this.elementRef.nativeElement.querySelector('input');
+    if (event.target === inputEl || !this.showSuggestions()) return;
+    // Focusing the input reopens the suggestions, so hide them afterwards
+    inputEl?.focus();
+    this.showSuggestions.set(false);
+  }
+
   protected onFocus(): void {
     this.isFocused.set(true);
     this.showSuggestions.set(true);

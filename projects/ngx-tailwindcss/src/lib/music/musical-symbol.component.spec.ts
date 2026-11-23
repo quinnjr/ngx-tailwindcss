@@ -69,3 +69,25 @@ describe('TwMusicalSymbolComponent classOverride', () => {
     expect(classes).not.toContain('relative');
   });
 });
+
+describe('TwMusicalSymbolComponent articulations', () => {
+  it('draws the accent as an open ">" wedge pointing right', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwMusicalSymbolComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwMusicalSymbolComponent);
+    fixture.componentRef.setInput('category', 'articulation');
+    fixture.componentRef.setInput('articulation', 'accent');
+    fixture.componentRef.setInput('x', 20);
+    fixture.componentRef.setInput('y', 20);
+    fixture.componentRef.setInput('size', 10);
+    fixture.detectChanges();
+
+    const path = (fixture.nativeElement as HTMLElement).querySelector('path')!;
+    // Ends on the left, apex on the right (a filled triangle with its apex on the left
+    // drew '<')
+    expect(path.getAttribute('d')).toBe('M 16 18 L 24 20 L 16 22');
+    expect(path.getAttribute('fill')).toBe('none');
+    expect(path.getAttribute('stroke')).toBe('#1E293B');
+  });
+});

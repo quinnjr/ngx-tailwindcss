@@ -163,4 +163,40 @@ describe('TwPianoComponent', () => {
     expect(buttons()).toHaveLength(24);
     expect(buttons().every(b => b.disabled)).toBe(true);
   });
+
+  it('shows the pressed state of a highlighted key', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('highlightedNotes', ['C4', 'C#4']);
+    fixture.detectChanges();
+    const white = host.querySelector<HTMLButtonElement>('button[aria-label="C4"]')!;
+    const black = host.querySelector<HTMLButtonElement>('button[aria-label="C#4"]')!;
+    expect(white.classList).toContain('bg-blue-200');
+    expect(black.classList).toContain('bg-blue-800');
+
+    white.dispatchEvent(new MouseEvent('mousedown'));
+    black.dispatchEvent(new MouseEvent('mousedown'));
+    fixture.detectChanges();
+    // The highlight colours used to replace the pressed ones, so nothing visibly changed
+    expect(white.classList).toContain('bg-slate-300');
+    expect(white.classList).not.toContain('bg-blue-200');
+    expect(black.classList).toContain('bg-slate-600');
+    expect(black.classList).not.toContain('bg-blue-800');
+  });
+
+  it('draws key focus rings with >= 3:1 contrast against the keys', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const white = host.querySelector<HTMLButtonElement>('button[aria-label="C4"]')!;
+    const black = host.querySelector<HTMLButtonElement>('button[aria-label="C#4"]')!;
+    // blue-400 was ~2.5:1 on the white keys (an outer ring on a black key lies over them)
+    expect(white.classList).toContain('focus:ring-blue-800');
+    expect(white.classList).not.toContain('focus:ring-blue-400');
+    expect(black.classList).toContain('focus:ring-inset');
+    expect(black.classList).toContain('focus:ring-blue-300');
+  });
+
+  it('names the keyboard as a group (aria-label on a plain div is ignored)', () => {
+    const group = (fixture.nativeElement as HTMLElement).querySelector('[role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Piano keyboard');
+  });
 });

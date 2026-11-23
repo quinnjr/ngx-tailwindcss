@@ -552,3 +552,14 @@ describe('TwScoreEditorComponent', () => {
     expect(/color:\s*(#[0-9a-f]+)/i.exec(rule)?.[1]).toBe('#475569');
   });
 });
+
+describe('TwScoreEditorComponent accessible name', () => {
+  it('names the editor as a group (aria-label on a plain div is ignored)', async () => {
+    await TestBed.configureTestingModule({ imports: [TwScoreEditorComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwScoreEditorComponent);
+    fixture.detectChanges();
+    const root = (fixture.nativeElement as HTMLElement).querySelector('.score-editor');
+    expect(root?.getAttribute('role')).toBe('group');
+    expect(root?.getAttribute('aria-label')).toBe('Musical score editor');
+  });
+});

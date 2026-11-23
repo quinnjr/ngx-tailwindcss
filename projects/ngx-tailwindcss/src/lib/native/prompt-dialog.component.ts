@@ -1,4 +1,13 @@
-import { Component, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  effect,
+  ElementRef,
+  HostListener,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
@@ -85,6 +94,12 @@ export class TwPromptDialogComponent {
 
     this.confirmed.emit(value);
     this.close();
+  }
+
+  /** Escape cancels from anywhere in the dialog, not only from the input. */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isOpen()) this.cancel();
   }
 
   public cancel(): void {

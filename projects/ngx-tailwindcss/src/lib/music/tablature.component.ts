@@ -170,7 +170,8 @@ export class TwTablatureComponent {
       case 'dark': {
         return {
           background: '#1E293B',
-          line: '#475569',
+          // String / staff lines carry the fret numbers' string: slate-600 was ~1.9:1
+          line: '#64748B',
           text: '#F1F5F9',
           // Fret numbers: blue-500 was ~4.0:1 on the slate-800 background
           note: '#60A5FA',

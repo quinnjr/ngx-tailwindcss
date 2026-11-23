@@ -76,6 +76,24 @@ describe('TwParametricEQComponent', () => {
     expect(emitted.length).toBe(0);
   });
 
+  it('should adjust Q from the keyboard (Shift+drag counterpart)', () => {
+    const changes: any[] = [];
+    fixture.componentInstance.bandChange.subscribe(c => changes.push(c));
+    const select = fixture.nativeElement.querySelector(
+      'button:not([role="switch"])'
+    ) as HTMLButtonElement;
+    const q = fixture.componentInstance.bands()[0].q;
+
+    const up = new KeyboardEvent('keydown', { key: 'PageUp', cancelable: true });
+    select.dispatchEvent(up);
+    expect(up.defaultPrevented).toBe(true);
+    expect(changes.at(-1).property).toBe('q');
+    expect(changes.at(-1).band.q).toBeCloseTo(q * 1.25, 1);
+
+    select.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', cancelable: true }));
+    expect(changes.at(-1).band.q).toBeCloseTo(q / 1.25, 1);
+  });
+
   it('should not toggle bands when not interactive', () => {
     fixture.componentRef.setInput('interactive', false);
     fixture.detectChanges();

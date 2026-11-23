@@ -376,5 +376,22 @@ describe('TwTableComponent', () => {
       expect(current.length).toBe(1);
       expect(current[0].nativeElement.textContent.trim()).toBe('2');
     });
+
+    it('should keep 4.5:1 text contrast on the dark hover backgrounds', () => {
+      // slate-400 text on a solid slate-700 hover background is only about 4:1
+      const row = bodyRows()[0].nativeElement as HTMLElement;
+      expect(row.classList).toContain('dark:hover:bg-slate-700/50');
+      expect(row.classList).not.toContain('dark:hover:bg-slate-700');
+
+      const buttons = tableEl
+        .queryAll(By.css('button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .filter(b => b.classList.contains('dark:hover:bg-slate-700'));
+      // Previous, page 2 (non-current) and Next
+      expect(buttons.length).toBe(3);
+      for (const button of buttons) {
+        expect(button.classList).toContain('dark:hover:text-slate-200');
+      }
+    });
   });
 });

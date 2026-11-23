@@ -49,7 +49,7 @@
           (click)="selectBand(band)"
           (dblclick)="toggleBand(band)"
           (keydown)="onBandKeydown($event, band)"
-          title="Select band • Arrow keys adjust gain/frequency • Double-click to enable/disable"
+          title="Select band • Arrow keys adjust gain/frequency • Page Up/Down adjust Q • Double-click to enable/disable"
           [attr.aria-label]="bandAriaLabel(band)"
           [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
         >
@@ -95,8 +95,8 @@
           </div>
 
           <div class="mt-2 text-[10px]" [class]="panelClasses().label">
-            Drag node to adjust • Shift+drag for Q • Double-click node to reset • Use the dot switch
-            to enable/disable a band
+            Drag node to adjust • Shift+drag (or Page Up/Down on a band) for Q • Double-click node
+            to reset • Use the dot switch to enable/disable a band
           </div>
         </div>
       }

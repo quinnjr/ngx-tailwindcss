@@ -489,4 +489,17 @@ describe('TwRatingComponent (regressions)', () => {
     fixture.detectChanges();
     expect(document.activeElement).toBe(stars[2]);
   });
+
+  it('should announce a half-step value on the checked star', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.componentInstance.a.setValue(2.5);
+    fixture.detectChanges();
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]'),
+    ];
+    const checked = stars.filter(s => s.getAttribute('aria-checked') === 'true');
+    expect(checked.length).toBe(1);
+    expect(checked[0].getAttribute('aria-label')).toBe('2.5 stars');
+    expect(stars[1].getAttribute('aria-label')).toBe('2 stars');
+  });
 });

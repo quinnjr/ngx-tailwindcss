@@ -12,11 +12,14 @@
     <div class="flex items-center gap-2">
       <!-- Preset Dropdown -->
       @if (showPresets() && showPresetDropdown()) {
-        <div class="relative">
+        <!-- Escape closes the menu and returns focus to its toggle -->
+        <div class="relative" (keydown.escape)="onPresetMenuEscape(presetToggle)">
           <button
+            #presetToggle
             type="button"
             class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-white/10 transition-colors"
             [class]="colors().label"
+            [attr.aria-expanded]="showPresetMenu()"
             (click)="togglePresetMenu()"
             [disabled]="isDisabled()"
           >

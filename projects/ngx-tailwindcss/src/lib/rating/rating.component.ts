@@ -108,6 +108,16 @@ export class TwRatingComponent implements ControlValueAccessor {
   /** Index of the star that participates in the roving tabindex */
   protected activeStarIndex = computed(() => Math.max(0, Math.ceil(this.value()) - 1));
 
+  /**
+   * Accessible name of a star. The checked star of a half-step value announces that
+   * value (e.g. "2.5 stars") so screen readers do not report the rounded-up star.
+   */
+  protected starLabel(index: number): string {
+    const value = this.value();
+    const isHalfActive = index === this.activeStarIndex() && !Number.isInteger(value);
+    return `${isHalfActive ? value : index + 1} stars`;
+  }
+
   protected starClasses(index: number) {
     const variant = RATING_VARIANTS[this.variant()];
     const isFilled = this.currentValue() > index;

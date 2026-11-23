@@ -112,6 +112,9 @@ export class TwQuickSwitcherComponent {
         break;
       }
       case 'Enter': {
+        // A focused button (an option, Clear search) activates itself: don't
+        // hijack its Enter for whichever option happens to be highlighted
+        if (event.target instanceof HTMLButtonElement) return;
         const item = this.filteredItems()[this.selectedIndex()];
         if (item) {
           this.selectItem(item);

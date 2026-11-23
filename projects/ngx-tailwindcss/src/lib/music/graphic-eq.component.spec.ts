@@ -58,6 +58,26 @@ describe('TwGraphicEQComponent', () => {
     expect(px(internals.getBandFillHeight(-24))).toBeCloseTo(240, 6);
   });
 
+  it('should expose the preset menu state and close it with Escape', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const toggle = [...el.querySelectorAll('button')].find(
+      b => b.textContent?.trim() === 'Presets'
+    )!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const search = el.querySelector<HTMLInputElement>('input[placeholder="Search presets..."]')!;
+    search.focus();
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(el.querySelector('input[placeholder="Search presets..."]')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+  });
+
   it('should emit bandChange when a band is reset', () => {
     const changes: unknown[] = [];
     component.bandChange.subscribe(c => changes.push(c));

@@ -9,6 +9,7 @@ import { TwOnboardingWizardComponent } from './onboarding-wizard.component';
 import { TwUpdateDialogComponent, UpdateDialogInfo } from './update-dialog.component';
 import { TwResizablePanelsComponent } from './resizable-panels.component';
 import { TwFileTreeComponent } from './file-tree.component';
+import { TwLogViewerComponent } from './log-viewer.component';
 import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
 import { TwAboutDialogComponent } from './about-dialog.component';
 import { TwPreferencesDialogComponent } from './preferences-dialog.component';
@@ -432,9 +433,14 @@ describe('Native a11y semantics', () => {
     expect(title?.textContent?.trim()).toBe('Welcome');
     const dot = el.querySelector<HTMLButtonElement>('[aria-label="Go to step 2: Sync"]')!;
     expect(dot).not.toBeNull();
+    // Inactive dots must reach 3:1 against the panel; the current one differs by size too
+    expect(dot.classList).toContain('bg-slate-500');
+    expect(dot.classList).toContain('dark:bg-slate-400');
+    expect(dot.classList).not.toContain('bg-slate-300');
     dot.click();
     fixture.detectChanges();
     expect(dot.getAttribute('aria-current')).toBe('step');
+    expect(dot.classList).toContain('w-6');
   });
 
   it('update dialog auto-update toggle exposes its state as a switch', () => {
@@ -528,5 +534,69 @@ describe('TwResizablePanelsComponent keyboard', () => {
     pressKey('End');
     expect(sizes).toEqual([52, 42, 10, 90]);
     expect(separator.getAttribute('aria-valuenow')).toBe('90');
+  });
+});
+
+describe('native keyboard operability (round 20)', () => {
+  it('tab bar reorders the focused tab with Ctrl+Shift+PageUp/PageDown', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.componentRef.setInput('tabs', [
+      { id: 'one', label: 'One' },
+      { id: 'two', label: 'Two' },
+      { id: 'three', label: 'Three' },
+    ]);
+    fixture.detectChanges();
+    const reorders: Array<{ from: number; to: number }> = [];
+    fixture.componentInstance.tabReorder.subscribe(e => reorders.push(e));
+    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]') as NodeListOf<HTMLElement>;
+
+    press(tabs[1], { key: 'PageDown', ctrlKey: true, shiftKey: true });
+    press(tabs[1], { key: 'PageUp', ctrlKey: true, shiftKey: true });
+    // Out of range and without the modifiers: nothing
+    press(tabs[0], { key: 'PageUp', ctrlKey: true, shiftKey: true });
+    press(tabs[1], { key: 'PageDown' });
+
+    expect(reorders).toEqual([
+      { from: 1, to: 2 },
+      { from: 1, to: 0 },
+    ]);
+  });
+
+  it('log viewer entries can be selected from the keyboard', () => {
+    const fixture = TestBed.createComponent(TwLogViewerComponent);
+    fixture.componentRef.setInput('entries', [
+      { id: '1', level: 'info', message: 'hello', timestamp: new Date() },
+    ]);
+    fixture.detectChanges();
+    const selected: string[] = [];
+    fixture.componentInstance.entrySelect.subscribe(e => selected.push(e.id));
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLElement;
+    expect(row.tabIndex).toBe(0);
+
+    press(row, { key: 'Enter' });
+    press(row, { key: ' ' });
+    expect(selected).toEqual(['1', '1']);
+  });
+
+  it('quick switcher leaves Enter on a focused option to that option', () => {
+    const fixture = TestBed.createComponent(TwQuickSwitcherComponent);
+    fixture.componentRef.setInput(
+      'items',
+      ['alpha', 'beta'].map((id): QuickSwitcherItem => ({ id, label: id, type: 'file' }))
+    );
+    fixture.componentInstance.open();
+    fixture.componentInstance.searchQuery.set('a');
+    fixture.detectChanges();
+    const picked: string[] = [];
+    fixture.componentInstance.itemSelected.subscribe(item => picked.push(item.id));
+    const options = fixture.nativeElement.querySelectorAll(
+      '[role="option"]'
+    ) as NodeListOf<HTMLButtonElement>;
+
+    // Highlight is on the first option, but the second has focus
+    press(options[1], { key: 'Enter' });
+    expect(picked).toEqual([]);
+    options[1].click();
+    expect(picked).toEqual(['beta']);
   });
 });

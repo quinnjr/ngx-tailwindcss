@@ -270,7 +270,8 @@ export class TwTableComponent {
   /** Row class matrix memoized per selected/odd combination. */
   private readonly rowClassMatrix = computed(() => {
     const striped = this.variant() === 'striped';
-    const hover = this.hoverable() ? 'hover:bg-slate-50 dark:hover:bg-slate-700' : '';
+    // Dark hover stays at half-strength slate-700 so slate-400 cell text keeps 4.5:1
+    const hover = this.hoverable() ? 'hover:bg-slate-50 dark:hover:bg-slate-700/50' : '';
     const pointer = this.selectable() ? 'cursor-pointer' : '';
     const build = (isSelected: boolean, isOdd: boolean) =>
       this.twClass.merge(
@@ -302,7 +303,7 @@ export class TwTableComponent {
       'w-8 h-8 text-sm font-medium rounded-lg transition-colors',
       isCurrent
         ? 'bg-blue-600 text-white'
-        : 'text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+        : 'text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
     );
   }
 

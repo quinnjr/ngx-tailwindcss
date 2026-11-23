@@ -1,10 +1,12 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
   HostListener,
   inject,
+  Injector,
   input,
   output,
   signal,
@@ -63,6 +65,7 @@ export class TwTabBarComponent {
   public readonly closeOthers = output<string>(); // ID of tab to keep
 
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   // State
   protected readonly overflowMenuOpen = signal(false);
@@ -157,6 +160,38 @@ export class TwTabBarComponent {
       event.preventDefault();
       this.tabClose.emit({ tab, index, action: 'close' });
     }
+  }
+
+  /**
+   * Keyboard alternative to drag-to-reorder: Ctrl/Cmd+Shift+PageUp/PageDown
+   * moves the focused tab one position left/right (browser tab convention).
+   */
+  protected onTabKeydown(tab: TabItem, index: number, event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || !event.shiftKey) return;
+    let to: number;
+    if (event.key === 'PageUp') {
+      to = index - 1;
+    } else if (event.key === 'PageDown') {
+      to = index + 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    if (to < 0 || to >= this.tabs().length) return;
+    this.tabReorder.emit({ from: index, to });
+
+    // Re-rendering the moved tab can drop its focus; put focus back on it
+    afterNextRender(
+      () => {
+        const host = this.elementRef.nativeElement;
+        if (host.contains(host.ownerDocument.activeElement)) return;
+        const button = [...host.querySelectorAll<HTMLElement>('[data-tab-id]')].find(
+          el => el.dataset['tabId'] === tab.id
+        );
+        button?.focus();
+      },
+      { injector: this.injector }
+    );
   }
 
   protected onDragStart(tab: TabItem, index: number, event: DragEvent): void {

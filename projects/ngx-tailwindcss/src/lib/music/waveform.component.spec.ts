@@ -36,6 +36,20 @@ describe('TwWaveformComponent', () => {
     expect(seeks[1]).toBe(0);
   });
 
+  it('should pan a zoomed view to follow keyboard seeking', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.componentRef.setInput('progress', 0.5);
+    fixture.detectChanges();
+    component.setZoom(4, 0.5); // visible window 0.375..0.625
+    const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    expect(internals.visibleRange().end).toBeCloseTo(1, 10);
+
+    canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+    expect(internals.visibleRange().start).toBeCloseTo(0, 10);
+  });
+
   it('should keep zoomToRegion inside the 0..1 range when zoom is clamped', () => {
     fixture.componentRef.setInput('maxZoom', 4);
     fixture.detectChanges();

@@ -736,7 +736,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   // Keyboard control for the focused band: arrows adjust gain (up/down) and
-  // frequency (left/right); Home/End jump gain to 0/max. Enter/Space keep the
+  // frequency (left/right); PageUp/PageDown widen/narrow Q (the keyboard
+  // counterpart of Shift+drag); Home/End jump gain to 0/max. Enter/Space keep the
   // native button behaviour (select, same as a click); enabling/disabling has
   // its own switch so keyboard, mouse and screen readers all agree.
   protected onBandKeydown(event: KeyboardEvent, band: EQBand): void {
@@ -744,7 +745,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
 
     const freqFactor = event.shiftKey ? 2 ** (1 / 3) : 2 ** (1 / 12); // major third / semitone
     let updatedBand: EQBand | null = null;
-    let property: 'frequency' | 'gain' = 'gain';
+    let property: 'frequency' | 'gain' | 'q' = 'gain';
 
     switch (event.key) {
       case 'ArrowUp': {
@@ -769,6 +770,16 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           frequency: Math.max(this.minFreq(), Math.round(band.frequency / freqFactor)),
         };
         property = 'frequency';
+        break;
+      }
+      case 'PageUp': {
+        updatedBand = { ...band, q: Math.min(18, Math.round(band.q * 1.25 * 100) / 100) };
+        property = 'q';
+        break;
+      }
+      case 'PageDown': {
+        updatedBand = { ...band, q: Math.max(0.1, Math.round((band.q / 1.25) * 100) / 100) };
+        property = 'q';
         break;
       }
       case 'Home': {

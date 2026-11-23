@@ -130,6 +130,20 @@
     }
   </div>
 
+  <!-- Keyboard reset for the latched clip indicators (the red bars above are click-only and
+       sit inside the role="img" meter, which must not contain controls). Shown on focus so a
+       clip does not change the meter's layout. -->
+  @if (showClip() && anyClipped()) {
+    <button
+      type="button"
+      class="sr-only focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:rounded focus:text-[9px] focus:font-mono focus:bg-red-600 focus:text-white"
+      aria-label="Reset clip indicator"
+      (click)="resetAllClips()"
+    >
+      CLIP
+    </button>
+  }
+
   <!-- Label (bottom) -->
   @if (label() && labelPosition() === 'bottom') {
     <div [class]="labelClasses()">{{ label() }}</div>

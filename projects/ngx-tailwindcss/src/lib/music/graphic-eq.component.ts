@@ -859,6 +859,13 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     this.showPresetMenu.set(false);
   }
 
+  // Escape closes an open preset menu and returns focus to its toggle
+  protected onPresetMenuEscape(toggle: HTMLElement): void {
+    if (!this.showPresetMenu()) return;
+    this.closePresetMenu();
+    toggle.focus();
+  }
+
   protected onPresetSearch(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     this.presetSearchQuery.set(inputElement.value);

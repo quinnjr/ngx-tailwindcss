@@ -167,6 +167,8 @@ export class TwVuMeterComponent {
     return this.stereo() ? [0, 1] : [0];
   });
 
+  protected readonly anyClipped = computed(() => this.clipStates().some(Boolean));
+
   protected readonly showRmsBar = computed(() => {
     return this.meterMode() === 'both';
   });

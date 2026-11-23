@@ -297,6 +297,25 @@ describe('TwButtonComponent', () => {
       // An inline display would beat `class="hidden md:inline-flex"`
       expect(buttonNative.style.display).toBe('');
     });
+
+    it('keeps the host a flex box when classReplace sets no display', () => {
+      component.classReplace.set('px-6 py-2 bg-black text-white');
+      fixture.detectChanges();
+
+      expect(buttonNative.className.split(' ').sort()).toEqual(
+        ['bg-black', 'inline-flex', 'px-6', 'py-2', 'text-white'].sort()
+      );
+    });
+
+    it('lets classReplace set its own display', () => {
+      component.classReplace.set('hidden md:flex px-6');
+      fixture.detectChanges();
+
+      const classes = buttonNative.className.split(' ');
+      expect(classes).not.toContain('inline-flex');
+      expect(classes).toContain('hidden');
+      expect(classes).toContain('md:flex');
+    });
   });
 
   describe('public methods', () => {

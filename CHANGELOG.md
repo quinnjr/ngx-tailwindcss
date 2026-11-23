@@ -266,7 +266,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as plain indicators (not buttons) when accents are not editable
 - `tw-button` and `a[tw-button]` no longer pin `display: inline-flex` and
   `position: relative` as inline styles, so display and position classes
-  (`class="hidden md:inline-flex"`, `class="fixed bottom-4 right-4"`) apply
+  (`class="hidden md:inline-flex"`, `class="fixed bottom-4 right-4"`) apply;
+  a `classReplace` without a display class still renders as `inline-flex`
+- Keyboard: `tw-select` options are no longer separate Tab stops, and
+  `tw-select`/`tw-multiselect` close when focus leaves them;
+  `tw-native-context-menu` is keyboard operable (focus moves into the menu,
+  arrow keys/Home/End, submenus, checkable items, focus returns on close);
+  `tw-resizable-panels` separators are focusable and resize from the keyboard
+  (with `aria-valuenow`/min/max), and their collapse buttons are shown on
+  focus and no longer submit forms; `tw-piano` keys are disabled when the
+  piano is disabled
+- `TwClassValue` and `twClassValue` are exported from the package
+- `MidiService.getNoteInfo` names notes below 0 correctly;
+  `MidiService.unmapCCValue` clamps to 0-127 and returns 0 for an empty
+  range instead of `NaN`; `MobileSupportService.detectSwipe` reports a finite
+  velocity for a swipe measured at 0 ms; `tw-sheet-music` `minimal` notes
+  follow dark mode
+- Contrast: `tw-splitter` handle, `tw-scroll-area` thumbs, `tw-looper` record
+  icon, `tw-graphic-eq` preset descriptions, `tw-metronome` beat dots,
+  `tw-transport` hover icons, `tw-piano-chord` active key labels and
+  `tw-score-editor` part names
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

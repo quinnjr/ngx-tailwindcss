@@ -2,8 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
+  isDevMode,
   numberAttribute,
   output,
   signal,
@@ -16,6 +18,14 @@ import { ChordDefinition, COMMON_CHORDS, TwChordDiagramComponent } from './chord
 
 export type LeadSheetVariant = 'default' | 'minimal' | 'printed' | 'dark' | 'fakebook';
 export type LeadSheetStyle = 'standard' | 'nashville' | 'roman';
+/**
+ * Lead-sheet display mode.
+ *
+ * - `'chords-only'`: chord symbols (and rhythm slashes) only.
+ * - `'with-diagrams'` / `'full'`: chord symbols plus inline chord diagrams.
+ * - `'with-staff'`: **not yet supported.** A melody staff is not rendered yet, so this
+ *   currently renders exactly like `'chords-only'` (a dev-mode warning is logged).
+ */
 export type LeadSheetDisplayMode = 'chords-only' | 'with-staff' | 'with-diagrams' | 'full';
 export type SlashStyle = 'simple' | 'rhythmic' | 'none';
 
@@ -41,7 +51,13 @@ export interface LeadSheetMeasure {
   segno?: boolean;
   ending?: number; // 1st ending, 2nd ending, etc.
   slashPattern?: SlashPattern; // Custom slash pattern
-  melody?: MelodyNote[]; // Optional melody notes
+  /**
+   * Melody notes for this measure.
+   *
+   * **Not yet supported:** melody is not rendered by `tw-lead-sheet` yet; this field is
+   * currently ignored.
+   */
+  melody?: MelodyNote[];
 }
 
 export interface MelodyNote {
@@ -150,6 +166,7 @@ export class TwLeadSheetComponent {
   readonly data = input<LeadSheetData | null>(null);
   readonly variant = input<LeadSheetVariant>('default');
   readonly style = input<LeadSheetStyle>('standard');
+  /** See {@link LeadSheetDisplayMode}; `'with-staff'` is not yet supported. */
   readonly displayMode = input<LeadSheetDisplayMode>('chords-only');
   readonly slashStyle = input<SlashStyle>('simple');
   readonly measuresPerRow = input(4, { transform: numberAttribute });
@@ -170,6 +187,22 @@ export class TwLeadSheetComponent {
 
   // Exposed for template
   protected readonly COMMON_CHORDS = COMMON_CHORDS;
+
+  private warnedWithStaff = false;
+
+  constructor() {
+    // 'with-staff' is accepted by the type but no staff/melody is rendered yet: tell
+    // developers instead of silently rendering 'chords-only'
+    effect(() => {
+      if (this.displayMode() === 'with-staff' && !this.warnedWithStaff && isDevMode()) {
+        this.warnedWithStaff = true;
+        console.warn(
+          "tw-lead-sheet: displayMode 'with-staff' is not yet supported (no melody staff is " +
+            "rendered); it currently renders like 'chords-only'."
+        );
+      }
+    });
+  }
   protected readonly SLASH_PATTERNS = SLASH_PATTERNS;
 
   protected readonly containerClasses = computed(() => {

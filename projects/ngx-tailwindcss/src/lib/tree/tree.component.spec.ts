@@ -132,6 +132,14 @@ describe('TwTreeComponent', () => {
       expect(nodes[0].expanded).toBe(false);
       expect(nodes[1].expanded).toBe(false);
     });
+
+    it('should keep the toggle chevron at 3:1 on its dark hover background', () => {
+      const toggle = treeEl.query(By.css('button[aria-label="Expand"]'))
+        .nativeElement as HTMLButtonElement;
+      // slate-400 on the slate-600 hover background is below 3:1
+      expect(toggle.classList).toContain('dark:hover:bg-slate-600');
+      expect(toggle.classList).toContain('dark:hover:text-slate-200');
+    });
   });
 
   describe('single selection mode', () => {

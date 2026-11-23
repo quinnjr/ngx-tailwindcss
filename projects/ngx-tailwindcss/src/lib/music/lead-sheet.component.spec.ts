@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeadSheetStyle, TwLeadSheetComponent } from './lead-sheet.component';
 import { ChordDefinition } from './chord-diagram.component';
 
@@ -200,5 +200,28 @@ describe('TwLeadSheetComponent classOverride', () => {
     expect(classes).toContain('p-2');
     expect(classes).not.toContain('bg-white');
     expect(classes).not.toContain('p-6');
+  });
+
+  it("warns once in dev mode that displayMode 'with-staff' is not yet supported", async () => {
+    await TestBed.configureTestingModule({ imports: [TwLeadSheetComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwLeadSheetComponent);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      fixture.componentRef.setInput('data', { sections: [] });
+      fixture.detectChanges();
+      expect(warn).not.toHaveBeenCalled();
+
+      fixture.componentRef.setInput('displayMode', 'with-staff');
+      fixture.detectChanges();
+      fixture.componentRef.setInput('displayMode', 'chords-only');
+      fixture.detectChanges();
+      fixture.componentRef.setInput('displayMode', 'with-staff');
+      fixture.detectChanges();
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain("'with-staff' is not yet supported");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -103,7 +103,8 @@ export class TwMenuComponent {
 
   protected itemClasses(item: MenuItem) {
     return this.twClass.merge(
-      'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
+      // `group` lets the shortcut keep 4.5:1 on the dark hover/focus background (slate-700)
+      'group w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
       'focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       item.disabled
         ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'

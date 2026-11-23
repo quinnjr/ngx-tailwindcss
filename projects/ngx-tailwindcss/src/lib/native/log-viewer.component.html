@@ -111,10 +111,13 @@
         <tbody>
           @for (entry of filteredEntries(); track entry.id) {
             <tr
-              class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+              class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
               [class.bg-red-50]="entry.level === 'error' || entry.level === 'fatal'"
               [class.dark:bg-red-900/20]="entry.level === 'error' || entry.level === 'fatal'"
+              tabindex="0"
               (click)="selectEntry(entry)"
+              (keydown.enter)="selectEntry(entry)"
+              (keydown.space)="$event.preventDefault(); selectEntry(entry)"
             >
               <!-- Timestamp -->
               <td

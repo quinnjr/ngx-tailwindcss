@@ -1118,7 +1118,13 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
       }
     }
     event.preventDefault();
-    this.seek.emit(Math.max(0, Math.min(1, next)));
+    const target = Math.max(0, Math.min(1, next));
+    // Panning a zoomed view is otherwise pointer-only (wheel, shift/middle
+    // drag, scrollbar click), so bring the keyboard seek target into view
+    if (this.zoomLevel() > 1) {
+      this.panToPosition(target);
+    }
+    this.seek.emit(target);
   }
 
   onMouseDown(event: MouseEvent): void {

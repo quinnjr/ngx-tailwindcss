@@ -191,7 +191,9 @@ export class TwButtonComponent {
 
   protected readonly computedClasses = computed(() => {
     if (this._classReplace()) {
-      return this._classReplace();
+      // The host is a custom element (display: inline by default), so keep it a flex box
+      // unless the replacement classes set their own display.
+      return this.twClass.merge('inline-flex', this._classReplace());
     }
 
     const variantClasses = BUTTON_VARIANTS[this._variant()];

@@ -103,6 +103,15 @@ describe('TwMenuComponent', () => {
     expect(shortcut.classList).toContain('dark:text-slate-400');
   });
 
+  it('should keep shortcut contrast on the dark hover/focus background', () => {
+    const item = menuItems()[1];
+    const shortcut = item.querySelector<HTMLElement>('span.ml-auto')!;
+    // slate-400 on the slate-700 hover/focus background is only about 4:1
+    expect(item.classList).toContain('group');
+    expect(shortcut.classList).toContain('dark:group-hover:text-slate-300');
+    expect(shortcut.classList).toContain('dark:group-focus:text-slate-300');
+  });
+
   describe('visible', () => {
     it('should hide items with visible: false', () => {
       component.items.set([

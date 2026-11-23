@@ -252,3 +252,35 @@ describe('TwVuMeterComponent horizontal scale colour', () => {
     expect(scale().className).not.toContain('dark:');
   });
 });
+
+describe('TwVuMeterComponent clip reset', () => {
+  it('should let keyboard users reset a latched clip indicator', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const resetButton = (): HTMLButtonElement | null =>
+      el.querySelector('button[aria-label="Reset clip indicator"]');
+    const clipBars = (): number => el.querySelectorAll('[title="Click to reset"]').length;
+
+    expect(resetButton()).toBeNull();
+    fixture.componentInstance.value.set(100);
+    fixture.detectChanges();
+    fixture.detectChanges();
+    expect(clipBars()).toBe(1);
+    // The click-only red bar sits inside the role="img" meter: the reset control is a
+    // real button outside it
+    const button = resetButton()!;
+    expect(button).not.toBeNull();
+    expect(button.closest('[role="img"]')).toBeNull();
+
+    button.click();
+    fixture.detectChanges();
+    expect(clipBars()).toBe(0);
+    expect(resetButton()).toBeNull();
+    fixture.destroy();
+  });
+});

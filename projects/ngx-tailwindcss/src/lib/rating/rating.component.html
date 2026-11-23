@@ -11,7 +11,7 @@
       [class]="starClasses($index)"
       [disabled]="isDisabled()"
       [attr.aria-checked]="value() > 0 && $index === activeStarIndex()"
-      [attr.aria-label]="$index + 1 + ' stars'"
+      [attr.aria-label]="starLabel($index)"
       [attr.tabindex]="$index === activeStarIndex() ? 0 : -1"
       (click)="onStarClick($index, $event)"
       (keydown)="onStarKeydown($event)"

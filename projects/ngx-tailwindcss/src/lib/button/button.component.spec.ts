@@ -1,7 +1,7 @@
 import { Component, DebugElement, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ButtonSize,
   ButtonVariant,
@@ -292,6 +292,11 @@ describe('TwButtonComponent', () => {
       expect(classes).toContain('inline-flex');
       expect(classes).toContain('items-center');
     });
+
+    it('should not pin display with an inline style', () => {
+      // An inline display would beat `class="hidden md:inline-flex"`
+      expect(buttonNative.style.display).toBe('');
+    });
   });
 
   describe('public methods', () => {
@@ -399,6 +404,46 @@ describe('TwButtonLinkComponent', () => {
     fixture.detectChanges();
 
     expect(linkEl.style.pointerEvents).not.toBe('none');
+  });
+
+  it('should not pin display with an inline style', () => {
+    expect(linkEl.style.display).toBe('');
+  });
+});
+
+@Component({
+  template: `<tw-button class="hidden fixed">Hidden</tw-button>`,
+  standalone: true,
+  imports: [TwButtonComponent],
+})
+class TestDisplayClassHostComponent {}
+
+describe('TwButtonComponent display and position classes', () => {
+  let style: HTMLStyleElement;
+
+  beforeEach(async () => {
+    style = document.createElement('style');
+    style.textContent = '.hidden { display: none; } .fixed { position: fixed; }';
+    document.head.append(style);
+    await TestBed.configureTestingModule({
+      imports: [TestDisplayClassHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    style.remove();
+  });
+
+  it('lets display and position utility classes apply to the host', () => {
+    const fixture = TestBed.createComponent(TestDisplayClassHostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('tw-button') as HTMLElement;
+
+    expect(host.className).toContain('hidden');
+    expect(host.className).toContain('fixed');
+    expect(getComputedStyle(host).display).toBe('none');
+    expect(getComputedStyle(host).position).toBe('fixed');
   });
 });
 

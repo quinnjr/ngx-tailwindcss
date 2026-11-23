@@ -116,8 +116,9 @@ const SPINNER_SIZES: Record<ButtonSize, string> = {
     '[attr.aria-busy]': '_loading()',
     '[attr.role]': 'hostRole',
     '[attr.tabindex]': 'isDisabled() ? -1 : 0',
-    '[style.display]': '"inline-flex"',
-    '[style.position]': '"relative"',
+    // Display and position come from the classes (`inline-flex`; the ripple makes a
+    // static host `relative`), so `class="hidden md:inline-flex"` or `class="fixed ..."`
+    // is not overridden by an inline style.
     '[style.overflow]': '"hidden"',
     '(keydown)': 'onHostKeydown($event)',
   },
@@ -335,8 +336,9 @@ export class TwButtonComponent {
     '[class]': 'computedClasses()',
     '[attr.aria-disabled]': '_disabled()',
     '[attr.tabindex]': '_disabled() ? -1 : 0',
-    '[style.display]': '"inline-flex"',
-    '[style.position]': '"relative"',
+    // Display and position come from the classes (`inline-flex`; the ripple makes a
+    // static host `relative`), so `class="hidden md:inline-flex"` or `class="fixed ..."`
+    // is not overridden by an inline style.
     '[style.overflow]': '"hidden"',
   },
 })

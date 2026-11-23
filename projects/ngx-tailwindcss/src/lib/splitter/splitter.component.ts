@@ -165,7 +165,8 @@ export class TwSplitterComponent implements OnDestroy {
 
   protected readonly gutterHandleClasses = computed(() => {
     return this.twClass.merge(
-      'rounded-full bg-slate-400 dark:bg-slate-500 transition-all',
+      // Grip stays at 3:1 against the gutter (and its hover colour) in both themes
+      'rounded-full bg-slate-500 dark:bg-slate-300 transition-all',
       this.direction() === 'horizontal' ? 'w-1 h-8' : 'h-1 w-8',
       this.isDragging() ? 'bg-blue-600 dark:bg-blue-400 scale-125' : ''
     );

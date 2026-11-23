@@ -119,7 +119,7 @@ export class TwResizablePanelsComponent {
 
   public readonly collapseButtonsClasses = computed(() => {
     const dir = this.direction();
-    return `absolute ${dir === 'horizontal' ? 'top-2 left-1/2 -translate-x-1/2 flex-col' : 'left-2 top-1/2 -translate-y-1/2 flex-row'} flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`;
+    return `absolute ${dir === 'horizontal' ? 'top-2 left-1/2 -translate-x-1/2 flex-col' : 'left-2 top-1/2 -translate-y-1/2 flex-row'} flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity`;
   });
 
   public startResize(event: MouseEvent | TouchEvent): void {
@@ -145,8 +145,8 @@ export class TwResizablePanelsComponent {
       let newSize = startSize + deltaPercent;
 
       // Apply constraints
-      const min = Math.max(this.minSize(), this.panel1Config()?.minSize || 0);
-      const max = Math.min(this.maxSize(), this.panel1Config()?.maxSize || 100);
+      const min = this.minPanel1Size();
+      const max = this.maxPanel1Size();
       newSize = Math.max(min, Math.min(max, newSize));
 
       this.ngZone.run(() => {
@@ -173,6 +173,51 @@ export class TwResizablePanelsComponent {
       this.document.addEventListener('touchmove', handleMove);
       this.document.addEventListener('touchend', handleEnd);
     });
+  }
+
+  /** Lower / upper bound for panel 1, combining the inputs with its config */
+  public readonly minPanel1Size = computed(() =>
+    Math.max(this.minSize(), this.panel1Config()?.minSize || 0)
+  );
+  public readonly maxPanel1Size = computed(() =>
+    Math.min(this.maxSize(), this.panel1Config()?.maxSize || 100)
+  );
+
+  /** Keyboard resizing for the focusable separator (WAI-ARIA window splitter). */
+  public onHandleKeydown(event: KeyboardEvent): void {
+    const isHorizontal = this.direction() === 'horizontal';
+    const step = event.shiftKey ? 10 : 2;
+    const decrease = isHorizontal ? 'ArrowLeft' : 'ArrowUp';
+    const increase = isHorizontal ? 'ArrowRight' : 'ArrowDown';
+    const min = this.minPanel1Size();
+    const max = this.maxPanel1Size();
+    let newSize: number;
+
+    switch (event.key) {
+      case decrease: {
+        newSize = this.panel1Size() - step;
+        break;
+      }
+      case increase: {
+        newSize = this.panel1Size() + step;
+        break;
+      }
+      case 'Home': {
+        newSize = min;
+        break;
+      }
+      case 'End': {
+        newSize = max;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    newSize = Math.max(min, Math.min(max, newSize));
+    this.panel1Size.set(newSize);
+    this.sizeChanged.emit({ panel1: newSize, panel2: 100 - newSize });
   }
 
   public resetSize(): void {

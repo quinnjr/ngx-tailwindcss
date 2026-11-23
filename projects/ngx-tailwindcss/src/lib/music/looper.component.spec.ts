@@ -344,4 +344,16 @@ describe('TwLooperComponent', () => {
     expect(del.classList).toContain('text-slate-600');
     internals.layers.set([]);
   });
+
+  it('should keep the idle record icon at 3:1 against its tinted button', () => {
+    const icon = (): SVGElement =>
+      (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Record"] svg')!;
+    // red-500 on the red-500/20-30 fill was ~2.5-2.9:1 on a light page, ~2.8:1 over slate-800
+    expect(icon().classList).toContain('text-red-400');
+    expect(icon().classList).not.toContain('text-red-500');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(icon().classList).toContain('text-red-700');
+    expect(icon().classList).toContain('dark:text-red-400');
+  });
 });

@@ -221,7 +221,8 @@
 .part-full-name {
   display: block;
   font-size: 0.625rem;
-  color: #64748b;
+  // slate-500 was ~4.4:1 on the selected part's blue-50 background
+  color: #475569;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

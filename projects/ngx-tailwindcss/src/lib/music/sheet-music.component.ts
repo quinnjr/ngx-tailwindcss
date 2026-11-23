@@ -920,7 +920,9 @@ export class TwSheetMusicComponent {
         : 'bg-white dark:bg-slate-100 shadow-sm border border-slate-200',
       printed: 'bg-[#FFFFF8] shadow-md print:shadow-none',
       handwritten: 'bg-[#FDF6E3] shadow-inner print:shadow-none',
-      minimal: 'bg-transparent',
+      // The notes are drawn in currentColor (see noteColor), so on the transparent background
+      // they follow the page's dark mode like the minimal variant's text
+      minimal: 'bg-transparent text-slate-800 dark:text-slate-200',
     };
 
     const printClasses = isPrint ? 'print:shadow-none print:border-none print:rounded-none' : '';
@@ -960,6 +962,12 @@ export class TwSheetMusicComponent {
   // keep a light (possibly tinted) background in dark mode, where slate-600 stays >= 4.5:1
   protected readonly mutedTextClasses = computed(() =>
     this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-600'
+  );
+
+  // Note colour: fixed dark slate on the light variants; 'minimal' uses the container's text
+  // colour, since its fixed slate-800 notes were invisible (~1.2:1) on a dark page
+  protected readonly noteColor = computed(() =>
+    this.variant() === 'minimal' ? 'currentColor' : '#1E293B'
   );
 
   protected readonly pageLabelClasses = computed(() => `text-sm ${this.mutedTextClasses()}`);

@@ -129,6 +129,18 @@ describe('TwScrollAreaComponent', () => {
       expect(container.className).toContain('scroll-area-hidden');
     });
 
+    it('should use opaque thumb colours with at least 3:1 contrast', () => {
+      const css = [...document.head.querySelectorAll('style')]
+        .map(style => style.textContent ?? '')
+        .filter(text => text.includes('scroll-area-styled'))
+        .join('\n');
+      expect(css).toContain('scrollbar-thumb');
+      // Half-transparent slate thumbs were about 2:1 against a white surface
+      expect(css).not.toMatch(/rgba\(\s*(100|148)/);
+      expect(css).toContain('#64748b');
+      expect(css).toContain('#94a3b8');
+    });
+
     it('should apply thin and dark scrollbar classes', () => {
       component.thin.set(true);
       component.dark.set(true);

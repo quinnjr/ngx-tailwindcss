@@ -581,6 +581,19 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     }
   }
 
+  /**
+   * Closes the dropdown when keyboard focus moves to an element outside the component
+   * (e.g. Tab), so the open panel does not linger over the page. A null relatedTarget
+   * (clicks on non-focusable options) is left to the document click handler.
+   */
+  @HostListener('focusout', ['$event'])
+  protected onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget as Node | null;
+    if (this.isOpen() && next && !this.elementRef.nativeElement.contains(next)) {
+      this.closeDropdown();
+    }
+  }
+
   private onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     const clickedInside = this.elementRef.nativeElement.contains(target);

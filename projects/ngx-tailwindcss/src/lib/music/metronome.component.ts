@@ -99,6 +99,40 @@ export const ACCENT_PRESETS: Record<TimeSignature, AccentPattern[]> = {
   ],
 };
 
+// Beat-dot colours. Resting shades are >= 3:1 on slate-800, black and white;
+// the current/hover shades are lighter on the dark surfaces and darker on the
+// (transparent) minimal variant's light page.
+const ACCENT_DOT_CLASSES: Record<AccentLevel, string> = {
+  none: 'bg-slate-500',
+  soft: 'bg-blue-500',
+  medium: 'bg-amber-600',
+  strong: 'bg-red-600',
+};
+const ACCENT_DOT_CURRENT: Record<AccentLevel, string> = {
+  none: 'bg-slate-400',
+  soft: 'bg-blue-400',
+  medium: 'bg-amber-400',
+  strong: 'bg-red-400',
+};
+const ACCENT_DOT_CURRENT_LIGHT: Record<AccentLevel, string> = {
+  none: 'bg-slate-700 dark:bg-slate-400',
+  soft: 'bg-blue-700 dark:bg-blue-400',
+  medium: 'bg-amber-700 dark:bg-amber-400',
+  strong: 'bg-red-700 dark:bg-red-400',
+};
+const ACCENT_DOT_HOVER: Record<AccentLevel, string> = {
+  none: 'hover:bg-slate-400',
+  soft: 'hover:bg-blue-400',
+  medium: 'hover:bg-amber-400',
+  strong: 'hover:bg-red-400',
+};
+const ACCENT_DOT_HOVER_LIGHT: Record<AccentLevel, string> = {
+  none: 'hover:bg-slate-700 dark:hover:bg-slate-400',
+  soft: 'hover:bg-blue-700 dark:hover:bg-blue-400',
+  medium: 'hover:bg-amber-700 dark:hover:bg-amber-400',
+  strong: 'hover:bg-red-700 dark:hover:bg-red-400',
+};
+
 @Component({
   selector: 'tw-metronome',
   standalone: true,
@@ -216,27 +250,29 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return pattern[index] || 'none';
   }
 
-  // Get visual class for accent indicator
+  // Get visual class for accent indicator. Resting dots keep 3:1 against the
+  // dark surfaces and (minimal) a light page; the current beat and hover use a
+  // lighter shade on dark surfaces and a darker one on a light page.
   protected getAccentIndicatorClass(beatNum: number, interactive = true): string {
     const level = this.getAccentForBeat(beatNum);
     const isCurrent = this.currentBeat() === beatNum && this.isPlaying();
-    const hover = (cls: string) => (interactive ? ` ${cls}` : '');
+    const minimal = this.variant() === 'minimal';
 
     const baseClasses = interactive
       ? 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer disabled:cursor-not-allowed'
       : 'inline-block w-4 h-4 rounded-full transition-all duration-100';
 
-    const levelClasses: Record<AccentLevel, string> = {
-      none: isCurrent ? 'bg-slate-400 scale-110' : `bg-slate-600${hover('hover:bg-slate-500')}`,
-      soft: isCurrent ? 'bg-blue-400 scale-110' : `bg-blue-600/60${hover('hover:bg-blue-500/60')}`,
-      medium: isCurrent
-        ? 'bg-amber-400 scale-110'
-        : `bg-amber-600/70${hover('hover:bg-amber-500/70')}`,
-      strong: isCurrent ? 'bg-red-400 scale-125' : `bg-red-600${hover('hover:bg-red-500')}`,
-    };
-
-    return `${baseClasses} ${levelClasses[level]}`;
+    if (isCurrent) {
+      const current = minimal ? ACCENT_DOT_CURRENT_LIGHT[level] : ACCENT_DOT_CURRENT[level];
+      return `${baseClasses} ${current} ${level === 'strong' ? 'scale-125' : 'scale-110'}`;
+    }
+    const rest = `${baseClasses} ${ACCENT_DOT_CLASSES[level]}`;
+    if (!interactive) return rest;
+    return `${rest} ${minimal ? ACCENT_DOT_HOVER_LIGHT[level] : ACCENT_DOT_HOVER[level]}`;
   }
+
+  /** Resting dot colours, also used by the legend */
+  protected readonly accentDotClasses = ACCENT_DOT_CLASSES;
 
   // Whole subdivisions per beat (>= 1); shared by the interval and the beat counter
   private readonly effectiveSubdivisions = computed(() =>

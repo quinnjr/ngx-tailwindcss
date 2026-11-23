@@ -434,6 +434,19 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     this.closeDropdown();
   }
 
+  /**
+   * Closes the dropdown when keyboard focus moves to an element outside the component
+   * (e.g. Tab), so the open layer does not linger over the page. A null relatedTarget
+   * (clicks on non-focusable content) is left to the document click handler.
+   */
+  @HostListener('focusout', ['$event'])
+  onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget as Node | null;
+    if (this.isOpen() && next && !this.elementRef.nativeElement.contains(next)) {
+      this.closeDropdown();
+    }
+  }
+
   private openDropdown(): void {
     if (this.isOpen()) return;
     this.isOpen.set(true);

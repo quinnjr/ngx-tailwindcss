@@ -371,6 +371,8 @@ export class TwPianoChordComponent {
           rootCircle: '#B45309',
           text: '#F8FAFC',
           noteLabel: '#64748B',
+          // Key label on a chord (active) key: slate-500 was ~1.9:1 on blue-400
+          noteLabelActive: '#1E293B',
         };
       }
       case 'minimal': {
@@ -387,6 +389,8 @@ export class TwPianoChordComponent {
           text: '#334155',
           // slate-400 was ~2.6:1 on the white keys
           noteLabel: '#64748B',
+          // Key label on a chord (active) key: slate-500 was ~3.1:1 on blue-200
+          noteLabelActive: '#334155',
         };
       }
       case 'colorful': {
@@ -403,6 +407,8 @@ export class TwPianoChordComponent {
           rootCircle: '#DB2777',
           text: '#1F2937',
           noteLabel: '#78716C',
+          // Key label on a chord (active) key: stone-500 was ~3.4:1 on green-300
+          noteLabelActive: '#44403C',
         };
       }
       default: {
@@ -418,6 +424,8 @@ export class TwPianoChordComponent {
           rootCircle: '#DC2626',
           text: '#1F2937',
           noteLabel: '#6B7280',
+          // Key label on a chord (active) key: gray-500 was ~2.5:1 on blue-300
+          noteLabelActive: '#374151',
         };
       }
     }

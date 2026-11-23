@@ -216,4 +216,16 @@ describe('TwGraphicEQComponent', () => {
     fixture.detectChanges();
     expect(internals.colors().slider).toBe('bg-purple-500');
   });
+
+  it('should keep preset descriptions in the menu readable', () => {
+    internals.togglePresetMenu();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const description = [...el.querySelectorAll<HTMLElement>('div')].find(
+      d => d.textContent?.trim() === 'No EQ applied'
+    )!;
+    // At 60% opacity the description was ~3.4:1 (minimal) / ~4:1 (light)
+    expect(description.classList).toContain('opacity-80');
+    expect(description.classList).not.toContain('opacity-60');
+  });
 });

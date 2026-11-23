@@ -39,9 +39,9 @@ describe('TwTransportComponent icon contrast', () => {
   it('should keep the recording indicator at 3:1 on each variant button', async () => {
     await TestBed.configureTestingModule({ imports: [TwTransportComponent] }).compileComponents();
     const expected: Record<string, string[]> = {
-      modern: ['text-red-600', 'dark:text-red-400'],
+      modern: ['text-red-600', 'dark:text-red-300'],
       classic: ['text-red-800', 'dark:text-red-300'],
-      compact: ['text-red-500'],
+      compact: ['text-red-400'],
       minimal: ['text-red-500'],
     };
     for (const [variant, classes] of Object.entries(expected)) {
@@ -72,5 +72,41 @@ describe('TwTransportComponent icon contrast', () => {
       expect(play.className).not.toMatch(/(from|bg|hover:bg|hover:from)-(green|emerald)-[45]00/);
       expect(play.className).toMatch(/(from|bg)-(green|emerald)-600/);
     }
+  });
+
+  it('should keep record and classic icons at 3:1 on the hover fills', async () => {
+    await TestBed.configureTestingModule({ imports: [TwTransportComponent] }).compileComponents();
+    for (const variant of ['modern', 'compact', 'minimal', 'classic']) {
+      const fixture = TestBed.createComponent(TwTransportComponent);
+      fixture.componentRef.setInput('variant', variant);
+      fixture.componentRef.setInput('showRecord', true);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      // slate-500 was ~2.2:1 on the compact slate-700 hover: the idle record
+      // icon now inherits its button's text colour like the other icons
+      const icon = el.querySelector('[aria-label="Start recording"] svg')!.getAttribute('class')!;
+      expect(icon).not.toMatch(/text-slate-[45]00/);
+      fixture.destroy();
+    }
+
+    const fixture = TestBed.createComponent(TwTransportComponent);
+    fixture.componentRef.setInput('variant', 'classic');
+    fixture.componentRef.setInput('showRecord', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    // A slate-400/500 hover in dark mode put the slate-300 icons at ~2.4:1
+    for (const label of ['Stop', 'Start recording']) {
+      const cls = el.querySelector(`[aria-label="${label}"]`)!.className.split(/\s+/);
+      expect(cls).toEqual(
+        expect.arrayContaining([
+          'hover:from-slate-200',
+          'hover:to-slate-300',
+          'dark:hover:from-slate-500',
+          'dark:hover:to-slate-600',
+        ])
+      );
+      expect(cls).not.toContain('hover:to-slate-500');
+    }
+    fixture.destroy();
   });
 });

@@ -666,3 +666,30 @@ describe('TwSelectComponent (round 17)', () => {
     expect(marker.className).toContain('dark:text-rose-400');
   });
 });
+
+describe('TwSelectComponent (round 19)', () => {
+  it('should keep options out of the Tab order and close when focus leaves the component', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    const options = [...fixture.nativeElement.querySelectorAll('[role="option"]')] as HTMLElement[];
+    expect(options.length).toBeGreaterThan(0);
+    expect(options.every(o => o.getAttribute('tabindex') === '-1')).toBe(true);
+
+    // Focus moving to an option inside the component keeps the dropdown open
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: options[0] }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    // Tabbing to an element outside the component closes it
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.componentInstance.onToggleSpy).toHaveBeenLastCalledWith(false);
+    outside.remove();
+  });
+});

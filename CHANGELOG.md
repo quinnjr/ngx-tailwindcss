@@ -53,6 +53,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   badge and chip text is one shade darker. The default `TW_CONFIG` theme
   status colours (`success`, `warning`, `info`) follow the same palette.
   Override with `class` if you relied on the old colours
+- Layout components (`tw-grid`, `tw-simple-grid`, `tw-stack`, `tw-vstack`,
+  `tw-hstack`, `tw-columns`, `tw-container`, `tw-center`, `tw-square`,
+  `tw-circle`, `tw-bleed`, `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer
+  apply a `class` twice. They used to forward `class` to an inner `<div>` while
+  Angular also kept the static attribute on the host, so every utility
+  (padding, borders, backgrounds, shadows, margins, widths, offsets, outlines,
+  animations, ...) landed on two nested boxes. The host element is now the
+  styled box itself and the inner wrapper `<div>` is gone: projected content
+  sits directly in the host, a `class` overrides conflicting defaults
+  (`class="hidden md:flex"`, `class="gap-2"`), and the host fills its
+  flex/grid parent like any other element. `tw-square`/`tw-circle` do not
+  shrink below `size` in a flex row. CSS that targeted the removed wrapper
+  (`tw-stack > div`) should target the host instead
 
 ### 🐛 Fixed
 
@@ -75,19 +88,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-bleed` `customAmount` accepts `var(...)`/`calc(...)` values (negative
   margins are built with `calc(-1 * ...)` instead of an invalid `-` prefix)
 - `tw-progress` uses its `label` as the progressbar's accessible name
-- Layout components (`tw-grid`, `tw-simple-grid`, `tw-stack`, `tw-vstack`,
-  `tw-hstack`, `tw-columns`, `tw-container`, `tw-center`, `tw-square`,
-  `tw-circle`, `tw-bleed`, `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer
-  apply a `class` twice. They used to forward `class` to an inner `<div>` while
-  Angular also kept the static attribute on the host, so every utility
-  (padding, borders, backgrounds, shadows, margins, widths, offsets, outlines,
-  animations, ...) landed on two nested boxes. The host element is now the
-  styled box itself and the inner wrapper `<div>` is gone: projected content
-  sits directly in the host, a `class` overrides conflicting defaults
-  (`class="hidden md:flex"`, `class="gap-2"`), and the host fills its
-  flex/grid parent like any other element. `tw-square`/`tw-circle` do not
-  shrink below `size` in a flex row. CSS that targeted the removed wrapper
-  (`tw-stack > div`) should target the host instead
 - `tw-center` with `inline` flows inline instead of rendering as a block
 - `tw-image` shows an image that finished loading (or failing) before its
   listeners were attached, e.g. during SSR hydration, instead of keeping the
@@ -209,10 +209,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `containerClass`/`toolbarClass` and the music components' `classOverride`
   are merged; `twHoverClass` swaps out conflicting classes while hovered and
   restores them afterwards
-- A `class` attribute or `[class]` binding on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
-  `tw-card` and `tw-card-horizontal` is merged into the component's classes, so
-  `class="bg-sky-700 text-white"` replaces the variant colours (it used to
-  compete with them and often lost)
+- A `class` attribute or `[class]` binding on `tw-button`, `a[tw-button]`,
+  `tw-badge`, `tw-alert`, `tw-card` and `tw-card-horizontal` is merged into the
+  component's classes, so `class="bg-sky-700 text-white"` replaces the variant
+  colours (it used to compete with them and often lost). These components, the
+  `tw-card` directives and the layout components accept every `[class]`
+  binding form (string, array, `Set` or `{ class: condition }` object)
 - Selected, active and error states are visible: `tw-tabs` `pills` (dark mode)
   and `line` (on hover) active tabs, the `tw-input` error border in dark
   mode, the preferences dialog tab, settings panel category, toolbar toggle
@@ -248,12 +250,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   states on `tw-looper`, `tw-tuner`, `tw-compressor-meter`, `tw-parametric-eq`,
   `tw-lead-sheet` and `tw-scrubber` keep their contrast; native property
   inspector, shortcuts editor and settings panel inputs have accessible names
-- The `class` input on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
-  the `tw-card` family and the layout components (`tw-stack`, `tw-grid`,
-  `tw-columns`, `tw-container`, `tw-center`, `tw-bleed`, `tw-spacer`,
-  `tw-aspect-ratio`, ...) accepts every `[class]` binding form again
-  (string, array, `Set` or `{ class: condition }` object); object and array
-  bindings were a type error and rendered `[object Object]`
+- `MidiService` send methods round and clamp note, velocity, controller,
+  value and program numbers to 0-127, so out-of-range values no longer corrupt
+  the MIDI message
+- Keyboard access: interactive `tw-tablature` and `tw-sheet-music` notes and
+  measures are focusable, named and activated with Enter/Space, with a visible
+  focus ring (new `focusRing` input on `tw-note`)
+- Accessibility: native theme selector mode, accent colour and font size
+  controls have accessible names and pressed state, and the custom colour
+  picker shows keyboard focus; the native breadcrumbs path input is named;
+  native property inspector text meets 4.5:1; `tw-graphic-eq` and
+  `tw-pitch-display` presets expose `aria-pressed`; `tw-looper` mute and
+  delete buttons and the `tw-graphic-eq` slider thumbs keep their contrast
+- `tw-metronome` beat accent dots are disabled with the metronome and render
+  as plain indicators (not buttons) when accents are not editable
+- `tw-button` and `a[tw-button]` no longer pin `display: inline-flex` and
+  `position: relative` as inline styles, so display and position classes
+  (`class="hidden md:inline-flex"`, `class="fixed bottom-4 right-4"`) apply
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

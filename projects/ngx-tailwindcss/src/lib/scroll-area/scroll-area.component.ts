@@ -76,14 +76,15 @@ const SCROLLBAR_CLASSES: Record<ScrollAreaScrollbar, string> = {
         border-radius: 4px;
       }
 
+      /* Thumb colours keep 3:1 against light (and, for the dark variant, dark) surfaces */
       :host(.scroll-area-styled)::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+        background: #64748b;
         border-radius: 4px;
         transition: background 0.2s;
       }
 
       :host(.scroll-area-styled)::-webkit-scrollbar-thumb:hover {
-        background: rgba(100, 116, 139, 0.8);
+        background: #475569;
       }
 
       :host(.scroll-area-styled)::-webkit-scrollbar-corner {
@@ -92,11 +93,11 @@ const SCROLLBAR_CLASSES: Record<ScrollAreaScrollbar, string> = {
 
       /* Dark mode scrollbar */
       :host(.scroll-area-dark)::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.4);
+        background: #94a3b8;
       }
 
       :host(.scroll-area-dark)::-webkit-scrollbar-thumb:hover {
-        background: rgba(148, 163, 184, 0.7);
+        background: #cbd5e1;
       }
 
       /* Thin scrollbar variant */
@@ -111,12 +112,12 @@ const SCROLLBAR_CLASSES: Record<ScrollAreaScrollbar, string> = {
       }
 
       :host(.scroll-area-hover:hover)::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+        background: #64748b;
       }
 
       /* Always visible scrollbar */
       :host(.scroll-area-always)::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+        background: #64748b;
       }
 
       /* Hidden scrollbar */

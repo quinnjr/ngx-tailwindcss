@@ -152,4 +152,15 @@ describe('TwPianoComponent', () => {
     expect(octaveLabels().classList).toContain('text-slate-600');
     expect(octaveLabels().classList).toContain('dark:text-slate-400');
   });
+
+  it('exposes the disabled state on every key (not only a visual fade)', () => {
+    const buttons = () => [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+    ];
+    expect(buttons().every(b => !b.disabled)).toBe(true);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(24);
+    expect(buttons().every(b => b.disabled)).toBe(true);
+  });
 });

@@ -344,3 +344,39 @@ describe('TwMetronomeComponent beat indicators', () => {
     fixture.destroy();
   });
 });
+
+describe('TwMetronomeComponent beat dot contrast', () => {
+  it('should draw beat dots and legend swatches at 3:1 on every surface', async () => {
+    await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    fixture.componentRef.setInput('showAccentConfig', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const dots = () =>
+      [...el.querySelectorAll('button')].filter(b => b.title.startsWith('Click to cycle accent'));
+
+    // 4/4 Standard: strong, none, medium, none. slate-600 (~1.9:1), blue-600/60
+    // (~1.8:1) and amber-600/70 (~2.9:1) were below 3:1 on slate-800
+    expect(dots()[0].classList).toContain('bg-red-600');
+    expect(dots()[1].classList).toContain('bg-slate-500');
+    expect(dots()[2].classList).toContain('bg-amber-600');
+    expect(dots()[1].classList).toContain('hover:bg-slate-400');
+    dots()[1].click();
+    fixture.detectChanges();
+    expect(dots()[1].classList).toContain('bg-blue-500');
+    const legend = (t: string) =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!.firstElementChild!;
+    expect(legend('None').classList).toContain('bg-slate-500');
+    expect(legend('Soft').classList).toContain('bg-blue-500');
+    expect(legend('Medium').classList).toContain('bg-amber-600');
+
+    // minimal sits on the page: hover darkens on a light page instead of
+    // fading to a -400 shade (~2.6:1 on white)
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(dots()[1].classList).toContain('hover:bg-blue-700');
+    expect(dots()[1].classList).toContain('dark:hover:bg-blue-400');
+    expect(dots()[1].classList).not.toContain('hover:bg-blue-400');
+    fixture.destroy();
+  });
+});

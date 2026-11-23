@@ -615,3 +615,26 @@ describe('TwMultiSelectComponent (round 16)', () => {
     expect(filterInput.className).toContain('dark:focus:border-blue-500');
   });
 });
+
+describe('TwMultiSelectComponent (round 19)', () => {
+  it('should close the dropdown when focus moves outside the component', () => {
+    const fixture = TestBed.createComponent(FilledHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    // Clicks on non-focusable options blur to nothing: the dropdown stays open
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    outside.remove();
+  });
+});

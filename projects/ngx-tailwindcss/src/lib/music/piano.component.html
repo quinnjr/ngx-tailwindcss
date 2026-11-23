@@ -36,6 +36,7 @@
         (keyup.space)="onKeyboardUp($event, key)"
         [attr.aria-label]="key.note + key.octave"
         [attr.aria-pressed]="isKeyActive(key)"
+        [disabled]="disabled()"
       >
         <!-- Velocity Indicator Bar -->
         @if (velocitySensitive() && isKeyActive(key)) {
@@ -79,6 +80,7 @@
         (keyup.space)="onKeyboardUp($event, key)"
         [attr.aria-label]="key.note + key.octave"
         [attr.aria-pressed]="isKeyActive(key)"
+        [disabled]="disabled()"
       >
         <!-- Velocity Indicator Bar -->
         @if (velocitySensitive() && isKeyActive(key)) {

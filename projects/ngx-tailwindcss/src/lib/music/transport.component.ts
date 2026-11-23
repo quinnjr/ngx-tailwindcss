@@ -164,15 +164,19 @@ export class TwTransportComponent {
           variantClasses =
             'bg-gradient-to-b from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md border border-green-800 focus:ring-green-400';
         } else if (type === 'record') {
+          // Hover lightens the gradient: the slate-400/500 hover was ~2.4:1 behind the
+          // dark-mode slate-300 icons (~1.8:1 behind the red-300 recording dot)
           variantClasses =
-            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-400 hover:to-slate-500 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
+            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-200 hover:to-slate-300 dark:hover:from-slate-500 dark:hover:to-slate-600 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 focus:ring-amber-400'
             : 'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 text-slate-600 dark:text-slate-400 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         } else {
+          // Hover lightens the gradient: the slate-400/500 hover was ~2.4:1 behind the
+          // dark-mode slate-300 icons (~1.8:1 behind the red-300 recording dot)
           variantClasses =
-            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-400 hover:to-slate-500 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
+            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-200 hover:to-slate-300 dark:hover:from-slate-500 dark:hover:to-slate-600 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         }
 
         break;
@@ -211,9 +215,10 @@ export class TwTransportComponent {
         break;
       }
       case 'record': {
-        // Classic buttons are a slate-300/400 gradient, where slate-500 was ~2.5:1:
-        // there the icon keeps the button's own text colour
-        colorClass = this.variant() === 'classic' ? '' : 'text-slate-500 dark:text-slate-400';
+        // The idle record icon keeps the button's own text colour: slate-500 was
+        // ~2.5:1 on the classic gradient and ~2.2:1 on the compact slate-700 hover
+        // (dark slate-400 ~2.9:1 on the modern slate-600 hover)
+        colorClass = '';
 
         break;
       }
@@ -221,10 +226,11 @@ export class TwTransportComponent {
         // The red dot is the recording indicator and needs 3:1 on its button: red-500
         // was ~1.5-2.6:1 on the classic slate gradients and ~2.7:1 on dark modern slate-700
         const recordColors: Record<TransportVariant, string> = {
-          modern: 'text-red-600 dark:text-red-400',
+          // (dark modern red-400 and compact red-500 were ~2.6-2.7:1 on the hover fill)
+          modern: 'text-red-600 dark:text-red-300',
           minimal: 'text-red-500',
           classic: 'text-red-800 dark:text-red-300',
-          compact: 'text-red-500',
+          compact: 'text-red-400',
         };
         colorClass = `${recordColors[this.variant()]} animate-pulse`;
 

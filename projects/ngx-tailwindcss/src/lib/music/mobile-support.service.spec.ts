@@ -211,6 +211,22 @@ describe('MobileSupportService', () => {
     });
   });
 
+  describe('swipe detection', () => {
+    it('should report a finite velocity when the clock reads 0 ms elapsed', () => {
+      // Coarsened clocks (e.g. Firefox fingerprinting resistance) can report
+      // the same Date.now() at touchstart and touchend for a quick flick
+      vi.spyOn(Date, 'now').mockReturnValue(1000);
+      service.startTouchTracking(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+      const swipe = service.detectSwipe(new MouseEvent('mouseup', { clientX: 120, clientY: 0 }));
+      vi.restoreAllMocks();
+
+      expect(swipe?.direction).toBe('right');
+      expect(swipe?.duration).toBe(0);
+      expect(Number.isFinite(swipe?.velocity)).toBe(true);
+      expect(swipe?.velocity).toBe(120);
+    });
+  });
+
   describe('drag delta', () => {
     it('should calculate drag delta with touch event', () => {
       const startEvent = {

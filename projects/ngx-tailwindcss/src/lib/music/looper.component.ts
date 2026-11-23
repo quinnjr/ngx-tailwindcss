@@ -924,6 +924,12 @@ export class TwLooperComponent implements OnDestroy {
       : 'text-slate-400 hover:text-red-500'
   );
 
+  // Idle record icon: red-500 on its red-500/20 (hover /30) button is ~2.5-2.9:1 on a
+  // light page and ~2.8:1 on hover over the compact variant's slate-800
+  protected readonly recordIconClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-red-700 dark:text-red-400' : 'text-red-400'
+  );
+
   // Idle overdub icon: amber-500 on its amber-500/20 button is ~1.8:1 on a light page
   protected readonly overdubIconClass = computed(() =>
     this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-500' : 'text-amber-500'

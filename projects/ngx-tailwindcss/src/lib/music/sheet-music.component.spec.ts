@@ -413,6 +413,29 @@ describe('TwSheetMusicComponent classOverride', () => {
   });
 });
 
+describe('TwSheetMusicComponent minimal variant notes', () => {
+  it('draws the notes in the container text colour so they follow a dark page', async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwSheetMusicComponent);
+    const heads = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('g[twNote] ellipse')].map(e =>
+        e.getAttribute('stroke')
+      );
+    fixture.detectChanges();
+    expect(heads().length).toBeGreaterThan(0);
+    expect(new Set(heads())).toEqual(new Set(['#1E293B']));
+
+    // Fixed slate-800 notes were ~1.2:1 on a dark page behind the transparent variant
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(new Set(heads())).toEqual(new Set(['currentColor']));
+    const container = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(container).toEqual(expect.arrayContaining(['text-slate-800', 'dark:text-slate-200']));
+  });
+});
+
 describe('TwSheetMusicComponent zoom controls', () => {
   it('names the symbol-only zoom buttons by their action', async () => {
     await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();

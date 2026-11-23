@@ -408,7 +408,10 @@ export class MobileSupportService implements OnDestroy {
 
     if (distance < minDistance) return null;
 
-    const velocity = distance / duration;
+    // Date.now() is coarsened by some browsers (e.g. 100 ms under Firefox's
+    // fingerprinting resistance), so a quick flick can measure 0 ms; floor it
+    // at 1 ms so velocity stays finite
+    const velocity = distance / Math.max(1, duration);
     let direction: MusicSwipeDirection;
 
     if (Math.abs(dx) > Math.abs(dy)) {

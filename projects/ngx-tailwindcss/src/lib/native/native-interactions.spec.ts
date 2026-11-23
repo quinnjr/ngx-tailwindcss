@@ -506,3 +506,27 @@ describe('TwDropZoneDirective', () => {
     expect(fixture.componentInstance.drops[0].data).toEqual({ type: 'text', data: 'hello' });
   });
 });
+
+describe('TwResizablePanelsComponent keyboard', () => {
+  it('resizes from the keyboard via a focusable separator, within the bounds', () => {
+    const fixture = TestBed.createComponent(TwResizablePanelsComponent);
+    fixture.detectChanges();
+    const separator = fixture.nativeElement.querySelector('[role="separator"]') as HTMLElement;
+    expect(separator.tabIndex).toBe(0);
+    expect(separator.getAttribute('aria-valuenow')).toBe('50');
+
+    const sizes: number[] = [];
+    fixture.componentInstance.sizeChanged.subscribe(s => sizes.push(s.panel1));
+    const pressKey = (key: string, shiftKey = false) => {
+      press(separator, { key, shiftKey });
+      fixture.detectChanges();
+    };
+
+    pressKey('ArrowRight');
+    pressKey('ArrowLeft', true);
+    pressKey('Home');
+    pressKey('End');
+    expect(sizes).toEqual([52, 42, 10, 90]);
+    expect(separator.getAttribute('aria-valuenow')).toBe('90');
+  });
+});

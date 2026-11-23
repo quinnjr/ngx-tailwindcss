@@ -87,16 +87,16 @@
       @if (showAccentConfig()) {
         <div class="flex items-center gap-3 text-[10px]" [class]="mutedTextClass()">
           <span class="flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-slate-600"></span> None
+            <span class="w-2 h-2 rounded-full" [class]="accentDotClasses.none"></span> None
           </span>
           <span class="flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-blue-600/60"></span> Soft
+            <span class="w-2 h-2 rounded-full" [class]="accentDotClasses.soft"></span> Soft
           </span>
           <span class="flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-amber-600/70"></span> Medium
+            <span class="w-2 h-2 rounded-full" [class]="accentDotClasses.medium"></span> Medium
           </span>
           <span class="flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-red-600"></span> Strong
+            <span class="w-2 h-2 rounded-full" [class]="accentDotClasses.strong"></span> Strong
           </span>
         </div>
       }

@@ -64,6 +64,14 @@ describe('TwSplitterComponent', () => {
     expect(el.className).toContain('dark:bg-slate-700');
   });
 
+  it('should give the gutter grip 3:1 contrast against the gutter in both themes', () => {
+    const handle = (gutter().nativeElement as HTMLElement).firstElementChild as HTMLElement;
+    const cls = handle.className.split(/\s+/);
+    // slate-500 on slate-200/300 and slate-300 on slate-700/600 all exceed 3:1
+    expect(cls).toEqual(expect.arrayContaining(['bg-slate-500', 'dark:bg-slate-300']));
+    expect(cls).not.toContain('bg-slate-400');
+  });
+
   it('should keep the dragging colour while the gutter is hovered', () => {
     const el = gutter().nativeElement as HTMLElement;
     el.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 0, bubbles: true }));

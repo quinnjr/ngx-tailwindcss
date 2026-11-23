@@ -41,7 +41,9 @@
           [attr.x]="getWhiteKeyX(key.index) + dimensions().whiteKeyWidth / 2"
           [attr.y]="dimensions().padding + dimensions().whiteKeyHeight - 4"
           text-anchor="middle"
-          [attr.fill]="colors().noteLabel"
+          [attr.fill]="
+            isNoteActive(key.note, key.octave) ? colors().noteLabelActive : colors().noteLabel
+          "
           [attr.font-size]="dimensions().whiteKeyWidth * 0.35"
           font-family="sans-serif"
         >

@@ -768,3 +768,74 @@ describe('native form controls have accessible names and visible actions', () =>
     expect(el.querySelector('button[title="Red"]')!.getAttribute('aria-pressed')).toBe('false');
   });
 });
+
+describe('TwNativeContextMenuComponent keyboard', () => {
+  const items: NativeMenuItem[] = [
+    { id: 'cut', label: 'Cut' },
+    { id: 'off', label: 'Disabled', disabled: true },
+    { id: 'wrap', label: 'Word wrap', type: 'checkbox', checked: true },
+    { id: 'more', label: 'More', type: 'submenu', submenu: [{ id: 'child', label: 'Child' }] },
+  ];
+
+  const setup = () => {
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    const fixture = TestBed.createComponent(TwNativeContextMenuComponent);
+    fixture.componentRef.setInput('items', items);
+    fixture.componentRef.setInput('trigger', trigger);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    trigger.dispatchEvent(new MouseEvent('contextmenu', { clientX: 5, clientY: 5 }));
+    fixture.detectChanges();
+    const key = (name: string) => {
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: name, bubbles: true })
+      );
+      fixture.detectChanges();
+    };
+    const cleanup = () => {
+      fixture.destroy();
+      trigger.remove();
+    };
+    return { fixture, trigger, key, cleanup };
+  };
+
+  it('moves focus into the menu and navigates with arrow keys, skipping disabled items', () => {
+    const { key, cleanup } = setup();
+    expect(document.activeElement?.textContent).toContain('Cut');
+    key('ArrowDown');
+    expect(document.activeElement?.textContent).toContain('Word wrap');
+    key('End');
+    expect(document.activeElement?.textContent).toContain('More');
+    key('ArrowDown');
+    expect(document.activeElement?.textContent).toContain('Cut');
+    cleanup();
+  });
+
+  it('opens a submenu with ArrowRight and returns to its parent with ArrowLeft', () => {
+    const { fixture, key, cleanup } = setup();
+    key('End');
+    const parent = document.activeElement as HTMLElement;
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
+    key('ArrowRight');
+    fixture.detectChanges();
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement?.textContent).toContain('Child');
+    key('ArrowLeft');
+    expect(document.activeElement).toBe(parent);
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
+    cleanup();
+  });
+
+  it('exposes checkbox state and returns focus to the trigger on Escape', () => {
+    const { fixture, trigger, cleanup } = setup();
+    const checkbox = fixture.nativeElement.querySelector('[role="menuitemcheckbox"]');
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    cleanup();
+  });
+});

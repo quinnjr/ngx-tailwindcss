@@ -211,3 +211,11 @@ describe('class input shapes on overlay, scroll-area, splitter and sticky', () =
     }
   });
 });
+
+describe('TwClassValue public export', () => {
+  it('exposes twClassValue and TwClassValue from the core barrel', async () => {
+    const core = await import('./index');
+    const value: import('./index').TwClassValue = { 'a b': true, c: false };
+    expect(core.twClassValue(value)).toBe('a b');
+  });
+});

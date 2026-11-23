@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -538,5 +540,15 @@ describe('TwScoreEditorComponent', () => {
     for (const weak of ['#059669', '#ea580c', '#0891b2', '#2563eb', '#dc2626']) {
       expect(colours).not.toContain(weak);
     }
+  });
+
+  it('keeps the selected part full name >= 4.5:1 on its blue-50 row', () => {
+    const scss = readFileSync(
+      join(process.cwd(), 'projects/ngx-tailwindcss/src/lib/music/score-editor.component.scss'),
+      'utf8'
+    );
+    const rule = /\.part-full-name\s*\{([^}]*)\}/.exec(scss)?.[1] ?? '';
+    // slate-500 (#64748b) was ~4.4:1 on the selected row's #eff6ff
+    expect(/color:\s*(#[0-9a-f]+)/i.exec(rule)?.[1]).toBe('#475569');
   });
 });

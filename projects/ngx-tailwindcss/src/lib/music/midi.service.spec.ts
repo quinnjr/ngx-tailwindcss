@@ -569,6 +569,23 @@ describe('MidiService', () => {
       expect(service.unmapCCValue(50, 0, 100)).toBe(64);
     });
 
+    it('should keep unmapped CC values within 0-127', () => {
+      expect(service.unmapCCValue(150, 0, 100)).toBe(127);
+      expect(service.unmapCCValue(-20, 0, 100)).toBe(0);
+      // An empty range would divide by zero (NaN / Infinity)
+      expect(service.unmapCCValue(5, 5, 5)).toBe(0);
+      expect(service.unmapCCValue(6, 5, 5)).toBe(0);
+    });
+
+    it('should name notes below MIDI 0', () => {
+      expect(service.getNoteInfo(-1)).toMatchObject({ name: 'B', octave: -2 });
+      expect(service.getNoteInfo(service.getNoteNumber('C', -2))).toMatchObject({
+        number: -12,
+        name: 'C',
+        octave: -2,
+      });
+    });
+
     it('should export mappings to JSON', () => {
       service.addCCMapping({
         id: 'test',

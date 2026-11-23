@@ -74,7 +74,8 @@
                           <div>
                             <div class="font-medium">{{ preset.name }}</div>
                             @if (preset.description) {
-                              <div class="text-[10px] opacity-60">{{ preset.description }}</div>
+                              <!-- opacity-80: at 60% the description was ~3.4-4.5:1 (minimal/light/neon) -->
+                              <div class="text-[10px] opacity-80">{{ preset.description }}</div>
                             }
                           </div>
                           @if (isPresetActive(preset)) {

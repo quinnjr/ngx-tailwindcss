@@ -134,6 +134,7 @@
                         [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
                         [size]="lineSpacing()"
+                        [color]="noteColor()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -280,6 +281,7 @@
                         [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
                         [size]="lineSpacing()"
+                        [color]="noteColor()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
@@ -403,6 +405,7 @@
                       [clef]="musicData().clef"
                       [lineSpacing]="lineSpacing()"
                       [size]="lineSpacing()"
+                      [color]="noteColor()"
                       [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
                       [class.cursor-pointer]="interactive()"
                       class="group/note outline-none"

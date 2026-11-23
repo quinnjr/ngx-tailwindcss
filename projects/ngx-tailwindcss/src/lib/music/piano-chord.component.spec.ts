@@ -106,9 +106,35 @@ describe('TwPianoChordComponent', () => {
       ...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>('svg text'),
     ].filter(t => /^C\d$/.test(t.textContent?.trim() ?? ''));
     expect(labels.length).toBeGreaterThan(0);
-    // slate-400 (#94A3B8) was ~2.6:1 on white
-    for (const label of labels) {
-      expect(label.getAttribute('fill')?.toUpperCase()).toBe('#64748B');
+    // slate-400 (#94A3B8) was ~2.6:1 on white; C4 is in the chord (blue-200 key)
+    const fill = (name: string) =>
+      labels
+        .find(t => t.textContent?.trim() === name)
+        ?.getAttribute('fill')
+        ?.toUpperCase();
+    expect(fill('C5')).toBe('#64748B');
+    expect(fill('C4')).toBe('#334155');
+  });
+
+  it('keeps key labels on chord (active) keys >= 4.5:1 in every variant', () => {
+    fixture.componentRef.setInput('chord', 'C');
+    fixture.componentRef.setInput('showKeyLabels', true);
+    const c4Label = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>('svg text')]
+        .find(t => t.textContent?.trim() === 'C4')
+        ?.getAttribute('fill')
+        ?.toUpperCase();
+    // The grey labels were ~1.9-3.4:1 on the active key fills
+    const expected: Record<string, string> = {
+      default: '#374151',
+      dark: '#1E293B',
+      minimal: '#334155',
+      colorful: '#44403C',
+    };
+    for (const [variant, color] of Object.entries(expected)) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      expect(c4Label()).toBe(color);
     }
   });
 

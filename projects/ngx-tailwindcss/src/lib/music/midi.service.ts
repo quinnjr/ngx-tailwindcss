@@ -158,6 +158,16 @@ export const MIDI_CC = {
 // ============================================================================
 
 /**
+ * Rounds and clamps a value to a MIDI data byte (0-127). Values outside that range
+ * would set the high bit and turn the data byte into a status byte, corrupting the
+ * message sent to the device.
+ */
+function toDataByte(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(127, Math.max(0, Math.round(value)));
+}
+
+/**
  * Service for Web MIDI API integration
  *
  * @example
@@ -190,16 +200,6 @@ export const MIDI_CC = {
  * // The CC is automatically mapped
  * ```
  */
-/**
- * Rounds and clamps a value to a MIDI data byte (0-127). Values outside that range
- * would set the high bit and turn the data byte into a status byte, corrupting the
- * message sent to the device.
- */
-function toDataByte(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(127, Math.max(0, Math.round(value)));
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -911,7 +911,9 @@ export class MidiService implements OnDestroy {
    * Get note info from MIDI note number
    */
   getNoteInfo(noteNumber: number): MidiNoteInfo {
-    const name = NOTE_NAMES[noteNumber % 12];
+    // Normalise the pitch class: `%` keeps the sign, so notes below 0 (e.g.
+    // getNoteNumber('C', -2)) would index NOTE_NAMES with a negative number
+    const name = NOTE_NAMES[((noteNumber % 12) + 12) % 12];
     const octave = Math.floor(noteNumber / 12) - 1;
     const frequency = 440 * 2 ** ((noteNumber - 69) / 12);
 
@@ -942,10 +944,11 @@ export class MidiService implements OnDestroy {
   }
 
   /**
-   * Convert a value from a range to raw CC (0-127)
+   * Convert a value from a range to raw CC (0-127). Values outside the range
+   * clamp to its ends; an empty range (min === max) yields 0 rather than NaN.
    */
   unmapCCValue(value: number, min: number, max: number): number {
-    return Math.round(((value - min) / (max - min)) * 127);
+    return toDataByte(((value - min) / (max - min)) * 127);
   }
 
   /**

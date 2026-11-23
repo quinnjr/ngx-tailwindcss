@@ -47,3 +47,35 @@ export function prepareHiDpiCanvas(
   }
   return dpr;
 }
+
+/**
+ * Call `onChange` whenever the device pixel ratio changes (browser zoom, or
+ * moving the window to a screen with a different density). Static canvases
+ * must redraw then, or their backing store keeps the old resolution and the
+ * drawing turns blurry.
+ *
+ * @returns a function that stops watching (no-op outside the browser)
+ */
+export function watchDevicePixelRatio(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => {};
+  }
+
+  let query: MediaQueryList | null = null;
+  const subscribe = (listener: () => void): void => {
+    query?.removeEventListener('change', listener);
+    query = window.matchMedia(`(resolution: ${getDevicePixelRatio()}dppx)`);
+    query.addEventListener('change', listener);
+  };
+  const listener = (): void => {
+    // The query matches one specific ratio, so re-arm it for the new one
+    subscribe(listener);
+    onChange();
+  };
+  subscribe(listener);
+
+  return () => {
+    query?.removeEventListener('change', listener);
+    query = null;
+  };
+}

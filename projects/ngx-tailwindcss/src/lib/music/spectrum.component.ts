@@ -11,10 +11,11 @@ import {
   linkedSignal,
   NgZone,
   OnChanges,
+  PLATFORM_ID,
   SimpleChanges,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { prepareHiDpiCanvas } from './canvas-hidpi';
 
@@ -89,6 +90,7 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
   private readonly twClass = inject(TwClassService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('spectrumCanvas');
 
   // Data inputs
@@ -218,6 +220,9 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering / rAF loop during SSR
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.initCanvas();
     this.startAnimation();
   }

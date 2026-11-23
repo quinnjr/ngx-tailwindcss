@@ -351,8 +351,107 @@ describe('TwClassService', () => {
       });
 
       it('should honor the Tailwind v4 trailing important modifier', () => {
-        expect(service.merge('flex!', 'grid')).toBe('grid');
+        expect(service.merge('flex!', 'block!')).toBe('block!');
         expect(service.merge('ring-2! ring-blue-500')).toBe('ring-2! ring-blue-500');
+      });
+
+      it.each([
+        ['!p-2 p-4', '!p-2 p-4'],
+        ['p-2! p-4', 'p-2! p-4'],
+        ['flex! grid', 'flex! grid'],
+        ['!px-2 p-4', '!px-2 p-4'],
+        ['!px-2 !p-4', '!p-4'],
+        ['!p-2 p-4! ', 'p-4!'],
+        ['md:!p-2 md:p-4 md:!p-6', 'md:!p-6 md:p-4'],
+        ['!-mt-2 -mt-4 !mt-1', '!mt-1 -mt-4'],
+      ])(
+        'treats the important modifier as part of the conflict key: %s -> %s',
+        (input, expected) => {
+          expect(service.merge(input)).toBe(expected);
+        }
+      );
+
+      it.each([
+        [
+          'bg-[length:1rem_1rem] bg-[linear-gradient(45deg,transparent_25%,transparent)] bg-blue-500',
+          'bg-[length:1rem_1rem] bg-[linear-gradient(45deg,transparent_25%,transparent)] bg-blue-500',
+        ],
+        ['bg-[url(/a.png)] bg-[image:var(--img)]', 'bg-[image:var(--img)]'],
+        ['bg-[position:center] bg-left', 'bg-left'],
+        ['shadow-[inset_0_-4px_8px_rgba(0,0,0,0.1)] shadow-inner', 'shadow-inner'],
+        ['shadow-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)]', 'shadow-[0_0_0_1px_rgba(0,0,0,0.1)]'],
+      ])('classifies arbitrary background/shadow values: %s -> %s', (input, expected) => {
+        expect(service.merge(input)).toBe(expected);
+      });
+
+      // Realistic base + variant + override combinations used by library components
+      it.each<[string[], string]>([
+        [
+          [
+            'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+            'bg-white dark:bg-zinc-800 border-2 border-slate-500 dark:border-zinc-500 hover:border-slate-600 text-slate-800 shadow-sm focus-visible:ring-slate-500',
+            'text-sm px-6 py-3 min-h-10',
+            '[&_svg]:w-4 [&_svg]:h-4',
+            'w-full opacity-50 cursor-not-allowed pointer-events-none',
+            'rounded-full px-2',
+          ],
+          'inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 bg-white dark:bg-zinc-800 border-2 border-slate-500 dark:border-zinc-500 hover:border-slate-600 text-slate-800 shadow-sm focus-visible:ring-slate-500 text-sm px-2 py-3 min-h-10 [&_svg]:w-4 [&_svg]:h-4 w-full opacity-50 cursor-not-allowed pointer-events-none',
+        ],
+        [
+          ['block px-6 py-4 border-b border-slate-100 dark:border-slate-700', 'p-2 border-0'],
+          'block border-slate-100 dark:border-slate-700 p-2 border-0',
+        ],
+        [
+          [
+            'block px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-xl',
+            'rounded-none border-t-2 border-blue-500',
+          ],
+          'block px-6 py-4 border-t-2 border-blue-500 bg-slate-50/50 rounded-none',
+        ],
+        [
+          [
+            'flex flex-wrap items-center gap-2 p-2 min-h-10',
+            'border border-slate-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500',
+            'bg-white dark:bg-slate-800',
+            'gap-x-4 border-dashed',
+          ],
+          'flex flex-wrap items-center gap-2 p-2 min-h-10 border border-slate-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white dark:bg-slate-800 gap-x-4 border-dashed',
+        ],
+        [
+          [
+            'inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg',
+            'text-xs text-blue-50',
+          ],
+          'inline-flex items-center px-4 py-2 text-xs font-medium text-blue-50 rounded-lg',
+        ],
+        [
+          [
+            'absolute left-full top-0 ml-1 py-1 min-w-48 shadow-lg dark:shadow-slate-900/50',
+            'left-auto right-full ml-0 mr-1',
+          ],
+          'absolute left-auto top-0 ml-0 py-1 min-w-48 shadow-lg dark:shadow-slate-900/50 right-full mr-1',
+        ],
+        [
+          [
+            'rounded-lg bg-white shadow-lg ring-1 ring-black/5 overflow-auto py-1',
+            'w-56',
+            'overflow-y-scroll',
+          ],
+          'rounded-lg bg-white shadow-lg ring-1 ring-black/5 overflow-auto py-1 w-56 overflow-y-scroll',
+        ],
+        [
+          ['w-full', 'max-w-4xl', 'mx-auto', 'px-4 sm:px-6 lg:px-8', 'px-0'],
+          'w-full max-w-4xl mx-auto px-0 sm:px-6 lg:px-8',
+        ],
+        [
+          [
+            'relative h-full border-r last:border-r-0 focus:ring-2 focus:ring-inset focus:ring-blue-400',
+            'border-slate-300',
+          ],
+          'relative h-full border-r last:border-r-0 focus:ring-2 focus:ring-inset focus:ring-blue-400 border-slate-300',
+        ],
+      ])('preserves intended classes for %j', (input, expected) => {
+        expect(service.merge(...input)).toBe(expected);
       });
 
       it('should handle gradient from', () => {
@@ -408,8 +507,8 @@ describe('TwClassService', () => {
       });
 
       it('should resolve conflicts with important prefix', () => {
-        const result = service.merge('px-2', '!px-4');
-        expect(result).toBe('!px-4');
+        expect(service.merge('!px-2', '!px-4')).toBe('!px-4');
+        expect(service.merge('px-2', '!px-4')).toBe('px-2 !px-4');
       });
 
       it('should let later padding shorthand subsume longhands', () => {

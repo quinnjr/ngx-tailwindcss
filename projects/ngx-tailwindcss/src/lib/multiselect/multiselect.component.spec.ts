@@ -416,3 +416,38 @@ describe('TwMultiSelectComponent (round 3)', () => {
     expect(closedEvent.defaultPrevented).toBe(false);
   });
 });
+
+@Component({
+  template: `
+    <form (submit)="submitted = true; $event.preventDefault()">
+      <tw-multiselect [options]="options" [filter]="true"></tw-multiselect>
+      <button type="submit">Save</button>
+    </form>
+  `,
+  standalone: true,
+  imports: [TwMultiSelectComponent],
+})
+class FilterInFormHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  submitted = false;
+}
+
+describe('TwMultiSelectComponent (round 4)', () => {
+  it('should not let Enter in the filter input submit the enclosing form', () => {
+    const fixture = TestBed.createComponent(FilterInFormHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const filterInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[aria-label="Search options"]'
+    );
+    // No active option yet: Enter has nothing to toggle
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    filterInput.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+});

@@ -28,6 +28,15 @@ import {
 
 let nextPopoverId = 0;
 
+const POPOVER_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
 export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
 export type PopoverTrigger = 'click' | 'hover' | 'focus' | 'manual';
 
@@ -254,8 +263,11 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     removeEscapeLayer(this);
     // Hover-leave timers and focusout fire even if the popover never opened
     if (!this.visible()) return;
+    // Focus inside the portal would be lost when it is removed: return it to the trigger
+    const focusInside = !!this.portalElement?.contains(this.document.activeElement);
     this.visible.set(false);
     this.onHide.emit();
+    if (focusInside) this.getTriggerElement()?.focus();
   }
 
   toggle(): void {
@@ -314,11 +326,16 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     // Position the popover
     this.updatePosition();
 
-    // Animate in
+    // Animate in. A click popover is a (non-modal) dialog appended to <body>, out of
+    // the trigger's Tab sequence: move focus to its first focusable element so
+    // keyboard users can reach its content
     requestAnimationFrame(() => {
       if (this.portalElement) {
         this.renderer.setStyle(this.portalElement, 'opacity', '1');
         this.renderer.setStyle(this.portalElement, 'transform', 'scale(1)');
+        if (this.trigger === 'click') {
+          this.portalElement.querySelector<HTMLElement>(POPOVER_FOCUSABLE_SELECTOR)?.focus();
+        }
       }
     });
 
@@ -351,10 +368,7 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
       this.keydownListener = (event: KeyboardEvent) => {
         if (shouldHandleEscape(this, event)) {
           event.preventDefault();
-          // Focus inside the portal would be lost when it is removed: return it to the trigger
-          const focusInside = !!this.portalElement?.contains(this.document.activeElement);
           this.hide();
-          if (focusInside) this.getTriggerElement()?.focus();
         }
       };
       this.document.addEventListener('keydown', this.keydownListener);

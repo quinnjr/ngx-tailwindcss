@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, HostListener, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwFocusTrapDirective } from '../directives';
+
+let nextAboutDialogId = 0;
 
 /**
  * About dialog component
@@ -19,7 +22,7 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'tw-about-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   templateUrl: './about-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -27,6 +30,9 @@ import { CommonModule } from '@angular/common';
   },
 })
 export class TwAboutDialogComponent {
+  /** Unique id so several dialogs on a page don't share an aria target. */
+  protected readonly titleId = `tw-about-dialog-title-${nextAboutDialogId++}`;
+
   // Inputs
   public readonly open = input(false);
   public readonly appName = input('Application');

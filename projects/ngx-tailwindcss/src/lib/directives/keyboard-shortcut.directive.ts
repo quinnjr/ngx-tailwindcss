@@ -12,6 +12,7 @@ import {
   PLATFORM_ID,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { splitShortcut } from '../native/shortcut-keys.util';
 
 export interface KeyboardShortcutEvent {
   key: string;
@@ -77,9 +78,11 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     if (this.shortcutDisabled) return;
 
     const shortcut = this.twKeyboardShortcut.toLowerCase();
-    const parts = shortcut.split('+').map(p => p.trim());
+    // `ctrl++` binds the plus key (a plain split on '+' would yield an empty key)
+    const parts = splitShortcut(shortcut);
 
-    const key = parts.at(-1);
+    const lastPart = parts.at(-1);
+    const key = lastPart === 'plus' ? '+' : lastPart;
     const modifiers = new Set(parts.slice(0, -1));
 
     const metaRequired = modifiers.has('meta') || modifiers.has('cmd');
@@ -95,10 +98,14 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     // Synthetic keydown events (e.g. Chrome autofill) carry no key/code
     const keyMatches = keyEvent.key?.toLowerCase() === key || keyEvent.code?.toLowerCase() === key;
 
+    // A shifted symbol such as '?' or '+' already encodes Shift in `event.key`
+    // (e.g. '?' is Shift+/ on US layouts), so an unrequested Shift is allowed there
+    const shiftEncodedInKey = key?.length === 1 && !/^[\da-z ]$/.test(key);
+
     const modifiersMatch =
       ctrlRequired === ctrlPressed &&
       altRequired === altPressed &&
-      shiftRequired === shiftPressed &&
+      (shiftRequired === shiftPressed || (shiftEncodedInKey && !shiftRequired)) &&
       (metaRequired ? metaPressed : true);
 
     if (keyMatches && modifiersMatch) {

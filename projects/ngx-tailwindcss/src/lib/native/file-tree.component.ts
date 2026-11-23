@@ -55,6 +55,41 @@ export class TwFileTreeComponent {
     }
   }
 
+  /**
+   * Keyboard access to tree items: Space selects, Enter selects and opens
+   * (like a double click), ArrowRight/ArrowLeft expand/collapse a folder.
+   */
+  protected onNodeKeydown(node: FileTreeNode, event: KeyboardEvent): void {
+    // Keys pressed on the chevron button are that button's own business
+    if (event.target !== event.currentTarget) return;
+
+    switch (event.key) {
+      case ' ': {
+        this.onNodeClick(node);
+        break;
+      }
+      case 'Enter': {
+        this.onNodeClick(node);
+        this.onNodeDoubleClick(node);
+        break;
+      }
+      case 'ArrowRight': {
+        if (node.type !== 'folder' || node.expanded) return;
+        this.toggleExpand(node);
+        break;
+      }
+      case 'ArrowLeft': {
+        if (node.type !== 'folder' || !node.expanded) return;
+        this.toggleExpand(node);
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+  }
+
   protected toggleExpand(node: FileTreeNode, event?: MouseEvent): void {
     if (event) {
       event.stopPropagation();

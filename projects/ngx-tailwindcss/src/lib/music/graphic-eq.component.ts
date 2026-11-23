@@ -859,6 +859,20 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     return (1 - normalized) * this.sliderHeight();
   }
 
+  /**
+   * Gain scale labels at the top, quarter, middle, three-quarter and bottom
+   * positions of the track (matching the grid lines), derived from the actual
+   * min/max gain rather than assuming a ±12 dB range.
+   */
+  protected readonly gainScaleLabels = computed(() => {
+    const maxGain = this.maxGain();
+    const range = maxGain - this.minGain();
+    return [0, 0.25, 0.5, 0.75, 1].map(fraction => {
+      const gain = Math.round((maxGain - fraction * range) * 10) / 10;
+      return gain > 0 ? `+${gain}` : `${gain}`;
+    });
+  });
+
   /** Y offset (px) of the 0 dB line (not necessarily the middle for asymmetric ranges) */
   protected readonly zeroLineY = computed(() => this.gainToY(0));
 

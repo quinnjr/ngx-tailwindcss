@@ -103,9 +103,12 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^bg-origin-/, 'bg-origin'],
   [/^bg-blend-/, 'bg-blend'],
   [/^bg-(no-repeat|repeat(-x|-y|-round|-space)?)$/, 'bg-repeat'],
-  [/^bg-((auto|cover|contain)$|size-)/, 'bg-size'],
-  [/^bg-((bottom|center|left|right|top)(-|$)|position-)/, 'bg-position'],
-  [/^bg-(none$|gradient-|linear-|radial|conic|\[url\()/, 'bg-image'],
+  [/^bg-((auto|cover|contain)$|size-|\[(length|size):)/, 'bg-size'],
+  [/^bg-((bottom|center|left|right|top)(-|$)|position-|\[position:)/, 'bg-position'],
+  [
+    /^bg-(none$|gradient-|linear-|radial|conic|\[(image:|url\(|(repeating-)?(linear|radial|conic)-gradient\())/,
+    'bg-image',
+  ],
   [/^bg-/, 'background'],
   [/^from-/, 'gradient-from'],
   [/^via-/, 'gradient-via'],
@@ -134,7 +137,7 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
 
   // Effects
   // Shadow size (optionally with a v4 `/opacity` modifier) vs shadow color
-  [/^shadow(-(2xs|xs|sm|md|lg|xl|2xl|inner|none)(\/\S+)?$|$|-\[\d)/, 'shadow'],
+  [/^shadow(-(2xs|xs|sm|md|lg|xl|2xl|inner|none)(\/\S+)?$|$|-\[(inset_)?-?\d)/, 'shadow'],
   [/^shadow-/, 'shadow-color'],
   [/^opacity-/, 'opacity'],
   [/^blur(-|$)/, 'blur'],
@@ -400,19 +403,26 @@ export class TwClassService {
 
     // Strip important (leading `!` in v3, trailing `!` in v4) and negative (-)
     // markers for group matching
+    let important = false;
     while (baseClass.startsWith('!') || baseClass.startsWith('-')) {
+      if (baseClass.startsWith('!')) important = true;
       baseClass = baseClass.slice(1);
     }
     while (baseClass.endsWith('!')) {
+      important = true;
       baseClass = baseClass.slice(0, -1);
     }
+
+    // As in tailwind-merge, important and non-important utilities don't conflict
+    // (`!p-2 p-4` keeps both: the important one still wins in CSS)
+    const key = important ? `${prefix}!` : prefix;
 
     let group = cls;
     for (const [pattern, groupName] of GROUP_PATTERNS) {
       const match = pattern.exec(baseClass);
       if (match) {
         const resolved = groupName.replace('$1', match[1] ?? '');
-        group = prefix ? `${prefix}:${resolved}` : resolved;
+        group = key ? `${key}:${resolved}` : resolved;
         break;
       }
     }

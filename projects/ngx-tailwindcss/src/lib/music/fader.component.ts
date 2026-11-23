@@ -18,7 +18,7 @@ import {
 import { CommonModule, NgStyle } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MusicAccessibilityService } from './accessibility.service';
-import { MobileSupportService } from './mobile-support.service';
+import { MobileSupportService, TouchTrackingState } from './mobile-support.service';
 
 export type FaderVariant = 'default' | 'studio' | 'minimal' | 'vintage' | 'channel';
 export type FaderSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -141,6 +141,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   private onChange: (value: number) => void = () => {};
   private onTouched: () => void = () => {};
   private peakHoldTimeout: ReturnType<typeof setTimeout> | null = null;
+  private touchTracking: TouchTrackingState | null = null;
   private dragController: AbortController | null = null;
   private lastHapticTime = 0;
 
@@ -292,7 +293,10 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     const base = 'relative flex items-center gap-2';
     const orientationClass = orientation === 'vertical' ? 'flex-col' : 'flex-row';
     const disabled = this.isDisabled() ? 'opacity-50 cursor-not-allowed' : '';
-    return [base, orientationClass, disabled, this.classOverride()].filter(Boolean).join(' ');
+    // Variant container styling is merged here: a second [class] binding would replace these
+    return [base, orientationClass, this.colors().container, disabled, this.classOverride()]
+      .filter(Boolean)
+      .join(' ');
   });
 
   protected readonly trackClasses = computed(() => {
@@ -429,12 +433,13 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   @HostListener('touchstart', ['$event'])
   onTouchStart(event: TouchEvent): void {
     if (this.isDisabled()) return;
-    const touch = event.touches[0];
+    // The finger that just landed on this fader: touches[0] may be a finger
+    // already holding another control (multi-touch mixing)
+    const touch = event.changedTouches?.[0] ?? event.touches[0];
     const guarded = this.touchGuard();
-    if (guarded) {
-      this.mobileSupport.startTouchTracking(event);
-    }
-    this.startDrag(touch.clientX, touch.clientY, guarded);
+    // Keep this gesture's start state: the service's implicit one is shared by all controls
+    this.touchTracking = guarded ? this.mobileSupport.startTouchTracking(event) : null;
+    this.startDrag(touch.clientX, touch.clientY, guarded, touch.identifier);
     event.preventDefault();
   }
 
@@ -484,26 +489,40 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     }
   }
 
-  private startDrag(clientX: number, clientY: number, guarded = false): void {
+  private startDrag(
+    clientX: number,
+    clientY: number,
+    guarded = false,
+    touchId: number | null = null
+  ): void {
     this.isDragging.set(true);
 
     // Capture the track rect once for the whole gesture
     const dragRect = this.trackRef?.nativeElement.getBoundingClientRect() ?? null;
 
     const guardPassed = (): boolean =>
-      !guarded || this.mobileSupport.validateTouchDuration(this.minTouchDuration());
+      !guarded ||
+      this.mobileSupport.validateTouchDuration(
+        this.minTouchDuration(),
+        this.touchTracking ?? undefined
+      );
 
     if (guardPassed()) {
       this.updateValueFromPosition(clientX, clientY, dragRect);
     }
 
     const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!guardPassed()) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
+      // Follow only the finger that started this drag
+      const pos = 'touches' in e ? findTouch(e.touches, touchId) : e;
+      if (!pos || !guardPassed()) return;
       this.updateValueFromPosition(pos.clientX, pos.clientY, dragRect);
     };
 
-    const onUp = () => {
+    const onUp = (e: MouseEvent | TouchEvent) => {
+      // Another finger lifting (e.g. from a neighbouring fader) must not end this drag
+      if ('changedTouches' in e && touchId !== null && !findTouch(e.changedTouches, touchId)) {
+        return;
+      }
       this.isDragging.set(false);
       this.onTouched();
       this.dragController?.abort();
@@ -635,4 +654,13 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   setDisabledState(isDisabled: boolean): void {
     this.cvaDisabled.set(isDisabled);
   }
+}
+
+/** The touch with the given identifier (or the first one when no identifier is tracked) */
+function findTouch(list: TouchList | undefined, id: number | null): Touch | undefined {
+  if (!list) return undefined;
+  if (id === null) return list[0];
+  // TouchList is array-like but not iterable without the dom.iterable lib
+  return Array.prototype.find.call(list, (touch: Touch) => touch.identifier === id) as
+    Touch | undefined;
 }

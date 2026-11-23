@@ -10,11 +10,12 @@ import {
   numberAttribute,
   OnChanges,
   OnDestroy,
+  PLATFORM_ID,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { prepareHiDpiCanvas } from './canvas-hidpi';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type OscilloscopeVariant = 'default' | 'retro' | 'neon' | 'minimal';
 export type OscilloscopeTriggerMode = 'auto' | 'normal' | 'single';
@@ -33,6 +34,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   @ViewChild('canvas', { static: true }) private readonly canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private stopDprWatch: (() => void) | null = null;
 
   readonly analyserNode = input<AnalyserNode | undefined>(undefined);
   readonly width = input(400, { transform: numberAttribute });
@@ -103,9 +106,20 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.ctx = this.canvasRef.nativeElement.getContext('2d');
     this.setupAnalyser();
     this.restartDraw();
+    // The no-signal frame is static: redraw it at the new resolution after
+    // browser zoom or a move to a different-density screen. A frozen 'single'
+    // sweep is kept as captured.
+    this.stopDprWatch = watchDevicePixelRatio(() => {
+      if (!this.singleFrozen) {
+        this.restartDraw();
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -120,6 +134,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }

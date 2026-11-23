@@ -87,4 +87,26 @@ describe('TwAudioPlayerComponent', () => {
 
     expect(thenSpy).toHaveBeenCalled();
   });
+
+  it('should keep the loading overlay inside the player', () => {
+    audio.dispatchEvent(new Event('loadstart'));
+    fixture.detectChanges();
+    const root = (fixture.nativeElement as HTMLElement).querySelector('audio + div')!;
+    const overlay = root.querySelector('.animate-spin')!.parentElement!;
+
+    expect(overlay.classList).toContain('absolute');
+    expect(root.classList).toContain('relative');
+  });
+
+  it('should not report an error for the empty source before a track is set', () => {
+    const errors: string[] = [];
+    fixture.componentInstance.error.subscribe(e => errors.push(e));
+    audio.dispatchEvent(new Event('error'));
+    expect(errors).toEqual([]);
+
+    fixture.componentRef.setInput('src', 'missing.mp3');
+    fixture.detectChanges();
+    audio.dispatchEvent(new Event('error'));
+    expect(errors).toEqual(['Error loading audio']);
+  });
 });

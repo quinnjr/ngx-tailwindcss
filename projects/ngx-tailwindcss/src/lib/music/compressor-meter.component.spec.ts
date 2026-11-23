@@ -73,6 +73,31 @@ describe('TwCompressorMeterComponent', () => {
     expect(internals.envelopePosition()).toBeCloseTo(Math.exp(-1.5), 5);
   });
 
+  it('should keep programmatic levels until the bound input changes', () => {
+    fixture.componentRef.setInput('inputLevel', -20);
+    fixture.componentRef.setInput('outputLevel', -22);
+    fixture.componentRef.setInput('gainReduction', -2);
+    internals.updateLevels();
+    expect(internals.internalInputLevel()).toBe(-20);
+
+    component.setInputLevel(-6);
+    component.setOutputLevel(-8);
+    component.setGainReduction(-9);
+    expect(internals.internalInputLevel()).toBe(-6);
+
+    // The next tick must not snap back to the (unchanged) inputs
+    internals.updateLevels();
+    expect(internals.internalInputLevel()).toBe(-6);
+    expect(internals.internalOutputLevel()).toBe(-8);
+    expect(internals.internalGainReduction()).toBe(-9);
+
+    // A new input value takes over again
+    fixture.componentRef.setInput('inputLevel', -30);
+    internals.updateLevels();
+    expect(internals.internalInputLevel()).toBe(-30);
+    expect(internals.internalOutputLevel()).toBe(-8);
+  });
+
   describe('peak hold', () => {
     afterEach(() => {
       vi.useRealTimers();

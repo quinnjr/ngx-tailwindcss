@@ -4,6 +4,8 @@ import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MenuItem, TwContextMenuComponent, TwMenuComponent } from './menu.component';
 import { TwClassService } from '../core/tw-class.service';
+import { TwModalComponent } from '../modal/modal.component';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 @Component({
   template: `
@@ -359,5 +361,78 @@ describe('TwContextMenuComponent dismissal', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
     expect(fixture.componentInstance.hideCount).toBe(1);
+  });
+
+  it('should move focus into the menu on open and back to the opener on Escape', () => {
+    const opener = fixture.nativeElement.querySelector('.more') as HTMLButtonElement;
+    opener.focus();
+    open();
+    const item = fixture.nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+    expect(document.activeElement).toBe(item);
+
+    // Arrow keys work because focus is inside the menu
+    item.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(item);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('should return focus to the opener after selecting an item', () => {
+    const opener = fixture.nativeElement.querySelector('.more') as HTMLButtonElement;
+    opener.focus();
+    open();
+    (fixture.nativeElement.querySelector('[role="menuitem"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe('TwContextMenuComponent inside a modal', () => {
+  @Component({
+    template: `
+      <tw-modal [open]="modalOpen()" (openChange)="modalOpen.set($event)">
+        <div class="target" (contextmenu)="cm.show($event)">Right-click me</div>
+        <tw-context-menu #cm [items]="items"></tw-context-menu>
+      </tw-modal>
+    `,
+    standalone: true,
+    imports: [TwModalComponent, TwContextMenuComponent],
+  })
+  class ContextMenuInModalHostComponent {
+    items: MenuItem[] = [{ label: 'Copy' }];
+    modalOpen = signal(true);
+  }
+
+  it('should close only the context menu on Escape, not the enclosing modal', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ContextMenuInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ContextMenuInModalHostComponent);
+    fixture.detectChanges();
+
+    document
+      .querySelector('.target')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+    expect(document.querySelector('tw-context-menu [role="menu"]')).toBeTruthy();
+
+    const escape = () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+    escape();
+    fixture.detectChanges();
+    expect(document.querySelector('tw-context-menu [role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.modalOpen()).toBe(true);
+
+    escape();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.modalOpen()).toBe(false);
+    fixture.destroy();
   });
 });

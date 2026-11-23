@@ -132,8 +132,10 @@ export class TwRatingComponent implements ControlValueAccessor {
 
     let newValue = index + 1;
 
-    // With allowHalf, clicking the left half of a star selects a half step
-    if (this.allowHalf() && event) {
+    // With allowHalf, clicking the left half of a star selects a half step.
+    // Keyboard activation (Enter/Space) fires a click with detail 0 and no
+    // meaningful pointer position, so it always selects the whole star.
+    if (this.allowHalf() && event && event.detail !== 0) {
       // Measure against the star button itself: offsetX is relative to the clicked
       // element, which is usually the inner <svg>/<path>, not the button
       const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect();

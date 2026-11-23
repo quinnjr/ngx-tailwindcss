@@ -150,3 +150,49 @@ describe('TwVuMeterComponent with a non-zero min', () => {
     expect(peak.style.bottom).toBe('50%');
   });
 });
+
+@Component({
+  template: `<tw-vu-meter [value]="value()" meterMode="rms"></tw-vu-meter>`,
+  standalone: true,
+  imports: [TwVuMeterComponent],
+})
+class RmsHostComponent {
+  value = signal(0);
+}
+
+describe('TwVuMeterComponent in rms mode', () => {
+  let fixture: ComponentFixture<RmsHostComponent>;
+
+  const ariaLabel = (): string | null =>
+    (fixture.debugElement.query(By.css('[role="img"]')).nativeElement as HTMLElement).getAttribute(
+      'aria-label'
+    );
+  const setValue = (v: number): void => {
+    fixture.componentInstance.value.set(v);
+    fixture.detectChanges();
+    fixture.detectChanges(); // flush the input-bridging effect
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RmsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(RmsHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should average only the samples received, not the empty window', () => {
+    // The initial 0 is one sample; a steady 50 thereafter
+    setValue(50);
+    expect(ariaLabel()).toBe('Level meter: 35%'); // sqrt((0 + 0.25) / 2)
+
+    const meter = fixture.debugElement.query(By.directive(TwVuMeterComponent))
+      .componentInstance as TwVuMeterComponent;
+    meter.reset();
+    meter.setValue(60);
+    fixture.detectChanges();
+    expect(ariaLabel()).toBe('Level meter: 60%');
+  });
+});

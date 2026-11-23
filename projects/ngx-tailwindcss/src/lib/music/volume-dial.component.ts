@@ -16,7 +16,7 @@ import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { TwClassService } from '../core/tw-class.service';
 import { MusicAccessibilityService } from './accessibility.service';
-import { MobileSupportService } from './mobile-support.service';
+import { MobileSupportService, TouchTrackingState } from './mobile-support.service';
 
 export type DialVariant = 'modern' | 'vintage' | 'minimal' | 'led' | 'light' | 'highContrast';
 export type DialSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -368,20 +368,30 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   onTouchStart(event: TouchEvent): void {
     if (this.isDisabled()) return;
     event.preventDefault();
-    const touch = event.touches[0];
+    // The finger that just landed on this dial: touches[0] may be a finger
+    // already holding another control (multi-touch mixing)
+    const touch = event.changedTouches?.[0] ?? event.touches[0];
+    const touchId = touch.identifier;
     const guarded = this.touchGuard();
+    // Keep this gesture's start state: the service's implicit one is shared by all controls
+    let tracking: TouchTrackingState | undefined;
     if (guarded) {
-      this.mobileSupport.startTouchTracking(event);
+      tracking = this.mobileSupport.startTouchTracking(event);
     }
     this.startDrag(touch.clientX, touch.clientY);
 
     const onTouchMove = (e: TouchEvent): void => {
       // Touch guard: ignore movement until the minimum touch duration has elapsed
-      if (guarded && !this.mobileSupport.validateTouchDuration(this.minTouchDuration())) return;
-      const t = e.touches[0];
-      this.handleDrag(t.clientX, t.clientY);
+      if (guarded && !this.mobileSupport.validateTouchDuration(this.minTouchDuration(), tracking)) {
+        return;
+      }
+      // Follow only the finger that started this drag
+      const t = findTouch(e.touches, touchId);
+      if (t) this.handleDrag(t.clientX, t.clientY);
     };
-    const onTouchEnd = (): void => {
+    const onTouchEnd = (e: TouchEvent): void => {
+      // Another finger lifting (e.g. from a neighbouring control) must not end this drag
+      if (e.changedTouches && !findTouch(e.changedTouches, touchId)) return;
       this.endDrag();
     };
 
@@ -579,4 +589,11 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   setDisabledState(isDisabled: boolean): void {
     this.cvaDisabled.set(isDisabled);
   }
+}
+
+/** The touch with the given identifier in a touch list */
+function findTouch(list: TouchList, id: number): Touch | undefined {
+  // TouchList is array-like but not iterable without the dom.iterable lib
+  return Array.prototype.find.call(list, (touch: Touch) => touch.identifier === id) as
+    Touch | undefined;
 }

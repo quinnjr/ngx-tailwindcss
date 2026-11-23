@@ -16,7 +16,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, interval, switchMap } from 'rxjs';
-import { prepareHiDpiCanvas } from './canvas-hidpi';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type LooperVariant = 'default' | 'minimal' | 'compact' | 'studio';
 export type LooperSize = 'sm' | 'md' | 'lg';
@@ -145,6 +145,12 @@ export class TwLooperComponent implements OnDestroy {
   // Playhead anchor: loop position (s) at playbackAnchorTime (AudioContext time)
   private playbackAnchorTime = 0;
   private playbackAnchorPosition = 0;
+  // Redraws the (otherwise static) waveform after a device pixel ratio change
+  private readonly stopDprWatch = watchDevicePixelRatio(() => {
+    if (this.layers().length > 0) {
+      this.drawWaveform();
+    }
+  });
 
   constructor() {
     // Position ticker only runs while playing/overdubbing (idle otherwise)
@@ -159,6 +165,7 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch();
     this.destroyed = true;
     this.cleanup();
   }
@@ -861,7 +868,9 @@ export class TwLooperComponent implements OnDestroy {
     const variant = this.variant();
     const size = this.size();
 
-    const base = 'flex flex-col rounded-xl overflow-hidden';
+    // relative: positioning context for the absolute count-in overlay, which
+    // otherwise escapes the looper and covers the page
+    const base = 'relative flex flex-col rounded-xl overflow-hidden';
 
     const variantClasses: Record<LooperVariant, string> = {
       default: 'bg-slate-900 border border-slate-700 p-4',

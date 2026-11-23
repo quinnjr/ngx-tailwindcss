@@ -760,9 +760,15 @@ export class NativePlatformService {
     }
 
     // Browser fallback. Only navigable web schemes: a `javascript:` (or
-    // `data:`) URL would run script in a window that inherits this app's origin
-    const url = new URL(path, window.location.href);
-    if (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)) {
+    // `data:`) URL would run script in a window that inherits this app's origin.
+    // The app's own scheme is also allowed so relative paths keep working when
+    // the app is served from file:, tauri:, capacitor: etc.
+    const base = new URL(document.baseURI);
+    const url = new URL(path, base);
+    if (
+      !['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) &&
+      url.protocol !== base.protocol
+    ) {
       throw new UnsupportedOnPlatformError(
         `openExternal (${url.protocol} URL)`,
         'browser',

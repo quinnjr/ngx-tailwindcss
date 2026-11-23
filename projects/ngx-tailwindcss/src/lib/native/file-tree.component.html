@@ -18,8 +18,10 @@
       role="treeitem"
       [attr.aria-selected]="node.selected"
       [attr.aria-expanded]="node.type === 'folder' ? node.expanded : undefined"
+      tabindex="0"
       (click)="onNodeClick(node)"
       (dblclick)="onNodeDoubleClick(node)"
+      (keydown)="onNodeKeydown(node, $event)"
     >
       <!-- Expand/collapse chevron for folders -->
       @if (node.type === 'folder') {

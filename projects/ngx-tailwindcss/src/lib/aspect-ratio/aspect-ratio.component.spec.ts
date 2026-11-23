@@ -115,3 +115,39 @@ describe('TwAspectRatioComponent', () => {
     });
   });
 });
+
+describe('TwAspectRatioComponent static class attribute', () => {
+  it('applies a static class to the inner box only', async () => {
+    @Component({
+      template: `<tw-aspect-ratio class="tw-test-frame"
+        ><img src="x.jpg" alt=""
+      /></tw-aspect-ratio>`,
+      standalone: true,
+      imports: [TwAspectRatioComponent],
+    })
+    class StaticClassHostComponent {}
+
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-frame { border: 3px solid red; padding: 10px; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-aspect-ratio'))
+        .nativeElement as HTMLElement;
+      const inner = host.querySelector('div') as HTMLElement;
+      expect(getComputedStyle(host).borderTopWidth).toBe('0px');
+      expect(getComputedStyle(host).paddingTop).toBe('0px');
+      expect(getComputedStyle(inner).borderTopWidth).toBe('3px');
+    } finally {
+      style.remove();
+    }
+  });
+});

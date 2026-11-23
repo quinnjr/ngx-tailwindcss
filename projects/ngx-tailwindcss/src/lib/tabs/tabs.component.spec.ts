@@ -325,3 +325,50 @@ describe('TwTabsComponent (values with id-invalid characters)', () => {
     });
   });
 });
+
+@Component({
+  template: `
+    <tw-tabs>
+      @for (tab of tabs(); track tab) {
+        <tw-tab-panel [value]="tab" [label]="tab">{{ tab }} content</tw-tab-panel>
+      }
+    </tw-tabs>
+  `,
+  standalone: true,
+  imports: [TwTabsComponent, TwTabPanelComponent],
+})
+class AsyncTabsHostComponent {
+  tabs = signal<string[]>([]);
+}
+
+describe('TwTabsComponent (panels rendered after init)', () => {
+  it('should activate the first tab and keep a tab stop when panels arrive or the active one is removed', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AsyncTabsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(AsyncTabsHostComponent);
+    fixture.detectChanges();
+
+    const tabStops = () =>
+      [...fixture.nativeElement.querySelectorAll('[role="tab"]')].filter(
+        (t: HTMLElement) => t.getAttribute('tabindex') === '0'
+      ) as HTMLElement[];
+    const visiblePanels = () =>
+      [...fixture.nativeElement.querySelectorAll('[role="tabpanel"]')].filter(
+        (p: HTMLElement) => !p.hasAttribute('hidden')
+      ) as HTMLElement[];
+
+    // Data loaded after the tabs initialized with no panels
+    fixture.componentInstance.tabs.set(['a', 'b']);
+    fixture.detectChanges();
+    expect(tabStops().map(t => t.textContent.trim())).toEqual(['a']);
+    expect(visiblePanels().map(p => p.textContent.trim())).toEqual(['a content']);
+
+    // Removing the active panel moves selection to a remaining tab
+    fixture.componentInstance.tabs.set(['b']);
+    fixture.detectChanges();
+    expect(tabStops().map(t => t.textContent.trim())).toEqual(['b']);
+    expect(visiblePanels().map(p => p.textContent.trim())).toEqual(['b content']);
+  });
+});

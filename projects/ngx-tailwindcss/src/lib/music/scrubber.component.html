@@ -22,24 +22,27 @@
     [attr.tabindex]="disabled() ? -1 : 0"
     (keydown)="onKeyDown($event)"
   >
-    <!-- Buffered Range -->
-    @if (showBuffered() && buffered() > 0) {
-      <div [class]="bufferedClasses()" [style.width.%]="(buffered() / duration()) * 100"></div>
-    }
-
-    <!-- Progress Fill -->
-    <div [class]="progressClasses()" [style.width.%]="progressPercent()"></div>
-
-    <!-- Chapter Markers -->
-    @if (showMarkers()) {
-      @for (marker of markers(); track marker.time) {
-        <div
-          [class]="markerClasses()"
-          [style.left.%]="(marker.time / duration()) * 100"
-          [attr.title]="marker.label"
-        ></div>
+    <!-- Fills are clipped to the rounded track; the thumb and hover previews must not be -->
+    <div class="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      <!-- Buffered Range -->
+      @if (showBuffered() && buffered() > 0) {
+        <div [class]="bufferedClasses()" [style.width.%]="(buffered() / duration()) * 100"></div>
       }
-    }
+
+      <!-- Progress Fill -->
+      <div [class]="progressClasses()" [style.width.%]="progressPercent()"></div>
+
+      <!-- Chapter Markers -->
+      @if (showMarkers()) {
+        @for (marker of markers(); track marker.time) {
+          <div
+            [class]="markerClasses()"
+            [style.left.%]="(marker.time / duration()) * 100"
+            [attr.title]="marker.label"
+          ></div>
+        }
+      }
+    </div>
 
     <!-- Hover Time Preview -->
     @if (showHoverPreview() && hoverPosition() !== null && !isDragging()) {

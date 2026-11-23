@@ -18,6 +18,19 @@ describe('TwGraphicEQComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should label the gain scale from the configured range', () => {
+    const labels = (): string[] =>
+      [...fixture.nativeElement.querySelectorAll('.-left-8 span')].map((el: Element) =>
+        (el.textContent ?? '').trim()
+      );
+    expect(labels()).toEqual(['+12', '+6', '0', '-6', '-12']);
+
+    fixture.componentRef.setInput('minGain', -24);
+    fixture.componentRef.setInput('maxGain', 24);
+    fixture.detectChanges();
+    expect(labels()).toEqual(['+24', '+12', '0', '-12', '-24']);
+  });
+
   it('should honor the forms disabled state', () => {
     component.setDisabledState(true);
     fixture.detectChanges();

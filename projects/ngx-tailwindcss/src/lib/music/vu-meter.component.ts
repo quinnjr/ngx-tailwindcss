@@ -106,6 +106,8 @@ export class TwVuMeterComponent {
     new Float32Array(RMS_WINDOW_SIZE),
   ]; // Circular buffers for RMS calculation
   private rmsWriteIndices: number[] = [0, 0];
+  // Samples recorded so far (up to the window size): the RMS averages only these
+  private rmsSampleCounts: number[] = [0, 0];
 
   constructor() {
     // Bridge the declarative value inputs into the imperative setValue path
@@ -514,17 +516,23 @@ export class TwVuMeterComponent {
     }
     this.rmsBuffers[channel][this.rmsWriteIndices[channel]] = sample;
     this.rmsWriteIndices[channel] = (this.rmsWriteIndices[channel] + 1) % RMS_WINDOW_SIZE;
+    this.rmsSampleCounts[channel] = Math.min(
+      RMS_WINDOW_SIZE,
+      (this.rmsSampleCounts[channel] ?? 0) + 1
+    );
   }
 
   private calculateRmsFromBuffer(channel: number): number {
     const buffer = this.rmsBuffers[channel];
-    if (!buffer) return 0;
+    const count = this.rmsSampleCounts[channel] ?? 0;
+    if (!buffer || count === 0) return 0;
 
     let sumSquares = 0;
     for (const element of buffer) {
       sumSquares += element * element;
     }
-    return Math.sqrt(sumSquares / buffer.length);
+    // Unwritten slots are zero, so only the recorded samples count towards the mean
+    return Math.sqrt(sumSquares / count);
   }
 
   private updatePeak(value: number, channel: number): void {
@@ -612,6 +620,7 @@ export class TwVuMeterComponent {
     // Clear RMS buffers
     this.rmsBuffers.forEach(buffer => buffer.fill(0));
     this.rmsWriteIndices = [0, 0];
+    this.rmsSampleCounts = [0, 0];
   }
 
   /**

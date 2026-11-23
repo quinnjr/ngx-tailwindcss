@@ -121,13 +121,15 @@ export class TwScrubberComponent implements OnDestroy {
 
   protected readonly trackContainerClasses = computed(() => {
     const variant = this.variant();
-    const baseClasses = 'relative flex-1 cursor-pointer rounded-full overflow-hidden';
+    // No overflow-hidden here: it would clip the thumb and the hover/thumbnail previews
+    // (the fills are clipped by an inner wrapper instead)
+    const baseClasses = 'relative flex-1 cursor-pointer rounded-full';
 
     const heightClasses: Record<ScrubberVariant, string> = {
       default: 'h-2',
       thin: 'h-1',
       thick: 'h-3',
-      youtube: 'h-1 hover:h-2 transition-all duration-150',
+      youtube: 'h-1 hover:h-2 transition-all duration-150 group',
       spotify: 'h-1 group',
     };
 
@@ -187,7 +189,8 @@ export class TwScrubberComponent implements OnDestroy {
       default: 'w-4 h-4',
       thin: 'w-3 h-3',
       thick: 'w-5 h-5',
-      youtube: 'w-3 h-3 opacity-0 hover:opacity-100 scale-0 hover:scale-100',
+      // The thumb is pointer-events-none, so it reveals on hovering the track (group)
+      youtube: 'w-3 h-3 opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100',
       spotify: 'w-3 h-3 opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100',
     };
 

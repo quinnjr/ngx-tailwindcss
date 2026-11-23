@@ -1,6 +1,50 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwFaderComponent } from './fader.component';
+
+interface FakeTouch {
+  identifier: number;
+  clientX: number;
+  clientY: number;
+}
+/** A DOMRect at the origin with the given size */
+function rect(width: number, height: number): DOMRect {
+  const r = { x: 0, y: 0, left: 0, top: 0, width, height, right: width, bottom: height };
+  return { ...r, toJSON: () => r };
+}
+
+function touchEvent(
+  type: string,
+  touches: FakeTouch[],
+  changedTouches: FakeTouch[] = touches
+): TouchEvent {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    touches: { value: touches },
+    targetTouches: { value: changedTouches },
+    changedTouches: { value: changedTouches },
+  });
+  return event as TouchEvent;
+}
+
+/**
+ * Capture document listeners (jsdom's AbortSignal does not mix with zone.js-patched
+ * document listeners) so drag handlers can be driven directly.
+ */
+function captureDocumentListeners(): Record<string, (e: Event) => void> {
+  const listeners: Record<string, (e: Event) => void> = {};
+  vi.spyOn(document, 'addEventListener').mockImplementation(((
+    type: string,
+    listener: (e: Event) => void,
+    options?: AddEventListenerOptions
+  ) => {
+    // Honour AbortController-based removal
+    listeners[type] = e => {
+      if (!options?.signal?.aborted) listener(e);
+    };
+  }) as typeof document.addEventListener);
+  return listeners;
+}
 
 describe('TwFaderComponent', () => {
   let fixture: ComponentFixture<TwFaderComponent>;
@@ -131,6 +175,62 @@ describe('TwFaderComponent', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('multi-touch', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should follow only the finger that started the drag', () => {
+      const doc = captureDocumentListeners();
+      // The track sits right before the fader cap
+      const track = hostEl.querySelector('[title^="Double-click"]')!
+        .previousElementSibling as HTMLElement;
+      track.getBoundingClientRect = (): DOMRect => rect(10, 100);
+      const value = () => Number(hostEl.getAttribute('aria-valuenow'));
+
+      const other = { identifier: 1, clientX: 5, clientY: 90 }; // holding another fader
+      const own = { identifier: 2, clientX: 5, clientY: 10 };
+      hostEl.dispatchEvent(touchEvent('touchstart', [other, own], [own]));
+      fixture.detectChanges();
+      expect(value()).toBe(4.8);
+
+      doc['touchmove'](touchEvent('touchmove', [other, { ...own, clientY: 50 }]));
+      fixture.detectChanges();
+      expect(value()).toBe(-24);
+
+      // The other finger lifting must not end this drag
+      doc['touchend'](touchEvent('touchend', [own], [other]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientY: 20 }]));
+      fixture.detectChanges();
+      expect(value()).toBe(-2.4);
+
+      doc['touchend'](touchEvent('touchend', [], [own]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientY: 90 }]));
+      fixture.detectChanges();
+      expect(value()).toBe(-2.4);
+    });
+  });
+
+  describe('container classes', () => {
+    it('should apply both the layout classes and the variant container classes', () => {
+      fixture.componentRef.setInput('variant', 'channel');
+      fixture.componentRef.setInput('classOverride', 'my-fader');
+      fixture.detectChanges();
+      const container = hostEl.firstElementChild as HTMLElement;
+
+      expect(container.classList).toContain('flex-col');
+      expect(container.classList).toContain('my-fader');
+      expect(container.classList).toContain('bg-slate-800');
+    });
+
+    it('should show the disabled styling', () => {
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+
+      expect((hostEl.firstElementChild as HTMLElement).classList).toContain('opacity-50');
     });
   });
 

@@ -29,9 +29,11 @@ import {
 } from './note.component';
 import { PlacedNote, TwNoteInputComponent } from './note-input.component';
 import {
+  getMeasureKeySignatures,
   MeasureData,
   parseABCNotation,
   parseMusicXML,
+  respellNotesForKey,
   SheetMusicData,
 } from './sheet-music.component';
 
@@ -1501,9 +1503,15 @@ export class TwScoreEditorComponent implements OnInit {
       thirtysecond: 0.125,
     };
 
+    // The editor has a single key signature: notes after a key change are re-spelled for it
+    const measureKeys = getMeasureKeySignatures(data);
     data.measures.forEach((measure, measureIndex) => {
       let offset = 0; // quarters from the start of the measure
-      for (const note of measure.notes) {
+      for (const note of respellNotesForKey(
+        measure.notes,
+        measureKeys[measureIndex],
+        data.keySignature
+      )) {
         const fraction = Math.min(offset / quartersPerMeasure, 1);
         const beat = Math.min(
           NOTE_INPUT_GRID_DIVISION - 1,

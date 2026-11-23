@@ -54,5 +54,27 @@ describe('NativePlatformService', () => {
       );
       expect(open).not.toHaveBeenCalled();
     });
+
+    it('should open relative paths when the app is served from a non-http scheme', async () => {
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const base = document.createElement('base');
+      base.href = 'tauri://localhost/app/';
+      document.head.append(base);
+      try {
+        const service = TestBed.inject(NativePlatformService);
+
+        await service.openExternal('docs/help.html');
+
+        expect(open).toHaveBeenCalledWith(
+          'tauri://localhost/app/docs/help.html',
+          '_blank',
+          'noopener,noreferrer'
+        );
+        // eslint-disable-next-line no-script-url -- verifying such URLs are still rejected
+        await expect(service.openExternal('javascript:alert(1)')).rejects.toThrow(/not supported/);
+      } finally {
+        base.remove();
+      }
+    });
   });
 });

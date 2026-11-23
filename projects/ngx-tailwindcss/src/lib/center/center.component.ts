@@ -35,6 +35,17 @@ import { TwClassService } from '../core/tw-class.service';
     `
       :host {
         display: block;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],
@@ -90,6 +101,18 @@ export class TwCenterComponent {
     `
       :host {
         display: inline-block;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],
@@ -134,6 +157,18 @@ export class TwSquareComponent {
     `
       :host {
         display: inline-block;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],

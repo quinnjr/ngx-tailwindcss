@@ -61,7 +61,7 @@
                 <!-- Staff for this line -->
                 <tw-staff
                   [clef]="musicData().clef"
-                  [keySignature]="musicData().keySignature"
+                  [keySignature]="lineKeys()[lineIndex]"
                   [timeSignature]="lineIndex === 0 ? musicData().timeSignature : null"
                   [measures]="line.length"
                   [width]="width()"
@@ -153,7 +153,7 @@
               <div class="relative">
                 <tw-staff
                   [clef]="musicData().clef"
-                  [keySignature]="musicData().keySignature"
+                  [keySignature]="lineKeys()[currentPage()]"
                   [timeSignature]="currentPage() === 0 ? musicData().timeSignature : null"
                   [measures]="line.length"
                   [width]="width()"
@@ -231,7 +231,7 @@
           @if (lines()[0]; as line) {
             <tw-staff
               [clef]="musicData().clef"
-              [keySignature]="musicData().keySignature"
+              [keySignature]="lineKeys()[0]"
               [timeSignature]="musicData().timeSignature"
               [measures]="line.length"
               [width]="width()"

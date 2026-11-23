@@ -69,7 +69,8 @@ export class TwSidebarNavComponent {
     const base = 'flex flex-col h-full transition-all duration-200 ease-in-out overflow-hidden';
 
     const variantClasses: Record<NativeSidebarVariant, string> = {
-      default: 'bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700',
+      // Border side comes from `position` below
+      default: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700',
       compact: 'bg-gray-50 dark:bg-gray-900',
       floating: 'bg-white dark:bg-gray-800 shadow-lg rounded-lg m-2',
     };

@@ -241,6 +241,19 @@ describe('TwTableComponent', () => {
       expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
     });
 
+    it('should not toggle selection when a row-action removes itself during the click', () => {
+      const action = bodyRows()[0].query(By.css('[data-testid="row-action"]'))
+        .nativeElement as HTMLElement;
+      // e.g. an Edit button swapped out (or the row deleted) before the click bubbles on
+      action.addEventListener('click', () => {
+        action.remove();
+      });
+      action.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
+
     it('should still toggle selection when a plain cell is clicked', () => {
       const cell = bodyRows()[0].queryAll(By.css('td'))[1];
       cell.nativeElement.click();

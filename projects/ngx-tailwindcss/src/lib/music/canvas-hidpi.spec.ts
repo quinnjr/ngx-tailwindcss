@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getDevicePixelRatio, prepareHiDpiCanvas } from './canvas-hidpi';
+import { getDevicePixelRatio, prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 describe('prepareHiDpiCanvas', () => {
   afterEach(() => {
@@ -43,5 +43,56 @@ describe('prepareHiDpiCanvas', () => {
     setDpr(Number.NaN);
     expect(getDevicePixelRatio()).toBe(1);
     setDpr(1);
+  });
+});
+
+describe('watchDevicePixelRatio', () => {
+  // The test setup defines window.matchMedia as writable but not configurable
+  const originalMatchMedia = window.matchMedia;
+  const setMatchMedia = (value: unknown): void => {
+    (window as { matchMedia: unknown }).matchMedia = value;
+  };
+
+  afterEach(() => {
+    setMatchMedia(originalMatchMedia);
+    Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
+  });
+
+  it('notifies on ratio changes, re-arms for the new ratio, and stops when disposed', () => {
+    const queries: Array<{ media: string; listeners: Set<() => void> }> = [];
+    setMatchMedia((media: string) => {
+      const entry = { media, listeners: new Set<() => void>() };
+      queries.push(entry);
+      return {
+        media,
+        addEventListener: (_: string, l: () => void) => entry.listeners.add(l),
+        removeEventListener: (_: string, l: () => void) => entry.listeners.delete(l),
+      };
+    });
+    Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
+    const onChange = vi.fn();
+
+    const stop = watchDevicePixelRatio(onChange);
+    expect(queries[0].media).toBe('(resolution: 1dppx)');
+
+    // Browser zoom to 200%
+    Object.defineProperty(window, 'devicePixelRatio', { value: 2, configurable: true });
+    [...queries[0].listeners].forEach(l => {
+      l();
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(queries[0].listeners.size).toBe(0);
+    expect(queries[1].media).toBe('(resolution: 2dppx)');
+    expect(queries[1].listeners.size).toBe(1);
+
+    stop();
+    expect(queries[1].listeners.size).toBe(0);
+  });
+
+  it('is a no-op without matchMedia', () => {
+    setMatchMedia(undefined);
+    expect(() => {
+      watchDevicePixelRatio(() => {})();
+    }).not.toThrow();
   });
 });

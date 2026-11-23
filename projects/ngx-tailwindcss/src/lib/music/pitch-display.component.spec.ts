@@ -18,6 +18,24 @@ describe('TwPitchDisplayComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should draw the arc-style bend fill along the track from its top', () => {
+    const endPoint = (): number[] =>
+      (internals.pitchBendArcPath() as string).split(' ').slice(-2).map(Number);
+
+    component.setPitchBend(1);
+    expect(internals.pitchBendArcPath()).toMatch(/^M 50 5 A 40 40 0 0 1 /);
+    // Full bend ends at the track's right end (90, 45)
+    expect(endPoint()[0]).toBeCloseTo(90, 6);
+    expect(endPoint()[1]).toBeCloseTo(45, 6);
+
+    component.setPitchBend(-0.5);
+    expect(internals.pitchBendArcPath()).toMatch(/^M 50 5 A 40 40 0 0 0 /);
+    const [x, y] = endPoint();
+    // On the track circle (centre 50,45; radius 40), left of centre
+    expect(Math.hypot(x - 50, y - 45)).toBeCloseTo(40, 6);
+    expect(x).toBeLessThan(50);
+  });
+
   it('should keep local edits instead of reverting them to the input', () => {
     vi.useFakeTimers();
     try {

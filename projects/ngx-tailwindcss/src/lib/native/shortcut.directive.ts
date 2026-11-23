@@ -14,6 +14,21 @@ import { NativeAppPlatformService } from './platform.service';
 import { KeyboardShortcut } from './native.types';
 import { splitShortcut } from './shortcut-keys.util';
 
+/** Physical key (`KeyboardEvent.code`) of each unshifted US-layout punctuation key. */
+const PUNCTUATION_CODES: Record<string, string> = {
+  '-': 'Minus',
+  '=': 'Equal',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+  ';': 'Semicolon',
+  "'": 'Quote',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  '`': 'Backquote',
+};
+
 /**
  * Directive for binding keyboard shortcuts to actions
  *
@@ -210,6 +225,11 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
     // yields 'ß'), so fall back to the physical key code for letters and digits.
     if (/^[A-Z]$/.test(shortcut.key)) return event.code === `Key${shortcut.key}`;
     if (/^\d$/.test(shortcut.key)) return event.code === `Digit${shortcut.key}`;
-    return false;
+    // Likewise a requested Shift turns '/' into '?' (so `ctrl+shift+/` reports
+    // '?'). Only when Shift wasn't pressed unrequested, so `ctrl+/` still
+    // ignores Ctrl+Shift+/ ('?').
+    if (event.shiftKey && !shortcut.shift) return false;
+    const punctuationCode = PUNCTUATION_CODES[shortcut.key];
+    return punctuationCode !== undefined && event.code === punctuationCode;
   }
 }

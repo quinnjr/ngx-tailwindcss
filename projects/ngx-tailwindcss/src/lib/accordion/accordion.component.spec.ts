@@ -139,6 +139,18 @@ describe('TwAccordionComponent', () => {
       );
       expect(firstItemContent).toBeNull();
     });
+
+    it('should emit openChange(false) for an item closed by opening another', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      items[0].query(By.css('button')).nativeElement.click();
+      fixture.detectChanges();
+      expect(component.item1ChangeValue).toBe(true);
+
+      items[1].query(By.css('button')).nativeElement.click();
+      fixture.detectChanges();
+      // Keeps an `[(open)]` binding on the first item in sync
+      expect(component.item1ChangeValue).toBe(false);
+    });
   });
 
   describe('multiple mode (allowMultiple=true)', () => {

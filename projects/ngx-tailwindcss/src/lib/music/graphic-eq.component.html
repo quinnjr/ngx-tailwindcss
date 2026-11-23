@@ -294,11 +294,9 @@
       [class]="colors().label"
       [style.height.px]="sliderHeight()"
     >
-      <span>+{{ maxGain() }}</span>
-      <span class="opacity-50">+6</span>
-      <span>0</span>
-      <span class="opacity-50">-6</span>
-      <span>{{ minGain() }}</span>
+      @for (label of gainScaleLabels(); track $index; let odd = $odd) {
+        <span [class.opacity-50]="odd">{{ label }}</span>
+      }
     </div>
   </div>
 

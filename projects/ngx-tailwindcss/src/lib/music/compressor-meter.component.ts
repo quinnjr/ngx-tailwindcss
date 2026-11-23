@@ -6,6 +6,7 @@ import {
   ElementRef,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
   OnInit,
@@ -129,6 +130,14 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   readonly clipInput = output();
   readonly clipOutput = output();
 
+  // Level sources: follow the bound inputs, but a programmatic
+  // setInputLevel()/setOutputLevel()/setGainReduction() wins until the
+  // corresponding input changes again (instead of being overwritten by the
+  // unchanged input on the next 50 ms tick)
+  private readonly sourceInputLevel = linkedSignal(() => this.inputLevel());
+  private readonly sourceOutputLevel = linkedSignal(() => this.outputLevel());
+  private readonly sourceGainReduction = linkedSignal(() => this.gainReduction());
+
   // Internal state
   protected readonly internalInputLevel = signal(Number.NEGATIVE_INFINITY);
   protected readonly internalOutputLevel = signal(Number.NEGATIVE_INFINITY);
@@ -172,9 +181,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
 
   private updateLevels(): void {
     // NaN (e.g. an unparsable attribute) is treated as silence
-    const inputLevel = this.sanitizeLevel(this.inputLevel());
-    const outputLevel = this.sanitizeLevel(this.outputLevel());
-    const gr = Number.isFinite(this.gainReduction()) ? this.gainReduction() : 0;
+    const inputLevel = this.sanitizeLevel(this.sourceInputLevel());
+    const outputLevel = this.sanitizeLevel(this.sourceOutputLevel());
+    const rawGr = this.sourceGainReduction();
+    const gr = Number.isFinite(rawGr) ? rawGr : 0;
     const now = Date.now();
 
     this.internalInputLevel.set(inputLevel);
@@ -690,16 +700,22 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   }
 
   // Public methods
+  // Programmatic levels take precedence over the bound inputs until the input
+  // value changes; they are shown immediately and fed through the regular
+  // metering (peak hold, clip detection, GR history) on each tick.
   setInputLevel(level: number): void {
-    this.internalInputLevel.set(level);
+    this.sourceInputLevel.set(level);
+    this.internalInputLevel.set(this.sanitizeLevel(level));
   }
 
   setOutputLevel(level: number): void {
-    this.internalOutputLevel.set(level);
+    this.sourceOutputLevel.set(level);
+    this.internalOutputLevel.set(this.sanitizeLevel(level));
   }
 
   setGainReduction(gr: number): void {
-    this.internalGainReduction.set(gr);
+    this.sourceGainReduction.set(gr);
+    this.internalGainReduction.set(Number.isFinite(gr) ? gr : 0);
   }
 
   clearHistory(): void {

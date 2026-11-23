@@ -10,10 +10,11 @@ import {
   numberAttribute,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type VisualizerVariant = 'circular' | 'bars' | 'wave' | 'particles' | 'rings';
@@ -55,6 +56,7 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
 
   readonly analyserNode = input<AnalyserNode | undefined>(undefined);
   /** Render animated mock data when no analyser node is connected (for demos). */
@@ -119,6 +121,9 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
 

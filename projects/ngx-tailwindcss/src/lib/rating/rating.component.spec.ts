@@ -156,6 +156,15 @@ describe('TwRatingComponent', () => {
       component.rating.onStarClick(2, event);
       expect(component.onChangeSpy).toHaveBeenCalledWith(3);
     });
+
+    it('should select the whole star on keyboard activation (click with detail 0)', () => {
+      const star: HTMLButtonElement = ratingEl.queryAll(By.css('button[role="radio"]'))[2]
+        .nativeElement;
+      // Keyboard-triggered clicks report detail 0 and a clientX of 0 (left of the star)
+      vi.spyOn(star, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 0, 24, 24));
+      star.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0, clientX: 0 }));
+      expect(component.onChangeSpy).toHaveBeenCalledWith(3);
+    });
   });
 
   describe('keyboard interaction', () => {

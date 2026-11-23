@@ -176,15 +176,20 @@ export class TwShortcutsEditorComponent {
   }
 
   private findConflict(keys: string[]): ShortcutBinding | null {
-    // Sort a copy: sorting in place would reorder the recorded keys
-    const keysStr = [...keys].sort().join('+');
+    // Compare case-insensitively (a recorded 's' must clash with a stored
+    // 'S'), on sorted copies: sorting in place would reorder the recorded keys
+    const normalize = (list: string[]) =>
+      list
+        .map(key => key.toLowerCase())
+        .sort()
+        .join('+');
+    const keysStr = normalize(keys);
     const editingId = this.editingId();
 
     return (
       this.shortcuts().find(s => {
         if (s.id === editingId) return false;
-        const existingKeysStr = [...s.keys].sort().join('+');
-        return existingKeysStr === keysStr;
+        return normalize(s.keys) === keysStr;
       }) || null
     );
   }

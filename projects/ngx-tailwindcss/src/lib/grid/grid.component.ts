@@ -153,6 +153,17 @@ const GAP_Y_CLASSES: Record<GridGap, string> = {
     `
       :host {
         display: block;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],
@@ -251,6 +262,17 @@ export class TwGridComponent {
     `
       :host {
         display: block;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],

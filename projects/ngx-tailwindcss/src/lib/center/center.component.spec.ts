@@ -221,3 +221,40 @@ describe('TwCircleComponent', () => {
     expect(getInner().className).toContain('bg-purple-500');
   });
 });
+
+describe('TwCircleComponent static class attribute', () => {
+  it('does not paint a static background on the square host behind the circle', async () => {
+    @Component({
+      template: `<tw-circle size="48px" class="tw-test-fill"></tw-circle>`,
+      standalone: true,
+      imports: [TwCircleComponent],
+    })
+    class CircleStaticClassHostComponent {}
+
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-fill { background: blue; margin: 8px; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [CircleStaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(CircleStaticClassHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-circle')).nativeElement as HTMLElement;
+      const inner = host.querySelector('div') as HTMLElement;
+
+      expect(inner.className).toContain('rounded-full');
+      expect(inner.className).toContain('tw-test-fill');
+      const hostStyle = getComputedStyle(host);
+      expect(hostStyle.backgroundColor).not.toBe('rgb(0, 0, 255)');
+      expect(hostStyle.marginLeft).toBe('0px');
+      expect(getComputedStyle(inner).backgroundColor).toBe('rgb(0, 0, 255)');
+    } finally {
+      style.remove();
+    }
+  });
+});

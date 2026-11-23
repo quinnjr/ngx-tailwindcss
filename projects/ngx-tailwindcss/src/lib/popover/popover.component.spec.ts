@@ -111,6 +111,30 @@ describe('TwPopoverComponent', () => {
       expect(isPopoverVisible(component.popover)).toBe(false);
       expect(component.hideCount).toBe(1);
     });
+
+    it('should move focus into the opened popover and back to the trigger on hide()', () => {
+      vi.useFakeTimers();
+      try {
+        const trigger = popoverEl.querySelector<HTMLElement>('[twPopoverTrigger]')!;
+        trigger.focus();
+        trigger.click();
+        fixture.detectChanges();
+        // Animation frame (mocked as a timeout in the test setup)
+        vi.runAllTimers();
+
+        const action = document.querySelector<HTMLElement>(
+          '[role="dialog"] [data-testid="action"]'
+        )!;
+        expect(document.activeElement).toBe(action);
+
+        // e.g. a "Done" button in the content closing the popover
+        component.popover.hide();
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(trigger);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('live projected content', () => {

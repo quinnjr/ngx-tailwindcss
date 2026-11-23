@@ -12,11 +12,12 @@ import {
   numberAttribute,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { prepareHiDpiCanvas } from './canvas-hidpi';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type EQFilterType =
   'lowpass' | 'highpass' | 'bandpass' | 'lowshelf' | 'highshelf' | 'peaking' | 'notch';
@@ -99,6 +100,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private stopDprWatch: (() => void) | null = null;
 
   constructor() {
     // Redraw when any render-affecting input or interaction state changes.
@@ -224,12 +227,22 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
     this.requestDraw();
+    // The view is static without an analyser: redraw at the new resolution
+    // after browser zoom or a move to a screen with a different density
+    this.stopDprWatch = watchDevicePixelRatio(() => {
+      this.requestDraw();
+    });
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
@@ -688,18 +701,11 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   // Keyboard control for the focused band: arrows adjust gain (up/down) and
-  // frequency (left/right); Home/End jump gain to 0/max; Enter/Space toggle
-  // the band on/off (the keyboard equivalent of double-click)
+  // frequency (left/right); Home/End jump gain to 0/max. Enter/Space keep the
+  // native button behaviour (select, same as a click); enabling/disabling has
+  // its own switch so keyboard, mouse and screen readers all agree.
   protected onBandKeydown(event: KeyboardEvent, band: EQBand): void {
     if (!this.interactive()) return;
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      // Suppress the synthesized click; toggling is the keyboard action here
-      event.preventDefault();
-      this.selectedBandId.set(band.id);
-      this.toggleBand(band);
-      return;
-    }
 
     const freqFactor = event.shiftKey ? 2 ** (1 / 3) : 2 ** (1 / 12); // major third / semitone
     let updatedBand: EQBand | null = null;
@@ -751,11 +757,19 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     this.bandChange.emit({ band: updatedBand, property });
   }
 
+  private bandFrequencyLabel(band: EQBand): string {
+    return band.frequency >= 1000
+      ? `${(band.frequency / 1000).toFixed(1)} kilohertz`
+      : `${Math.round(band.frequency)} hertz`;
+  }
+
+  /** Accessible name of a band's enable switch (its state is exposed via aria-checked) */
+  protected bandToggleLabel(band: EQBand): string {
+    return `Enable EQ band at ${this.bandFrequencyLabel(band)}`;
+  }
+
   protected bandAriaLabel(band: EQBand): string {
-    const freqLabel =
-      band.frequency >= 1000
-        ? `${(band.frequency / 1000).toFixed(1)} kilohertz`
-        : `${Math.round(band.frequency)} hertz`;
+    const freqLabel = this.bandFrequencyLabel(band);
     const gainLabel = `${band.gain > 0 ? '+' : ''}${band.gain.toFixed(1)} dB`;
     return `EQ band at ${freqLabel}, ${gainLabel}${band.enabled ? '' : ', disabled'}`;
   }

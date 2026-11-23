@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-popover` with `trigger="click"`/`"manual"` uses dialog semantics
   (`role="dialog"`, trigger `aria-haspopup`/`aria-expanded`/`aria-controls`);
   `hover`/`focus` popovers keep `role="tooltip"` with `aria-describedby`
+- `tw-chord-diagram` fingering `fret` values are absolute fret numbers: with
+  `baseFret: 5`, a barre on the 5th fret is `fret: 5` (previously `fret: 1`,
+  relative to `baseFret`). Fingerings outside the shown fret window are not drawn
+- `NoteData.accidental` is the accidental _written_ in front of the note, as in
+  standard notation: a note without one takes its pitch from the key signature
+  and earlier accidentals in the measure (in G major an F sounds F♯; write
+  `'natural'` for F♮). Rendering, playback/export, transposition and imports
+  follow these semantics
 - Boolean inputs on `tw-stack` (`wrap`, `fullWidth`), `tw-hstack` (`wrap`),
   `tw-progress` (`showValue`, `striped`, `animated`, `indeterminate`) and
   `tw-progress-circular` (`showValue`, `indeterminate`) accept bare attributes
@@ -53,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-bleed` `customAmount` accepts `var(...)`/`calc(...)` values (negative
   margins are built with `calc(-1 * ...)` instead of an invalid `-` prefix)
 - `tw-progress` uses its `label` as the progressbar's accessible name
+- Layout components that forward `class` to an inner element (`tw-grid`,
+  `tw-simple-grid`, `tw-stack`, `tw-vstack`, `tw-hstack`, `tw-columns`,
+  `tw-container`, `tw-center`, `tw-square`, `tw-circle`, `tw-bleed`,
+  `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer paint a static `class`
+  twice: padding, borders, backgrounds, shadows, opacity and transforms apply
+  only to the inner element (`tw-circle` backgrounds are no longer square)
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs

@@ -228,6 +228,17 @@ export class TwPitchDisplayComponent {
     return this.internalPitchBend() * 90;
   });
 
+  // Fill arc for the arc-style display: runs along the track (centre 50,45,
+  // radius 40) from its top (50,5) to the current bend angle
+  protected readonly pitchBendArcPath = computed(() => {
+    const bend = this.internalPitchBend();
+    const angle = (bend * Math.PI) / 2;
+    const x = 50 + 40 * Math.sin(angle);
+    const y = 45 - 40 * Math.cos(angle);
+    // Positive bends sweep clockwise (to the right), negative counter-clockwise
+    return `M 50 5 A 40 40 0 0 ${bend > 0 ? 1 : 0} ${x} ${y}`;
+  });
+
   // Color indicator based on pitch direction
   protected readonly pitchDirectionClass = computed(() => {
     const total = this.totalCents();

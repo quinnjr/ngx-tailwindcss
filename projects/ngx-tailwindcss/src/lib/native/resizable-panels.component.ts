@@ -123,6 +123,9 @@ export class TwResizablePanelsComponent {
   });
 
   public startResize(event: MouseEvent | TouchEvent): void {
+    // The collapse buttons sit inside the handle: preventing a touchstart on
+    // them would suppress their click, so they never start a resize
+    if ((event.target as Element | null)?.closest?.('button')) return;
     event.preventDefault();
     this.isResizing.set(true);
 

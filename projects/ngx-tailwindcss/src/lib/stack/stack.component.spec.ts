@@ -185,3 +185,49 @@ describe('Stack bare boolean attributes', () => {
     expect(hstack.className).toContain('flex-wrap');
   });
 });
+
+describe('Stack static class attribute', () => {
+  it('forwards a static class to the inner element without painting it on the host too', async () => {
+    @Component({
+      template: `<tw-hstack class="tw-test-box p-4 extra"><div>Item</div></tw-hstack>`,
+      standalone: true,
+      imports: [TwHStackComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes defined by the app's stylesheet
+    const style = document.createElement('style');
+    style.textContent =
+      '.tw-test-box { padding: 16px; border: 2px solid red; background: red; opacity: 0.5; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
+      const inner = host.querySelector('div') as HTMLElement;
+
+      // Angular keeps the static class on the host as well as passing it to the input
+      expect(host.classList.contains('tw-test-box')).toBe(true);
+      expect(inner.className).toContain('tw-test-box');
+      expect(inner.className).toContain('p-4');
+
+      const hostStyle = getComputedStyle(host);
+      expect(hostStyle.paddingTop).toBe('0px');
+      expect(hostStyle.borderTopWidth).toBe('0px');
+      expect(hostStyle.opacity).toBe('1');
+
+      const innerStyle = getComputedStyle(inner);
+      expect(innerStyle.paddingTop).toBe('16px');
+      expect(innerStyle.borderTopWidth).toBe('2px');
+    } finally {
+      style.remove();
+    }
+  });
+});

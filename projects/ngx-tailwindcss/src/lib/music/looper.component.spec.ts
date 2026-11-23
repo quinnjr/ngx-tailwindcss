@@ -18,6 +18,18 @@ describe('TwLooperComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should contain the count-in overlay within the looper (positioned container)', () => {
+    internals.isCountingIn.set(true);
+    internals.countInBeat.set(1);
+    fixture.detectChanges();
+
+    const container = fixture.nativeElement.firstElementChild as HTMLElement;
+    const overlay = container.querySelector<HTMLElement>('.absolute.inset-0')!;
+    expect(overlay).toBeTruthy();
+    expect(overlay.parentElement).toBe(container);
+    expect(container.classList).toContain('relative');
+  });
+
   it('should enable redo after an undo (canRedo is reactive)', () => {
     internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
     expect(internals.canRedo()).toBe(false);

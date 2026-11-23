@@ -83,8 +83,11 @@ export class TwAccordionItemComponent {
     this.openChange.emit(this._open());
   }
 
-  setOpen(open: boolean): void {
+  setOpen(open: boolean, emit = false): void {
+    if (this._open() === open) return;
     this._open.set(open);
+    // Notify `[(open)]` bindings when the change is not driven by the parent's input
+    if (emit) this.openChange.emit(open);
   }
 
   getValue(): string {
@@ -203,7 +206,7 @@ export class TwAccordionComponent implements AfterContentInit {
           if (isOpen && !this._allowMultiple()) {
             this.items.forEach(other => {
               if (other !== item) {
-                other.setOpen(false);
+                other.setOpen(false, true);
               }
             });
           }

@@ -7,7 +7,7 @@
   <!-- Panel 1 -->
   <div
     [class]="panelClasses(0)"
-    [style.flex-basis]="panel1Collapsed() ? '0%' : panel1Size() + '%'"
+    [style.flex-basis]="panel1Collapsed() ? '0%' : panel2Collapsed() ? '100%' : panel1Size() + '%'"
     [class.hidden]="panel1Collapsed()"
   >
     <ng-content select="[panel1]"></ng-content>
@@ -84,7 +84,7 @@
   <!-- Panel 2 -->
   <div
     [class]="panelClasses(1)"
-    [style.flex-basis]="panel2Collapsed() ? '0%' : panel2Size() + '%'"
+    [style.flex-basis]="panel2Collapsed() ? '0%' : panel1Collapsed() ? '100%' : panel2Size() + '%'"
     [class.hidden]="panel2Collapsed()"
   >
     <ng-content select="[panel2]"></ng-content>

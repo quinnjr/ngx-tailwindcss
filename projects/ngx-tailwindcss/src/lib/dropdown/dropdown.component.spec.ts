@@ -421,3 +421,65 @@ describe('TwDropdownComponent inside a modal', () => {
     fixture.destroy();
   });
 });
+
+@Component({
+  template: `
+    <tw-dropdown>
+      <button twDropdownTrigger class="dd-trigger">Actions</button>
+      <tw-dropdown-menu>
+        <button twDropdownItem class="dd-edit" (click)="modalOpen.set(true)">Edit</button>
+      </tw-dropdown-menu>
+    </tw-dropdown>
+    <tw-modal [open]="modalOpen()" (openChange)="modalOpen.set($event)">
+      <button class="modal-btn">Save</button>
+    </tw-modal>
+  `,
+  standalone: true,
+  imports: [
+    TwModalComponent,
+    TwDropdownComponent,
+    TwDropdownItemDirective,
+    TwDropdownMenuComponent,
+    TwDropdownTriggerDirective,
+  ],
+})
+class DropdownOpensModalHostComponent {
+  modalOpen = signal(false);
+}
+
+describe('TwDropdownComponent item opening a modal', () => {
+  it('should return focus to the dropdown trigger (not the hidden item) when the modal closes', async () => {
+    vi.useFakeTimers();
+    try {
+      await TestBed.configureTestingModule({
+        imports: [DropdownOpensModalHostComponent, NoopAnimationsModule],
+        providers: [TwClassService],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(DropdownOpensModalHostComponent);
+      fixture.detectChanges();
+
+      const ddTrigger = document.querySelector<HTMLElement>('.dd-trigger')!;
+      ddTrigger.click();
+      fixture.detectChanges();
+      const item = document.querySelector<HTMLElement>('.dd-edit')!;
+      item.focus();
+      expect(document.activeElement).toBe(item);
+
+      // Keyboard activation of the item opens the modal
+      item.click();
+      fixture.detectChanges();
+      vi.runAllTimers();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.modalOpen()).toBe(true);
+
+      fixture.componentInstance.modalOpen.set(false);
+      fixture.detectChanges();
+      vi.runAllTimers();
+
+      expect(document.activeElement).toBe(ddTrigger);
+      fixture.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

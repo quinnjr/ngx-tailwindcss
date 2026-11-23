@@ -11,12 +11,16 @@ import { KeyboardShortcutEvent, TwKeyboardShortcutDirective } from './keyboard-s
     <div twKeyboardShortcut="ctrl+s" (shortcutPressed)="onCtrlS($event)" data-testid="ctrl-host">
       Press ctrl+s
     </div>
+    <div twKeyboardShortcut="ctrl++" (shortcutPressed)="plusCount = plusCount + 1">Zoom in</div>
+    <div twKeyboardShortcut="?" (shortcutPressed)="helpCount = helpCount + 1">Help</div>
   `,
   standalone: true,
   imports: [TwKeyboardShortcutDirective],
 })
 class TestHostComponent {
   cmdKCount = 0;
+  plusCount = 0;
+  helpCount = 0;
   ctrlSCount = 0;
   lastEvent: KeyboardShortcutEvent | null = null;
 
@@ -47,6 +51,29 @@ describe('TwKeyboardShortcutDirective', () => {
 
   it('should create the directive', () => {
     expect(fixture.componentInstance).toBeTruthy();
+  });
+
+  it('should bind `ctrl++` to the plus key, including Shift+= on US layouts', () => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '+', ctrlKey: true, shiftKey: true })
+    );
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '+', ctrlKey: true }));
+
+    expect(component.plusCount).toBe(2);
+  });
+
+  it('should fire a shifted-symbol shortcut such as `?` while Shift is held', () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true }));
+
+    expect(component.helpCount).toBe(1);
+  });
+
+  it('should still require exact Shift state for letter shortcuts', () => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'S', ctrlKey: true, shiftKey: true })
+    );
+
+    expect(component.ctrlSCount).toBe(0);
   });
 
   it('should fire a cmd shortcut when the meta key is pressed', () => {

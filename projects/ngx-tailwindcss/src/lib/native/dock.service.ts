@@ -1,4 +1,4 @@
-import { inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
@@ -9,6 +9,7 @@ import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 })
 export class DockService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly ngZone = inject(NgZone);
 
   public readonly isSupported = signal(false);
 
@@ -197,7 +198,10 @@ export class DockService implements OnDestroy {
         ipcRenderer,
         'dock-menu-click',
         (_event: unknown, id: unknown) => {
-          this.electronMenuActions.get(String(id))?.();
+          // IPC callbacks arrive outside Angular's zone; run the action inside
+          // it so state it changes is rendered (as NativeIpcService.on does)
+          const action = this.electronMenuActions.get(String(id));
+          if (action) this.ngZone.run(action);
         }
       );
       this.electronMenuListenerRegistered = true;

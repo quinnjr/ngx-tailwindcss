@@ -50,9 +50,12 @@ export class TwQuickSwitcherComponent {
   public readonly selectedIndex = signal(0);
 
   public readonly recentItems = computed(() => {
-    const ids = this.recentItemIds();
-    return this.items()
-      .filter(item => ids.includes(item.id))
+    // Keep `recentItemIds` order (most recent first), not `items` order, so
+    // the five shown are the five most recent
+    const byId = new Map(this.items().map(item => [item.id, item]));
+    return this.recentItemIds()
+      .map(id => byId.get(id))
+      .filter((item): item is QuickSwitcherItem => item !== undefined)
       .slice(0, 5);
   });
 

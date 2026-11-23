@@ -7,7 +7,10 @@ import {
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwFocusTrapDirective } from '../directives';
 import { AlertDialogType } from './native.types';
+
+let nextConfirmDialogId = 0;
 
 /**
  * Confirmation dialog component
@@ -28,7 +31,7 @@ import { AlertDialogType } from './native.types';
 @Component({
   selector: 'tw-native-confirm-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   templateUrl: './confirm-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -36,6 +39,10 @@ import { AlertDialogType } from './native.types';
   },
 })
 export class TwNativeConfirmDialogComponent {
+  /** Unique ids so several dialogs on a page don't share aria targets. */
+  protected readonly titleId = `tw-confirm-dialog-title-${nextConfirmDialogId}`;
+  protected readonly messageId = `tw-confirm-dialog-message-${nextConfirmDialogId++}`;
+
   // Inputs
   public readonly open = input(false);
   public readonly title = input('Confirm');

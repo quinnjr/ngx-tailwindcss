@@ -1,7 +1,7 @@
 import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialSize, DialVariant, TwVolumeDialComponent } from './volume-dial.component';
 import { TwClassService } from '../core/tw-class.service';
 
@@ -43,6 +43,50 @@ class TestHostComponent {
   onValueChange(value: number): void {
     this.valueChanges.push(value);
   }
+}
+
+interface FakeTouch {
+  identifier: number;
+  clientX: number;
+  clientY: number;
+}
+/** A DOMRect at the origin with the given size */
+function rect(width: number, height: number): DOMRect {
+  const r = { x: 0, y: 0, left: 0, top: 0, width, height, right: width, bottom: height };
+  return { ...r, toJSON: () => r };
+}
+
+function touchEvent(
+  type: string,
+  touches: FakeTouch[],
+  changedTouches: FakeTouch[] = touches
+): TouchEvent {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    touches: { value: touches },
+    targetTouches: { value: changedTouches },
+    changedTouches: { value: changedTouches },
+  });
+  return event as TouchEvent;
+}
+
+/**
+ * Capture document listeners (jsdom's AbortSignal does not mix with zone.js-patched
+ * document listeners) so drag handlers can be driven directly.
+ */
+function captureDocumentListeners(): Record<string, (e: Event) => void> {
+  const listeners: Record<string, (e: Event) => void> = {};
+  vi.spyOn(document, 'addEventListener').mockImplementation(((
+    type: string,
+    listener: (e: Event) => void,
+    options?: AddEventListenerOptions
+  ) => {
+    // Honour AbortController-based removal
+    listeners[type] = e => {
+      if (!options?.signal?.aborted) listener(e);
+    };
+  }) as typeof document.addEventListener);
+  return listeners;
 }
 
 describe('TwVolumeDialComponent', () => {
@@ -280,6 +324,37 @@ describe('TwVolumeDialComponent', () => {
     it('should have circle element for the knob', () => {
       const circles = svgEl.querySelectorAll('circle');
       expect(circles.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('multi-touch', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should follow only the finger that started the drag', () => {
+      const doc = captureDocumentListeners();
+      component.value.set(0);
+      fixture.detectChanges();
+      svgEl.getBoundingClientRect = (): DOMRect => rect(100, 100);
+
+      const other = { identifier: 1, clientX: 0, clientY: 50 }; // holding another control
+      const own = { identifier: 2, clientX: 50, clientY: 0 }; // lands at 12 o'clock
+      svgEl.dispatchEvent(touchEvent('touchstart', [other, own], [own]));
+
+      // Own finger rotates 90 degrees clockwise; the other finger sits at 9 o'clock
+      doc['touchmove'](touchEvent('touchmove', [other, { ...own, clientX: 100, clientY: 50 }]));
+      fixture.detectChanges();
+      expect(component.dial.value()).toBe(33);
+
+      // The other finger lifting must not end this drag
+      doc['touchend'](touchEvent('touchend', [own], [other]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientX: 50, clientY: 100 }]));
+      expect(component.dial.value()).toBe(67);
+
+      doc['touchend'](touchEvent('touchend', [], [own]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientX: 0, clientY: 50 }]));
+      expect(component.dial.value()).toBe(67);
     });
   });
 });

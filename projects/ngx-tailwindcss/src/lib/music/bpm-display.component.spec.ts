@@ -86,4 +86,15 @@ describe('TwBpmDisplayComponent', () => {
 
     expect(host.changes).toEqual([]);
   });
+
+  it('should give the icon-only step buttons an accessible name', () => {
+    const decrease = el.querySelector<HTMLButtonElement>('button[aria-label="Decrease BPM"]')!;
+    const increase = el.querySelector<HTMLButtonElement>('button[aria-label="Increase BPM"]')!;
+
+    increase.click();
+    decrease.click();
+    decrease.click();
+
+    expect(host.changes).toEqual([121, 120, 119]);
+  });
 });

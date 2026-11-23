@@ -82,6 +82,12 @@ export function parseMusicXML(xmlString: string): SheetMusicData | null {
     if (!part) return null;
 
     const measures: MeasureData[] = [];
+    // The score-level clef/key/time/tempo are those at the start of the piece; later changes
+    // are recorded on the measures where they happen
+    let initial = null as Pick<
+      SheetMusicData,
+      'clef' | 'keySignature' | 'timeSignature' | 'tempo'
+    > | null;
     let currentClef: ClefType = 'treble';
     let currentKey: KeySignature = 'C';
     let currentTime: StaffTimeSignature = '4/4';
@@ -188,6 +194,12 @@ export function parseMusicXML(xmlString: string): SheetMusicData | null {
         });
       });
 
+      initial ??= {
+        clef: currentClef,
+        keySignature: currentKey,
+        timeSignature: currentTime,
+        tempo: currentTempo,
+      };
       measures.push({
         notes,
         timeSignature: measureIndex === 0 ? currentTime : undefined,
@@ -199,10 +211,10 @@ export function parseMusicXML(xmlString: string): SheetMusicData | null {
     return {
       title: workTitle || movementTitle || 'Untitled',
       composer: creator,
-      clef: currentClef,
-      keySignature: currentKey,
-      timeSignature: currentTime,
-      tempo: currentTempo,
+      clef: initial?.clef ?? currentClef,
+      keySignature: initial?.keySignature ?? currentKey,
+      timeSignature: initial?.timeSignature ?? currentTime,
+      tempo: initial?.tempo ?? currentTempo,
       measures,
     };
   } catch (error) {
@@ -284,8 +296,10 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
     let defaultNoteLength = 1 / 8; // L:1/8 is the common default (fraction of a whole note)
     const measures: MeasureData[] = [];
 
-    // Parse header fields
-    for (const line of lines) {
+    // Header fields end at the first K: line; K:/L: lines in the body change the key / unit
+    // note length from that point on
+    const headerEnd = lines.findIndex(line => line.startsWith('K:'));
+    for (const line of headerEnd === -1 ? lines : lines.slice(0, headerEnd + 1)) {
       if (line.startsWith('T:')) {
         title = line.slice(2).trim();
       } else if (line.startsWith('C:')) {
@@ -302,49 +316,49 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
         else timeSignature = meter as StaffTimeSignature;
       } else if (line.startsWith('K:')) {
         // Key: K:C, K:G, K:Dm, K:F#m
-        const key = line.slice(2).trim();
-        keySignature = abcKeyToKeySignature(key);
+        keySignature = abcKeyToKeySignature(line.slice(2).trim());
       } else if (line.startsWith('L:')) {
-        // Default note length: L:1/8, L:1/4
-        const lengthMatch = /^(\d+)\/(\d+)$/.exec(line.slice(2).trim());
-        if (lengthMatch && Number(lengthMatch[2]) > 0) {
-          defaultNoteLength = Number(lengthMatch[1]) / Number(lengthMatch[2]);
-        }
+        defaultNoteLength = parseABCUnitLength(line, defaultNoteLength);
       }
     }
 
-    // Find music body (after header)
-    let musicBody = '';
-    let inBody = false;
-    for (const line of lines) {
+    // Music body (after the header). Bar lines may come at the end of a line or later.
+    let currentKey = keySignature;
+    let pendingKey: KeySignature | undefined;
+    let notes: NoteData[] = [];
+    const endMeasure = (): void => {
+      if (notes.length > 0) {
+        measures.push({ notes, ...(pendingKey ? { keySignature: pendingKey } : {}) });
+        pendingKey = undefined;
+      }
+      notes = [];
+    };
+    for (const line of headerEnd === -1 ? [] : lines.slice(headerEnd + 1)) {
       if (line.startsWith('K:')) {
-        inBody = true;
+        // Key change: applies from the next measure
+        const key = abcKeyToKeySignature(line.slice(2).trim());
+        pendingKey = key === currentKey ? undefined : key;
+        currentKey = key;
         continue;
       }
-      // Skip comments and inline field lines such as lyrics (w:) or voice (V:)
-      if (inBody && !line.startsWith('%') && !/^[A-Za-z]:/.test(line) && line.length > 0) {
-        musicBody += `${line} `;
+      if (line.startsWith('L:')) {
+        defaultNoteLength = parseABCUnitLength(line, defaultNoteLength);
+        continue;
       }
-    }
+      // Skip comments and other field lines such as lyrics (w:) or voice (V:)
+      if (line.startsWith('%') || /^[A-Za-z]:/.test(line) || line.length === 0) continue;
 
-    // Parse music body
-    const measureStrings = musicBody.split('|').filter(m => m.trim().length > 0);
-
-    for (const measureStr of measureStrings) {
-      const notes: NoteData[] = [];
-      const tokens = tokenizeABC(measureStr.trim());
-
-      for (const token of tokens) {
-        const noteData = parseABCNote(token, defaultNoteLength);
-        if (noteData) {
-          notes.push(noteData);
+      for (const [index, segment] of line.split('|').entries()) {
+        if (index > 0) endMeasure();
+        for (const token of tokenizeABC(segment.trim())) {
+          const noteData = parseABCNote(token, defaultNoteLength);
+          if (noteData) {
+            notes.push(noteData);
+          }
         }
       }
-
-      if (notes.length > 0) {
-        measures.push({ notes });
-      }
     }
+    endMeasure();
 
     return {
       title: title || 'Untitled',
@@ -597,6 +611,14 @@ function parseABCNote(token: string, defaultLength: number): NoteData | null {
   };
 }
 
+// L: field (unit note length), e.g. L:1/8; `fallback` when malformed
+function parseABCUnitLength(line: string, fallback: number): number {
+  const lengthMatch = /^(\d+)\/(\d+)$/.exec(line.slice(2).trim());
+  return lengthMatch && Number(lengthMatch[2]) > 0
+    ? Number(lengthMatch[1]) / Number(lengthMatch[2])
+    : fallback;
+}
+
 // ABC length modifier: '2' = x2, '/2' or '/' = x1/2, '//' = x1/4, '3/2' or '3/' = x3/2
 function parseABCLengthMultiplier(mod: string): number {
   const match = /^(\d*)(\/*)(\d*)$/.exec(mod);
@@ -636,6 +658,34 @@ function abcLengthToDuration(length: number): {
     dotted: false,
     doubleDotted: false,
   };
+}
+
+/** Key signature in effect in each measure (a measure's `keySignature` carries forward) */
+export function getMeasureKeySignatures(music: SheetMusicData): KeySignature[] {
+  let key = music.keySignature;
+  return music.measures.map(measure => (key = measure.keySignature ?? key));
+}
+
+/**
+ * Re-spell one measure's notes, written under `fromKey`, for display under `toKey` without
+ * changing what they sound (see NoteData.accidental): accidentals are added where `toKey`
+ * would otherwise alter a note and dropped where it implies them. Explicit accidentals are
+ * kept. Returns `notes` itself when the keys are the same.
+ */
+export function respellNotesForKey(
+  notes: NoteData[],
+  fromKey: KeySignature,
+  toKey: KeySignature
+): NoteData[] {
+  if (fromKey === toKey) return notes;
+  const source = createAccidentalContext(fromKey);
+  const target = createAccidentalContext(toKey);
+  return notes.map(note => {
+    if (note.isRest) return note;
+    const written = target.spell(note.name, note.octave, source.resolve(note));
+    if (note.accidental || written === null) return note;
+    return { ...note, accidental: written };
+  });
 }
 
 // Sample music for demo
@@ -790,13 +840,34 @@ export class TwSheetMusicComponent {
     return Math.ceil(measures / perLine);
   });
 
+  // Key signature drawn on each line: the one in effect at the line's first measure
+  protected readonly lineKeys = computed(() => {
+    const keys = getMeasureKeySignatures(this.musicData());
+    const perLine = this.measuresPerLine();
+    const lineKeys: KeySignature[] = [];
+    for (let i = 0; i < keys.length; i += perLine) {
+      lineKeys.push(keys[i]);
+    }
+    return lineKeys;
+  });
+
+  // Measures of each line. A key change inside a line is not drawn, so the notes of such
+  // measures are re-spelled for the line's key signature (they sound the same)
   protected readonly lines = computed(() => {
     const music = this.musicData();
+    const keys = getMeasureKeySignatures(music);
+    const lineKeys = this.lineKeys();
     const perLine = this.measuresPerLine();
     const lines: MeasureData[][] = [];
 
     for (let i = 0; i < music.measures.length; i += perLine) {
-      lines.push(music.measures.slice(i, i + perLine));
+      const lineKey = lineKeys[lines.length];
+      lines.push(
+        music.measures.slice(i, i + perLine).map((measure, j) => {
+          const notes = respellNotesForKey(measure.notes, keys[i + j], lineKey);
+          return notes === measure.notes ? measure : { ...measure, notes };
+        })
+      );
     }
 
     return lines;
@@ -894,7 +965,7 @@ export class TwSheetMusicComponent {
     return getStaffLayout({
       width: this.width(),
       measures: measureCount,
-      keySignature: music.keySignature,
+      keySignature: this.lineKeys()[lineIndex] ?? music.keySignature,
       showKeySignature: true,
       showTimeSignature: showHeader && !!music.timeSignature,
     });
@@ -931,7 +1002,9 @@ export class TwSheetMusicComponent {
 
   protected onNoteClick(measureIndex: number, noteIndex: number, note: NoteData): void {
     if (!this.interactive()) return;
-    this.noteClick.emit({ measure: measureIndex, noteIndex, note });
+    // Emit the note as given in the input data (the displayed one may be re-spelled)
+    const original = this.musicData().measures[measureIndex]?.notes[noteIndex] ?? note;
+    this.noteClick.emit({ measure: measureIndex, noteIndex, note: original });
   }
 
   protected onMeasureClick(measureIndex: number): void {

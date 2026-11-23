@@ -76,6 +76,8 @@
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() <= minBpm()"
         (click)="incrementBpm(-step())"
+        aria-label="Decrease BPM"
+        title="Decrease BPM"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path>
@@ -127,6 +129,8 @@
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() >= maxBpm()"
         (click)="incrementBpm(step())"
+        aria-label="Increase BPM"
+        title="Increase BPM"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>

@@ -8,6 +8,7 @@ import {
   TwSheetMusicComponent,
 } from './sheet-music.component';
 import { TwNoteComponent } from './note.component';
+import { TwStaffComponent } from './staff.component';
 
 describe('parseABCNotation', () => {
   it('ignores quoted chord symbols and lyric lines', () => {
@@ -196,5 +197,57 @@ describe('parseMusicXML accidentals', () => {
   it('keeps an explicit courtesy accidental', () => {
     const parsed = parseMusicXML(xml(pitch('F', 1, '<accidental>sharp</accidental>')))!;
     expect(parsed.measures[0].notes[0].accidental).toBe('sharp');
+  });
+});
+
+describe('key changes', () => {
+  it('parseMusicXML keeps the opening key/time/clef at score level and the change on its measure', () => {
+    const parsed = parseMusicXML(
+      `<?xml version="1.0"?><score-partwise><part-list/><part id="P1">
+        <measure number="1"><attributes><key><fifths>1</fifths></key>
+          <time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+          <note><pitch><step>C</step><octave>5</octave></pitch><type>quarter</type></note></measure>
+        <measure number="2"><attributes><key><fifths>2</fifths></key>
+          <time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+          <note><pitch><step>C</step><alter>1</alter><octave>5</octave></pitch><type>quarter</type></note></measure>
+      </part></score-partwise>`
+    )!;
+    expect(parsed.keySignature).toBe('G');
+    expect(parsed.timeSignature).toBe('3/4');
+    expect(parsed.measures[1].keySignature).toBe('D');
+    // C natural in G and C# in D: neither needs a written accidental
+    expect(parsed.measures.map(m => m.notes[0].accidental)).toEqual([null, null]);
+  });
+
+  it('parseABCNotation applies a K: line in the body from the next measure on', () => {
+    const parsed = parseABCNotation(
+      ['X:1', 'L:1/4', 'K:G', 'c4|', 'K:D', 'L:1/8', 'c8|'].join('\n')
+    )!;
+    expect(parsed.keySignature).toBe('G');
+    expect(parsed.measures.map(m => m.keySignature)).toEqual([undefined, 'D']);
+    expect(parsed.measures.map(m => m.notes[0].duration)).toEqual(['whole', 'whole']);
+  });
+
+  it('re-spells notes after a key change inside a line and starts later lines in the new key', () => {
+    const fixture = TestBed.createComponent(TwSheetMusicComponent);
+    const c5 = { name: 'C', octave: 5, duration: 'whole' } as const;
+    fixture.componentRef.setInput('music', {
+      clef: 'treble',
+      keySignature: 'G',
+      timeSignature: '4/4',
+      // Measure 2 changes to D major: its unmarked C sounds C#
+      measures: [{ notes: [c5] }, { keySignature: 'D', notes: [c5] }, { notes: [c5] }],
+    } satisfies SheetMusicData);
+    fixture.componentRef.setInput('measuresPerLine', 2);
+    fixture.detectChanges();
+    const accidentals = fixture.debugElement
+      .queryAll(By.directive(TwNoteComponent))
+      .map(d => (d.componentInstance as { accidental: () => string | null }).accidental());
+    // Line 1 is drawn in G: the C# needs a sharp. Line 2 is drawn in D: no accidental.
+    expect(accidentals).toEqual([null, 'sharp', null]);
+    const staffKeys = fixture.debugElement
+      .queryAll(By.directive(TwStaffComponent))
+      .map(d => (d.componentInstance as { keySignature: () => string }).keySignature());
+    expect(staffKeys).toEqual(['G', 'D']);
   });
 });

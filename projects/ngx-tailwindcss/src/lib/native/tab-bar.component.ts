@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   ElementRef,
+  HostListener,
   inject,
   input,
   output,
@@ -61,9 +62,34 @@ export class TwTabBarComponent {
   public readonly closeAll = output();
   public readonly closeOthers = output<string>(); // ID of tab to keep
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   // State
   protected readonly overflowMenuOpen = signal(false);
   private draggedTabIndex: number | null = null;
+
+  /** Close the overflow menu on a click outside it (like the other menus). */
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.overflowMenuOpen()) return;
+    const menu = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
+    if (!menu?.contains(event.target as Node)) {
+      this.overflowMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    this.overflowMenuOpen.set(false);
+  }
+
+  /**
+   * A drag that ends without a drop on a tab (cancelled, or dropped elsewhere)
+   * must not leave a stale index behind for a later, unrelated drop.
+   */
+  protected onDragEnd(): void {
+    this.draggedTabIndex = null;
+  }
 
   // Computed classes
   protected readonly containerClasses = computed(() => {

@@ -44,4 +44,27 @@ describe('TwScrubberComponent', () => {
 
     expect(seeks).toEqual([200]);
   });
+
+  it('should not clip the thumb or the hover time preview with the track', () => {
+    const track = slider();
+    track.dispatchEvent(new MouseEvent('mousemove', { clientX: 0 }));
+    fixture.detectChanges();
+    const preview = track.querySelector<HTMLElement>('div[class*="-top-8"]')!;
+    expect(preview).toBeTruthy();
+
+    // No element between the preview and the track (inclusive) may clip it
+    for (let node: HTMLElement | null = preview; node; node = node.parentElement) {
+      expect(node.classList).not.toContain('overflow-hidden');
+      if (node === track) break;
+    }
+  });
+
+  it('should reveal the youtube thumb when hovering the track', () => {
+    fixture.componentRef.setInput('variant', 'youtube');
+    fixture.detectChanges();
+
+    expect(slider().classList).toContain('group');
+    const thumb = slider().querySelector<HTMLElement>('.bg-red-600.rounded-full')!;
+    expect(thumb.classList).toContain('group-hover:opacity-100');
+  });
 });

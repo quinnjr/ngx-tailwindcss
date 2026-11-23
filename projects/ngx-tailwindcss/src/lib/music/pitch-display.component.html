@@ -282,14 +282,7 @@
               <!-- Fill arc -->
               @if (internalPitchBend() !== 0) {
                 <path
-                  [attr.d]="
-                    'M 50 45 A 40 40 0 0 ' +
-                    (internalPitchBend() > 0 ? '1' : '0') +
-                    ' ' +
-                    (50 + internalPitchBend() * 40) +
-                    ' ' +
-                    (45 - Math.abs(internalPitchBend()) * 20)
-                  "
+                  [attr.d]="pitchBendArcPath()"
                   fill="none"
                   [attr.stroke]="
                     internalPitchBend() > 0 ? 'rgb(251, 191, 36)' : 'rgb(59, 130, 246)'

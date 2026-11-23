@@ -1,6 +1,7 @@
 import {
   computed,
   Directive,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -94,6 +95,21 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
 
   private ccUnsubscribe: (() => void) | null = null;
   private learnUnsubscribe: (() => void) | null = null;
+  // Learn started by this control that has neither completed nor been
+  // reported as cancelled yet
+  private learnPending = false;
+
+  constructor() {
+    // Learn mode can also end without completing outside this directive: the
+    // service timeout, or another control starting its own learn. Report that
+    // as a cancel so consumers do not stay stuck in a "learning" UI state.
+    effect(() => {
+      if (!this.isLearning() && this.learnPending) {
+        this.learnPending = false;
+        this.midiLearnCancel.emit();
+      }
+    });
+  }
 
   ngOnInit(): void {
     // Subscribe to CC changes
@@ -106,6 +122,7 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
     // Subscribe to learn complete
     this.learnUnsubscribe = this.midiService.onLearnComplete(mapping => {
       if (mapping.id === this.twMidiLearn()) {
+        this.learnPending = false;
         this.midiLearnComplete.emit(mapping);
       }
     });
@@ -140,6 +157,7 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
    */
   startLearn(): void {
     this.midiService.startMidiLearn(this.twMidiLearn());
+    this.learnPending = true;
     this.midiLearnStart.emit();
 
     // Update mapping configuration when learn completes
@@ -163,6 +181,7 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
    */
   cancelLearn(): void {
     if (this.isLearning()) {
+      this.learnPending = false;
       this.midiService.cancelMidiLearn();
       this.midiLearnCancel.emit();
     }

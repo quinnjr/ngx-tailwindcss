@@ -11,13 +11,14 @@ import {
   OnChanges,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   SimpleChanges,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
-import { prepareHiDpiCanvas } from './canvas-hidpi';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type WaveformVariant = 'bars' | 'line' | 'mirror' | 'gradient';
 export type WaveformColorScheme = 'blue' | 'green' | 'purple' | 'orange' | 'mono';
@@ -102,7 +103,9 @@ const COLOR_SCHEMES: Record<WaveformColorScheme, WaveformColors> = {
 export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('waveformCanvas');
+  private stopDprWatch: (() => void) | null = null;
 
   // Data inputs
   readonly audioBuffer = input<AudioBuffer | null>(null);
@@ -239,6 +242,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     this.stopRealTimeMode();
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
@@ -342,11 +347,22 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
 
   // Canvas initialization
   private initCanvas(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable); with
+    // no context every draw path is a no-op
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvasEl = this.canvas()?.nativeElement;
     if (!canvasEl) return;
 
     this.ctx = canvasEl.getContext('2d');
     this.draw();
+
+    // A static waveform is only drawn on changes: redraw it at the new
+    // resolution after browser zoom or a move to a different-density screen
+    // (the realtime loop re-sizes the backing store every frame anyway)
+    this.stopDprWatch ??= watchDevicePixelRatio(() => {
+      this.draw();
+    });
   }
 
   // Process audio data into peaks

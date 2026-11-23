@@ -214,11 +214,12 @@ export class TwDropdownComponent implements OnDestroy {
     this.closed.emit();
 
     if (shouldRestoreFocus) {
-      const trigger = this.elementRef.nativeElement.querySelector(
-        '[twdropdowntrigger]'
-      ) as HTMLElement | null;
-      trigger?.focus();
+      this.getTriggerElement()?.focus();
     }
+  }
+
+  private getTriggerElement(): HTMLElement | null {
+    return this.elementRef.nativeElement.querySelector('[twdropdowntrigger]') as HTMLElement | null;
   }
 
   private getMenuItems(): HTMLElement[] {
@@ -368,19 +369,27 @@ export class TwDropdownComponent implements OnDestroy {
 
     // Handle clicks on dropdown items
     if (this.closeOnSelect && this.portalElement) {
-      this.menuClickListener = this.renderer.listen(
-        this.portalElement,
-        'click',
-        (event: MouseEvent) => {
-          const target = event.target as HTMLElement;
-          if (target.hasAttribute('twdropdownitem') || target.closest('[twdropdownitem]')) {
-            // Use setTimeout to allow the Angular click handler to fire first
-            setTimeout(() => {
-              this.close();
-            }, 0);
+      const portal = this.portalElement;
+      // Capture phase: runs before the item's own click handlers
+      const onMenuClick = (event: MouseEvent): void => {
+        const target = event.target as HTMLElement;
+        if (target.hasAttribute('twdropdownitem') || target.closest('[twdropdownitem]')) {
+          // Hand focus back to the trigger before the item's handler runs: a dialog it
+          // opens records the focused element to restore on close, and the item is
+          // about to be hidden (the handler can still move focus elsewhere)
+          if (portal.contains(this.document.activeElement)) {
+            this.getTriggerElement()?.focus();
           }
+          // Close after the item's Angular click handler has fired
+          setTimeout(() => {
+            this.close();
+          }, 0);
         }
-      );
+      };
+      portal.addEventListener('click', onMenuClick, true);
+      this.menuClickListener = () => {
+        portal.removeEventListener('click', onMenuClick, true);
+      };
     }
   }
 

@@ -12,43 +12,49 @@
     aria-label="Parametric EQ frequency response curve"
   ></canvas>
 
-  <!-- Band selector buttons -->
+  <!-- Band selector buttons: each band has an enable switch and a select button -->
   <div class="flex items-center justify-center gap-1 mt-2 flex-wrap">
     @for (band of bands(); track band.id) {
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-all"
+      <div
+        class="flex items-center rounded text-xs font-medium transition-all"
         [class.opacity-100]="band.enabled"
         [class.opacity-40]="!band.enabled"
         [class.ring-2]="selectedBandId() === band.id"
         [class.ring-white]="selectedBandId() === band.id"
         [style.backgroundColor]="band.color"
         [style.color]="'white'"
-        (click)="selectBand(band)"
-        (dblclick)="toggleBand(band)"
-        (keydown)="onBandKeydown($event, band)"
-        [title]="
-          band.enabled
-            ? 'Press Enter/Space or double-click to disable'
-            : 'Press Enter/Space or double-click to enable'
-        "
-        [attr.aria-label]="bandAriaLabel(band)"
-        [attr.aria-pressed]="band.enabled"
-        [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
       >
-        <span
-          class="w-2 h-2 rounded-full"
-          [class.bg-white]="band.enabled"
-          [class.bg-transparent]="!band.enabled"
-          [class.border]="!band.enabled"
-          [class.border-white]="!band.enabled"
-        ></span>
-        <span
-          >{{
-            band.frequency >= 1000 ? (band.frequency / 1000).toFixed(1) + 'k' : band.frequency
-          }}Hz</span
+        <button
+          type="button"
+          role="switch"
+          class="flex items-center self-stretch pl-2 pr-1 rounded-l"
+          [attr.aria-checked]="band.enabled"
+          [attr.aria-label]="bandToggleLabel(band)"
+          [title]="band.enabled ? 'Disable band' : 'Enable band'"
+          [disabled]="!interactive()"
+          (click)="toggleBand(band)"
         >
-      </button>
+          <span
+            class="w-2 h-2 rounded-full"
+            [class.bg-white]="band.enabled"
+            [class.bg-transparent]="!band.enabled"
+            [class.border]="!band.enabled"
+            [class.border-white]="!band.enabled"
+          ></span>
+        </button>
+        <button
+          type="button"
+          class="pl-1 pr-2 py-1 rounded-r"
+          (click)="selectBand(band)"
+          (dblclick)="toggleBand(band)"
+          (keydown)="onBandKeydown($event, band)"
+          title="Select band • Arrow keys adjust gain/frequency • Double-click to enable/disable"
+          [attr.aria-label]="bandAriaLabel(band)"
+          [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
+        >
+          {{ band.frequency >= 1000 ? (band.frequency / 1000).toFixed(1) + 'k' : band.frequency }}Hz
+        </button>
+      </div>
     }
   </div>
 
@@ -88,8 +94,8 @@
           </div>
 
           <div class="mt-2 text-[10px] text-slate-500">
-            Drag node to adjust • Shift+drag for Q • Double-click node to reset • Enter/Space on a
-            band button toggles it
+            Drag node to adjust • Shift+drag for Q • Double-click node to reset • Use the dot switch
+            to enable/disable a band
           </div>
         </div>
       }

@@ -492,6 +492,8 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
       case 'Enter':
       case ' ': {
         if (event.key === ' ' && isFilterInput) return;
+        // Enter in the filter text field must never trigger implicit form submission
+        if (isFilterInput) event.preventDefault();
         if (this.isOpen() && this.activeIndex() >= 0) {
           event.preventDefault();
           const option = this.visibleOptions()[this.activeIndex()];

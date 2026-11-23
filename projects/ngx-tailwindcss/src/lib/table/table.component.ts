@@ -390,7 +390,10 @@ export class TwTableComponent {
     const row = event?.currentTarget;
     if (!(target instanceof Element) || !(row instanceof Element)) return false;
     const interactive = target.closest(INTERACTIVE_SELECTOR);
-    return !!interactive && interactive !== row && row.contains(interactive);
+    // The event bubbled from inside the row, so any interactive match that does not
+    // enclose the row belongs to it, even if its handler already detached it
+    // (e.g. an Edit button swapped for Save, or a Delete button removing the row)
+    return !!interactive && !interactive.contains(row);
   }
 
   clearSelection(): void {

@@ -8,12 +8,18 @@ import {
   inject,
   Injector,
   input,
+  OnDestroy,
   output,
   signal,
   TemplateRef,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export interface MenuItem {
   id?: string | number;
@@ -248,10 +254,10 @@ export class TwMenuComponent {
   host: {
     '(document:click)': 'onDocumentDismiss($event)',
     '(document:contextmenu)': 'onDocumentDismiss($event)',
-    '(document:keydown.escape)': 'hide()',
+    '(document:keydown.escape)': 'onEscape($event)',
   },
 })
-export class TwContextMenuComponent {
+export class TwContextMenuComponent implements OnDestroy {
   readonly items = input<MenuItem[]>([]);
   readonly onSelect = output<MenuItem>();
   readonly onHide = output();
@@ -260,15 +266,51 @@ export class TwContextMenuComponent {
   protected x = signal(0);
   protected y = signal(0);
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
+
   /** The (contextmenu or click) event that opened the menu; it still bubbles to the document. */
   private openingEvent: Event | null = null;
+
+  /** Element focused before the menu opened, refocused when the menu closes with focus inside */
+  private returnFocusTo: HTMLElement | null = null;
 
   show(event: MouseEvent): void {
     event.preventDefault();
     this.openingEvent = event;
+    if (!this.visible()) {
+      const active = this.document.activeElement;
+      this.returnFocusTo =
+        active instanceof HTMLElement && active !== this.document.body ? active : null;
+    }
     this.x.set(event.clientX);
     this.y.set(event.clientY);
     this.visible.set(true);
+    // Join the shared Escape stack so Escape closes only this menu, not an enclosing modal
+    pushEscapeLayer(this);
+    // Move focus into the menu (WAI-ARIA menu pattern) so a keyboard-opened menu
+    // (Shift+F10 / Menu key) can be navigated with the arrow keys
+    afterNextRender(
+      () => {
+        this.elementRef.nativeElement
+          .querySelector<HTMLElement>(
+            '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+          )
+          ?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  protected onEscape(event: Event): void {
+    if (!this.visible() || !shouldHandleEscape(this, event)) return;
+    event.preventDefault();
+    this.hide();
+  }
+
+  ngOnDestroy(): void {
+    removeEscapeLayer(this);
   }
 
   protected onDocumentDismiss(event: Event): void {
@@ -281,10 +323,15 @@ export class TwContextMenuComponent {
   }
 
   hide(): void {
+    removeEscapeLayer(this);
     if (this.visible()) {
+      // Focus inside the menu would be lost when it is removed: return it to the opener
+      const focusInside = this.elementRef.nativeElement.contains(this.document.activeElement);
       this.visible.set(false);
       this.onHide.emit();
+      if (focusInside) this.returnFocusTo?.focus();
     }
+    this.returnFocusTo = null;
   }
 
   onItemSelect(item: MenuItem): void {

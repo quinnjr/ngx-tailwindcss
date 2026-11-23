@@ -195,6 +195,14 @@ describe('TwScoreEditorComponent', () => {
     expect(notes.map(n => n.measure)).toEqual([0, 0, 0, 1, 2]);
   });
 
+  it('keeps the opening key on import and re-spells notes after a key change', () => {
+    createWith(null);
+    // G major, then D major: the second c sounds C#
+    editor.importABC(['X:1', 'L:1/8', 'K:G', 'c8|', 'K:D', 'c8|'].join('\n'));
+    expect(editor.scoreData().keySignature).toBe('G');
+    expect(editor.parts()[0].notes.map(n => n.accidental ?? null)).toEqual([null, 'sharp']);
+  });
+
   it('keeps flat spellings when transposing with preserveEnharmonic', () => {
     const notes = [
       placed('n1', { name: 'E', accidental: 'flat' }),

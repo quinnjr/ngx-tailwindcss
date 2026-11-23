@@ -1,5 +1,6 @@
+import { PLATFORM_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwParametricEQComponent } from './parametric-eq.component';
 
 describe('TwParametricEQComponent', () => {
@@ -33,26 +34,46 @@ describe('TwParametricEQComponent', () => {
     expect(internals.yToGain(0)).toBe(24);
   });
 
-  it('should toggle a band with Enter/Space and expose the enabled state via aria-pressed', () => {
+  it('should toggle a band via its switch and expose the state via aria-checked', () => {
     const emitted: any[] = [];
     fixture.componentInstance.bandsChange.subscribe(b => emitted.push(b));
-    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLButtonElement;
 
-    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(toggle.getAttribute('aria-label')).toContain('Enable EQ band');
 
-    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-    button.dispatchEvent(enter);
-    expect(enter.defaultPrevented).toBe(true);
+    // A click (what screen readers send in browse mode) toggles the switch
+    toggle.click();
     expect(emitted.at(-1)[0].enabled).toBe(false);
 
     // Parent feeds the new bands back in
     fixture.componentRef.setInput('bands', emitted.at(-1));
     fixture.detectChanges();
-    expect(button.getAttribute('aria-pressed')).toBe('false');
-    expect(button.getAttribute('aria-current')).toBe('true');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
 
-    button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', cancelable: true }));
+    toggle.click();
     expect(emitted.at(-1)[0].enabled).toBe(true);
+  });
+
+  it('should select (not toggle) a band from its select button, by click or Enter', () => {
+    const emitted: any[] = [];
+    fixture.componentInstance.bandsChange.subscribe(b => emitted.push(b));
+    const select = fixture.nativeElement.querySelector(
+      'button:not([role="switch"])'
+    ) as HTMLButtonElement;
+
+    // No toggle semantics on the select button
+    expect(select.hasAttribute('aria-pressed')).toBe(false);
+
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    select.dispatchEvent(enter);
+    // Enter keeps its native meaning (activate = click = select)
+    expect(enter.defaultPrevented).toBe(false);
+
+    select.click();
+    fixture.detectChanges();
+    expect(select.getAttribute('aria-current')).toBe('true');
+    expect(emitted.length).toBe(0);
   });
 
   it('should not toggle bands when not interactive', () => {
@@ -60,10 +81,27 @@ describe('TwParametricEQComponent', () => {
     fixture.detectChanges();
     const emitted: any[] = [];
     fixture.componentInstance.bandsChange.subscribe(b => emitted.push(b));
-    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLButtonElement;
 
-    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(toggle.disabled).toBe(true);
+    internals.toggleBand(fixture.componentInstance.bands()[0]);
 
     expect(emitted.length).toBe(0);
+  });
+
+  it('should not touch the canvas during SSR', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [TwParametricEQComponent],
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    }).compileComponents();
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
+
+    const ssrFixture = TestBed.createComponent(TwParametricEQComponent);
+    expect(() => {
+      ssrFixture.detectChanges();
+    }).not.toThrow();
+    expect(getContext).not.toHaveBeenCalled();
+    getContext.mockRestore();
   });
 });

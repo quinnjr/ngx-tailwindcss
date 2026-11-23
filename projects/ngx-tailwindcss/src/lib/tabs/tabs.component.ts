@@ -258,7 +258,15 @@ export class TwTabsComponent implements AfterContentInit {
     // Update panels list when content changes, wiring ids/state for added panels
     this.tabPanels.changes.subscribe(() => {
       this.panels = this.tabPanels.toArray();
-      this.syncPanels();
+      // Panels rendered later (e.g. from async data) or removal of the active panel:
+      // fall back to the first enabled tab so one panel shows and the tab list keeps
+      // its tab stop
+      const firstEnabled = this.panels.find(p => !p.disabled());
+      if (firstEnabled && !this.panels.some(p => p.value() === this._value)) {
+        this.selectTab(firstEnabled.value(), false);
+      } else {
+        this.syncPanels();
+      }
       // `panels` is a plain array read by the OnPush template: re-render the tab list
       this.cdr.markForCheck();
     });

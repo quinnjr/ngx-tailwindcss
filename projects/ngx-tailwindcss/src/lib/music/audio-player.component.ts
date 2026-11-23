@@ -133,7 +133,8 @@ export class TwAudioPlayerComponent implements OnDestroy {
   protected readonly containerClasses = computed(() => {
     const variant = this.variant();
     const theme = this.theme();
-    const base = 'rounded-xl overflow-hidden';
+    // relative: contains the absolutely positioned loading overlay
+    const base = 'relative rounded-xl overflow-hidden';
 
     const themeClasses: Record<AudioPlayerTheme, string> = {
       dark: 'bg-slate-900 text-white',
@@ -316,8 +317,10 @@ export class TwAudioPlayerComponent implements OnDestroy {
   }
 
   protected onAudioError(): void {
-    this.error.emit('Error loading audio');
     this.isLoading.set(false);
+    // An empty src (no track yet) fails the media load by spec: not a real error
+    if (!this.audioSrc()) return;
+    this.error.emit('Error loading audio');
   }
 
   protected onAudioLoadStart(): void {

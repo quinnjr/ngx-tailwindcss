@@ -36,5 +36,8 @@ export class ProgressDemoComponent {
 
   indeterminateCode = `<tw-progress [indeterminate]="true"></tw-progress>`;
 
-  circularCode = `<tw-progress-circular [value]="75" [size]="80" [showValue]="true"></tw-progress-circular>`;
+  circularCode = `<tw-progress-circular [value]="25" [size]="48" label="Upload progress"></tw-progress-circular>
+<tw-progress-circular [value]="50" [size]="64" label="Sync progress"></tw-progress-circular>
+<tw-progress-circular [value]="75" [size]="80" [showValue]="true" label="Download progress"></tw-progress-circular>
+<tw-progress-circular [indeterminate]="true" [size]="64" label="Loading"></tw-progress-circular>`;
 }

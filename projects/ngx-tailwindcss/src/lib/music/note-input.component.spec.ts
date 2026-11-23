@@ -121,6 +121,12 @@ describe('TwNoteInputComponent', () => {
     expect(internals.currentDuration()).toBe('quarter');
   });
 
+  it("toggles sharp on '#' typed as Shift+3 (US layout) instead of switching voice", () => {
+    keydown({ key: '#', code: 'Digit3', shiftKey: true });
+    expect(internals.currentAccidental()).toBe('sharp');
+    expect(internals.currentVoice()).toBe(1);
+  });
+
   it('places MIDI notes with their own accidental and does not leak it to later notes', () => {
     // C#4 then D4
     internals.handleMidiMessage({ data: new Uint8Array([0x90, 61, 100]) });

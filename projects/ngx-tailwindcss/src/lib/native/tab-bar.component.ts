@@ -12,6 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { TabBarPosition, TabBarVariant, TabEvent, TabItem } from './native.types';
 
 /**
@@ -71,6 +72,11 @@ export class TwTabBarComponent {
   protected readonly overflowMenuOpen = signal(false);
   private draggedTabIndex: number | null = null;
 
+  constructor() {
+    // Inside a dialog, Escape closes the overflow menu first, not the dialog too
+    trackNativeEscapeLayer(this, this.overflowMenuOpen);
+  }
+
   /** Close the overflow menu on a click outside it (like the other menus). */
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
@@ -81,9 +87,16 @@ export class TwTabBarComponent {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
+  /** Escape closes the overflow menu, returning focus to its button if it was inside. */
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (!this.overflowMenuOpen() || !claimNativeEscape(this, event)) return;
+    const wrapper = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
+    const button = wrapper?.querySelector<HTMLElement>(':scope > button');
+    const active = this.elementRef.nativeElement.ownerDocument.activeElement;
+    const hadFocus = !!wrapper?.contains(active) && active !== button;
     this.overflowMenuOpen.set(false);
+    if (hadFocus) button?.focus();
   }
 
   /**

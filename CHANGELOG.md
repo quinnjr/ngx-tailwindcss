@@ -365,6 +365,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`role="group"`)
 - `tw-progress-circular` gains a `label` input that names its progressbar
   (`aria-label`)
+- Class merging resolves conflicts for the remaining Tailwind v4 utility
+  families (columns, breaks, overscroll, `sr-only`/`not-sr-only`, grid flow,
+  typography details, decoration, divide, inset shadow/ring, mix-blend,
+  drop-shadow, will-change, 3D transforms, appearance, color-scheme, caret,
+  accent, touch, scroll-snap, fill and stroke)
+- Native: stacked native dialogs and library overlays close one at a time on
+  Escape, topmost first
+- `tw-select` and `tw-multiselect` scroll the keyboard-active option into view
+- Accessible names: `tw-tree` gains `ariaLabel`/`ariaLabelledBy`; click and
+  manual `tw-popover` dialogs without a `header` gain
+  `ariaLabel`/`ariaLabelledBy`; `tw-table` is named by its `title` or by new
+  `ariaLabel`/`ariaLabelledBy` inputs; `tw-datatables` is named by its `title`
+  or a new `ariaLabel` input
+- Music: the browser `openFile` result exposes the picked `File`
+  (`FileInfo.file`); `tw-mixer` section headers are disabled when the mixer is
+  disabled
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

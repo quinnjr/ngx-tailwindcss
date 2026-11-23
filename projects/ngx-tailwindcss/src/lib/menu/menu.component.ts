@@ -138,6 +138,8 @@ export class TwMenuComponent {
   }
 
   onSubmenuEnter(item: MenuItem): void {
+    // The hover wrapper still receives mouseenter when its trigger button is disabled
+    if (item.disabled) return;
     this.openSubmenu.set(item);
   }
 

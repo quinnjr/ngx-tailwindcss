@@ -332,6 +332,19 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     return this.dbToPercent(this.outputPeakLevel());
   });
 
+  /**
+   * Level-meter scale: the top label is meterMax and the 0 dB label sits at
+   * its real height (90.9% for the default -60..+6 range). Evenly spaced
+   * labels put "0" at the vertical middle, i.e. around -27 dB.
+   */
+  protected readonly meterScale = computed(() => {
+    const max = this.meterMax();
+    return {
+      maxLabel: `${max > 0 ? '+' : ''}${max}`,
+      zeroPercent: this.meterMin() < 0 && max > 0 ? this.dbToPercent(0) : null,
+    };
+  });
+
   private dbToPercent(db: number): number {
     const min = this.meterMin();
     const max = this.meterMax();

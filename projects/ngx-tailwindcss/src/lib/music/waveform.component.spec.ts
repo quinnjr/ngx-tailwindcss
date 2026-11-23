@@ -93,6 +93,50 @@ describe('TwWaveformComponent', () => {
     expect(points[1][1]).toBeGreaterThan(50);
   });
 
+  it('should colour the whole visible line/mirror waveform as played once progress passes it', () => {
+    const clips: number[] = [];
+    internals.ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) =>
+          prop === 'rect' ? (_x: number, _y: number, w: number) => clips.push(w) : () => {},
+        set: () => true,
+      }
+    );
+    internals.peakData = Array.from({ length: 100 }, () => 0.5);
+    fixture.componentRef.setInput('progress', 1);
+    fixture.detectChanges();
+
+    internals.drawLine();
+    internals.drawMirror();
+
+    expect(clips).toEqual([internals.effectiveWidth(), internals.effectiveWidth()]);
+  });
+
+  it('should keep the progress overlay over the whole view when progress is past it', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.componentRef.setInput('progress', 0.9);
+    fixture.detectChanges();
+    component.setZoom(4, 0.25); // visible window 0.125..0.375
+    fixture.detectChanges();
+    const overlay = fixture.nativeElement.querySelector('.bg-blue-500\\/20') as HTMLElement;
+
+    expect(overlay.style.display).toBe('block');
+    expect(overlay.style.width).toBe('100%');
+  });
+
+  it('should show the hover time label inside the clipped container', () => {
+    fixture.componentRef.setInput('duration', 60);
+    fixture.detectChanges();
+    internals.hoverPosition.set(0.5);
+    fixture.detectChanges();
+    const label = fixture.nativeElement.querySelector('.whitespace-nowrap') as HTMLElement;
+
+    expect(label.textContent?.trim()).toBe('0:30');
+    expect(label.classList).toContain('top-1');
+    expect(label.classList).not.toContain('-top-6');
+  });
+
   it('should position the zoom scrollbar thumb at the visible window', () => {
     fixture.componentRef.setInput('zoomable', true);
     fixture.detectChanges();

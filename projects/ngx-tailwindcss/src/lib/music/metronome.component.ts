@@ -259,7 +259,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     const minimal = this.variant() === 'minimal';
 
     const baseClasses = interactive
-      ? 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer disabled:cursor-not-allowed'
+      ? 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
       : 'inline-block w-4 h-4 rounded-full transition-all duration-100';
 
     if (isCurrent) {

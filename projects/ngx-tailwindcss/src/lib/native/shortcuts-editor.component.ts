@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { trackNativeEscapeLayer } from './native-escape-layer.util';
 
 export interface ShortcutBinding {
   id: string;
@@ -46,6 +47,9 @@ export class TwShortcutsEditorComponent {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    // While recording, Escape cancels the recording only, not an enclosing dialog
+    trackNativeEscapeLayer(this, () => this.editingId() !== null);
+
     inject(DestroyRef).onDestroy(() => {
       this.clearSaveTimer();
     });

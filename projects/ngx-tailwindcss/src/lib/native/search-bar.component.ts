@@ -72,11 +72,30 @@ export class TwSearchBarComponent {
   @HostListener('keydown.escape', ['$event'])
   protected onHostEscape(event: Event): void {
     const inputEl = this.elementRef.nativeElement.querySelector('input');
-    if (event.target === inputEl || !this.showSuggestions()) return;
+    if (event.target === inputEl || !this.suggestionsVisible()) return;
+    // Claim the key so an enclosing dialog stays open
+    event.preventDefault();
     // Focusing the input reopens the suggestions, so hide them afterwards
     inputEl?.focus();
     this.showSuggestions.set(false);
   }
+
+  /**
+   * Escape in the input clears the query and closes the suggestions. When there
+   * is nothing to clear or close it is left to an enclosing dialog; otherwise it
+   * is claimed so the dialog stays open.
+   */
+  protected onInputEscape(event: Event): void {
+    if (!this.query() && !this.suggestionsVisible()) return;
+    event.preventDefault();
+    this.clearSearch();
+  }
+
+  /** Whether the suggestions dropdown is rendered. */
+  protected readonly suggestionsVisible = computed(
+    () =>
+      this.showSuggestions() && (this.suggestions().length > 0 || this.recentSearches().length > 0)
+  );
 
   protected onFocus(): void {
     this.isFocused.set(true);

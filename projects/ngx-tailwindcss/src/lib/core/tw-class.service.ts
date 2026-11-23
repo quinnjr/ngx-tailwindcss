@@ -31,7 +31,8 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^order-/, 'order'],
   [/^columns-/, 'columns'],
   [/^break-(before|after|inside)-/, 'break-$1'],
-  [/^box-decoration-/, 'box-decoration'],
+  // `decoration-clone`/`decoration-slice` are the legacy box-decoration-break names (still in v4)
+  [/^(box-decoration-|decoration-(clone|slice)$)/, 'box-decoration'],
   [/^box-(border|content)$/, 'box-sizing'],
   [/^float-/, 'float'],
   [/^clear-/, 'clear'],
@@ -203,9 +204,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^opacity-/, 'opacity'],
   [/^mix-blend-/, 'mix-blend'],
   [/^blur(-|$)/, 'blur'],
-  // Drop shadow size (incl. arbitrary `drop-shadow-[0_0_8px_...]`) vs color (v4.1)
+  // Drop shadow size (incl. arbitrary `drop-shadow-[0_0_8px_...]`) vs color (v4.1);
+  // arbitrary colors (`drop-shadow-[#f00]`) are inferred as the color, as in Tailwind
   [
-    /^drop-shadow(-(xs|sm|md|lg|xl|2xl|none)(\/\S+)?$|$|-\[(?!color:)|-\((?!color:))/,
+    /^drop-shadow(-(xs|sm|md|lg|xl|2xl|none)(\/\S+)?$|$|-\[(?!color:|#|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\(|currentcolor\]|transparent\])|-\((?!color:))/,
     'drop-shadow',
   ],
   [/^drop-shadow-/, 'drop-shadow-color'],

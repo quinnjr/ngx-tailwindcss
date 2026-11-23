@@ -349,6 +349,16 @@ export class TwPitchDisplayComponent {
       }
     }
     event.preventDefault();
+    const range = this.pitchBendRange();
+    const delta = next - current;
+    if (this.snapToSemitone() && range > 0 && delta !== 0 && Math.abs(next) !== 1) {
+      // Snapping rounds the small fractional steps (0.05 = 0.1 st at the
+      // default ±2 st range) straight back to the current semitone, so the
+      // arrow/page keys never moved the bend: step in whole semitones instead
+      const semitones = Math.round(current * range);
+      const stepSemis = Math.max(1, Math.round(Math.abs(delta) * range));
+      next = (semitones + Math.sign(delta) * stepSemis) / range;
+    }
     // Round off float drift from repeated steps
     this.setPitchBend(Math.round(next * 1000) / 1000);
   }

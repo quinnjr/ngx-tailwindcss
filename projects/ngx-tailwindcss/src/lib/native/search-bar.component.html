@@ -57,7 +57,7 @@
       (focus)="onFocus()"
       (blur)="onBlur()"
       (keydown.enter)="submitSearch()"
-      (keydown.escape)="clearSearch()"
+      (keydown.escape)="onInputEscape($event)"
       #searchInput
     />
 

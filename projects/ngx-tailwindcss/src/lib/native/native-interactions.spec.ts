@@ -26,7 +26,11 @@ import { TwToolbarComponent } from './toolbar.component';
 import { TwPropertyInspectorComponent } from './property-inspector.component';
 import { TwCommandPaletteComponent } from './command-palette.component';
 import { TwPromptDialogComponent } from './prompt-dialog.component';
-import { pushEscapeLayer, removeEscapeLayer } from '../overlay/escape-layer-stack';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 import {
   DropEvent,
   FileTreeEvent,
@@ -1113,5 +1117,238 @@ describe('stacked dialogs close one at a time on Escape (round 25)', () => {
     removeEscapeLayer(modal);
     escape();
     expect(prefs.componentInstance.isOpen()).toBe(false);
+  });
+});
+
+describe('popups inside dialogs close before the dialog on Escape (round 26)', () => {
+  const escape = (target: EventTarget = document) =>
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+
+  interface PopupCase {
+    name: string;
+    open: () => { isOpen: () => boolean; cleanup: () => void };
+  }
+  type Sig<T> = (() => T) & { set: (v: T) => void };
+  const state = <T>(instance: object, key: string): Sig<T> =>
+    (instance as Record<string, Sig<T>>)[key];
+
+  const popups: PopupCase[] = [
+    {
+      name: 'context menu',
+      open: () => {
+        const f = TestBed.createComponent(TwNativeContextMenuComponent);
+        f.componentRef.setInput('items', [{ id: 'a', label: 'A' }]);
+        f.detectChanges();
+        f.componentInstance.open(10, 10);
+        f.detectChanges();
+        return {
+          isOpen: () => state<boolean>(f.componentInstance, 'isOpen')(),
+          cleanup: () => {
+            f.destroy();
+          },
+        };
+      },
+    },
+    {
+      name: 'toolbar dropdown',
+      open: () => {
+        const f = TestBed.createComponent(TwToolbarComponent);
+        f.detectChanges();
+        state<string | null>(f.componentInstance, 'openDropdownId').set('d');
+        f.detectChanges();
+        return {
+          isOpen: () => state<string | null>(f.componentInstance, 'openDropdownId')() !== null,
+          cleanup: () => {
+            f.destroy();
+          },
+        };
+      },
+    },
+    {
+      name: 'menu-bar menu',
+      open: () => {
+        const f = TestBed.createComponent(TwMenuBarComponent);
+        f.componentRef.setInput('items', [{ id: 'file', label: 'File', items: [] }]);
+        f.detectChanges();
+        state<string | null>(f.componentInstance, 'openMenuId').set('file');
+        f.detectChanges();
+        return {
+          isOpen: () => state<string | null>(f.componentInstance, 'openMenuId')() !== null,
+          cleanup: () => {
+            f.destroy();
+          },
+        };
+      },
+    },
+    {
+      name: 'tab-bar overflow menu',
+      open: () => {
+        const f = TestBed.createComponent(TwTabBarComponent);
+        f.detectChanges();
+        state<boolean>(f.componentInstance, 'overflowMenuOpen').set(true);
+        f.detectChanges();
+        return {
+          isOpen: () => state<boolean>(f.componentInstance, 'overflowMenuOpen')(),
+          cleanup: () => {
+            f.destroy();
+          },
+        };
+      },
+    },
+  ];
+
+  for (const popup of popups) {
+    it(`${popup.name} open in a native dialog: one Escape closes only the popup`, () => {
+      const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+      prefs.componentInstance.open();
+      prefs.detectChanges();
+      const p = popup.open();
+
+      escape();
+      expect(p.isOpen()).toBe(false);
+      expect(prefs.componentInstance.isOpen()).toBe(true);
+
+      TestBed.tick();
+      escape();
+      expect(prefs.componentInstance.isOpen()).toBe(false);
+      p.cleanup();
+      prefs.destroy();
+    });
+
+    it(`${popup.name} open in a tw-modal-like layer: one Escape closes only the popup`, () => {
+      const modal = {};
+      let modalCloses = 0;
+      const modalListener = (e: Event) => {
+        if (shouldHandleEscape(modal, e)) {
+          e.preventDefault();
+          modalCloses++;
+        }
+      };
+      pushEscapeLayer(modal);
+      document.addEventListener('keydown', modalListener);
+      const p = popup.open();
+
+      escape();
+      expect(p.isOpen()).toBe(false);
+      expect(modalCloses).toBe(0);
+
+      TestBed.tick();
+      escape();
+      expect(modalCloses).toBe(1);
+      document.removeEventListener('keydown', modalListener);
+      removeEscapeLayer(modal);
+      p.cleanup();
+    });
+  }
+
+  it('a destroyed open popup no longer blocks Escape for the dialog', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const p = popups[0].open();
+    p.cleanup();
+
+    escape();
+    expect(prefs.componentInstance.isOpen()).toBe(false);
+    prefs.destroy();
+  });
+
+  it('search bar in a native dialog: Escape clears the query first, then closes the dialog', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const f = TestBed.createComponent(TwSearchBarComponent);
+    f.componentRef.setInput('suggestions', [{ id: 's', label: 'Alpha' }]);
+    document.body.append(f.nativeElement);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const input = el.querySelector('input')!;
+    input.focus();
+    f.detectChanges();
+    expect(el.textContent).toContain('Alpha');
+
+    escape(input);
+    f.detectChanges();
+    expect(el.textContent).not.toContain('Alpha');
+    expect(prefs.componentInstance.isOpen()).toBe(true);
+
+    escape(input);
+    expect(prefs.componentInstance.isOpen()).toBe(false);
+    el.remove();
+    f.destroy();
+    prefs.destroy();
+  });
+
+  it('Escape on a menubar trigger with no menu open reaches the enclosing dialog', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const f = TestBed.createComponent(TwMenuBarComponent);
+    f.componentRef.setInput('items', [{ id: 'file', label: 'File', items: [] }]);
+    document.body.append(f.nativeElement);
+    f.detectChanges();
+    const trigger = (f.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[data-menubar-trigger]'
+    )!;
+
+    escape(trigger);
+    expect(prefs.componentInstance.isOpen()).toBe(false);
+    (f.nativeElement as HTMLElement).remove();
+    f.destroy();
+    prefs.destroy();
+  });
+
+  it('Escape in the tab-bar overflow menu returns focus to its button', () => {
+    const f = TestBed.createComponent(TwTabBarComponent);
+    document.body.append(f.nativeElement);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const button = el.querySelector<HTMLElement>('[data-tab-overflow] > button')!;
+    button.click();
+    f.detectChanges();
+    const item = [...el.querySelectorAll<HTMLElement>('[data-tab-overflow] button')].find(b =>
+      b.textContent?.includes('Close All Tabs')
+    )!;
+    item.focus();
+
+    escape(item);
+    f.detectChanges();
+    expect(el.textContent).not.toContain('Close All Tabs');
+    expect(document.activeElement).toBe(button);
+    el.remove();
+    f.destroy();
+  });
+});
+
+describe('shortcut recording inside a dialog (round 26)', () => {
+  it('Escape cancels recording without closing the enclosing native dialog', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const f = TestBed.createComponent(TwShortcutsEditorComponent);
+    const save: ShortcutBinding = {
+      id: 'save',
+      command: 'Save',
+      keys: ['Ctrl', 'S'],
+      defaultKeys: ['Ctrl', 'S'],
+    };
+    f.componentRef.setInput('shortcuts', [save]);
+    f.detectChanges();
+    f.componentInstance.startEdit(save);
+    f.detectChanges();
+
+    const escape = () =>
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    escape();
+    expect(f.componentInstance.editingId()).toBeNull();
+    expect(prefs.componentInstance.isOpen()).toBe(true);
+
+    TestBed.tick();
+    escape();
+    expect(prefs.componentInstance.isOpen()).toBe(false);
+    f.destroy();
+    prefs.destroy();
   });
 });

@@ -19,7 +19,7 @@
     @if (showBpmControl()) {
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors"
+        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="disabled()"
         (click)="incrementBpm(-1)"
         title="Decrease BPM"
@@ -37,7 +37,7 @@
     @if (showBpmControl()) {
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors"
+        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="disabled()"
         (click)="incrementBpm(1)"
         title="Increase BPM"
@@ -57,7 +57,7 @@
       min="20"
       max="300"
       step="1"
-      class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+      class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       [disabled]="disabled()"
       aria-label="Tempo in beats per minute"
     />
@@ -111,7 +111,7 @@
         @for (preset of availablePresets(); track preset.name; let i = $index) {
           <button
             type="button"
-            class="px-2 py-1 rounded text-xs transition-colors"
+            class="px-2 py-1 rounded text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             [class.bg-blue-600]="selectedPresetIndex() === i"
             [class.text-white]="selectedPresetIndex() === i"
             [class.bg-slate-700]="selectedPresetIndex() !== i"
@@ -134,7 +134,7 @@
       @for (sig of timeSignatures; track sig) {
         <button
           type="button"
-          class="px-2 py-1 rounded text-xs font-mono transition-colors"
+          class="px-2 py-1 rounded text-xs font-mono transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class.bg-blue-600]="currentTimeSignature() === sig"
           [class.text-white]="currentTimeSignature() === sig"
           [class.bg-slate-700]="currentTimeSignature() !== sig"
@@ -154,7 +154,7 @@
   <div class="flex items-center gap-2">
     <button
       type="button"
-      class="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
+      class="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       [class.bg-green-700]="!isPlaying()"
       [class.hover:bg-green-800]="!isPlaying()"
       [class.bg-red-600]="isPlaying()"
@@ -181,7 +181,7 @@
 
     <button
       type="button"
-      class="px-4 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+      class="px-4 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       [disabled]="disabled()"
       (click)="tapTempo()"
       title="Tap to set tempo"

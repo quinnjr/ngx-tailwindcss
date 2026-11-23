@@ -286,6 +286,20 @@ describe('TwMenuComponent', () => {
       expect(document.activeElement).toBe(parent);
     });
 
+    it('should not open the submenu of a disabled item on hover', () => {
+      component.items.set([
+        { id: 1, label: 'File', disabled: true, items: [{ id: 10, label: 'New' }] },
+      ]);
+      fixture.detectChanges();
+
+      const parent = menuItems()[0];
+      parent.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+      fixture.detectChanges();
+
+      expect(parent.getAttribute('aria-expanded')).toBe('false');
+      expect(menuItems().length).toBe(1);
+    });
+
     it('should close the submenu on ArrowLeft and return focus to its trigger', () => {
       const parent = menuItems()[0];
       parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));

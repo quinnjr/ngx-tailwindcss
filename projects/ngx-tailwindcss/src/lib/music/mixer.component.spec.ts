@@ -107,6 +107,19 @@ describe('TwMixerComponent layout', () => {
     expect(fixture.debugElement.queryAll(By.css('button[title="Scroll Right"]')).length).toBe(0);
   });
 
+  it('should show the scroll buttons as disabled while the mixer is disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const right = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[title="Scroll Right"]'
+    )!;
+    // Scrolling is possible, so only the disabled state can dim the button
+    expect(right.classList).not.toContain('opacity-50');
+    expect(right.classList).toContain('disabled:opacity-50');
+    expect(right.classList).toContain('disabled:cursor-not-allowed');
+  });
+
   it('should not show no-op scroll buttons when the sectioned layout shows every channel', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

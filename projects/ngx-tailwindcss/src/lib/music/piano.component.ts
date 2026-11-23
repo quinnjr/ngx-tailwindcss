@@ -116,6 +116,8 @@ export class TwPianoComponent implements OnDestroy {
 
   private midiAccess: MIDIAccess | null = null;
   private midiInputs: MIDIInput[] = [];
+  // Inputs reported as connected (midiConnected emitted, midiDisconnected not yet)
+  private connectedMidiDevices = new Map<string, MidiDevice>();
   private readonly midiStateChangeHandler = (): void => {
     this.updateMidiDevices();
   };
@@ -153,6 +155,7 @@ export class TwPianoComponent implements OnDestroy {
       midiInput.onmidimessage = null;
     }
     this.midiInputs = [];
+    this.connectedMidiDevices = new Map();
     this.midiAccess = null;
   }
 
@@ -497,6 +500,7 @@ export class TwPianoComponent implements OnDestroy {
     if (!this.midiAccess) return;
 
     const devices: MidiDevice[] = [];
+    const connected = new Map<string, MidiDevice>();
 
     // Disconnect old inputs
     for (const midiInput of this.midiInputs) {
@@ -506,11 +510,12 @@ export class TwPianoComponent implements OnDestroy {
 
     // Connect to all inputs
     this.midiAccess.inputs.forEach((midiInput: MIDIInput) => {
-      devices.push({
+      const device: MidiDevice = {
         id: midiInput.id,
         name: midiInput.name ?? 'Unknown Device',
         manufacturer: midiInput.manufacturer ?? 'Unknown',
-      });
+      };
+      devices.push(device);
 
       midiInput.onmidimessage = (event: MIDIMessageEvent) => {
         this.handleMidiMessage(event);
@@ -518,16 +523,26 @@ export class TwPianoComponent implements OnDestroy {
       this.midiInputs.push(midiInput);
 
       if (midiInput.state === 'connected') {
-        this.connectedMidiDevice.set({
-          id: midiInput.id,
-          name: midiInput.name ?? 'Unknown Device',
-          manufacturer: midiInput.manufacturer ?? 'Unknown',
-        });
-        this.midiConnected.emit(this.connectedMidiDevice()!);
+        connected.set(device.id, device);
       }
     });
 
     this.availableMidiDevices.set(devices);
+
+    // Report devices that were unplugged / plugged in since the last update (the status
+    // used to keep showing an unplugged device, and every statechange re-emitted midiConnected)
+    for (const [id, device] of this.connectedMidiDevices) {
+      if (!connected.has(id)) this.midiDisconnected.emit(device);
+    }
+    for (const [id, device] of connected) {
+      if (!this.connectedMidiDevices.has(id)) this.midiConnected.emit(device);
+    }
+    this.connectedMidiDevices = connected;
+
+    const shown = this.connectedMidiDevice();
+    this.connectedMidiDevice.set(
+      shown && connected.has(shown.id) ? shown : ([...connected.values()].at(-1) ?? null)
+    );
   }
 
   private handleMidiMessage(event: MIDIMessageEvent): void {
@@ -606,10 +621,10 @@ export class TwPianoComponent implements OnDestroy {
     this.midiInputs = [];
     this.midiAccess = null;
 
-    const device = this.connectedMidiDevice();
-    if (device) {
+    for (const device of this.connectedMidiDevices.values()) {
       this.midiDisconnected.emit(device);
     }
+    this.connectedMidiDevices = new Map();
     this.connectedMidiDevice.set(null);
     this.availableMidiDevices.set([]);
   }

@@ -345,6 +345,27 @@ describe('TwMetronomeComponent beat indicators', () => {
   });
 });
 
+describe('TwMetronomeComponent disabled', () => {
+  it('should show every control as disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    fixture.componentRef.setInput('showAccentConfig', true);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const controls = [
+      ...el.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input'),
+    ];
+
+    expect(controls.length).toBeGreaterThan(10);
+    for (const control of controls) {
+      expect(control.disabled).toBe(true);
+      expect(control.classList).toContain('disabled:opacity-50');
+    }
+    fixture.destroy();
+  });
+});
+
 describe('TwMetronomeComponent beat dot contrast', () => {
   it('should draw beat dots and legend swatches at 3:1 on every surface', async () => {
     await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();

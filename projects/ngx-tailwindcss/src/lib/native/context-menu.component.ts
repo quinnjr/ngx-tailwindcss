@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeContextMenuEvent, NativeContextMenuPosition, NativeMenuItem } from './native.types';
 
@@ -66,6 +67,9 @@ export class TwNativeContextMenuComponent implements OnDestroy {
   private previousFocus: HTMLElement | null = null;
 
   constructor() {
+    // Inside a dialog, Escape closes the open menu first, not the dialog too
+    trackNativeEscapeLayer(this, this.isOpen);
+
     // Attach to the trigger element (or document), re-binding whenever it changes
     effect(() => {
       const triggerEl = this.trigger();
@@ -92,9 +96,9 @@ export class TwNativeContextMenuComponent implements OnDestroy {
     this.close();
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    this.close();
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) this.close();
   }
 
   @HostListener('document:scroll')

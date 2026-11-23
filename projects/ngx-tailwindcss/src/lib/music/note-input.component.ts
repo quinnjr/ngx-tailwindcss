@@ -580,9 +580,10 @@ export class TwNoteInputComponent implements OnDestroy {
     }
 
     // Voice shortcuts (Shift+1-4). event.key is the shifted character ('!', '@', ...),
-    // so use the physical key code.
+    // so use the physical key code. Shift+3 types '#' on US layouts: that is the documented
+    // sharp shortcut, handled below (it used to switch to voice 3 instead)
     const voiceMatch = /^(?:Digit|Numpad)([1-4])$/.exec(event.code ?? '');
-    if (event.shiftKey && voiceMatch) {
+    if (event.shiftKey && voiceMatch && event.key !== '#') {
       event.preventDefault();
       const voice = Number(voiceMatch[1]) as Voice;
       if (voice <= this.maxVoices()) {

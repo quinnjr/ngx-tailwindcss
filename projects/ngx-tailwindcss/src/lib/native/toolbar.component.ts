@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { ToolbarItem, ToolbarPosition, ToolbarVariant } from './native.types';
 
 /**
@@ -46,6 +47,11 @@ export class TwToolbarComponent {
   // State
   protected readonly openDropdownId = signal<string | null>(null);
 
+  constructor() {
+    // Inside a dialog, Escape closes the open dropdown first, not the dialog too
+    trackNativeEscapeLayer(this, () => this.openDropdownId() !== null);
+  }
+
   /** Close an open dropdown when clicking anywhere outside the toolbar. */
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
@@ -58,9 +64,9 @@ export class TwToolbarComponent {
   }
 
   /** Escape closes an open dropdown, returning focus to its trigger if it was inside. */
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.openDropdownId() === null) return;
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.openDropdownId() === null || !claimNativeEscape(this, event)) return;
     const host = this.elementRef.nativeElement;
     const dropdown = host.querySelector('[data-toolbar-dropdown]');
     const hadFocus = dropdown?.contains(host.ownerDocument.activeElement) ?? false;

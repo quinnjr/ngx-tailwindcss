@@ -103,6 +103,51 @@ describe('TwPianoComponent', () => {
     }
   });
 
+  it('clears the MIDI status when the connected device is unplugged', async () => {
+    let onStateChange: (() => void) | undefined;
+    const midiInput = {
+      id: 'in',
+      name: 'Keys',
+      manufacturer: 'X',
+      state: 'connected',
+      onmidimessage: null as unknown,
+    };
+    const access = {
+      inputs: new Map([['in', midiInput]]),
+      addEventListener: (_: string, fn: () => void) => (onStateChange = fn),
+      removeEventListener: () => undefined,
+    };
+    const nav = navigator as unknown as { requestMIDIAccess?: () => Promise<unknown> };
+    const original = nav.requestMIDIAccess;
+    nav.requestMIDIAccess = () => Promise.resolve(access);
+    const connected: string[] = [];
+    const disconnected: string[] = [];
+    piano.midiConnected.subscribe(d => connected.push(d.id));
+    piano.midiDisconnected.subscribe(d => disconnected.push(d.id));
+    const status = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+    try {
+      fixture.componentRef.setInput('enableMidi', true);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(status()).toContain('MIDI: Keys');
+
+      // A statechange that changes nothing does not re-announce the device
+      onStateChange!();
+      expect(connected).toEqual(['in']);
+
+      midiInput.state = 'disconnected';
+      onStateChange!();
+      fixture.detectChanges();
+      expect(disconnected).toEqual(['in']);
+      expect(status()).toContain('MIDI: Not connected');
+      expect(status()).not.toContain('MIDI: Keys');
+    } finally {
+      nav.requestMIDIAccess = original;
+    }
+  });
+
   it('does not attach MIDI listeners when destroyed before access resolves', async () => {
     const listeners = new Set<unknown>();
     let resolve!: (v: unknown) => void;

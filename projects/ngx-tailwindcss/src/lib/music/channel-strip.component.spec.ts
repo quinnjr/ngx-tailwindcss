@@ -22,6 +22,21 @@ describe('TwChannelStripComponent', () => {
     expect(buttons.every(b => b.disabled)).toBe(true);
   });
 
+  it('should show the R/M/S buttons as disabled, without hover highlights', () => {
+    fixture.componentRef.setInput('showRecord', true);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    for (const name of ['Record arm', 'Mute', 'Solo']) {
+      const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        `button[aria-label="${name}"]`
+      )!;
+      expect(button.disabled).toBe(true);
+      expect(button.classList).toContain('disabled:opacity-50');
+      expect(button.classList).toContain('disabled:cursor-not-allowed');
+      expect(button.className).not.toContain('hover:');
+    }
+  });
+
   it('should keep the R/M/S letters readable on their hover fills', () => {
     fixture.componentRef.setInput('showRecord', true);
     fixture.detectChanges();

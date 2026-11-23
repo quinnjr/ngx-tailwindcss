@@ -12,6 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuBarItem, NativeMenuItem } from './native.types';
 
@@ -62,6 +63,11 @@ export class TwMenuBarComponent {
     Math.max(0, Math.min(this.focusedMenuIndex(), this.items().length - 1))
   );
 
+  constructor() {
+    // Inside a dialog, Escape closes the open menu first, not the dialog too
+    trackNativeEscapeLayer(this, () => this.openMenuId() !== null);
+  }
+
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
@@ -69,9 +75,9 @@ export class TwMenuBarComponent {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    this.closeMenu();
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.openMenuId() !== null && claimNativeEscape(this, event)) this.closeMenu();
   }
 
   /** Keyboard handling for a top-level menubar item (WAI-ARIA menubar pattern). */
@@ -105,6 +111,8 @@ export class TwMenuBarComponent {
         break;
       }
       case 'Escape': {
+        // With no menu open, leave Escape to an enclosing dialog
+        if (this.openMenuId() === null) return;
         this.closeMenu();
         break;
       }

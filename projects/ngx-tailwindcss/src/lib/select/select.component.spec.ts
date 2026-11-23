@@ -750,3 +750,26 @@ describe('TwSelectComponent (round 25)', () => {
     }
   });
 });
+
+describe('TwSelectComponent (round 26)', () => {
+  it('should visibly mark the keyboard-active option when it is the selected one', () => {
+    TestBed.configureTestingModule({ imports: [TestHostWithFormControlComponent] });
+    const fixture = TestBed.createComponent(TestHostWithFormControlComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const press = (key: string): void => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+
+    press('ArrowDown'); // opens with the selected option ('2') active
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    const active = fixture.nativeElement.querySelector(`[id="${activeId}"]`) as HTMLElement;
+    expect(active.getAttribute('aria-selected')).toBe('true');
+    expect(active.className).toContain('ring-2');
+
+    press('ArrowDown'); // moves off the selected option
+    const selected = fixture.nativeElement.querySelector('[aria-selected="true"]') as HTMLElement;
+    expect(selected.className).not.toContain('ring-2');
+  });
+});

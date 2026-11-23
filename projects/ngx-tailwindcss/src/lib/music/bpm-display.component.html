@@ -26,7 +26,7 @@
       <!-- Sync Toggle Button -->
       <button
         type="button"
-        class="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+        class="px-2 py-0.5 rounded text-[10px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [class.bg-green-600]="isSynced()"
         [class.text-white]="isSynced()"
         [class.bg-slate-700]="!isSynced()"
@@ -166,7 +166,7 @@
           [value]="internalBpm()"
           (input)="onSliderChange($event)"
           aria-label="Tempo in BPM"
-          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer absolute top-2"
+          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer absolute top-2 disabled:opacity-50 disabled:cursor-not-allowed"
           style="accent-color: var(--slider-color, #3b82f6)"
           [disabled]="disabled() || !editable()"
         />
@@ -350,7 +350,7 @@
       @for (preset of [60, 80, 100, 120, 140, 160, 180]; track preset) {
         <button
           type="button"
-          class="px-1.5 py-0.5 rounded text-[10px] transition-colors"
+          class="px-1.5 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class]="
             internalBpm() === preset
               ? 'bg-blue-500 text-white'

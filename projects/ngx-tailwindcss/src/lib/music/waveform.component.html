@@ -39,11 +39,12 @@
     <div
       class="absolute top-0 bottom-0 left-0 bg-blue-500/20 pointer-events-none transition-all duration-100"
       [style.width.%]="
-        ((progress() - visibleRange().start) / (visibleRange().end - visibleRange().start)) * 100
+        Math.min(
+          1,
+          (progress() - visibleRange().start) / (visibleRange().end - visibleRange().start)
+        ) * 100
       "
-      [style.display]="
-        progress() < visibleRange().start || progress() > visibleRange().end ? 'none' : 'block'
-      "
+      [style.display]="progress() < visibleRange().start ? 'none' : 'block'"
     ></div>
   }
 
@@ -68,7 +69,8 @@
     }
   }
 
-  <!-- Hover time indicator (hidden in mini mode) -->
+  <!-- Hover time indicator (hidden in mini mode). The label sits inside the top
+       edge: placed above it, the overflow-hidden container clipped it away. -->
   @if (showHoverTime() && hoverPosition() !== null && !isMini()) {
     @let hoverInView =
       (hoverPosition()! - visibleRange().start) / (visibleRange().end - visibleRange().start);
@@ -78,7 +80,7 @@
         [style.left.%]="hoverInView * 100"
       >
         <div
-          class="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          class="absolute top-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
         >
           {{ formatTime(hoverPosition()! * duration()) }}
         </div>

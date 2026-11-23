@@ -91,6 +91,29 @@ describe('TwPitchDisplayComponent', () => {
     expect(emitted).toEqual([0.05, 1]);
   });
 
+  it('should move the snapped pitch bend from the keyboard in whole semitones', () => {
+    fixture.componentRef.setInput('snapToSemitone', true);
+    fixture.detectChanges();
+    const key = (k: string, shiftKey = false): void =>
+      internals.onPitchWheelKeydown(new KeyboardEvent('keydown', { key: k, shiftKey }));
+
+    // Default ±2 st range: one semitone = 0.5 of the bend
+    key('ArrowUp');
+    expect(internals.internalPitchBend()).toBe(0.5);
+    key('ArrowDown');
+    key('ArrowDown');
+    expect(internals.internalPitchBend()).toBe(-0.5);
+    key('PageUp');
+    expect(internals.internalPitchBend()).toBe(0);
+
+    fixture.componentRef.setInput('pitchBendRange', 12);
+    fixture.detectChanges();
+    key('ArrowUp');
+    expect(internals.internalPitchBend()).toBeCloseTo(1 / 12, 3);
+    key('PageUp');
+    expect(internals.internalPitchBend()).toBeCloseTo(4 / 12, 3);
+  });
+
   it('should follow horizontal movement for the horizontal bend style', () => {
     fixture.componentRef.setInput('pitchBendStyle', 'horizontal');
     fixture.detectChanges();

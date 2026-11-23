@@ -899,10 +899,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
 
     // Draw progress overlay (convert progress to view coordinates)
     const progressInView = (progress - viewStart) / viewWidth;
-    if (progressInView > 0 && progressInView < 1) {
+    // Progress past the visible window (zoomed, or at the very end) colours
+    // the whole view as played, like the bars variant
+    if (progressInView > 0) {
       this.ctx.save();
       this.ctx.beginPath();
-      this.ctx.rect(0, 0, progressInView * w, h);
+      this.ctx.rect(0, 0, Math.min(1, progressInView) * w, h);
       this.ctx.clip();
 
       this.ctx.beginPath();
@@ -971,10 +973,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
 
     // Progress fill
     const progressInView = (progress - viewStart) / viewWidth;
-    if (progressInView > 0 && progressInView < 1) {
+    // Progress past the visible window (zoomed, or at the very end) colours
+    // the whole view as played, like the bars variant
+    if (progressInView > 0) {
       this.ctx.save();
       this.ctx.beginPath();
-      this.ctx.rect(0, 0, progressInView * w, h);
+      this.ctx.rect(0, 0, Math.min(1, progressInView) * w, h);
       this.ctx.clip();
 
       this.ctx.beginPath();

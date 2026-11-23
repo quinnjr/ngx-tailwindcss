@@ -181,3 +181,25 @@ describe('TwBpmDisplayComponent sync status icon', () => {
     expect(badge().className).not.toContain('bg-green-500');
   });
 });
+
+describe('TwBpmDisplayComponent disabled', () => {
+  it('should show every control as disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [TwBpmDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwBpmDisplayComponent);
+    fixture.componentRef.setInput('showSync', true);
+    fixture.componentRef.setInput('showSlider', true);
+    fixture.componentRef.setInput('size', 'xl');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const controls = [
+      ...el.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input'),
+    ];
+
+    expect(controls.length).toBeGreaterThan(15);
+    for (const control of controls) {
+      expect(control.disabled).toBe(true);
+      expect(control.classList).toContain('disabled:opacity-50');
+    }
+  });
+});

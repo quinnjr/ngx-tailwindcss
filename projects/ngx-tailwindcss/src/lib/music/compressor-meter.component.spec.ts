@@ -26,6 +26,27 @@ describe('TwCompressorMeterComponent', () => {
     expect(internals.grMeterBackground()).toContain('top / 100% 180px no-repeat');
   });
 
+  it('should place the level meter 0 dB scale label at its real height', () => {
+    const zeroLabels = (): HTMLElement[] =>
+      [...fixture.nativeElement.querySelectorAll('span')].filter(
+        (s: HTMLElement) => s.textContent?.trim() === '0' && s.classList.contains('text-[6px]')
+      );
+
+    // Default -60..+6 dB range: 0 dB is 60/66 of the way up, not the middle
+    expect(zeroLabels()).toHaveLength(2);
+    for (const label of zeroLabels()) {
+      expect(Number.parseFloat(label.style.bottom)).toBeCloseTo((60 / 66) * 100, 3);
+    }
+
+    fixture.componentRef.setInput('meterMax', 0);
+    fixture.detectChanges();
+    // 0 dB is now the top label itself
+    expect(zeroLabels()).toHaveLength(2);
+    for (const label of zeroLabels()) {
+      expect(label.classList).toContain('top-0');
+    }
+  });
+
   it('should be silent with no clip indication when no levels are bound', () => {
     let clips = 0;
     component.clipInput.subscribe(() => clips++);

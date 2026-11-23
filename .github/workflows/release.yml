@@ -40,27 +40,8 @@ jobs:
       - name: Run tests
         run: pnpm run test:run
 
-      # Skip publish and release cleanly (and loudly) when no token is configured,
-      # instead of silently swallowing a failed publish and announcing the version anyway
-      - name: Check for npm token
-        id: npm-token
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::NPM_TOKEN is not configured; skipping npm publish and GitHub release"
-          fi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        if: steps.npm-token.outputs.present == 'true'
-        run: |
-          cd dist/ngx-tailwindcss
-          npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # npm publishing lives in publish.yml (trusted publishing via OIDC),
+      # which runs on the same tag push.
 
       - name: Generate changelog
         id: changelog
@@ -76,19 +57,13 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # Only advertise an install command when the publish step actually ran,
-      # so the release notes never point at a version that is not on npm
       - name: Compose install section
         id: install
         run: |
           {
             echo 'text<<INSTALL_EOF'
-            if [ "${{ steps.npm-token.outputs.present }}" = 'true' ]; then
-              printf '### Installation\n\n```bash\nnpm install ngx-tailwindcss@%s\n```\n' \
-                '${{ steps.version.outputs.version }}'
-            else
-              echo '> Not published to npm from CI (no NPM_TOKEN configured); published manually.'
-            fi
+            printf '### Installation\n\n```bash\nnpm install @quinnjr/ngx-tailwindcss@%s\n```\n' \
+              '${{ steps.version.outputs.version }}'
             echo 'INSTALL_EOF'
           } >> "$GITHUB_OUTPUT"
 

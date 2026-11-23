@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
@@ -191,6 +192,19 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     const index = this.activeIndex();
     if (!this.isOpen() || index < 0 || index >= this.navigableOptions().length) return null;
     return `${this.listboxId}-option-${index}`;
+  });
+
+  /**
+   * Keeps the keyboard-active option visible: focus stays on the trigger
+   * (aria-activedescendant), so the listbox does not scroll by itself.
+   */
+  private readonly scrollActiveOptionIntoView = afterRenderEffect(() => {
+    const id = this.activeDescendantId();
+    if (!id) return;
+    const option = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      `[id="${id}"]`
+    );
+    option?.scrollIntoView?.({ block: 'nearest' });
   });
 
   protected filteredGroups = computed(() => {

@@ -78,6 +78,15 @@ export class TwTreeComponent {
   /** Additional classes */
   readonly classOverride = input('');
 
+  /**
+   * Accessible name of the tree. The `role="tree"` element lives inside the component,
+   * so attributes on the `tw-tree` host cannot name it.
+   */
+  readonly ariaLabel = input('');
+
+  /** Id of an element (e.g. a visible heading) that names the tree */
+  readonly ariaLabelledBy = input('');
+
   /** Node select event */
   @Output() onNodeSelect = new EventEmitter<TreeNode>();
 

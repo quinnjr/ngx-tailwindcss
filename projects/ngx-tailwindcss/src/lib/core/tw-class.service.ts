@@ -29,6 +29,16 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^object-(contain|cover|fill|none|scale-down)$/, 'object-fit'],
   [/^object-/, 'object-position'],
   [/^order-/, 'order'],
+  [/^columns-/, 'columns'],
+  [/^break-(before|after|inside)-/, 'break-$1'],
+  [/^box-decoration-/, 'box-decoration'],
+  [/^box-(border|content)$/, 'box-sizing'],
+  [/^float-/, 'float'],
+  [/^clear-/, 'clear'],
+  [/^(isolate|isolation-auto)$/, 'isolation'],
+  [/^overscroll-([xy])-/, 'overscroll-$1'],
+  [/^overscroll-/, 'overscroll'],
+  [/^(sr-only|not-sr-only)$/, 'sr-only'],
 
   // Flexbox & Grid
   [/^flex-(row|col)(-reverse)?$/, 'flex-direction'],
@@ -54,6 +64,9 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^col-end-/, 'col-end'],
   [/^col-/, 'col'],
   [/^grid-rows-/, 'grid-rows'],
+  [/^grid-flow-/, 'grid-flow'],
+  [/^auto-cols-/, 'auto-cols'],
+  [/^auto-rows-/, 'auto-rows'],
   [/^row-start-/, 'row-start'],
   [/^row-end-/, 'row-end'],
   [/^row-/, 'row'],
@@ -113,6 +126,25 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^(underline|overline|line-through|no-underline)$/, 'text-decoration'],
   [/^whitespace-/, 'whitespace'],
   [/^break-(normal|words|all|keep)$/, 'word-break'],
+  [/^(italic|not-italic)$/, 'font-style'],
+  [/^(antialiased|subpixel-antialiased)$/, 'font-smoothing'],
+  // Decoration thickness/style vs color; none conflicts with the line (`underline`)
+  [/^decoration-(solid|double|dotted|dashed|wavy)$/, 'decoration-style'],
+  [
+    /^decoration-(auto$|from-font$|\d+$|\[(length:|percentage:)?\d[^\]]*\]$|\((length|percentage):)/,
+    'decoration-thickness',
+  ],
+  [/^decoration-/, 'decoration-color'],
+  [/^underline-offset-/, 'underline-offset'],
+  [/^indent-/, 'indent'],
+  [/^align-/, 'vertical-align'],
+  [/^line-clamp-/, 'line-clamp'],
+  [/^hyphens-/, 'hyphens'],
+  [/^list-(inside|outside)$/, 'list-position'],
+  [/^list-image-/, 'list-image'],
+  [/^list-/, 'list-style-type'],
+  [/^(table-auto|table-fixed)$/, 'table-layout'],
+  [/^caption-/, 'caption-side'],
 
   // Backgrounds
   [/^bg-(fixed|local|scroll)$/, 'bg-attachment'],
@@ -154,13 +186,29 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^ring-offset-(?:\d+$|\[\d[^\]]*(?:px|rem|em)\]$)/, 'ring-offset-width'],
   [/^ring-offset-/, 'ring-offset-color'],
   [/^ring-/, 'ring-color'],
+  // Divide width per axis, style and color are used together (`divide-y divide-slate-200`)
+  [/^divide-([xy])-reverse$/, 'divide-$1-reverse'],
+  [/^divide-([xy])(-|$)/, 'divide-$1'],
+  [/^divide-(solid|dashed|dotted|double|hidden|none)$/, 'divide-style'],
+  [/^divide-/, 'divide-color'],
 
   // Effects
   // Shadow size (optionally with a v4 `/opacity` modifier) vs shadow color
   [/^shadow(-(2xs|xs|sm|md|lg|xl|2xl|inner|none)(\/\S+)?$|$|-\[(inset_)?-?\d)/, 'shadow'],
   [/^shadow-/, 'shadow-color'],
+  [/^inset-shadow(-(2xs|xs|sm|none)(\/\S+)?$|$|-\[-?\d)/, 'inset-shadow'],
+  [/^inset-shadow-/, 'inset-shadow-color'],
+  [/^inset-ring(?:$|-\d+$|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'inset-ring-width'],
+  [/^inset-ring-/, 'inset-ring-color'],
   [/^opacity-/, 'opacity'],
+  [/^mix-blend-/, 'mix-blend'],
   [/^blur(-|$)/, 'blur'],
+  // Drop shadow size (incl. arbitrary `drop-shadow-[0_0_8px_...]`) vs color (v4.1)
+  [
+    /^drop-shadow(-(xs|sm|md|lg|xl|2xl|none)(\/\S+)?$|$|-\[(?!color:)|-\((?!color:))/,
+    'drop-shadow',
+  ],
+  [/^drop-shadow-/, 'drop-shadow-color'],
   [/^(brightness|contrast|grayscale|hue-rotate|invert|saturate|sepia)(-|$)/, '$1'],
   [
     /^backdrop-(blur|brightness|contrast|grayscale|hue-rotate|invert|opacity|saturate|sepia)(-|$)/,
@@ -174,6 +222,7 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^ease-/, 'ease'],
   [/^delay-/, 'delay'],
   [/^animate-/, 'animate'],
+  [/^will-change-/, 'will-change'],
 
   // Transforms
   [/^scale-x-/, 'scale-x'],
@@ -191,12 +240,29 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^skew-y-/, 'skew-y'],
   [/^skew-/, 'skew'],
   [/^origin-/, 'transform-origin'],
+  [/^perspective-origin-/, 'perspective-origin'],
+  [/^perspective-/, 'perspective'],
+  [/^transform-(3d|flat)$/, 'transform-style'],
+  [/^backface-/, 'backface'],
 
   // Interactivity
   [/^cursor-/, 'cursor'],
   [/^pointer-events-/, 'pointer-events'],
   [/^select-/, 'user-select'],
   [/^resize(-|$)/, 'resize'],
+  [/^appearance-/, 'appearance'],
+  [/^field-sizing-/, 'field-sizing'],
+  [/^scheme-/, 'color-scheme'],
+  [/^caret-/, 'caret-color'],
+  [/^accent-/, 'accent-color'],
+  [/^touch-(auto|none|manipulation)$/, 'touch'],
+  [/^touch-pan-(x|left|right)$/, 'touch-x'],
+  [/^touch-pan-(y|up|down)$/, 'touch-y'],
+  [/^touch-pinch-zoom$/, 'touch-pz'],
+  [/^snap-(start|end|center|align-none)$/, 'snap-align'],
+  [/^snap-(normal|always)$/, 'snap-stop'],
+  [/^snap-(none|x|y|both)$/, 'snap-type'],
+  [/^snap-(mandatory|proximity)$/, 'snap-strictness'],
   [/^scroll-(auto|smooth)$/, 'scroll-behavior'],
   // Each side is a separate group, as for padding/margin
   [/^scroll-p(bs|be|[xytrblse])-/, 'scroll-padding-$1'],
@@ -207,6 +273,14 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^outline-(none|hidden|solid|dashed|dotted|double)$/, 'outline-style'],
   [/^outline-offset-/, 'outline-offset'],
   [/^outline-/, 'outline-color'],
+
+  // SVG
+  [/^fill-/, 'fill'],
+  [
+    /^stroke-(\d+(\.\d+)?$|\[(length:|number:|percentage:)?\d[^\]]*\]$|\((length|number):)/,
+    'stroke-width',
+  ],
+  [/^stroke-/, 'stroke'],
 ];
 
 /**
@@ -308,6 +382,8 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
   'border-radius-s': ['border-radius-ss', 'border-radius-es'],
   'border-radius-e': ['border-radius-se', 'border-radius-ee'],
   translate: ['translate-x', 'translate-y'],
+  overscroll: ['overscroll-x', 'overscroll-y'],
+  touch: ['touch-x', 'touch-y', 'touch-pz'],
 };
 
 /**

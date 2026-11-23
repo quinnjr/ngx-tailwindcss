@@ -80,6 +80,12 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   /** Header text */
   @Input() header = '';
 
+  /** Accessible name of the popover dialog when no `header` is shown */
+  @Input() ariaLabel = '';
+
+  /** Id of an element (e.g. a heading in the projected content) that names the popover dialog */
+  @Input() ariaLabelledBy = '';
+
   /** Whether to show arrow */
   @Input({ transform: booleanAttribute }) showArrow = true;
 
@@ -315,8 +321,14 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     // Set ARIA attributes
     this.renderer.setAttribute(this.portalElement, 'id', this.popoverId);
     this.renderer.setAttribute(this.portalElement, 'role', this.isTooltip ? 'tooltip' : 'dialog');
-    if (!this.isTooltip && this.header) {
-      this.renderer.setAttribute(this.portalElement, 'aria-labelledby', this.headerId);
+    if (!this.isTooltip) {
+      if (this.header) {
+        this.renderer.setAttribute(this.portalElement, 'aria-labelledby', this.headerId);
+      } else if (this.ariaLabelledBy) {
+        this.renderer.setAttribute(this.portalElement, 'aria-labelledby', this.ariaLabelledBy);
+      } else if (this.ariaLabel) {
+        this.renderer.setAttribute(this.portalElement, 'aria-label', this.ariaLabel);
+      }
     }
 
     // Build popover content

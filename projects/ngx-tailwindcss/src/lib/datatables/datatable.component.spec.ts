@@ -76,6 +76,13 @@ describe('TwDatatablesComponent', () => {
     expect(cls).not.toContain('p-6');
   });
 
+  it('should name the table from the visible title', () => {
+    const table = fixture.debugElement.query(By.css('table')).nativeElement as HTMLElement;
+    const labelledBy = table.getAttribute('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    expect(document.querySelector(`#${labelledBy}`)?.textContent?.trim()).toBe('People');
+  });
+
   it('should render the title', () => {
     const heading = fixture.debugElement.query(By.css('h3'));
     expect(heading.nativeElement.textContent).toContain('People');

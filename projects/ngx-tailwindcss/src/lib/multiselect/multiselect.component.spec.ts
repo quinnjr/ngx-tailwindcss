@@ -696,3 +696,36 @@ describe('TwMultiSelectComponent (round 22)', () => {
     expect(fixture.componentInstance.control.touched).toBe(true);
   });
 });
+
+describe('TwMultiSelectComponent (round 25)', () => {
+  it('should scroll the keyboard-active option into view', () => {
+    const scrolled: string[] = [];
+    const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id);
+    };
+    try {
+      const fixture = TestBed.createComponent(TestHostComponent);
+      fixture.detectChanges();
+      const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+      const press = (key: string): void => {
+        trigger.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+        );
+        fixture.detectChanges();
+      };
+
+      press('ArrowDown'); // opens
+      press('End');
+      const activeId = trigger.getAttribute('aria-activedescendant');
+      expect(activeId).toBeTruthy();
+      expect(scrolled.at(-1)).toBe(activeId);
+    } finally {
+      if (original) {
+        Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+      } else {
+        delete (Element.prototype as Partial<Element>).scrollIntoView;
+      }
+    }
+  });
+});

@@ -348,6 +348,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Native: the `tw-toolbar` dropdown closes on outside click and on Escape,
   returning focus to its trigger
 - Music: `minimal` `tw-piano-chord` chord-type label meets text contrast
+- Class merging resolves conflicts for aspect-ratio, object-fit/position,
+  order, filter and backdrop-filter utilities, so overrides such as
+  `backdrop-blur-none` win
+- Native: Escape closes the preferences, update (when not mandatory),
+  onboarding (when skippable) and prompt dialogs from anywhere inside them,
+  and closes `tw-search-bar` suggestions while focus is inside them
+- `tw-sidebar` gains `ariaLabel`/`ariaLabelledBy` inputs to name header-less
+  sidebars
+- Music: a disabled `tw-looper` also disables its layer, volume and speed
+  controls; `tw-piano` shows the pressed state on highlighted keys and has
+  AA-contrast focus rings; `tw-musical-symbol` renders the accent glyph;
+  `tw-chord-diagram` fret label is no longer clipped; `tw-tablature` string
+  lines are visible in dark mode; `aria-label` on `tw-piano`, `tw-tablature`,
+  `tw-lead-sheet`, `tw-sheet-music` and `tw-score-editor` is exposed
+  (`role="group"`)
+- `tw-progress-circular` gains a `label` input that names its progressbar
+  (`aria-label`)
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

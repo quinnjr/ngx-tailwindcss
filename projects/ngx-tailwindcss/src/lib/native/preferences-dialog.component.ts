@@ -1,6 +1,7 @@
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 export interface PreferencesTab {
   id: string;
@@ -23,6 +24,10 @@ export class TwPreferencesDialogComponent {
   public readonly closed = output();
 
   public readonly isOpen = signal(false);
+
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
   public readonly selectedTabId = signal<string | null>(null);
 
   public readonly selectedTab = computed(() => {
@@ -42,9 +47,9 @@ export class TwPreferencesDialogComponent {
   }
 
   /** Escape closes the dialog (focus returns to the opener via the focus trap). */
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.isOpen()) this.close();
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) this.close();
   }
 
   public close(): void {

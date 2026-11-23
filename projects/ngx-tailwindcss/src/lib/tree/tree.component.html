@@ -1,4 +1,9 @@
-<div [class]="containerClasses()" role="tree">
+<div
+  [class]="containerClasses()"
+  role="tree"
+  [attr.aria-label]="ariaLabel() || null"
+  [attr.aria-labelledby]="ariaLabelledBy() || null"
+>
   <ng-container
     *ngTemplateOutlet="nodeTemplate; context: { $implicit: nodes(), level: 0 }"
   ></ng-container>

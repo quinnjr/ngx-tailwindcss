@@ -13,6 +13,8 @@ import { TwClassService } from '../core/tw-class.service';
       [indentSize]="indentSize()"
       [propagateSelectionDown]="propagateSelectionDown()"
       [propagateSelectionUp]="propagateSelectionUp()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       (onNodeSelect)="onNodeSelectSpy($event)"
       (onNodeUnselect)="onNodeUnselectSpy($event)"
       (onNodeExpand)="onNodeExpandSpy($event)"
@@ -51,6 +53,8 @@ class TestHostComponent {
   indentSize = signal(24);
   propagateSelectionDown = signal(true);
   propagateSelectionUp = signal(true);
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
 
   onNodeSelectSpy = vi.fn();
   onNodeUnselectSpy = vi.fn();
@@ -590,5 +594,37 @@ describe('TwTreeComponent', () => {
       expect(document.activeElement).toBe(rows()[1].nativeElement);
       expect(rows()[1].nativeElement.getAttribute('aria-checked')).toBe('true');
     });
+  });
+});
+
+describe('TwTreeComponent accessible name', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  const tree = () =>
+    fixture.debugElement.query(By.css('[role="tree"]')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should have no name attributes by default', () => {
+    expect(tree().hasAttribute('aria-label')).toBe(false);
+    expect(tree().hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('should name the tree from the ariaLabel input', () => {
+    fixture.componentInstance.ariaLabel.set('Files');
+    fixture.detectChanges();
+    expect(tree().getAttribute('aria-label')).toBe('Files');
+  });
+
+  it('should name the tree from the ariaLabelledBy input', () => {
+    fixture.componentInstance.ariaLabelledBy.set('files-heading');
+    fixture.detectChanges();
+    expect(tree().getAttribute('aria-labelledby')).toBe('files-heading');
   });
 });

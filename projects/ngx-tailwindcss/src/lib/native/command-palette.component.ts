@@ -15,6 +15,7 @@ import {
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { NativeAppPlatformService } from './platform.service';
 import { CommandItem, CommandPaletteMode } from './native.types';
 
@@ -148,9 +149,13 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.isOpen()) {
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) {
       this.close();
     }
   }

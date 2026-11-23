@@ -131,6 +131,24 @@ describe('TwMixerComponent layout', () => {
     expect(header().getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('should not collapse a section while the mixer is disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.componentInstance.disabled = true;
+    fixture.detectChanges();
+    const header = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+    )!;
+    expect(header.disabled).toBe(true);
+
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as { toggleSection(id: string): void };
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(4);
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('should start a section collapsed when its collapsed flag is set', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);
@@ -170,8 +188,11 @@ describe('TwMixerComponent layout', () => {
     [sections]="sections"
     [maxVisibleChannels]="2"
     [showMasterChannel]="false"
+    [disabled]="disabled"
   ></tw-mixer>`,
   standalone: true,
   imports: [TwMixerComponent],
 })
-class SectionHostComponent extends ScrollHostComponent {}
+class SectionHostComponent extends ScrollHostComponent {
+  disabled = false;
+}

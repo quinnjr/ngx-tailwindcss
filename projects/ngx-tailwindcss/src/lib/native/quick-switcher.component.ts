@@ -12,6 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 let nextSwitcherId = 0;
 
@@ -76,6 +77,8 @@ export class TwQuickSwitcherComponent {
   });
 
   constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+
     effect(() => {
       if (this.isOpen()) {
         setTimeout(() => {
@@ -97,8 +100,7 @@ export class TwQuickSwitcherComponent {
 
     switch (event.key) {
       case 'Escape': {
-        this.close();
-        event.preventDefault();
+        if (claimNativeEscape(this, event)) this.close();
         break;
       }
       case 'ArrowDown': {

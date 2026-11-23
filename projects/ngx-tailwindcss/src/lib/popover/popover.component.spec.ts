@@ -15,6 +15,8 @@ const isPopoverVisible = (popover: TwPopoverComponent): boolean =>
       [position]="position()"
       [trigger]="trigger()"
       [header]="header()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       [showArrow]="showArrow()"
       [dismissible]="dismissible()"
       [closeOnEscape]="closeOnEscape()"
@@ -38,6 +40,8 @@ class TestHostComponent {
   position = signal<PopoverPosition>('bottom');
   trigger = signal<PopoverTrigger>('click');
   header = signal('');
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
   showArrow = signal(true);
   dismissible = signal(true);
   closeOnEscape = signal(true);
@@ -368,6 +372,28 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
       expect(trigger().getAttribute('aria-expanded')).toBe('false');
       expect(trigger().getAttribute('aria-controls')).toBeNull();
+    });
+
+    it('should name a header-less dialog from the ariaLabel input', () => {
+      component.ariaLabel.set('Quick settings');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel.getAttribute('aria-label')).toBe('Quick settings');
+      expect(panel.hasAttribute('aria-labelledby')).toBe(false);
+    });
+
+    it('should name a header-less dialog from projected content via ariaLabelledBy', () => {
+      component.ariaLabelledBy.set('projected-heading');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel.getAttribute('aria-labelledby')).toBe('projected-heading');
+      expect(panel.hasAttribute('aria-label')).toBe(false);
     });
 
     it('should keep tooltip semantics for hover popovers', () => {

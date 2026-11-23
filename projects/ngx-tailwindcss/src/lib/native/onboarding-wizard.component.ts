@@ -1,6 +1,7 @@
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 let nextOnboardingId = 0;
 
@@ -32,6 +33,10 @@ export class TwOnboardingWizardComponent {
   protected readonly titleId = `tw-onboarding-title-${nextOnboardingId++}`;
 
   public readonly isOpen = signal(false);
+
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
   public readonly currentIndex = signal(0);
   public readonly dontShowAgain = signal(false);
 
@@ -49,9 +54,9 @@ export class TwOnboardingWizardComponent {
   }
 
   /** Escape skips the wizard when skipping is allowed, like the Skip button. */
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.isOpen() && this.allowSkip()) this.skip();
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event) && this.allowSkip()) this.skip();
   }
 
   public close(): void {

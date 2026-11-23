@@ -253,6 +253,10 @@ export class TwProgressCircularComponent {
   @Input() set thickness(val: number) {
     this._thickness.set(val);
   }
+  /** Accessible name for the progressbar (applied as aria-label on the element carrying the role) */
+  @Input() set label(val: string) {
+    this._label.set(val);
+  }
 
   protected _value = signal(0);
   protected _max = signal(100);
@@ -261,6 +265,7 @@ export class TwProgressCircularComponent {
   protected _showValue = signal(false);
   protected _indeterminate = signal(false);
   protected _thickness = signal(4);
+  protected _label = signal('');
 
   protected sizeValue = computed(() => this._size());
   /** Value clamped to [0, max] so aria-valuenow stays within aria-valuemin/aria-valuemax */
@@ -271,6 +276,7 @@ export class TwProgressCircularComponent {
   protected showValueFlag = computed(() => this._showValue());
   protected indeterminateFlag = computed(() => this._indeterminate());
   protected strokeWidth = computed(() => this._thickness());
+  protected labelText = computed(() => this._label());
 
   // Circle with radius 15.9155 has circumference of ~100
   private readonly CIRCUMFERENCE = 100;

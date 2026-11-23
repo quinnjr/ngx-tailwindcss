@@ -8,7 +8,9 @@
           {{ subtitle() }}
         </p>
       }
-      <h3 class="text-xl font-semibold text-slate-900 dark:text-white">{{ title() }}</h3>
+      <h3 [id]="titleId" class="text-xl font-semibold text-slate-900 dark:text-white">
+        {{ title() }}
+      </h3>
       @if (description()) {
         <p class="text-sm text-slate-500 dark:text-slate-300">
           {{ description() }}
@@ -35,6 +37,8 @@
       [responsive]="responsive()"
       [emptyMessage]="emptyMessage()"
       [classOverride]="classOverride()"
+      [ariaLabelledBy]="title() ? titleId : ''"
+      [ariaLabel]="ariaLabel()"
       (selectionChange)="selectionChange.emit($event)"
       (rowClick)="rowClick.emit($event)"
       (sortChange)="sortChange.emit($event)"

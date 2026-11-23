@@ -28,6 +28,8 @@ export interface TableColumn {
 export type TableSize = 'sm' | 'md' | 'lg';
 export type TableVariant = 'default' | 'striped' | 'bordered';
 
+let nextTableId = 0;
+
 const TABLE_SIZES: Record<TableSize, { cell: string; text: string }> = {
   sm: { cell: 'px-3 py-2', text: 'text-sm' },
   md: { cell: 'px-4 py-3', text: 'text-sm' },
@@ -97,6 +99,15 @@ export class TwTableComponent {
   readonly responsive = input(true, { transform: booleanAttribute });
   readonly trackByFn = input<(item: any) => any>(item => item);
   readonly classOverride = input('');
+
+  /** Accessible name of the table when no `title` is shown */
+  readonly ariaLabel = input('');
+
+  /** Id of an element that names the table when no `title` is shown */
+  readonly ariaLabelledBy = input('');
+
+  /** Id of the visible title, which names the table */
+  protected readonly titleId = `tw-table-${nextTableId++}-title`;
 
   @Output() selectionChange = new EventEmitter<any[]>();
   @Output() rowClick = new EventEmitter<any>();

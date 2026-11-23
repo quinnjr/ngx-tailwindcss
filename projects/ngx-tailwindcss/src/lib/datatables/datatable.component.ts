@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { TwClassService } from '../core/tw-class.service';
 import { TableColumn, TableSize, TableVariant, TwTableComponent } from '../table/table.component';
 
+let nextDatatableId = 0;
+
 @Component({
   selector: 'tw-datatables',
   standalone: true,
@@ -35,6 +37,11 @@ export class TwDatatablesComponent {
   public readonly classOverride = input('');
   public readonly containerClass = input('');
   public readonly toolbarClass = input('');
+  /** Accessible name of the table when no `title` is shown */
+  public readonly ariaLabel = input('');
+
+  /** Id of the visible title, which names the table */
+  protected readonly titleId = `tw-datatables-${nextDatatableId++}-title`;
 
   public readonly selectionChange = output<unknown[]>();
   public readonly rowClick = output<unknown>();

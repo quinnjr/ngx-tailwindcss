@@ -26,6 +26,7 @@ import { TwToolbarComponent } from './toolbar.component';
 import { TwPropertyInspectorComponent } from './property-inspector.component';
 import { TwCommandPaletteComponent } from './command-palette.component';
 import { TwPromptDialogComponent } from './prompt-dialog.component';
+import { pushEscapeLayer, removeEscapeLayer } from '../overlay/escape-layer-stack';
 import {
   DropEvent,
   FileTreeEvent,
@@ -1056,5 +1057,61 @@ describe('native dialogs and popups close on Escape (round 24)', () => {
     expect(el.textContent).not.toContain('Alpha');
     expect(document.activeElement).toBe(input);
     el.remove();
+  });
+});
+
+describe('stacked dialogs close one at a time on Escape (round 25)', () => {
+  const escape = () =>
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+
+  it('Escape closes a prompt opened over preferences, then preferences', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const prompt = TestBed.createComponent(TwPromptDialogComponent);
+    prompt.componentInstance.open();
+    prompt.detectChanges();
+
+    escape();
+    prompt.detectChanges();
+    prefs.detectChanges();
+    expect(prompt.componentInstance.isOpen()).toBe(false);
+    expect(prefs.componentInstance.isOpen()).toBe(true);
+
+    escape();
+    expect(prefs.componentInstance.isOpen()).toBe(false);
+  });
+
+  it('a confirm dialog over a mandatory update dialog does not let Escape reach it', () => {
+    const update = TestBed.createComponent(TwUpdateDialogComponent);
+    const info: UpdateDialogInfo = { currentVersion: '1', newVersion: '2' };
+    update.componentRef.setInput('updateInfo', info);
+    update.componentInstance.open(info);
+    update.detectChanges();
+    const confirm = TestBed.createComponent(TwNativeConfirmDialogComponent);
+    const cancels: unknown[] = [];
+    confirm.componentInstance.cancel.subscribe(() => cancels.push(1));
+    confirm.componentRef.setInput('open', true);
+    confirm.detectChanges();
+
+    escape();
+    expect(cancels.length).toBe(1);
+    expect(update.componentInstance.isOpen()).toBe(true);
+    confirm.destroy();
+  });
+
+  it('a native dialog ignores Escape while another overlay layer (e.g. a tw-modal) is on top', () => {
+    const prefs = TestBed.createComponent(TwPreferencesDialogComponent);
+    prefs.componentInstance.open();
+    prefs.detectChanges();
+    const modal = {};
+    pushEscapeLayer(modal);
+
+    escape();
+    expect(prefs.componentInstance.isOpen()).toBe(true);
+
+    removeEscapeLayer(modal);
+    escape();
+    expect(prefs.componentInstance.isOpen()).toBe(false);
   });
 });

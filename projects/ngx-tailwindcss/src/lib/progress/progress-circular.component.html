@@ -6,6 +6,7 @@
   [attr.aria-valuenow]="indeterminateFlag() ? undefined : valueNum()"
   [attr.aria-valuemin]="0"
   [attr.aria-valuemax]="maxNum()"
+  [attr.aria-label]="labelText() || null"
 >
   <svg
     class="-rotate-90"

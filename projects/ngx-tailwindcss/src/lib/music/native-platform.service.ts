@@ -59,6 +59,12 @@ export interface FileInfo {
   extension: string;
   size?: number;
   lastModified?: Date;
+  /**
+   * The picked `File` (browser only, where `path` is just the file name and
+   * cannot be read by path); pass it to `readFileObject()` /
+   * `readFileObjectBinary()` to read its contents
+   */
+  file?: File;
 }
 
 /**
@@ -387,14 +393,14 @@ export class NativePlatformService {
           return;
         }
 
-        const files = [...input.files].map(file => ({
+        const files = [...input.files].map((file): FileInfo => ({
           path: file.name, // Browser doesn't expose full path
           name: file.name,
           // No dot -> no extension (not the whole name), as in getFileInfo()
           extension: file.name.includes('.') ? file.name.split('.').pop()! : '',
           size: file.size,
           lastModified: new Date(file.lastModified),
-          _file: file, // Store File object for reading
+          file, // The browser cannot read by path: expose the File for reading
         }));
 
         if (options.multiple) {
@@ -475,8 +481,10 @@ export class NativePlatformService {
       return readFile(path);
     }
 
-    // Browser fallback - path is actually a File object stored during open
-    throw new Error('File reading not supported in browser. Use the File API directly.');
+    // Browser: paths cannot be read; openFile() exposes the picked File instead
+    throw new Error(
+      'File reading not supported in browser. Pass the `file` from openFile() to readFileObject().'
+    );
   }
 
   /**
@@ -494,7 +502,9 @@ export class NativePlatformService {
       return readFile(path);
     }
 
-    throw new Error('Binary file reading not supported in browser. Use the File API directly.');
+    throw new Error(
+      'Binary file reading not supported in browser. Pass the `file` from openFile() to readFileObjectBinary().'
+    );
   }
 
   /**

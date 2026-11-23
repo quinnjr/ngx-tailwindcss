@@ -51,6 +51,7 @@ class TestHostComponent {
       [showValue]="showValue()"
       [indeterminate]="indeterminate()"
       [thickness]="thickness()"
+      [label]="label()"
     ></tw-progress-circular>
   `,
   standalone: true,
@@ -65,6 +66,7 @@ class CircularTestComponent {
   showValue = signal(false);
   indeterminate = signal(false);
   thickness = signal(4);
+  label = signal('');
 }
 
 describe('TwProgressComponent', () => {
@@ -424,6 +426,14 @@ describe('TwProgressCircularComponent', () => {
       // aria-valuenow is on the wrapper div
       const wrapper = progressEl.querySelector('[role="progressbar"]');
       expect(wrapper?.getAttribute('aria-valuenow')).toBe('75');
+    });
+
+    it('should name the progressbar from the label input', () => {
+      const wrapper = progressEl.querySelector('[role="progressbar"]')!;
+      expect(wrapper.hasAttribute('aria-label')).toBe(false);
+      component.label.set('Uploading file');
+      fixture.detectChanges();
+      expect(wrapper.getAttribute('aria-label')).toBe('Uploading file');
     });
   });
 });

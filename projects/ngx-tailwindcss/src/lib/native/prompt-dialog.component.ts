@@ -11,6 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 export type PromptInputType = 'text' | 'password' | 'number' | 'email' | 'url';
 
@@ -49,6 +50,8 @@ export class TwPromptDialogComponent {
   protected readonly errorId = `tw-prompt-dialog-error-${nextPromptDialogId++}`;
 
   constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+
     effect(() => {
       // The initial value is set by open(); resetting it here would discard
       // a value passed to open(value).
@@ -97,9 +100,9 @@ export class TwPromptDialogComponent {
   }
 
   /** Escape cancels from anywhere in the dialog, not only from the input. */
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.isOpen()) this.cancel();
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) this.cancel();
   }
 
   public cancel(): void {

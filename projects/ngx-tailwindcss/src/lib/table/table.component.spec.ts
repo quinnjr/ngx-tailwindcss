@@ -22,6 +22,9 @@ interface Row {
       [rows]="rows()"
       [rowsPerPageOptions]="rowsPerPageOptions()"
       [trackByFn]="trackByFn"
+      [title]="title()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       (selectionChange)="onSelectionChangeSpy($event)"
       (sortChange)="onSortChangeSpy($event)"
       (pageChange)="onPageChangeSpy($event)"
@@ -56,6 +59,9 @@ class TestHostComponent {
   rows = signal(10);
   rowsPerPageOptions = signal([2, 5, 10]);
   trackByFn = (item: Row) => item.id;
+  title = signal('');
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
 
   onSelectionChangeSpy = vi.fn();
   onSortChangeSpy = vi.fn();
@@ -393,5 +399,41 @@ describe('TwTableComponent', () => {
         expect(button.classList).toContain('dark:hover:text-slate-200');
       }
     });
+  });
+});
+
+describe('TwTableComponent accessible name', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  const table = () => fixture.debugElement.query(By.css('table')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should be named by the visible title', () => {
+    fixture.componentInstance.title.set('Team members');
+    fixture.componentInstance.ariaLabel.set('ignored');
+    fixture.detectChanges();
+    const labelledBy = table().getAttribute('aria-labelledby');
+    expect(document.querySelector(`#${labelledBy}`)?.textContent?.trim()).toBe('Team members');
+    expect(table().hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('should be named by ariaLabel when there is no title', () => {
+    fixture.componentInstance.ariaLabel.set('Team members');
+    fixture.detectChanges();
+    expect(table().getAttribute('aria-label')).toBe('Team members');
+    expect(table().hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('should be named by ariaLabelledBy when there is no title', () => {
+    fixture.componentInstance.ariaLabelledBy.set('external-heading');
+    fixture.detectChanges();
+    expect(table().getAttribute('aria-labelledby')).toBe('external-heading');
   });
 });

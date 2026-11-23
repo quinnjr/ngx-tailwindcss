@@ -432,6 +432,7 @@ export class TwMixerComponent {
 
   // Toggle section collapse
   protected toggleSection(sectionId: string): void {
+    if (this.disabled()) return;
     this.collapsedSections.update(set => {
       const newSet = new Set(set);
       if (newSet.has(sectionId)) {

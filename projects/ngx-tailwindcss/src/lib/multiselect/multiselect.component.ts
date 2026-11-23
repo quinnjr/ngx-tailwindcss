@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   AfterViewInit,
   booleanAttribute,
   ChangeDetectionStrategy,
@@ -251,6 +252,19 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     const item = this.navItems()[this.activeIndex()];
     if (item === undefined) return null;
     return item === SELECT_ALL ? this.selectAllId : this.optionId(item);
+  });
+
+  /**
+   * Keeps the keyboard-active option visible: focus stays on the trigger or filter
+   * (aria-activedescendant), so the listbox does not scroll by itself.
+   */
+  private readonly scrollActiveOptionIntoView = afterRenderEffect(() => {
+    const id = this.activeOptionId();
+    if (!id) return;
+    const option = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      `[id="${id}"]`
+    );
+    option?.scrollIntoView?.({ block: 'nearest' });
   });
 
   protected isSelectAllActive = computed(() => this.navItems()[this.activeIndex()] === SELECT_ALL);

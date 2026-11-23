@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, HostListener, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 let nextAboutDialogId = 0;
 
@@ -51,9 +52,13 @@ export class TwAboutDialogComponent {
   public readonly checkForUpdates = output();
   public readonly viewLicense = output();
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.open()) {
+  constructor() {
+    trackNativeEscapeLayer(this, this.open);
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.open() && claimNativeEscape(this, event)) {
       this.onClose();
     }
   }

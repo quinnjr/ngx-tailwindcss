@@ -5,7 +5,9 @@
       class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between"
     >
       @if (title()) {
-        <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ title() }}</h3>
+        <h3 [id]="titleId" class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {{ title() }}
+        </h3>
       }
       <div class="flex items-center gap-2">
         <ng-content select="[twTableActions]"></ng-content>
@@ -48,7 +50,11 @@
 
   <!-- Table wrapper -->
   <div [class]="tableWrapperClasses()">
-    <table [class]="tableClasses()">
+    <table
+      [class]="tableClasses()"
+      [attr.aria-labelledby]="title() ? titleId : ariaLabelledBy() || null"
+      [attr.aria-label]="title() ? null : ariaLabel() || null"
+    >
       <thead [class]="theadClasses()">
         <tr>
           @if (selectable()) {

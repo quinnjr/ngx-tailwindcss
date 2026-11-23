@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { AlertDialogType } from './native.types';
 
 let nextConfirmDialogId = 0;
@@ -57,9 +58,13 @@ export class TwNativeConfirmDialogComponent {
   public readonly cancel = output();
   public readonly openChange = output<boolean>();
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.open()) {
+  constructor() {
+    trackNativeEscapeLayer(this, this.open);
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.open() && claimNativeEscape(this, event)) {
       this.onCancel();
     }
   }

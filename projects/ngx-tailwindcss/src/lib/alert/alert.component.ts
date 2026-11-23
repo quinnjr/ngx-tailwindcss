@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type AlertVariant = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 export type AlertStyle = 'solid' | 'soft' | 'outlined' | 'accent';
@@ -161,7 +162,7 @@ export class TwAlertComponent {
    * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
    * goes through the merge instead of competing with the host classes.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Dismiss event */
   @Output() dismiss = new EventEmitter<void>();

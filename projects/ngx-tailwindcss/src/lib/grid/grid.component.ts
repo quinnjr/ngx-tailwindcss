@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type GridCols = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 'none' | 'auto';
 export type GridGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -185,7 +186,7 @@ export class TwGridComponent {
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
    * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly gridClasses = computed(() => {
     const classes = ['grid', COLS_CLASSES[this.cols().toString()]];
@@ -263,7 +264,7 @@ export class TwSimpleGridComponent {
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
    * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly gridClasses = computed(() => {
     return this.twClass.merge('grid', GAP_CLASSES[this.gap()], this.class());

@@ -223,4 +223,18 @@
       </text>
     }
   }
+  <!-- Keyboard focus indicator (shown while the focusable host has :focus-visible) -->
+  @if (focusRing()) {
+    <rect
+      class="tw-note-focus-ring pointer-events-none opacity-0 group-focus-visible/note:opacity-100"
+      [attr.x]="x() - size() * 0.8"
+      [attr.y]="yPosition() - size() * 0.7"
+      [attr.width]="size() * 1.6"
+      [attr.height]="size() * 1.4"
+      rx="3"
+      fill="none"
+      stroke="#2563EB"
+      stroke-width="2"
+    />
+  }
 </svg>

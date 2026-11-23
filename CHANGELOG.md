@@ -209,7 +209,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `containerClass`/`toolbarClass` and the music components' `classOverride`
   are merged; `twHoverClass` swaps out conflicting classes while hovered and
   restores them afterwards
-- A `class` attribute on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
+- A `class` attribute or `[class]` binding on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
   `tw-card` and `tw-card-horizontal` is merged into the component's classes, so
   `class="bg-sky-700 text-white"` replaces the variant colours (it used to
   compete with them and often lost)
@@ -235,6 +235,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   note-input toolbars have accessible names and pressed state; `tw-looper`
   and `tw-compressor-meter` `minimal` variants follow the page theme; mixer
   sections expose `aria-expanded`
+- `twHoverClass` no longer restores a class that a binding removed (or strips
+  one a binding added) while the element was hovered
+- Unmuting the audio context restores the source gain it had before muting;
+  mixer sections honour `collapsed`
+- Accessibility: dark-mode error text and required asterisks on `tw-input`,
+  `tw-textarea` and `tw-select` meet 4.5:1; the `tw-table` pager marks the
+  current page with `aria-current`; `tw-looper` speed buttons expose
+  `aria-pressed`; `tw-metronome` exposes pressed states; `tw-time-display`
+  includes the total time in its accessible name; `tw-score-editor` dialogs
+  have dialog semantics, close on Escape and manage focus; hover and selected
+  states on `tw-looper`, `tw-tuner`, `tw-compressor-meter`, `tw-parametric-eq`,
+  `tw-lead-sheet` and `tw-scrubber` keep their contrast; native property
+  inspector, shortcuts editor and settings panel inputs have accessible names
+- The `class` input on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
+  the `tw-card` family and the layout components (`tw-stack`, `tw-grid`,
+  `tw-columns`, `tw-container`, `tw-center`, `tw-bleed`, `tw-spacer`,
+  `tw-aspect-ratio`, ...) accepts every `[class]` binding form again
+  (string, array, `Set` or `{ class: condition }` object); object and array
+  bindings were a type error and rendered `[object Object]`
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

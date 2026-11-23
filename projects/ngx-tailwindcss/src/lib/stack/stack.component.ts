@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type StackDirection = 'vertical' | 'horizontal' | 'vertical-reverse' | 'horizontal-reverse';
 export type StackSpacing = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
@@ -101,7 +102,7 @@ export class TwStackComponent {
   readonly fullWidth = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(
@@ -137,7 +138,7 @@ export class TwVStackComponent {
   readonly spacing = input<StackSpacing>('md');
   readonly align = input<StackAlign>('stretch');
   readonly justify = input<StackJustify>('start');
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(
@@ -171,7 +172,7 @@ export class TwHStackComponent {
   readonly align = input<StackAlign>('center');
   readonly justify = input<StackJustify>('start');
   readonly wrap = input(false, { transform: booleanAttribute });
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(

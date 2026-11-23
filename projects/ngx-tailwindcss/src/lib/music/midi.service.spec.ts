@@ -511,6 +511,20 @@ describe('MidiService', () => {
       expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0, 0]);
     });
 
+    it('should clamp data bytes to 0-127 so they never set the status bit', async () => {
+      await service.requestAccess();
+
+      service.sendCC('output-1', MIDI_CC.VOLUME, 200, 0);
+      service.sendNoteOn('output-1', 130, 300, 0);
+      service.sendNoteOff('output-1', -5, Number.NaN, 0);
+      service.sendProgramChange('output-1', 128, 0);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xb0, MIDI_CC.VOLUME, 127]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x90, 127, 127]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x80, 0, 0]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xc0, 127]);
+    });
+
     it('should keep out-of-range channels within the status byte nibble', async () => {
       await service.requestAccess();
 

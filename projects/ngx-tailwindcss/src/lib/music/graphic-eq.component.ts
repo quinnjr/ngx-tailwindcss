@@ -512,9 +512,11 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         negative: string;
       }
     > = {
+      // Slider thumbs keep 3:1 against their track (at 0 dB the thumb is the
+      // only value indicator)
       default: {
         background: 'bg-slate-900',
-        slider: 'bg-slate-600',
+        slider: 'bg-slate-400',
         fill: 'bg-blue-500',
         track: 'bg-slate-700',
         label: 'text-slate-400',
@@ -540,7 +542,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       },
       minimal: {
         background: 'bg-white dark:bg-slate-900',
-        slider: 'bg-slate-400 dark:bg-slate-500',
+        slider: 'bg-slate-500 dark:bg-slate-400',
         fill: 'bg-slate-700 dark:bg-slate-300',
         track: 'bg-slate-200 dark:bg-slate-700',
         label: 'text-slate-500 dark:text-slate-400',
@@ -553,7 +555,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       },
       neon: {
         background: 'bg-black',
-        slider: 'bg-purple-600',
+        slider: 'bg-purple-500',
         fill: 'bg-cyan-400',
         track: 'bg-slate-800',
         label: 'text-purple-400',
@@ -566,7 +568,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       },
       light: {
         background: 'bg-white',
-        slider: 'bg-slate-400',
+        slider: 'bg-slate-500',
         fill: 'bg-blue-600',
         track: 'bg-slate-200',
         label: 'text-slate-600',

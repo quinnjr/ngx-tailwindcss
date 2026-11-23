@@ -68,16 +68,18 @@
     <div class="flex flex-col items-center gap-2">
       <div class="flex items-center justify-center gap-2">
         @for (beat of beatIndicators(); track beat) {
-          <button
-            type="button"
-            [class]="getAccentIndicatorClass(beat)"
-            (click)="showAccentConfig() ? cycleAccent(beat) : null"
-            [title]="
-              showAccentConfig()
-                ? 'Click to cycle accent: ' + getAccentForBeat(beat)
-                : 'Beat ' + beat
-            "
-          ></button>
+          @if (showAccentConfig()) {
+            <button
+              type="button"
+              [class]="getAccentIndicatorClass(beat)"
+              [disabled]="disabled()"
+              (click)="cycleAccent(beat)"
+              [title]="'Click to cycle accent: ' + getAccentForBeat(beat)"
+            ></button>
+          } @else {
+            <!-- Display only: a focusable button here did nothing when activated -->
+            <span [class]="getAccentIndicatorClass(beat, false)" [title]="'Beat ' + beat"></span>
+          }
         }
       </div>
 

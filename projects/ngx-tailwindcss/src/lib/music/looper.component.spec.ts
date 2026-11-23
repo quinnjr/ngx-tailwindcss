@@ -324,4 +324,24 @@ describe('TwLooperComponent', () => {
     expect(overdub.classList).not.toContain('hover:bg-amber-500');
     internals.state.set('idle');
   });
+
+  it('should keep the muted layer label and the hovered delete icon readable', () => {
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: true, name: 'L1' }]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    // White "M" on red-500 was ~3.8:1
+    const mute = el.querySelector('[aria-label="Unmute L1"]')!;
+    expect(mute.classList).toContain('bg-red-600');
+    expect(mute.classList).not.toContain('bg-red-500');
+
+    // red-500 on its red-500/20 hover fill is ~2.6:1 on the light page under `minimal`
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const del = el.querySelector('[aria-label="Delete L1"]')!;
+    expect(del.classList).toContain('hover:text-red-700');
+    expect(del.classList).toContain('dark:hover:text-red-500');
+    expect(del.classList).not.toContain('hover:text-red-500');
+    expect(del.classList).toContain('text-slate-600');
+    internals.layers.set([]);
+  });
 });

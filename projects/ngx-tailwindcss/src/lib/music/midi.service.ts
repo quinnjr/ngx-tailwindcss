@@ -190,6 +190,16 @@ export const MIDI_CC = {
  * // The CC is automatically mapped
  * ```
  */
+/**
+ * Rounds and clamps a value to a MIDI data byte (0-127). Values outside that range
+ * would set the high bit and turn the data byte into a status byte, corrupting the
+ * message sent to the device.
+ */
+function toDataByte(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(127, Math.max(0, Math.round(value)));
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -791,28 +801,28 @@ export class MidiService implements OnDestroy {
    * Send a Note On message
    */
   sendNoteOn(outputId: string, note: number, velocity: number = 127, channel: number = 0): void {
-    this.sendMessage(outputId, [0x90 | (channel & 0x0f), note, velocity]);
+    this.sendMessage(outputId, [0x90 | (channel & 0x0f), toDataByte(note), toDataByte(velocity)]);
   }
 
   /**
    * Send a Note Off message
    */
   sendNoteOff(outputId: string, note: number, velocity: number = 0, channel: number = 0): void {
-    this.sendMessage(outputId, [0x80 | (channel & 0x0f), note, velocity]);
+    this.sendMessage(outputId, [0x80 | (channel & 0x0f), toDataByte(note), toDataByte(velocity)]);
   }
 
   /**
    * Send a Control Change message
    */
   sendCC(outputId: string, cc: number, value: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xb0 | (channel & 0x0f), cc, Math.round(value)]);
+    this.sendMessage(outputId, [0xb0 | (channel & 0x0f), toDataByte(cc), toDataByte(value)]);
   }
 
   /**
    * Send a Program Change message
    */
   sendProgramChange(outputId: string, program: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xc0 | (channel & 0x0f), program]);
+    this.sendMessage(outputId, [0xc0 | (channel & 0x0f), toDataByte(program)]);
   }
 
   /**

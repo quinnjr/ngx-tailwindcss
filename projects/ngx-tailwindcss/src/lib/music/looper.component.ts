@@ -917,6 +917,13 @@ export class TwLooperComponent implements OnDestroy {
     this.variant() === 'minimal' ? 'bg-slate-500/10' : 'bg-slate-800/50'
   );
 
+  // Layer delete icon on hover: red-500 on its red-500/20 hover fill is ~2.6:1 on a light page
+  protected readonly deleteButtonClass = computed(() =>
+    this.variant() === 'minimal'
+      ? 'text-slate-600 dark:text-slate-400 hover:text-red-700 dark:hover:text-red-500'
+      : 'text-slate-400 hover:text-red-500'
+  );
+
   // Idle overdub icon: amber-500 on its amber-500/20 button is ~1.8:1 on a light page
   protected readonly overdubIconClass = computed(() =>
     this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-500' : 'text-amber-500'

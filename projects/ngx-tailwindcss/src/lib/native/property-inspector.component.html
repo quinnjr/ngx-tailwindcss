@@ -135,7 +135,9 @@
                         </span>
                       }
                       @case ('null') {
-                        <span class="text-sm font-mono text-slate-400 italic">null</span>
+                        <span class="text-sm font-mono text-slate-500 dark:text-slate-400 italic"
+                          >null</span
+                        >
                       }
                       @case ('color') {
                         <div class="flex items-center gap-2">
@@ -179,7 +181,9 @@
     }
 
     @if (properties().length === 0) {
-      <div class="flex flex-col items-center justify-center py-12 text-slate-500">
+      <div
+        class="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400"
+      >
         <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"

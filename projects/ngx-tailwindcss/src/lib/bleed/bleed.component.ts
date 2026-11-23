@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type BleedDirection = 'horizontal' | 'left' | 'right' | 'all';
 export type BleedAmount = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -87,7 +88,7 @@ export class TwBleedComponent {
   readonly preservePadding = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly bleedClasses = computed(() => {
     return this.twClass.merge('block relative', this.class());

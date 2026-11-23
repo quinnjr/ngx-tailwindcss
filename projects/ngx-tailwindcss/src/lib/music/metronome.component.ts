@@ -217,17 +217,22 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   }
 
   // Get visual class for accent indicator
-  protected getAccentIndicatorClass(beatNum: number): string {
+  protected getAccentIndicatorClass(beatNum: number, interactive = true): string {
     const level = this.getAccentForBeat(beatNum);
     const isCurrent = this.currentBeat() === beatNum && this.isPlaying();
+    const hover = (cls: string) => (interactive ? ` ${cls}` : '');
 
-    const baseClasses = 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer';
+    const baseClasses = interactive
+      ? 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer disabled:cursor-not-allowed'
+      : 'inline-block w-4 h-4 rounded-full transition-all duration-100';
 
     const levelClasses: Record<AccentLevel, string> = {
-      none: isCurrent ? 'bg-slate-400 scale-110' : 'bg-slate-600 hover:bg-slate-500',
-      soft: isCurrent ? 'bg-blue-400 scale-110' : 'bg-blue-600/60 hover:bg-blue-500/60',
-      medium: isCurrent ? 'bg-amber-400 scale-110' : 'bg-amber-600/70 hover:bg-amber-500/70',
-      strong: isCurrent ? 'bg-red-400 scale-125' : 'bg-red-600 hover:bg-red-500',
+      none: isCurrent ? 'bg-slate-400 scale-110' : `bg-slate-600${hover('hover:bg-slate-500')}`,
+      soft: isCurrent ? 'bg-blue-400 scale-110' : `bg-blue-600/60${hover('hover:bg-blue-500/60')}`,
+      medium: isCurrent
+        ? 'bg-amber-400 scale-110'
+        : `bg-amber-600/70${hover('hover:bg-amber-500/70')}`,
+      strong: isCurrent ? 'bg-red-400 scale-125' : `bg-red-600${hover('hover:bg-red-500')}`,
     };
 
     return `${baseClasses} ${levelClasses[level]}`;

@@ -1041,6 +1041,33 @@ export class TwSheetMusicComponent {
     this.noteClick.emit({ measure: measureIndex, noteIndex, note: original });
   }
 
+  // Enter/Space on a focused note (interactive mode): the keyboard equivalent of a click
+  protected activateNote(
+    event: Event,
+    measureIndex: number,
+    noteIndex: number,
+    note: NoteData
+  ): void {
+    if (!this.interactive()) return;
+    event.preventDefault();
+    this.onNoteClick(event, measureIndex, noteIndex, note);
+  }
+
+  protected getNoteLabel(measureIndex: number, noteIndex: number, note: NoteData): string {
+    const n = this.musicData().measures[measureIndex]?.notes[noteIndex] ?? note;
+    const accidental = n.accidental
+      ? ` ${n.accidental.replaceAll(/([A-Z])/g, ' $1').toLowerCase()}`
+      : '';
+    const description = n.isRest
+      ? `${n.duration} rest`
+      : `${n.name}${accidental} ${n.octave}, ${n.duration}`;
+    return `Measure ${measureIndex + 1}, note ${noteIndex + 1}: ${description}`;
+  }
+
+  protected getMeasureWidth(lineIndex: number): number {
+    return this.getLineLayout(lineIndex).measureWidth;
+  }
+
   protected onMeasureClick(measureIndex: number): void {
     if (!this.interactive()) return;
     this.measureClick.emit(measureIndex);

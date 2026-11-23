@@ -138,3 +138,64 @@ describe('TwTablatureComponent classOverride', () => {
     expect(classes).not.toContain('bg-white');
   });
 });
+
+describe('TwTablatureComponent keyboard interaction', () => {
+  let fixture: ComponentFixture<TwTablatureComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [TwTablatureComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TwTablatureComponent);
+    fixture.componentRef.setInput('measures', [
+      { notes: [[{ string: 3, fret: 5, technique: 'bend' }]] },
+      { notes: [[{ string: 1, fret: 'x' }]] },
+    ]);
+  });
+
+  const targets = () => [
+    ...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="button"]'),
+  ];
+
+  it('has no focus targets unless interactive', () => {
+    fixture.detectChanges();
+    expect(targets().length).toBe(0);
+  });
+
+  it('exposes named, focusable measure and note buttons with a focus indicator', () => {
+    fixture.componentRef.setInput('interactive', true);
+    fixture.detectChanges();
+    expect(targets().map(t => t.getAttribute('aria-label'))).toEqual([
+      'Measure 1',
+      'Measure 1, beat 1, string 3, fret 5, bend',
+      'Measure 2',
+      'Measure 2, beat 1, string 1, muted',
+    ]);
+    expect(targets().every(t => t.getAttribute('tabindex') === '0')).toBe(true);
+    const [measure, note] = targets();
+    expect(measure.getAttribute('class')).toContain('focus-visible:stroke-blue-500');
+    expect(note.querySelector('rect')?.getAttribute('class')).toContain(
+      'group-focus-visible:stroke-blue-500'
+    );
+  });
+
+  it('emits measureClick and noteClick from Enter and Space', () => {
+    fixture.componentRef.setInput('interactive', true);
+    fixture.detectChanges();
+    const measures: number[] = [];
+    const notes: string[] = [];
+    fixture.componentInstance.measureClick.subscribe(m => measures.push(m));
+    fixture.componentInstance.noteClick.subscribe(e => notes.push(`${e.measure}:${e.note.fret}`));
+    const [m1, n1, m2, n2] = targets();
+    const press = (el: Element, key: string) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      el.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(press(m2, 'Enter')).toBe(true);
+    expect(press(m1, ' ')).toBe(true);
+    expect(press(n1, 'Enter')).toBe(true);
+    press(n2, ' ');
+    expect(measures).toEqual([1, 0]);
+    // A note activation is not also reported as a measure activation
+    expect(notes).toEqual(['0:5', '1:x']);
+  });
+});

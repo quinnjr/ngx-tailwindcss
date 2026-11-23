@@ -242,7 +242,7 @@
           <button
             type="button"
             class="w-6 h-6 rounded flex items-center justify-center text-xs transition-colors"
-            [class.bg-red-500]="layer.muted"
+            [class.bg-red-600]="layer.muted"
             [class.text-white]="layer.muted"
             [class.bg-slate-700]="!layer.muted"
             [class.text-slate-300]="!layer.muted"
@@ -272,8 +272,8 @@
           <!-- Delete Button -->
           <button
             type="button"
-            class="w-6 h-6 rounded flex items-center justify-center hover:text-red-500 hover:bg-red-500/20 transition-colors"
-            [class]="labelClass()"
+            class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
+            [class]="deleteButtonClass()"
             (click)="deleteLayer(layer.id)"
             [attr.aria-label]="'Delete ' + layer.name"
           >

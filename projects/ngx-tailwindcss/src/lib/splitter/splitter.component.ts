@@ -13,6 +13,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type SplitterDirection = 'horizontal' | 'vertical';
@@ -96,7 +97,7 @@ export class TwSplitterComponent implements OnDestroy {
   readonly showGutter = input(true);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Emits when sizes change */
   @Output() sizesChange = new EventEmitter<[number, number]>();

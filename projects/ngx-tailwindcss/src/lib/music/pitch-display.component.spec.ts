@@ -168,6 +168,21 @@ describe('TwPitchDisplayComponent', () => {
     expect(preset('+5th').classList).toContain('px-2');
   });
 
+  it('should expose the active quick preset as pressed', () => {
+    fixture.componentRef.setInput('showPresets', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const preset = (text: string): HTMLElement =>
+      [...el.querySelectorAll<HTMLElement>('button')].find(b => b.textContent?.trim() === text)!;
+
+    expect(preset('0').getAttribute('aria-pressed')).toBe('true');
+    expect(preset('+5th').getAttribute('aria-pressed')).toBe('false');
+    preset('+5th').click();
+    fixture.detectChanges();
+    expect(preset('+5th').getAttribute('aria-pressed')).toBe('true');
+    expect(preset('0').getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('should render the inactive key-lock label above 4.5:1 on its slate-700 fill', () => {
     const el = fixture.nativeElement as HTMLElement;
     const key = [...el.querySelectorAll<HTMLElement>('button')].find(b =>

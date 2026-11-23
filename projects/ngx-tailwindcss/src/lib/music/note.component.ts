@@ -278,6 +278,11 @@ export class TwNoteComponent {
   readonly highlighted = input(false);
   readonly color = input<string>('#1E293B');
   readonly highlightColor = input<string>('#3B82F6');
+  /**
+   * Draw a ring around the note while its host is keyboard-focused. For a host the parent
+   * makes focusable (tabindex) and marks with the Tailwind `group/note` class.
+   */
+  readonly focusRing = input(false);
   readonly size = input(24, { transform: numberAttribute }); // Note head size
   readonly lineSpacing = input(10, { transform: numberAttribute });
 

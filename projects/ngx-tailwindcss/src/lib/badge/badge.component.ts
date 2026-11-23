@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type BadgeVariant =
   'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
@@ -140,7 +141,7 @@ export class TwBadgeComponent {
    * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
    * goes through the merge instead of competing with the host classes.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   // Output
   @Output() remove = new EventEmitter<void>();

@@ -385,6 +385,7 @@
           type="button"
           class="px-2 py-0.5 rounded text-[10px] transition-colors"
           [class]="presetButtonClass(-12, 'bg-blue-700')"
+          [attr.aria-pressed]="isPresetActive(-12)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveDown)"
         >
@@ -394,6 +395,7 @@
           type="button"
           class="px-2 py-0.5 rounded text-[10px] transition-colors"
           [class]="presetButtonClass(-7, 'bg-blue-700')"
+          [attr.aria-pressed]="isPresetActive(-7)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthDown)"
         >
@@ -403,6 +405,7 @@
           type="button"
           class="px-2 py-0.5 rounded text-[10px] transition-colors"
           [class]="presetButtonClass(0, 'bg-green-700')"
+          [attr.aria-pressed]="isPresetActive(0)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.zero)"
         >
@@ -412,6 +415,7 @@
           type="button"
           class="px-2 py-0.5 rounded text-[10px] transition-colors"
           [class]="presetButtonClass(7, 'bg-amber-700')"
+          [attr.aria-pressed]="isPresetActive(7)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthUp)"
         >
@@ -421,6 +425,7 @@
           type="button"
           class="px-2 py-0.5 rounded text-[10px] transition-colors"
           [class]="presetButtonClass(12, 'bg-amber-700')"
+          [attr.aria-pressed]="isPresetActive(12)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveUp)"
         >

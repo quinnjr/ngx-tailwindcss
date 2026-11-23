@@ -316,3 +316,31 @@ describe('TwMetronomeComponent selection state', () => {
     fixture.destroy();
   });
 });
+
+describe('TwMetronomeComponent beat indicators', () => {
+  it('should not cycle accents while disabled, and render display-only dots without accent config', async () => {
+    await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    const changes: AccentLevel[][] = [];
+    fixture.componentInstance.accentPatternChange.subscribe(p => changes.push(p));
+    fixture.componentRef.setInput('showAccentConfig', true);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const beatButtons = () =>
+      [...el.querySelectorAll('button')].filter(b => b.title.startsWith('Click to cycle accent'));
+
+    expect(beatButtons().length).toBe(4);
+    for (const b of beatButtons()) expect(b.disabled).toBe(true);
+    beatButtons()[1].click();
+    expect(changes).toEqual([]);
+
+    // Without accent config the dots are not (no-op) buttons
+    fixture.componentRef.setInput('showAccentConfig', false);
+    fixture.componentRef.setInput('disabled', false);
+    fixture.detectChanges();
+    expect([...el.querySelectorAll('button')].some(b => b.title.startsWith('Beat '))).toBe(false);
+    expect(el.querySelectorAll('span[title^="Beat "]').length).toBe(4);
+    fixture.destroy();
+  });
+});

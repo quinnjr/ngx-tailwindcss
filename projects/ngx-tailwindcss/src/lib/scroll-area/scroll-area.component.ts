@@ -8,6 +8,7 @@ import {
   input,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type ScrollAreaDirection = 'vertical' | 'horizontal' | 'both';
@@ -164,7 +165,7 @@ export class TwScrollAreaComponent {
   readonly smooth = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected scrollAreaClasses = computed(() => {
     return this.twClass.merge(

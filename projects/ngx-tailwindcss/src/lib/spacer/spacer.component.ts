@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type SpacerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'auto';
 
@@ -96,7 +97,7 @@ export class TwSpacerComponent {
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
    * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected spacerClasses = computed(() => {
     const horizontal = this.axis() === 'horizontal';
@@ -145,7 +146,7 @@ export class TwWrapComponent {
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
    * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected wrapClasses = computed(() => {
     return this.twClass.merge(

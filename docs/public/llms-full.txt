@@ -730,7 +730,7 @@ Add additional classes that merge with defaults:
 ```
 
 On `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`, `tw-card` and `tw-card-horizontal`, a plain `class`
-attribute (static or `[class]` string binding) is merged the same way, so `class="bg-sky-700 text-white"`
+attribute or `[class]` binding (string, array, `Set` or `{ class: condition }` object) is merged the same way, so `class="bg-sky-700 text-white"`
 replaces the variant colours. `classOverride` is applied after `class` and wins over it.
 
 ### Method 2: classReplace (Replace)

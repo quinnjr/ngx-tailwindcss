@@ -11,6 +11,7 @@ import {
   PLATFORM_ID,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 import { pushEscapeLayer, removeEscapeLayer, shouldHandleEscape } from './escape-layer-stack';
 import { lockBodyScroll, unlockBodyScroll } from './scroll-lock';
@@ -100,7 +101,7 @@ export class TwOverlayComponent implements OnDestroy {
   readonly zIndex = input(50);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Emits when overlay should close */
   readonly close = output();

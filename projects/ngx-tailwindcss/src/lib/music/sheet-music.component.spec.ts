@@ -425,3 +425,73 @@ describe('TwSheetMusicComponent zoom controls', () => {
     expect(labels).toEqual(['Zoom out', 'Zoom in', 'Reset zoom', 'Print']);
   });
 });
+
+describe('TwSheetMusicComponent keyboard interaction', () => {
+  let fixture: ComponentFixture<TwSheetMusicComponent>;
+  const music: SheetMusicData = {
+    clef: 'treble',
+    keySignature: 'C',
+    timeSignature: '4/4',
+    measures: [
+      { notes: [{ name: 'F', octave: 4, accidental: 'sharp', duration: 'whole' }] },
+      { notes: [{ name: 'C', octave: 5, duration: 'whole', isRest: true }] },
+    ],
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TwSheetMusicComponent);
+    fixture.componentRef.setInput('music', music);
+    fixture.componentRef.setInput('measuresPerLine', 2);
+  });
+
+  const el = () => fixture.nativeElement as HTMLElement;
+
+  it('has no keyboard targets unless interactive', () => {
+    fixture.detectChanges();
+    expect(el().querySelectorAll('g[twNote][role="button"], g[twNote][tabindex]').length).toBe(0);
+    expect(el().querySelectorAll('button[aria-label^="Measure"]').length).toBe(0);
+    expect(el().querySelectorAll('.tw-note-focus-ring').length).toBe(0);
+  });
+
+  it.each(['scroll', 'pages', 'single'] as const)(
+    'emits measureClick and noteClick from the keyboard in the %s layout',
+    layout => {
+      fixture.componentRef.setInput('interactive', true);
+      fixture.componentRef.setInput('layout', layout);
+      fixture.detectChanges();
+      const measures: number[] = [];
+      const notes: number[] = [];
+      fixture.componentInstance.measureClick.subscribe(m => measures.push(m));
+      fixture.componentInstance.noteClick.subscribe(e => notes.push(e.measure));
+
+      const measureButtons = [
+        ...el().querySelectorAll<HTMLButtonElement>('button[aria-label^="Measure"]'),
+      ];
+      expect(measureButtons.map(b => b.getAttribute('aria-label'))).toEqual([
+        'Measure 1',
+        'Measure 2',
+      ]);
+      // Keyboard-only: pointer clicks pass through to the staff and notes underneath
+      expect(measureButtons[0].className).toContain('pointer-events-none');
+      expect(measureButtons[0].className).toContain('focus-visible:outline-2');
+      measureButtons[1].click();
+      expect(measures).toEqual([1]);
+
+      const noteEls = [...el().querySelectorAll('g[twNote][role="button"]')];
+      expect(noteEls.map(n => n.getAttribute('aria-label'))).toEqual([
+        'Measure 1, note 1: F sharp 4, whole',
+        'Measure 2, note 1: whole rest',
+      ]);
+      expect(noteEls[0].getAttribute('tabindex')).toBe('0');
+      expect(noteEls[0].querySelector('.tw-note-focus-ring')).not.toBeNull();
+      for (const key of ['Enter', ' ']) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        noteEls[1].dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      }
+      expect(notes).toEqual([1, 1]);
+      expect(measures).toEqual([1]);
+    }
+  );
+});

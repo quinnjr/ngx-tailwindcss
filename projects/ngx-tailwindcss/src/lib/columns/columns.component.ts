@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type ColumnsCount = 1 | 2 | 3 | 4 | 5 | 6 | 'auto';
 export type ColumnsGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -150,7 +151,7 @@ export class TwColumnsComponent {
   readonly avoidBreak = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly columnsClasses = computed(() => {
     const classes = ['block', COLUMNS_CLASSES[String(this.count())], GAP_CLASSES[this.gap()]];

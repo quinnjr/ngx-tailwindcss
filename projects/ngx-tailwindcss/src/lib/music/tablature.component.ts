@@ -291,6 +291,34 @@ export class TwTablatureComponent {
     this.measureClick.emit(measureIndex);
   }
 
+  // Enter/Space on a focused note or measure target: the keyboard equivalent of a click
+  protected activateNote(
+    event: Event,
+    measureIndex: number,
+    beatIndex: number,
+    note: TabNote
+  ): void {
+    if (!this.interactive()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.onNoteClick(measureIndex, beatIndex, note);
+  }
+
+  protected activateMeasure(event: Event, measureIndex: number): void {
+    if (!this.interactive()) return;
+    event.preventDefault();
+    this.onMeasureClick(measureIndex);
+  }
+
+  protected getNoteLabel(measureIndex: number, beatIndex: number, note: TabNote): string {
+    const fret =
+      typeof note.fret === 'string' && note.fret.toLowerCase() === 'x'
+        ? 'muted'
+        : `fret ${note.fret}`;
+    const technique = note.technique ? `, ${note.technique}` : '';
+    return `Measure ${measureIndex + 1}, beat ${beatIndex + 1}, string ${note.string}, ${fret}${technique}`;
+  }
+
   /**
    * Staff notes for fretted tab notes, indexed [measure][beat][note]. The staff has no key
    * signature, so written accidentals follow standard notation in C major: a sharp carries

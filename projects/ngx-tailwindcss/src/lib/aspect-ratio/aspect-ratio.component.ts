@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type AspectRatioPreset = 'square' | 'video' | 'portrait' | 'wide' | 'ultrawide' | 'custom';
 
@@ -61,7 +62,7 @@ export class TwAspectRatioComponent {
   readonly customRatio = input<number | undefined>(undefined);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly containerClasses = computed(() => {
     const baseClasses = 'block relative overflow-hidden';

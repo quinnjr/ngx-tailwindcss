@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 import { TwRippleDirective } from '../directives/ripple.directive';
 
 export type ButtonVariant =
@@ -169,7 +170,7 @@ export class TwButtonComponent {
    * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
    * goes through the merge instead of competing with the host classes.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
   @Input() set classOverride(value: string) {
     this._classOverride.set(value);
   }

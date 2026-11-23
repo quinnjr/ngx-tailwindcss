@@ -183,4 +183,37 @@ describe('TwGraphicEQComponent', () => {
     expect(spans).toContain('Boost / Cut');
     expect(spans).not.toContain('Cut');
   });
+
+  it('should expose the active preset as pressed', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const quick = (name: string): HTMLButtonElement =>
+      [...el.querySelectorAll<HTMLButtonElement>('button')].find(
+        b => b.textContent?.trim() === name
+      )!;
+
+    fixture.componentRef.setInput('showPresetDropdown', false);
+    fixture.detectChanges();
+    expect(quick('Rock').getAttribute('aria-pressed')).toBe('false');
+    quick('Flat').click();
+    fixture.detectChanges();
+    expect(quick('Flat').getAttribute('aria-pressed')).toBe('true');
+    quick('Rock').click();
+    fixture.detectChanges();
+    expect(quick('Rock').getAttribute('aria-pressed')).toBe('true');
+    expect(quick('Flat').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('should keep slider thumbs at 3:1 against their track', () => {
+    // slate-600 on the slate-700 track was ~1.4:1
+    expect(internals.colors().slider).toBe('bg-slate-400');
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(internals.colors().slider).toBe('bg-slate-500');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(internals.colors().slider).toBe('bg-slate-500 dark:bg-slate-400');
+    fixture.componentRef.setInput('variant', 'neon');
+    fixture.detectChanges();
+    expect(internals.colors().slider).toBe('bg-purple-500');
+  });
 });

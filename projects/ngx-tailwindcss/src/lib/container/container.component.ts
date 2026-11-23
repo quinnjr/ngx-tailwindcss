@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type ContainerSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | 'prose';
 
@@ -70,7 +71,7 @@ export class TwContainerComponent {
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
    * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly containerClasses = computed(() => {
     return this.twClass.merge(

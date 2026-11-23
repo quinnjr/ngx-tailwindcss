@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 /**
  * Center component for centering content horizontally and/or vertically.
@@ -47,7 +48,7 @@ export class TwCenterComponent {
   readonly vertical = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly centerClasses = computed(() => {
     const classes: string[] = [this.inline() ? 'inline-flex' : 'flex'];
@@ -98,7 +99,7 @@ export class TwSquareComponent {
   readonly centerContent = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly squareClasses = computed(() => {
     return this.twClass.merge(
@@ -143,7 +144,7 @@ export class TwCircleComponent {
   readonly centerContent = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly circleClasses = computed(() => {
     return this.twClass.merge(

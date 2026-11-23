@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type StickyPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -70,7 +71,7 @@ export class TwStickyComponent {
   readonly disabled = input(false);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stickyClasses = computed(() => {
     return this.twClass.merge(this.disabled() ? 'relative' : 'sticky', this.class());

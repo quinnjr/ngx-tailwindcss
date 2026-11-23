@@ -530,9 +530,14 @@ export class TwPitchDisplayComponent {
   // Quick preset buttons. The active colour replaces the grey (rather than both
   // being applied) and takes white text: slate-300 on the active blue/green/
   // amber fills was ~2-3.4:1.
+  protected isPresetActive(semitones: number): boolean {
+    return this.internalSemitones() === semitones && this.internalCents() === 0;
+  }
+
   protected presetButtonClass(semitones: number, activeBg: string): string {
-    const active = this.internalSemitones() === semitones && this.internalCents() === 0;
-    return active ? `${activeBg} text-white` : 'bg-slate-700 hover:bg-slate-600 text-slate-300';
+    return this.isPresetActive(semitones)
+      ? `${activeBg} text-white`
+      : 'bg-slate-700 hover:bg-slate-600 text-slate-300';
   }
 
   protected readonly centsValueClasses = computed(() => {

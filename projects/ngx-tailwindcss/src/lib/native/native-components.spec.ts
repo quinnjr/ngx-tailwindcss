@@ -19,6 +19,7 @@ import { TwBreadcrumbsNavComponent } from './breadcrumbs.component';
 import { TwPreferencesDialogComponent } from './preferences-dialog.component';
 import { TwToolbarComponent } from './toolbar.component';
 import { TwTabBarComponent } from './tab-bar.component';
+import { TwThemeSelectorComponent } from './theme-selector.component';
 import {
   SettingItem,
   TwSettingsPanelComponent,
@@ -718,5 +719,52 @@ describe('native form controls have accessible names and visible actions', () =>
     fixture.detectChanges();
     const hex = (fixture.nativeElement as HTMLElement).querySelector('input.font-mono')!;
     expect(hex.getAttribute('aria-label')).toBe('Accent (hex value)');
+  });
+
+  it('property inspector null value and empty state are readable in both themes', () => {
+    const fixture = TestBed.createComponent(TwPropertyInspectorComponent);
+    fixture.componentRef.setInput('properties', [{ key: 'n', value: null, type: 'null' }]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const nullText = [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === 'null')!;
+    expect(nullText.classList).toContain('text-slate-500');
+    expect(nullText.classList).not.toContain('text-slate-400');
+
+    fixture.componentRef.setInput('properties', []);
+    fixture.detectChanges();
+    const empty = el.querySelector('p')!.parentElement!;
+    expect(empty.textContent).toContain('No properties to display');
+    expect(empty.classList).toContain('dark:text-slate-400');
+  });
+
+  it('breadcrumbs path editor input is named', () => {
+    const fixture = TestBed.createComponent(TwBreadcrumbsNavComponent);
+    fixture.componentRef.setInput('items', [{ id: 'h', label: 'home' }]);
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    el.querySelector<HTMLButtonElement>('button[aria-label="Edit path"]')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('input')!.getAttribute('aria-label')).toBe('Path');
+  });
+
+  it('theme selector custom colour and font size are named, choices expose pressed state', () => {
+    const fixture = TestBed.createComponent(TwThemeSelectorComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const color = el.querySelector<HTMLInputElement>('input[type="color"]')!;
+    expect(color.getAttribute('aria-label')).toBe('Custom accent color');
+    expect(color.closest('label')!.classList).toContain('focus-within:ring-2');
+    expect(el.querySelector('input[type="range"]')!.getAttribute('aria-label')).toBe('Font size');
+
+    const dark = [...el.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find(
+      b => b.textContent?.trim() === 'Dark'
+    )!;
+    expect(dark.getAttribute('aria-pressed')).toBe('false');
+    dark.click();
+    fixture.detectChanges();
+    expect(dark.getAttribute('aria-pressed')).toBe('true');
+    expect(el.querySelector('button[title="Blue"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(el.querySelector('button[title="Red"]')!.getAttribute('aria-pressed')).toBe('false');
   });
 });

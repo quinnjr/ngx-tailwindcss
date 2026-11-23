@@ -95,7 +95,7 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   protected readonly labelContainerClasses = computed(() => {
     return this.twClass.merge(
       'inline-flex items-center gap-2 cursor-pointer',
-      this.isDisabled() ? 'opacity-50 cursor-not-allowed' : '',
+      this.isDisabled() ? 'opacity-50 cursor-not-allowed' : this.readonly() ? 'cursor-default' : '',
       this.classOverride()
     );
   });

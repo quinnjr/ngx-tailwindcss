@@ -46,7 +46,7 @@
     </div>
 
     <!-- Hover Time Preview -->
-    @if (showHoverPreview() && hoverPosition() !== null && !isDragging()) {
+    @if (showHoverPreview() && !disabled() && hoverPosition() !== null && !isDragging()) {
       <div
         class="absolute top-0 bottom-0 w-px bg-white/50 pointer-events-none"
         [style.left.%]="hoverPosition()! * 100"

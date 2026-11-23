@@ -155,6 +155,21 @@ describe('TwCommandPaletteComponent', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('false');
     expect(options[1].getAttribute('aria-selected')).toBe('true');
   });
+
+  it('exposes the search input as a combobox controlling the results listbox', () => {
+    component.palette.open();
+    fixture.detectChanges();
+
+    const input = getSearchInput();
+    const listbox = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-autocomplete')).toBe('list');
+    expect(listbox.id).toBeTruthy();
+    expect(input.getAttribute('aria-controls')).toBe(listbox.id);
+    expect(input.getAttribute('aria-activedescendant')).toBe(getOptions()[0].id);
+  });
+
   it('should run the highlighted command when categories are interleaved', () => {
     const editAction = vi.fn();
     const viewAction = vi.fn();

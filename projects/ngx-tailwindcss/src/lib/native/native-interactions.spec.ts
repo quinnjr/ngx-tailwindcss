@@ -709,6 +709,29 @@ describe('native keyboard operability (round 20)', () => {
   });
 });
 
+describe('quick switcher combobox semantics (round 37)', () => {
+  it('exposes the search input as a combobox controlling the results listbox', () => {
+    const fixture = TestBed.createComponent(TwQuickSwitcherComponent);
+    fixture.componentRef.setInput(
+      'items',
+      ['alpha', 'beta'].map((id): QuickSwitcherItem => ({ id, label: id, type: 'file' }))
+    );
+    fixture.componentInstance.open();
+    fixture.componentInstance.searchQuery.set('a');
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const listbox = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+    const option = fixture.nativeElement.querySelector('[role="option"]') as HTMLElement;
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-autocomplete')).toBe('list');
+    expect(listbox.id).toBeTruthy();
+    expect(input.getAttribute('aria-controls')).toBe(listbox.id);
+    expect(input.getAttribute('aria-activedescendant')).toBe(option.id);
+  });
+});
+
 describe('native keyboard operability (round 21)', () => {
   it('log viewer rows use a single roving tab stop and show the selection', () => {
     const fixture = TestBed.createComponent(TwLogViewerComponent);

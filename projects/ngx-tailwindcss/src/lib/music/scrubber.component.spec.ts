@@ -29,6 +29,25 @@ describe('TwScrubberComponent', () => {
     expect(slider().getAttribute('tabindex')).toBe('-1');
   });
 
+  it('should not show the hover preview or hover-revealed thumb when disabled', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.componentRef.setInput('variant', 'youtube');
+    fixture.detectChanges();
+    const track = slider();
+    track.dispatchEvent(new MouseEvent('mousemove', { clientX: 0 }));
+    fixture.detectChanges();
+
+    // The time tooltip / playhead preview suggested the disabled control was usable
+    expect(track.querySelector('.w-px')).toBeNull();
+    expect(track.querySelector('div[class*="-top-8"]')).toBeNull();
+    expect(track.classList).not.toContain('group');
+    expect(track.className).not.toContain('hover:h-2');
+
+    fixture.componentRef.setInput('disabled', false);
+    fixture.detectChanges();
+    expect(track.querySelector('div[class*="-top-8"]')).not.toBeNull();
+  });
+
   it('should not overfill the progress bar past the duration', () => {
     fixture.componentRef.setInput('currentTime', 250);
     fixture.detectChanges();

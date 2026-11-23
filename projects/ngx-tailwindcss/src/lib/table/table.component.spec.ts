@@ -203,6 +203,23 @@ describe('TwTableComponent', () => {
       expect(names).toEqual(['adam', 'Bob', 'item9', 'item10', 'zoe']);
     });
 
+    it('should sort strings with a shared collator, not a per-comparison localeCompare', () => {
+      component.data.set(
+        Array.from({ length: 50 }, (_, i) => ({ id: i, name: `item${50 - i}`, age: i }))
+      );
+      fixture.detectChanges();
+      const spy = vi.spyOn(String.prototype, 'localeCompare');
+      try {
+        nameSortButton().nativeElement.click();
+        fixture.detectChanges();
+        expect(spy).not.toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+      }
+      const first = bodyRows()[0].queryAll(By.css('td'))[0].nativeElement.textContent.trim();
+      expect(first).toBe('item1');
+    });
+
     it('should not render a sort button for non-sortable columns', () => {
       component.columns.set([{ field: 'name', header: 'Name', sortable: false }]);
       fixture.detectChanges();

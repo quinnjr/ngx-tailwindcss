@@ -252,6 +252,17 @@ describe('TwAccordionComponent', () => {
       expect(panel.hidden).toBe(true);
     });
 
+    it('should wrap each header button in a level-3 heading by default', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      for (const item of items) {
+        const button = item.query(By.css('button')).nativeElement as HTMLButtonElement;
+        const heading = button.parentElement!;
+        expect(heading.getAttribute('role')).toBe('heading');
+        expect(heading.getAttribute('aria-level')).toBe('3');
+        expect(heading.children.length).toBe(1);
+      }
+    });
+
     it('should set aria-expanded on the header button', () => {
       const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
       const header = items[0].query(By.css('button')).nativeElement as HTMLButtonElement;
@@ -392,5 +403,51 @@ describe('TwAccordionComponent with items without a value', () => {
     for (const header of headers) {
       expect(header.nativeElement.getAttribute('aria-expanded')).toBe('false');
     }
+  });
+});
+
+@Component({
+  template: `
+    <tw-accordion [headingLevel]="accordionLevel()">
+      <tw-accordion-item value="a" itemTitle="A">A</tw-accordion-item>
+      <tw-accordion-item value="b" itemTitle="B">B</tw-accordion-item>
+    </tw-accordion>
+    <tw-accordion>
+      <tw-accordion-item value="c" itemTitle="C" [headingLevel]="itemLevel()">C</tw-accordion-item>
+    </tw-accordion>
+  `,
+  standalone: true,
+  imports: [TwAccordionComponent, TwAccordionItemComponent],
+})
+class HeadingLevelHostComponent {
+  accordionLevel = signal<number>(2);
+  itemLevel = signal<number>(4);
+}
+
+describe('TwAccordion headingLevel', () => {
+  let fixture: ComponentFixture<HeadingLevelHostComponent>;
+
+  const levels = () =>
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="heading"]')].map(h =>
+      h.getAttribute('aria-level')
+    );
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HeadingLevelHostComponent],
+    }).compileComponents();
+    fixture = TestBed.createComponent(HeadingLevelHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('applies the accordion level to all items and honours an item-level override', () => {
+    expect(levels()).toEqual(['2', '2', '4']);
+  });
+
+  it('updates when the level changes and falls back to 3 for out-of-range values', () => {
+    fixture.componentInstance.accordionLevel.set(5);
+    fixture.componentInstance.itemLevel.set(9);
+    fixture.detectChanges();
+    expect(levels()).toEqual(['5', '5', '3']);
   });
 });

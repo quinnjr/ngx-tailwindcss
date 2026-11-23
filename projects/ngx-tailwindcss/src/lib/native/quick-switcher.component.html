@@ -35,6 +35,10 @@
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQuery.set($event)"
         [placeholder]="placeholder()"
+        role="combobox"
+        aria-expanded="true"
+        aria-autocomplete="list"
+        [attr.aria-controls]="switcherId + '-listbox'"
         [attr.aria-activedescendant]="
           filteredItems().length ? switcherId + '-option-' + selectedIndex() : null
         "
@@ -65,7 +69,12 @@
     </div>
 
     <!-- Results List -->
-    <div class="max-h-80 overflow-y-auto" role="listbox" aria-label="Results">
+    <div
+      class="max-h-80 overflow-y-auto"
+      role="listbox"
+      aria-label="Results"
+      [attr.id]="switcherId + '-listbox'"
+    >
       @if (filteredItems().length === 0) {
         <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
           @if (searchQuery()) {

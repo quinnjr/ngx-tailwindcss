@@ -488,8 +488,11 @@ export class TwScoreEditorComponent implements OnInit {
   // ==================== TRANSPOSE ====================
 
   transpose(options: TransposeOptions): void {
-    const { semitones, partIds, preserveEnharmonic = false } = options;
-    if (semitones === 0) return;
+    const { partIds, preserveEnharmonic = false } = options;
+    // The transpose dialog's number field yields null when cleared and may hold a decimal:
+    // only whole semitones are pitches
+    const semitones = Math.round(options.semitones);
+    if (!Number.isFinite(semitones) || semitones === 0) return;
 
     this.saveHistory(`Transpose ${semitones > 0 ? '+' : ''}${semitones}`);
 

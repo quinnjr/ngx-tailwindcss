@@ -132,6 +132,25 @@ describe('TwVolumeDialComponent', () => {
       expect((fixture.nativeElement as HTMLElement).textContent).toContain('42');
     });
 
+    it('should reserve layout space for the label instead of overlapping content below', () => {
+      const dialFixture = TestBed.createComponent(TwVolumeDialComponent);
+      dialFixture.componentRef.setInput('label', 'Gain');
+      dialFixture.componentRef.setInput('size', 'md');
+      dialFixture.detectChanges();
+      const box = () => (dialFixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;
+      expect(box().style.height).toBe('96px'); // 72 dial + 24 value, no label shown
+
+      dialFixture.componentRef.setInput('showLabel', true);
+      dialFixture.detectChanges();
+      const labelEl = [...box().children].find(c => c.textContent?.trim() === 'Gain')!;
+      // It sat absolutely at -bottom-6, outside the box, over whatever followed
+      expect(labelEl.className).not.toContain('absolute');
+      expect(labelEl.className).not.toContain('-bottom-6');
+      expect(box().style.height).toBe('116px');
+      expect(box().style.width).toBe('72px');
+      expect(box().querySelector('svg')!.getAttribute('width')).toBe('72');
+    });
+
     it('should clamp keyboard-driven changes at max', () => {
       component.min.set(10);
       component.max.set(90);

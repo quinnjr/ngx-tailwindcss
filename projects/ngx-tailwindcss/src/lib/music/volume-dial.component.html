@@ -1,7 +1,7 @@
 <div
   [class]="containerClasses()"
   [style.width.px]="sizeConfig().size"
-  [style.height.px]="sizeConfig().size + (showValue() ? 24 : 0)"
+  [style.height.px]="sizeConfig().size + (showValue() ? 24 : 0) + (label() && showLabel() ? 20 : 0)"
 >
   <!-- SVG Dial -->
   <svg
@@ -95,10 +95,11 @@
     <div [class]="valueClasses()">{{ displayValue() }}{{ unit() }}</div>
   }
 
-  <!-- Label -->
+  <!-- Label (in flow, with its 20px reserved in the height: positioned below the box it
+       overlapped the content underneath) -->
   @if (label() && showLabel()) {
     <div
-      class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap"
+      class="mt-1 text-xs leading-4 whitespace-nowrap"
       [class]="surface() === 'dark' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'"
     >
       {{ label() }}

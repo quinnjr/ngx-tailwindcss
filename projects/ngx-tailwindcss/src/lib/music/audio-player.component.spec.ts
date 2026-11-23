@@ -30,16 +30,26 @@ describe('TwAudioPlayerComponent', () => {
     expect(audio.currentTime).toBe(50);
   });
 
-  it('should wire the transport skip buttons', () => {
+  it('should name the 10-second seek buttons for what they do', () => {
     audio.currentTime = 50;
-    const transport = fixture.debugElement.query(By.directive(TwTransportComponent))
-      .componentInstance as TwTransportComponent;
+    const host = fixture.nativeElement as HTMLElement;
 
-    transport.onSkipNext();
+    // They seek within the track: "Skip to previous/next" announced a track change
+    expect(host.querySelector('[aria-label="Skip to previous"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Skip to next"]')).toBeNull();
+
+    const forward = host.querySelector<HTMLButtonElement>('[aria-label="Forward 10 seconds"]')!;
+    expect(forward.title).toBe('Forward 10 seconds');
+    forward.click();
     expect(audio.currentTime).toBe(60);
 
-    transport.onSkipPrevious();
+    host.querySelector<HTMLButtonElement>('[aria-label="Back 10 seconds"]')!.click();
     expect(audio.currentTime).toBe(50);
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(host.querySelector('[aria-label="Skip to next"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Back 10 seconds"]')).toBeTruthy();
   });
 
   it('should not render a bogus "/ 0:00" total next to the time displays', () => {

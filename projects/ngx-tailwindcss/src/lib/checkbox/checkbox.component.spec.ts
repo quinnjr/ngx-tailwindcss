@@ -232,6 +232,15 @@ describe('TwCheckboxComponent', () => {
       fixture.detectChanges();
       expect(input.getAttribute('aria-readonly')).toBe('true');
     });
+
+    it('should not show a pointer cursor when readonly', () => {
+      const label = checkboxEl.querySelector('label')!;
+      expect(label.classList.contains('cursor-pointer')).toBe(true);
+      component.readonly.set(true);
+      fixture.detectChanges();
+      expect(label.classList.contains('cursor-pointer')).toBe(false);
+      expect(label.classList.contains('cursor-default')).toBe(true);
+    });
   });
 
   describe('checkbox interactions', () => {

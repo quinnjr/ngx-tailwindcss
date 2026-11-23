@@ -177,6 +177,28 @@ describe('TwMixerComponent layout', () => {
     expect(row!.classList).not.toContain('overflow-hidden');
   });
 
+  it('should keep the group indicators inside the clipping channel row', () => {
+    const mixerFixture = TestBed.createComponent(TwMixerComponent);
+    mixerFixture.componentRef.setInput('showMasterChannel', false);
+    mixerFixture.componentRef.setInput('groups', [
+      { id: 'g', name: 'Drums', channelIds: ['a'], color: 'rgb(255, 0, 0)' },
+    ]);
+    mixerFixture.componentRef.setInput('channels', [
+      { id: 'a', label: 'A', volume: 50, pan: 0, mute: false, solo: false, groupId: 'g' },
+    ]);
+    mixerFixture.detectChanges();
+
+    const indicator = (mixerFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[title="Group: Drums"]'
+    )!;
+    expect(indicator.classList).toContain('-top-1');
+    // The row clips (overflow-hidden): without top padding the indicator, entirely above the
+    // strip, was never visible
+    const row = indicator.parentElement!.parentElement!;
+    expect(row.classList).toContain('overflow-hidden');
+    expect(row.classList).toContain('pt-1');
+  });
+
   it('should expose each section header collapsed state to assistive technology', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

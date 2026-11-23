@@ -17,6 +17,12 @@ import {
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
+/**
+ * Shared collator for string sorting: `localeCompare` with an options object builds a
+ * fresh collator on every call, which makes sorting large tables very slow.
+ */
+const stringCollator = new Intl.Collator(undefined, { numeric: true });
+
 export interface TableColumn {
   field: string;
   header: string;
@@ -205,7 +211,7 @@ export class TwTableComponent {
         // and "item10" before "item9")
         const comparison =
           typeof aVal === 'string' && typeof bVal === 'string'
-            ? aVal.localeCompare(bVal, undefined, { numeric: true })
+            ? stringCollator.compare(aVal, bVal)
             : aVal < bVal
               ? -1
               : aVal > bVal

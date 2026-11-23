@@ -26,7 +26,8 @@
   @if (sections().length > 0 && showSectionHeaders()) {
     <!-- Every channel is rendered here (no paging), so the row scrolls: clipping it left the
          channels past the mixer's edge unreachable -->
-    <div class="flex gap-1 overflow-x-auto flex-1">
+    <!-- pt-1: room inside the clipping row for the -top-1 group indicators -->
+    <div class="flex gap-1 overflow-x-auto flex-1 pt-1">
       @for (sectionGroup of channelsBySection(); track sectionGroup.section?.id ?? 'unsectioned') {
         <div class="flex flex-col">
           <!-- Section Header -->
@@ -105,8 +106,9 @@
       }
     </div>
   } @else {
-    <!-- Standard Channel Layout (no sections) -->
-    <div class="flex gap-1 overflow-hidden flex-1">
+    <!-- Standard Channel Layout (no sections). pt-1: the group indicators sit at -top-1, which
+         the clipping row cut off entirely -->
+    <div class="flex gap-1 overflow-hidden flex-1 pt-1">
       @for (channel of visibleChannels(); track channel.id; let i = $index) {
         <div class="relative">
           <!-- Group Indicator -->

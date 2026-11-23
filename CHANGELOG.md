@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `slate-400`, `emerald-500`, `rose-400`, `cyan-500`) with dark inside-value
   text, and in light mode the `tw-avatar` `online`, `offline` and `away` status
   dots are one shade darker (`emerald-600`, `slate-500`, `amber-600`)
+- `tw-table`/`tw-datatables` string sorting uses locale-aware natural order
+  (`localeCompare` with `numeric: true`), so rows that differ only in case or
+  in embedded numbers can appear in a different order than before
 
 ### 🐛 Fixed
 
@@ -518,6 +521,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tab is disabled
 - Native: closing a `tw-tab-bar` tab no longer pulls focus back when the app
   has already moved it, and closing the last tab leaves focus on the tab bar
+- `tw-table` and `tw-datatables` sort string columns by locale instead of by
+  code unit: lowercase and uppercase values interleave (`adam` before `Zoe`)
+  and embedded numbers sort naturally (`item9` before `item10`)
+- `tw-tree` supports Home/End to move focus to the first/last visible node
+- `tw-checkbox` exposes `aria-readonly` when `readonly`
+- Music: choosing a `tw-graphic-eq` preset returns focus to the Presets button
+- Music: the sectioned `tw-mixer` layout scrolls horizontally instead of
+  clipping channels that do not fit
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: the README and docs quick start tell you to register an

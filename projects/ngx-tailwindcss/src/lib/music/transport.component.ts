@@ -56,6 +56,9 @@ export class TwTransportComponent {
   readonly showSkipButtons = input(true);
   readonly showLoop = input(true);
   readonly showShuffle = input(false);
+  /** Accessible name / tooltip of the rewind and fast-forward buttons (e.g. for fixed-step seeks) */
+  readonly rewindLabel = input('Rewind');
+  readonly fastForwardLabel = input('Fast forward');
   readonly classOverride = input('');
 
   // Outputs

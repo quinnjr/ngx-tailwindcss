@@ -318,6 +318,14 @@ describe('TwScoreEditorComponent', () => {
     ]);
   });
 
+  it('rounds fractional and ignores empty transpose amounts from the dialog field', () => {
+    createWith({ ...score([placed('n1', { name: 'C', beat: 0 })]), keySignature: 'C' });
+    editor.transpose({ semitones: null as unknown as number });
+    expect(editor.canUndo()).toBe(false);
+    editor.transpose({ semitones: 1.6 });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.accidental])).toEqual([['D', null]]);
+  });
+
   it('adds a natural when transposition cancels an accidental earlier in the bar', () => {
     // C major: F#4 then F4 natural, an octave up: the second F needs its natural sign
     createWith({

@@ -12,6 +12,7 @@ import { NativeStorageService } from './storage.service';
 import { TwStatusBarComponent } from './status-bar.component';
 import { TwFileTreeComponent } from './file-tree.component';
 import { TwSearchBarComponent } from './search-bar.component';
+import { TwLogViewerComponent } from './log-viewer.component';
 import {
   SettingItem,
   TwSettingsPanelComponent,
@@ -389,5 +390,48 @@ describe('native inputs are honoured', () => {
 
     custom!.click();
     expect(fixture.componentInstance.changed).toBe('picked');
+  });
+});
+
+describe('native text contrast', () => {
+  it('file tree size and date text is readable on light and dark surfaces', () => {
+    const fixture = TestBed.createComponent(TwFileTreeComponent);
+    fixture.componentRef.setInput('nodes', [
+      { id: 'f', name: 'a.txt', type: 'file', size: 2048, modified: new Date(2024, 0, 2) },
+    ]);
+    fixture.componentRef.setInput('showSize', true);
+    fixture.componentRef.setInput('showDate', true);
+    fixture.detectChanges();
+    const meta = (fixture.nativeElement as HTMLElement).querySelectorAll('span.text-xs');
+    expect(meta.length).toBe(2);
+    meta.forEach(span => {
+      expect(span.classList).toContain('text-gray-600');
+      expect(span.classList).toContain('dark:text-gray-400');
+      expect(span.classList).not.toContain('text-gray-400');
+    });
+  });
+
+  it('search bar shortcut hint is readable on its gray chip', () => {
+    const fixture = TestBed.createComponent(TwSearchBarComponent);
+    fixture.detectChanges();
+    const kbd = (fixture.nativeElement as HTMLElement).querySelector('kbd')!;
+    expect(kbd.classList).toContain('text-gray-600');
+    expect(kbd.classList).not.toContain('text-gray-400');
+  });
+
+  it('log viewer inactive level filters are readable and expose their pressed state', () => {
+    const fixture = TestBed.createComponent(TwLogViewerComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const debug = [...el.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find(
+      b => b.textContent?.trim().toLowerCase() === 'debug'
+    )!;
+    expect(debug.getAttribute('aria-pressed')).toBe('true');
+    debug.click();
+    fixture.detectChanges();
+    expect(debug.getAttribute('aria-pressed')).toBe('false');
+    expect(debug.classList).toContain('text-gray-600');
+    expect(debug.classList).toContain('dark:text-gray-300');
+    expect(debug.classList).not.toContain('text-gray-400');
   });
 });

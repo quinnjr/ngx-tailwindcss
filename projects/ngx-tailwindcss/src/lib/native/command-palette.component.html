@@ -124,7 +124,10 @@
                     [class.text-white]="selectedIndex() === getGlobalIndex(group.category, i)"
                     [class.bg-gray-100]="selectedIndex() !== getGlobalIndex(group.category, i)"
                     [class.dark:bg-gray-700]="selectedIndex() !== getGlobalIndex(group.category, i)"
-                    [class.text-gray-500]="selectedIndex() !== getGlobalIndex(group.category, i)"
+                    [class.text-gray-600]="selectedIndex() !== getGlobalIndex(group.category, i)"
+                    [class.dark:text-gray-300]="
+                      selectedIndex() !== getGlobalIndex(group.category, i)
+                    "
                   >
                     {{ formatShortcut(command.shortcut) }}
                   </kbd>

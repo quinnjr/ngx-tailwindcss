@@ -44,7 +44,7 @@
                 <input
                   type="text"
                   placeholder="Search presets..."
-                  class="w-full px-2 py-1 text-xs rounded bg-white/10 border-0 outline-none"
+                  class="w-full px-2 py-1 text-xs rounded bg-white/10 border-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   [class]="colors().value"
                   [value]="presetSearchQuery()"
                   (input)="onPresetSearch($event)"
@@ -57,7 +57,7 @@
                   @if (categoryPresets.length > 0) {
                     <div class="py-1">
                       <div
-                        class="px-3 py-1 text-[10px] uppercase tracking-wider opacity-50"
+                        class="px-3 py-1 text-[10px] uppercase tracking-wider"
                         [class]="colors().label"
                       >
                         {{ categoryNames[category] }}
@@ -119,7 +119,9 @@
           type="button"
           class="text-[10px] px-2 py-1 rounded transition-colors"
           [class]="
-            isPresetActive(preset) ? colors().fill + ' text-white' : 'bg-white/10 ' + colors().label
+            isPresetActive(preset)
+              ? colors().fill + ' ' + colors().onFill
+              : 'bg-white/10 ' + colors().label
           "
           (click)="applyPreset(preset)"
           [disabled]="isDisabled()"
@@ -268,9 +270,13 @@
           @if (showValues()) {
             <span
               class="text-[9px] font-mono mt-1 min-w-[24px] text-center"
-              [class]="colors().value"
-              [class.text-green-400]="band.gain > 0 && variant() !== 'minimal'"
-              [class.text-red-400]="band.gain < 0 && variant() !== 'minimal'"
+              [class]="
+                band.gain > 0
+                  ? colors().positive
+                  : band.gain < 0
+                    ? colors().negative
+                    : colors().value
+              "
             >
               {{ band.gain > 0 ? '+' : '' }}{{ band.gain.toFixed(1) }}
             </span>

@@ -95,7 +95,7 @@ export class TwCardSubtitleDirective {
   readonly class = input('');
 
   protected readonly hostClass = computed(() =>
-    this.twClass.merge('block text-sm text-slate-500 dark:text-slate-400 mt-1', this.class())
+    this.twClass.merge('block text-sm text-slate-500 dark:text-slate-300 mt-1', this.class())
   );
 }
 

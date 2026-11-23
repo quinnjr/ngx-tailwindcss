@@ -53,7 +53,9 @@
             }
           </div>
           @if (shortcut.description) {
-            <div class="text-sm text-slate-500 truncate">{{ shortcut.description }}</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 truncate">
+              {{ shortcut.description }}
+            </div>
           }
         </div>
 
@@ -63,7 +65,7 @@
             <div
               class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-2 border-blue-500"
             >
-              <span class="text-sm text-slate-500">Press keys...</span>
+              <span class="text-sm text-slate-500 dark:text-slate-400">Press keys...</span>
               <span class="font-mono text-sm">{{ recordedKeys().join(' + ') || '...' }}</span>
               <button
                 type="button"
@@ -97,7 +99,7 @@
                 }
               }
               @if (shortcut.keys.length === 0) {
-                <span class="text-sm text-slate-500">Not set</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400">Not set</span>
               }
             </button>
           }
@@ -124,7 +126,9 @@
     }
 
     @if (filteredShortcuts().length === 0) {
-      <div class="flex flex-col items-center justify-center py-12 text-slate-500">
+      <div
+        class="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400"
+      >
         <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"

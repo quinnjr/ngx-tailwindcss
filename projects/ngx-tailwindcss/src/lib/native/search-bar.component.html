@@ -99,7 +99,7 @@
     <!-- Shortcut hint -->
     @if (showShortcut() && !isFocused() && !query()) {
       <kbd
-        class="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 rounded text-gray-400"
+        class="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300"
       >
         {{ shortcutHint() }}
       </kbd>
@@ -158,7 +158,9 @@
             }
           </div>
           @if (suggestion.type) {
-            <span class="text-xs text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
+            <span
+              class="text-xs text-gray-600 dark:text-gray-300 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded"
+            >
               {{ suggestion.type }}
             </span>
           }

@@ -654,8 +654,10 @@
   font-size: 0.875rem;
   font-family: inherit;
 
+  // Borderless: an inset outline is its only focus indicator
   &:focus {
-    outline: none;
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
   }
 }
 

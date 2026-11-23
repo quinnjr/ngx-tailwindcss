@@ -114,4 +114,22 @@ describe('TwNoteDisplayComponent', () => {
     expect(byText('FLAT').classList).toContain('text-blue-700');
     expect(byText('FLAT').classList).toContain('dark:text-blue-400');
   });
+
+  it('keeps the small octave numeral >= 4.5:1 on the led and lcd surfaces', () => {
+    fixture.componentRef.setInput('size', 'sm');
+    fixture.componentRef.setInput('noteName', 'A');
+    fixture.componentRef.setInput('octave', 4);
+    const host = fixture.nativeElement as HTMLElement;
+    const octave = () =>
+      [...host.querySelectorAll<HTMLElement>('span')].find(el => el.textContent?.trim() === '4')!;
+    for (const [variant, cls] of [
+      ['led', 'text-red-400/80'],
+      ['lcd', 'text-lime-500/80'],
+    ]) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      // /70 was ~4.0:1 (led) and ~4.4:1 (lcd) at the non-large sm size
+      expect(octave().classList).toContain(cls);
+    }
+  });
 });

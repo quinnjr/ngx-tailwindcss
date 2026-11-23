@@ -121,12 +121,7 @@
             <button
               type="button"
               class="w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-colors"
-              [class.ring-2]="currentVoice() === voice"
-              [class.ring-blue-500]="currentVoice() === voice"
-              [style.backgroundColor]="currentVoice() === voice ? getVoiceColorByNumber(voice) : ''"
-              [style.color]="currentVoice() === voice ? 'white' : getVoiceColorByNumber(voice)"
-              [class.bg-slate-200]="currentVoice() !== voice"
-              [class.dark:bg-slate-700]="currentVoice() !== voice"
+              [class]="voiceButtonClasses(voice, currentVoice() === voice)"
               (click)="setVoice($any(voice))"
               [title]="'Voice ' + voice + ' (Shift+' + voice + ')'"
             >

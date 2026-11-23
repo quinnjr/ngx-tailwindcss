@@ -43,17 +43,17 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   secondary:
     'bg-slate-600 hover:bg-slate-700 active:bg-slate-800 text-white shadow-sm hover:shadow focus-visible:ring-slate-500',
   success:
-    'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-sm hover:shadow focus-visible:ring-emerald-500',
+    'bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white shadow-sm hover:shadow focus-visible:ring-emerald-500',
   warning:
-    'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-sm hover:shadow focus-visible:ring-amber-500',
+    'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-amber-950 shadow-sm hover:shadow focus-visible:ring-amber-500',
   danger:
     'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-sm hover:shadow focus-visible:ring-rose-500',
-  info: 'bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white shadow-sm hover:shadow focus-visible:ring-cyan-500',
+  info: 'bg-cyan-700 hover:bg-cyan-800 active:bg-cyan-900 text-white shadow-sm hover:shadow focus-visible:ring-cyan-500',
   ghost:
     'bg-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 text-slate-700 dark:text-zinc-300 focus-visible:ring-slate-500',
   outline:
     'bg-white dark:bg-zinc-800 border-2 border-slate-500 dark:border-zinc-500 hover:border-slate-600 dark:hover:border-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700 active:bg-slate-200 dark:active:bg-zinc-600 text-slate-800 dark:text-zinc-200 shadow-sm focus-visible:ring-slate-500',
-  link: 'bg-transparent text-blue-600 hover:text-blue-700 hover:underline active:text-blue-800 focus-visible:ring-blue-500 p-0 shadow-none',
+  link: 'bg-transparent text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline active:text-blue-800 dark:active:text-blue-200 focus-visible:ring-blue-500 p-0 shadow-none',
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {

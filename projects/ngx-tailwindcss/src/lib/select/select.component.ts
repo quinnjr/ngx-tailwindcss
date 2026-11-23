@@ -223,6 +223,14 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       hasError
         ? 'border-rose-500 focus:ring-rose-500 focus:border-rose-500'
         : 'border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 dark:hover:border-slate-500',
+      this.variant() === 'filled'
+        ? this.twClass.merge(
+            'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800',
+            hasError
+              ? ''
+              : 'border-transparent dark:border-transparent hover:border-transparent dark:hover:border-transparent'
+          )
+        : '',
       this.isDisabled()
         ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900'
         : 'cursor-pointer',

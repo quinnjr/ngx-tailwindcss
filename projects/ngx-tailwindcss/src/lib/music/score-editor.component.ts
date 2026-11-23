@@ -1681,10 +1681,12 @@ export class TwScoreEditorComponent implements OnInit {
     'sixteenth',
   ];
 
+  // Fill of the active voice button behind white text (emerald-600 was ~3.8:1, so voice 3
+  // uses emerald-700)
   protected readonly voiceColors: Record<number, string> = {
     1: '#1E293B',
     2: '#2563EB',
-    3: '#059669',
+    3: '#047857',
     4: '#DC2626',
   };
 

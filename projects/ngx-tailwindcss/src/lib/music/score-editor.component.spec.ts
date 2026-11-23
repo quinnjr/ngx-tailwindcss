@@ -442,4 +442,17 @@ describe('TwScoreEditorComponent', () => {
     expect(root.querySelector<HTMLButtonElement>('.part-btn.delete')!.disabled).toBe(true);
     expect(root.querySelector<HTMLSelectElement>('.part-presets select')!.disabled).toBe(true);
   });
+
+  it('fills the active voice buttons with colours that keep white text >= 4.5:1', () => {
+    createWith(score([placed('n1')]));
+    const root = fixture.nativeElement as HTMLElement;
+    const fill = (voice: number) =>
+      root
+        .querySelector<HTMLElement>(`.voice-btn[title="Voice ${voice}"]`)!
+        .style.getPropertyValue('--voice-color')
+        .toLowerCase();
+    // White on emerald-600 (#059669) was ~3.8:1
+    expect(fill(3)).toBe('#047857');
+    expect([1, 2, 3, 4].map(fill)).not.toContain('#059669');
+  });
 });

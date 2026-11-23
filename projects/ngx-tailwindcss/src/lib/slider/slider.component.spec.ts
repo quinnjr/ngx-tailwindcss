@@ -161,7 +161,7 @@ describe('TwSliderComponent', () => {
     it('should render tickCount tick marks', () => {
       component.showTicks.set(true);
       fixture.detectChanges();
-      const ticks = sliderEl.querySelectorAll('.tabular-nums.text-slate-400');
+      const ticks = sliderEl.querySelectorAll('.mt-1 > .tabular-nums');
       expect(ticks.length).toBe(5);
       expect(ticks[0].textContent).toContain('0');
       expect(ticks[4].textContent).toContain('100');
@@ -171,9 +171,24 @@ describe('TwSliderComponent', () => {
       component.showTicks.set(true);
       component.tickCount.set(1);
       fixture.detectChanges();
-      const ticks = sliderEl.querySelectorAll('.tabular-nums.text-slate-400');
+      const ticks = sliderEl.querySelectorAll('.mt-1 > .tabular-nums');
       expect(ticks.length).toBe(1);
       expect(ticks[0].textContent?.trim()).toBe('0');
+    });
+  });
+
+  describe('label contrast', () => {
+    it('should render ticks and min/max labels with AA-contrast colours in light and dark mode', () => {
+      component.showTicks.set(true);
+      component.showMinMax.set(true);
+      fixture.detectChanges();
+      const labels = sliderEl.querySelectorAll('span.text-xs.tabular-nums');
+      expect(labels.length).toBe(7);
+      for (const label of labels) {
+        expect(label.className).toContain('text-slate-500');
+        expect(label.className).toContain('dark:text-slate-400');
+        expect(label.className).not.toMatch(/(^|\s)text-slate-400/);
+      }
     });
   });
 

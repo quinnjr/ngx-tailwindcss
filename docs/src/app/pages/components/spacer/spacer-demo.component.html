@@ -20,20 +20,20 @@
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">size="auto" - pushes elements apart</span>
       <div class="flex items-center bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white p-4 rounded-lg">
-        <span class="bg-green-500 text-white px-4 py-2 rounded">Left</span>
+        <span class="bg-green-700 text-white px-4 py-2 rounded">Left</span>
         <tw-spacer axis="horizontal" size="auto" class="flex-1"></tw-spacer>
-        <span class="bg-green-500 text-white px-4 py-2 rounded">Right</span>
+        <span class="bg-green-700 text-white px-4 py-2 rounded">Right</span>
       </div>
     </div>
 
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">Fixed horizontal spacing</span>
       <div class="flex items-center bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white p-4 rounded-lg">
-        <span class="bg-purple-500 text-white px-4 py-2 rounded">A</span>
+        <span class="bg-purple-600 text-white px-4 py-2 rounded">A</span>
         <tw-spacer axis="horizontal" size="md"></tw-spacer>
-        <span class="bg-purple-500 text-white px-4 py-2 rounded">B</span>
+        <span class="bg-purple-600 text-white px-4 py-2 rounded">B</span>
         <tw-spacer axis="horizontal" size="xl"></tw-spacer>
-        <span class="bg-purple-500 text-white px-4 py-2 rounded">C</span>
+        <span class="bg-purple-600 text-white px-4 py-2 rounded">C</span>
       </div>
     </div>
 
@@ -71,9 +71,9 @@
       <div>
         <span class="text-sm text-slate-500 dark:text-slate-300 mb-1 block">size="{{ size }}"</span>
         <div class="bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 p-2 rounded">
-          <div class="bg-amber-500 text-white p-2 rounded text-center text-sm">Above</div>
+          <div class="bg-amber-700 text-white p-2 rounded text-center text-sm">Above</div>
           <tw-spacer axis="vertical" [size]="size"></tw-spacer>
-          <div class="bg-amber-500 text-white p-2 rounded text-center text-sm">Below</div>
+          <div class="bg-amber-700 text-white p-2 rounded text-center text-sm">Below</div>
         </div>
       </div>
     }
@@ -118,36 +118,36 @@
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">justify="start" (default)</span>
       <tw-wrap spacing="md" justify="start" class="bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-4 rounded-lg text-slate-900 dark:text-slate-100">
-        <span class="bg-rose-500 text-white px-4 py-2 rounded">Item 1</span>
-        <span class="bg-rose-500 text-white px-4 py-2 rounded">Item 2</span>
-        <span class="bg-rose-500 text-white px-4 py-2 rounded">Item 3</span>
+        <span class="bg-rose-600 text-white px-4 py-2 rounded">Item 1</span>
+        <span class="bg-rose-600 text-white px-4 py-2 rounded">Item 2</span>
+        <span class="bg-rose-600 text-white px-4 py-2 rounded">Item 3</span>
       </tw-wrap>
     </div>
 
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">justify="center"</span>
       <tw-wrap spacing="md" justify="center" class="bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-4 rounded-lg text-slate-900 dark:text-slate-100">
-        <span class="bg-cyan-500 text-white px-4 py-2 rounded">Item 1</span>
-        <span class="bg-cyan-500 text-white px-4 py-2 rounded">Item 2</span>
-        <span class="bg-cyan-500 text-white px-4 py-2 rounded">Item 3</span>
+        <span class="bg-cyan-700 text-white px-4 py-2 rounded">Item 1</span>
+        <span class="bg-cyan-700 text-white px-4 py-2 rounded">Item 2</span>
+        <span class="bg-cyan-700 text-white px-4 py-2 rounded">Item 3</span>
       </tw-wrap>
     </div>
 
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">justify="end"</span>
       <tw-wrap spacing="md" justify="end" class="bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-4 rounded-lg text-slate-900 dark:text-slate-100">
-        <span class="bg-lime-500 text-white px-4 py-2 rounded">Item 1</span>
-        <span class="bg-lime-500 text-white px-4 py-2 rounded">Item 2</span>
-        <span class="bg-lime-500 text-white px-4 py-2 rounded">Item 3</span>
+        <span class="bg-lime-700 text-white px-4 py-2 rounded">Item 1</span>
+        <span class="bg-lime-700 text-white px-4 py-2 rounded">Item 2</span>
+        <span class="bg-lime-700 text-white px-4 py-2 rounded">Item 3</span>
       </tw-wrap>
     </div>
 
     <div>
       <span class="text-sm text-slate-500 dark:text-slate-300 mb-2 block">justify="between"</span>
       <tw-wrap spacing="md" justify="between" class="bg-slate-100/60 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-4 rounded-lg text-slate-900 dark:text-slate-100">
-        <span class="bg-indigo-500 text-white px-4 py-2 rounded">Item 1</span>
-        <span class="bg-indigo-500 text-white px-4 py-2 rounded">Item 2</span>
-        <span class="bg-indigo-500 text-white px-4 py-2 rounded">Item 3</span>
+        <span class="bg-indigo-600 text-white px-4 py-2 rounded">Item 1</span>
+        <span class="bg-indigo-600 text-white px-4 py-2 rounded">Item 2</span>
+        <span class="bg-indigo-600 text-white px-4 py-2 rounded">Item 3</span>
       </tw-wrap>
     </div>
   </div>

@@ -17,7 +17,7 @@
   <div [class]="trackClasses()">
     <div [class]="barClasses()" [style.width.%]="percentage()">
       @if (showValueFlag() && labelPositionVal() === 'inside' && percentage() > 10) {
-        <span class="text-xs font-medium text-white">{{ percentage() }}%</span>
+        <span [class]="insideValueClasses()">{{ percentage() }}%</span>
       }
     </div>
   </div>

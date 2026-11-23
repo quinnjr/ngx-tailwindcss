@@ -81,8 +81,28 @@ describe('TwBadgeComponent', () => {
       component.variant.set('success');
       fixture.detectChanges();
 
-      expect(badgeEl.className).toContain('bg-emerald-600');
+      expect(badgeEl.className).toContain('bg-emerald-700');
       expect(badgeEl.className).not.toContain('bg-slate-200');
+    });
+
+    it('should use AA-contrast text on solid warning, success and info badges', () => {
+      component.variant.set('warning');
+      fixture.detectChanges();
+      // white on amber-500 is ~2.2:1
+      expect(badgeEl.className).toContain('text-amber-950');
+      expect(badgeEl.className).not.toContain('text-white');
+
+      component.variant.set('info');
+      fixture.detectChanges();
+      expect(badgeEl.className).toContain('bg-cyan-700');
+    });
+
+    it('should use AA-contrast text on outline warning badges', () => {
+      component.badgeStyle.set('outline');
+      component.variant.set('warning');
+      fixture.detectChanges();
+      expect(badgeEl.className).toContain('text-amber-700');
+      expect(badgeEl.className).not.toContain('text-amber-600');
     });
   });
 

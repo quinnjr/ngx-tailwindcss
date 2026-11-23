@@ -98,7 +98,7 @@
       <!-- Line Numbers -->
       @if (showLineNumbers()) {
         <div
-          class="flex-shrink-0 px-3 py-4 text-right text-slate-500 bg-slate-800/50 select-none border-r border-slate-700"
+          class="flex-shrink-0 px-3 py-4 text-right text-slate-400 bg-slate-800/50 select-none border-r border-slate-700"
         >
           @for (line of lines(); track $index; let i = $index) {
             <div [class.bg-blue-900/30]="highlightedLines().has(i + 1)" class="leading-6">

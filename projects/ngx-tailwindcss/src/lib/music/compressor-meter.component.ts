@@ -848,6 +848,25 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     this.variant() === 'light' ? 'text-slate-800' : 'text-slate-300'
   );
 
+  // Gain-reduction readout: the amber/orange/red 400 shades are ~1.7-2.8:1 on
+  // the light variant's white panel, so it uses the darker 700 shades there
+  protected readonly grValueClass = computed(() => {
+    const gr = Math.abs(this.internalGainReduction());
+    const light = this.variant() === 'light';
+    if (gr >= 20) return light ? 'text-red-700' : 'text-red-400';
+    if (gr >= 10) return light ? 'text-orange-700' : 'text-orange-400';
+    return light ? 'text-amber-700' : 'text-amber-400';
+  });
+
+  // Attack/release text in the 'graph' display, readable on the light panel
+  protected readonly attackTextClass = computed(() =>
+    this.variant() === 'light' ? 'text-green-700' : 'text-green-400'
+  );
+
+  protected readonly releaseTextClass = computed(() =>
+    this.variant() === 'light' ? 'text-amber-700' : 'text-amber-400'
+  );
+
   protected readonly activityColorClass = computed(() => {
     const activity = this.compressionActivity();
     return {

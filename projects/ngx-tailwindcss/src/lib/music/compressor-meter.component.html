@@ -111,13 +111,7 @@
         </div>
 
         <span class="text-[10px]" [class]="labelClass()">GR</span>
-        <span
-          class="text-xs font-mono"
-          [class.text-amber-400]="Math.abs(internalGainReduction()) < 10"
-          [class.text-orange-400]="
-            Math.abs(internalGainReduction()) >= 10 && Math.abs(internalGainReduction()) < 20
-          "
-          [class.text-red-400]="Math.abs(internalGainReduction()) >= 20"
+        <span class="text-xs font-mono" [class]="grValueClass()"
           >{{ formatGainReduction() }} dB</span
         >
       </div>
@@ -298,8 +292,12 @@
                 <!-- Attack region -->
                 <div class="flex-1">
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-[9px] text-green-500/80 uppercase font-medium">Attack</span>
-                    <span class="text-[10px] font-mono text-green-400">{{ formatAttack() }}</span>
+                    <span class="text-[9px] uppercase font-medium" [class]="attackTextClass()"
+                      >Attack</span
+                    >
+                    <span class="text-[10px] font-mono" [class]="attackTextClass()">{{
+                      formatAttack()
+                    }}</span>
                   </div>
                   <div class="relative h-8 bg-slate-800 rounded overflow-hidden">
                     <!-- Attack curve visualization -->
@@ -328,8 +326,12 @@
                 <!-- Release region -->
                 <div class="flex-1">
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-[9px] text-amber-500/80 uppercase font-medium">Release</span>
-                    <span class="text-[10px] font-mono text-amber-400">{{ formatRelease() }}</span>
+                    <span class="text-[9px] uppercase font-medium" [class]="releaseTextClass()"
+                      >Release</span
+                    >
+                    <span class="text-[10px] font-mono" [class]="releaseTextClass()">{{
+                      formatRelease()
+                    }}</span>
                   </div>
                   <div class="relative h-8 bg-slate-800 rounded overflow-hidden">
                     <!-- Release curve visualization -->

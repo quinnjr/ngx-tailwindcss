@@ -155,10 +155,31 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     const cents = this.currentCents();
     const base = 'font-mono text-lg';
 
-    if (cents < -this.tolerance()) return `${base} text-blue-400`;
-    if (cents > this.tolerance()) return `${base} text-red-400`;
-    return `${base} text-green-400`;
+    // minimal sits on the page background: the 400 shades are ~1.9-2.8:1 on a
+    // light page, so it uses the 700 shades there
+    const minimal = this.variant() === 'minimal';
+    if (cents < -this.tolerance()) {
+      return `${base} ${minimal ? 'text-blue-700 dark:text-blue-400' : 'text-blue-400'}`;
+    }
+    if (cents > this.tolerance()) {
+      return `${base} ${minimal ? 'text-red-700 dark:text-red-400' : 'text-red-400'}`;
+    }
+    return `${base} ${minimal ? 'text-green-700 dark:text-green-400' : 'text-green-400'}`;
   });
+
+  // Secondary text (octave, scale, frequency, hints): slate-400 on the dark
+  // panels, darker on the minimal variant's (typically light) page background
+  protected readonly mutedClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly successClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-green-700 dark:text-green-400' : 'text-green-400'
+  );
+
+  protected readonly errorClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-red-700 dark:text-red-400' : 'text-red-400'
+  );
 
   ngAfterViewInit(): void {
     if (this.autoStart()) {

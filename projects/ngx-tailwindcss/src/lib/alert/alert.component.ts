@@ -24,8 +24,9 @@ const ALERT_BASE_CLASSES = `
 
 const ALERT_SOLID_VARIANTS: Record<AlertVariant, string> = {
   info: 'bg-blue-600 text-white',
-  success: 'bg-emerald-600 text-white',
-  warning: 'bg-amber-500 text-white',
+  // Shades chosen so the text meets WCAG AA (4.5:1); white on amber is unreadable
+  success: 'bg-emerald-700 text-white',
+  warning: 'bg-amber-500 text-amber-950',
   danger: 'bg-rose-600 text-white',
   neutral: 'bg-slate-700 text-white',
 };
@@ -80,7 +81,7 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
     accent: 'text-emerald-600',
   },
   warning: {
-    solid: 'text-white',
+    solid: 'text-amber-950',
     soft: 'text-amber-600',
     outlined: 'text-amber-600',
     accent: 'text-amber-600',

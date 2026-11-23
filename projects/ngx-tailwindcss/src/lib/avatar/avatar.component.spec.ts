@@ -248,7 +248,7 @@ describe('TwAvatarComponent', () => {
 
   describe('badge', () => {
     it('should not show badge by default', () => {
-      const badge = avatarEl.querySelector('.bg-rose-500.text-white');
+      const badge = avatarEl.querySelector('.bg-rose-600.text-white');
       expect(badge).toBeNull();
     });
 
@@ -262,6 +262,12 @@ describe('TwAvatarComponent', () => {
       component.badge.set(99);
       fixture.detectChanges();
       expect(avatarEl.textContent).toContain('99');
+    });
+
+    it('should draw the badge on rose-600 (white on rose-500 is below 4.5:1)', () => {
+      component.badge.set(3);
+      fixture.detectChanges();
+      expect(avatarEl.querySelector('.bg-rose-600.text-white')?.textContent).toContain('3');
     });
   });
 

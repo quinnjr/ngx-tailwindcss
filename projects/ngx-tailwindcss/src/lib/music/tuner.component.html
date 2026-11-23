@@ -3,7 +3,7 @@
   <div class="text-center">
     <span [class]="noteDisplayClasses()">{{ currentNote() }}</span>
     @if (showOctave() && currentNote() !== '--') {
-      <span class="text-2xl text-slate-400 ml-1">{{ currentOctave() }}</span>
+      <span class="text-2xl ml-1" [class]="mutedClass()">{{ currentOctave() }}</span>
     }
   </div>
 
@@ -18,7 +18,7 @@
   @if (showMeter()) {
     <div class="w-full max-w-xs">
       <!-- Meter labels -->
-      <div class="flex justify-between text-xs text-slate-400 mb-1" aria-hidden="true">
+      <div class="flex justify-between text-xs mb-1" [class]="mutedClass()" aria-hidden="true">
         <span>♭</span>
         <span>●</span>
         <span>♯</span>
@@ -58,7 +58,7 @@
       </div>
 
       <!-- Tick marks -->
-      <div class="flex justify-between text-[10px] text-slate-400 mt-1 px-2">
+      <div class="flex justify-between text-[10px] mt-1 px-2" [class]="mutedClass()">
         <span>-50</span>
         <span>-25</span>
         <span>0</span>
@@ -70,7 +70,7 @@
 
   <!-- Frequency Display -->
   @if (showFrequency() && currentFrequency() > 0) {
-    <div class="text-sm text-slate-400 font-mono">{{ currentFrequency() }} Hz</div>
+    <div class="text-sm font-mono" [class]="mutedClass()">{{ currentFrequency() }} Hz</div>
   }
 
   <!-- String Selector (for instrument modes) -->
@@ -94,7 +94,7 @@
     </div>
 
     @if (selectedString() >= 0 && tuningStrings()[selectedString()]) {
-      <div class="text-xs text-slate-400">
+      <div class="text-xs" [class]="mutedClass()">
         Target: {{ getExpectedFrequency(tuningStrings()[selectedString()]).toFixed(1) }} Hz
       </div>
     }
@@ -102,7 +102,7 @@
 
   <!-- In Tune Indicator -->
   @if (isInTune() && currentNote() !== '--' && isListening()) {
-    <div class="flex items-center gap-2 text-green-400">
+    <div class="flex items-center gap-2" [class]="successClass()">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
@@ -119,8 +119,8 @@
   <button
     type="button"
     class="px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2"
-    [class.bg-green-600]="!isListening()"
-    [class.hover:bg-green-500]="!isListening()"
+    [class.bg-green-700]="!isListening()"
+    [class.hover:bg-green-800]="!isListening()"
     [class.bg-red-600]="isListening()"
     [class.hover:bg-red-500]="isListening()"
     [class.text-white]="true"
@@ -144,14 +144,14 @@
 
   <!-- Error Message -->
   @if (errorState()) {
-    <p class="text-xs text-red-400 text-center max-w-xs" role="alert">
+    <p class="text-xs text-center max-w-xs" [class]="errorClass()" role="alert">
       {{ errorState() }}
     </p>
   }
 
   <!-- Microphone Permission Notice -->
   @if (!isListening() && !errorState()) {
-    <p class="text-xs text-slate-400 text-center max-w-xs">
+    <p class="text-xs text-center max-w-xs" [class]="mutedClass()">
       Click Start to enable microphone access and begin tuning
     </p>
   }

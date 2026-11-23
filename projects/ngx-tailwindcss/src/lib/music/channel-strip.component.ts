@@ -137,7 +137,18 @@ export class TwChannelStripComponent implements ControlValueAccessor {
       lg: 'p-4 gap-4 min-w-[100px]',
     };
 
-    return [baseClasses, variantClasses[variant], sizeClasses[size], this.classOverride()]
+    // The non-minimal strips are always dark, so scope the `dark:` variant to them: the
+    // nested dials and meters follow the page scheme and otherwise rendered their
+    // light-mode text (volume readout, meter scale, L/R labels) on the dark strip
+    const darkSurface = variant === 'minimal' ? '' : 'dark';
+
+    return [
+      baseClasses,
+      darkSurface,
+      variantClasses[variant],
+      sizeClasses[size],
+      this.classOverride(),
+    ]
       .filter(Boolean)
       .join(' ');
   });

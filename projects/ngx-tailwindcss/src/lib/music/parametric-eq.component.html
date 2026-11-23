@@ -22,7 +22,7 @@
         [class.ring-2]="selectedBandId() === band.id"
         [class.ring-white]="selectedBandId() === band.id"
         [style.backgroundColor]="band.color"
-        [style.color]="'white'"
+        [style.color]="bandTextColor(band.color)"
       >
         <button
           type="button"
@@ -36,10 +36,10 @@
         >
           <span
             class="w-2 h-2 rounded-full"
-            [class.bg-white]="band.enabled"
+            [class.bg-current]="band.enabled"
             [class.bg-transparent]="!band.enabled"
             [class.border]="!band.enabled"
-            [class.border-white]="!band.enabled"
+            [class.border-current]="!band.enabled"
           ></span>
         </button>
         <button
@@ -62,12 +62,12 @@
   @if (selectedBandId()) {
     @for (band of bands(); track band.id) {
       @if (band.id === selectedBandId()) {
-        <div class="mt-3 p-3 bg-slate-800/50 rounded-lg">
+        <div class="mt-3 p-3 rounded-lg" [class]="panelClasses().panel">
           <div class="grid grid-cols-3 gap-3 text-xs">
             <!-- Frequency -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Frequency</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Frequency</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{
                   band.frequency >= 1000
                     ? (band.frequency / 1000).toFixed(2) + ' kHz'
@@ -78,22 +78,22 @@
 
             <!-- Gain -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Gain</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Gain</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{ band.gain > 0 ? '+' : '' }}{{ band.gain.toFixed(1) }} dB
               </div>
             </div>
 
             <!-- Q -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Q</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Q</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{ band.q.toFixed(2) }}
               </div>
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-400">
+          <div class="mt-2 text-[10px]" [class]="panelClasses().label">
             Drag node to adjust • Shift+drag for Q • Double-click node to reset • Use the dot switch
             to enable/disable a band
           </div>

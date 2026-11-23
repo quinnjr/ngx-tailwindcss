@@ -188,13 +188,23 @@ export class TwLeadSheetComponent {
 
     const classes: Record<
       LeadSheetVariant,
-      { title: string; subtitle: string; chord: string; section: string; rehearsal: string }
+      {
+        title: string;
+        subtitle: string;
+        chord: string;
+        section: string;
+        rehearsal: string;
+        // Measure markers (repeats, segno/coda, endings, measure numbers, '%'): they
+        // inherited the page colour, e.g. black on the slate-950 'dark' variant
+        marker: string;
+      }
     > = {
       default: {
         title: 'text-slate-900 dark:text-white',
         subtitle: 'text-slate-600 dark:text-slate-400',
         chord: 'text-blue-600 dark:text-blue-400',
         section: 'text-slate-700 dark:text-slate-300',
+        marker: 'text-slate-700 dark:text-slate-300',
         rehearsal: 'text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700',
       },
       minimal: {
@@ -202,6 +212,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-500 dark:text-slate-400',
         chord: 'text-slate-800 dark:text-slate-200',
         section: 'text-slate-600 dark:text-slate-400',
+        marker: 'text-slate-600 dark:text-slate-400',
         rehearsal: 'text-slate-800 bg-slate-100',
       },
       printed: {
@@ -209,6 +220,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-700',
         chord: 'text-black',
         section: 'text-slate-800',
+        marker: 'text-slate-800',
         rehearsal: 'text-black bg-slate-200 border border-black',
       },
       dark: {
@@ -216,6 +228,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-400',
         chord: 'text-cyan-400',
         section: 'text-slate-300',
+        marker: 'text-slate-300',
         rehearsal: 'text-white bg-slate-700',
       },
       fakebook: {
@@ -223,6 +236,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-amber-800',
         chord: 'text-black font-bold',
         section: 'text-amber-900 italic',
+        marker: 'text-amber-900',
         rehearsal: 'text-black bg-amber-200 border border-amber-600',
       },
     };

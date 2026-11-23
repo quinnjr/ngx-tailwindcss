@@ -129,6 +129,53 @@ describe('TwPitchDisplayComponent', () => {
     fixture.detectChanges();
     expect(label.classList).toContain('text-slate-600');
   });
+
+  it('should keep sharp/flat readouts readable on the light variant', () => {
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.componentRef.setInput('showNotePreview', true);
+    component.setSemitones(3);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    // amber-400/blue-400/slate-400 are ~1.7-2.6:1 on the white panel
+    expect(el.querySelectorAll('.text-amber-400, .text-blue-400, .text-slate-400')).toHaveLength(0);
+    expect(el.querySelector('.text-amber-700')).not.toBeNull();
+
+    component.setSemitones(-3);
+    fixture.detectChanges();
+    expect(el.querySelector('.text-blue-700')).not.toBeNull();
+    expect(el.querySelectorAll('.text-blue-400')).toHaveLength(0);
+  });
+
+  it('should give the active quick preset white text on a replaced fill', () => {
+    fixture.componentRef.setInput('showPresets', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const preset = (text: string): HTMLElement =>
+      [...el.querySelectorAll<HTMLElement>('button')].find(b => b.textContent?.trim() === text)!;
+
+    // '0' is active by default
+    expect(preset('0').classList).toContain('bg-green-700');
+    expect(preset('0').classList).toContain('text-white');
+    expect(preset('0').classList).not.toContain('bg-slate-700');
+    expect(preset('0').classList).not.toContain('text-slate-300');
+    expect(preset('+5th').classList).toContain('text-slate-300');
+
+    component.applyPreset({ semitones: 7, cents: 0 });
+    fixture.detectChanges();
+    expect(preset('+5th').classList).toContain('bg-amber-700');
+    expect(preset('+5th').classList).toContain('text-white');
+    expect(preset('+5th').classList).toContain('px-2');
+  });
+
+  it('should render the inactive key-lock label above 4.5:1 on its slate-700 fill', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const key = [...el.querySelectorAll<HTMLElement>('button')].find(b =>
+      b.textContent?.includes('KEY')
+    )!;
+    expect(key.classList).toContain('bg-slate-700');
+    expect(key.classList).toContain('text-slate-300');
+  });
 });
 
 describe('TwPitchDisplayComponent drag listener cleanup', () => {

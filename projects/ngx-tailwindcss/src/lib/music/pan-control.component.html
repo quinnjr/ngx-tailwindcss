@@ -243,7 +243,11 @@
         </div>
       }
 
-      <div [class]="sliderContainerClasses()" class="relative">
+      <!-- The range input is invisible, so the container shows its keyboard focus -->
+      <div
+        [class]="sliderContainerClasses()"
+        class="relative rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-cyan-400"
+      >
         <!-- Track Background -->
         <div
           class="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 rounded-md shadow-inner border border-slate-700/50 overflow-hidden"

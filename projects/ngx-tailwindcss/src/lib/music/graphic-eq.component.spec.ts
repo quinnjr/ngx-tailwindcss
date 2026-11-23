@@ -108,4 +108,59 @@ describe('TwGraphicEQComponent', () => {
     fixture.detectChanges();
     expect(internals.colors().label).toBe('text-slate-400');
   });
+
+  it('should give the active quick preset text that contrasts with the variant fill', () => {
+    fixture.componentRef.setInput('showPresetDropdown', false);
+    component.applyPreset(component.getPresetById('rock')!);
+    const activeButton = (): HTMLElement =>
+      [...fixture.nativeElement.querySelectorAll('button')].find((b: HTMLElement) =>
+        b.className.includes(internals.colors().fill)
+      ) as HTMLElement;
+
+    for (const [variant, text] of [
+      ['studio', 'text-black'],
+      ['neon', 'text-black'],
+      ['highContrast', 'text-black'],
+      ['light', 'text-white'],
+    ] as const) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      // white on green-500 / cyan-400 / yellow-400 was ~1.5-2.3:1
+      expect(activeButton().classList).toContain(text);
+      expect(activeButton().classList).not.toContain(
+        text === 'text-black' ? 'text-white' : 'text-black'
+      );
+    }
+  });
+
+  it('should colour boosted/cut band values readably on the light variant', () => {
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.componentRef.setInput('showValues', true);
+    component.writeValue([
+      { frequency: internals.bands()[0].frequency, gain: 6 },
+      { frequency: internals.bands()[1].frequency, gain: -6 },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const value = (text: string): HTMLElement =>
+      [...el.querySelectorAll<HTMLElement>('span.font-mono')].find(
+        s => s.textContent?.trim() === text
+      )!;
+
+    // green-400 / red-400 were ~1.9 / 2.8:1 on white
+    expect(value('+6.0').classList).toContain('text-green-700');
+    expect(value('-6.0').classList).toContain('text-red-700');
+    expect(value('+6.0').classList).toContain('min-w-[24px]');
+    expect(el.querySelectorAll('.text-green-400, .text-red-400')).toHaveLength(0);
+  });
+
+  it('should show a focus indicator on the preset search field', () => {
+    internals.togglePresetMenu();
+    fixture.detectChanges();
+    const search = fixture.nativeElement.querySelector(
+      'input[placeholder="Search presets..."]'
+    ) as HTMLInputElement;
+    expect(search.classList).toContain('outline-none');
+    expect(search.classList).toContain('focus-visible:ring-2');
+  });
 });

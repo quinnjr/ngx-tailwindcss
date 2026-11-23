@@ -96,6 +96,29 @@ describe('TwButtonComponent', () => {
       expect(buttonNative.className).toContain('bg-rose-600');
       expect(buttonNative.className).not.toContain('bg-blue-600');
     });
+
+    it('should use AA-contrast text on warning, success and info buttons', () => {
+      component.variant.set('warning');
+      fixture.detectChanges();
+      // white on amber-500 is ~2.2:1
+      expect(buttonNative.className).toContain('text-amber-950');
+      expect(buttonNative.className).not.toContain('text-white');
+
+      component.variant.set('success');
+      fixture.detectChanges();
+      expect(buttonNative.className).toContain('bg-emerald-700');
+
+      component.variant.set('info');
+      fixture.detectChanges();
+      expect(buttonNative.className).toContain('bg-cyan-700');
+    });
+
+    it('should lighten the link variant in dark mode', () => {
+      component.variant.set('link');
+      fixture.detectChanges();
+      // blue-600 on a dark background is ~3.6:1
+      expect(buttonNative.className).toContain('dark:text-blue-400');
+    });
   });
 
   describe('sizes', () => {

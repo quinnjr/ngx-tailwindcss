@@ -505,6 +505,11 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: string;
         curve: string;
         grid: string;
+        // Text on the fill colour (active quick preset)
+        onFill: string;
+        // Band value text for boosts / cuts
+        positive: string;
+        negative: string;
       }
     > = {
       default: {
@@ -516,6 +521,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-slate-300',
         curve: '#3B82F6',
         grid: '#334155',
+        onFill: 'text-white',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       studio: {
         background: 'bg-slate-950',
@@ -526,6 +534,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-green-400',
         curve: '#22C55E',
         grid: '#1E293B',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       minimal: {
         background: 'bg-white dark:bg-slate-900',
@@ -536,6 +547,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-slate-700 dark:text-slate-300',
         curve: '#64748B',
         grid: '#E2E8F0',
+        onFill: 'text-white dark:text-slate-900',
+        positive: 'text-slate-700 dark:text-slate-300',
+        negative: 'text-slate-700 dark:text-slate-300',
       },
       neon: {
         background: 'bg-black',
@@ -546,6 +560,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-cyan-400',
         curve: '#22D3EE',
         grid: '#581C87',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       light: {
         background: 'bg-white',
@@ -556,6 +573,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-slate-800',
         curve: '#2563EB',
         grid: '#E2E8F0',
+        onFill: 'text-white',
+        positive: 'text-green-700',
+        negative: 'text-red-700',
       },
       highContrast: {
         background: 'bg-black',
@@ -566,6 +586,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-yellow-400',
         curve: '#FFFF00',
         grid: '#FFFFFF',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
     };
 

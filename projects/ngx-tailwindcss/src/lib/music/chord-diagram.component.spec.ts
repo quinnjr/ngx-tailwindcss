@@ -9,7 +9,7 @@ describe('TwChordDiagramComponent', () => {
   const labelsLeftToRight = (): string[] =>
     [
       ...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>(
-        'text[font-size="10"].opacity-60'
+        'text[font-size="10"].opacity-80'
       ),
     ]
       .sort((a, b) => Number(a.getAttribute('x')) - Number(b.getAttribute('x')))
@@ -101,5 +101,12 @@ describe('TwChordDiagramComponent', () => {
     const svgWidth = Number(container.querySelector('svg')!.getAttribute('width'));
     expect(container.style.boxSizing).toBe('border-box');
     expect(Number.parseFloat(container.style.width)).toBe(svgWidth + 16);
+  });
+
+  it('keeps the small string labels >= 4.5:1 (opacity-60 dark text was ~4.1:1 on white)', () => {
+    fixture.componentRef.setInput('showStringLabels', true);
+    fixture.detectChanges();
+    expect(labelsLeftToRight()).toHaveLength(6);
+    expect((fixture.nativeElement as HTMLElement).querySelector('text.opacity-60')).toBeNull();
   });
 });

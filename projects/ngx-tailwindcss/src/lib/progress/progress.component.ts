@@ -21,10 +21,20 @@ const PROGRESS_SIZE_CLASSES: Record<ProgressSize, string> = {
 const PROGRESS_VARIANT_CLASSES: Record<ProgressVariant, string> = {
   primary: 'bg-blue-600',
   secondary: 'bg-slate-600',
-  success: 'bg-emerald-600',
+  success: 'bg-emerald-700',
   warning: 'bg-amber-500',
   danger: 'bg-rose-600',
-  info: 'bg-cyan-600',
+  info: 'bg-cyan-700',
+};
+
+/** Text colour of the value shown inside the bar, >= 4.5:1 on that bar's colour */
+const PROGRESS_INSIDE_TEXT_CLASSES: Record<ProgressVariant, string> = {
+  primary: 'text-white',
+  secondary: 'text-white',
+  success: 'text-white',
+  warning: 'text-amber-950',
+  danger: 'text-white',
+  info: 'text-white',
 };
 
 const CIRCULAR_STROKE_COLORS: Record<ProgressVariant, string> = {
@@ -132,6 +142,10 @@ export class TwProgressComponent {
   });
 
   protected containerClasses = computed(() => 'w-full');
+
+  protected insideValueClasses = computed(
+    () => `text-xs font-medium ${PROGRESS_INSIDE_TEXT_CLASSES[this._variant()]}`
+  );
 
   protected trackClasses = computed(() => {
     const size = this._size();

@@ -154,7 +154,7 @@ describe('TwProgressComponent', () => {
       component.variant.set('success');
       fixture.detectChanges();
       const bar = progressEl.querySelector('.overflow-hidden > div');
-      expect(bar?.className).toContain('bg-emerald-600');
+      expect(bar?.className).toContain('bg-emerald-700');
     });
 
     it('should apply warning variant', () => {
@@ -175,7 +175,20 @@ describe('TwProgressComponent', () => {
       component.variant.set('info');
       fixture.detectChanges();
       const bar = progressEl.querySelector('.overflow-hidden > div');
-      expect(bar?.className).toContain('bg-cyan-600');
+      expect(bar?.className).toContain('bg-cyan-700');
+    });
+
+    it('should use dark value text inside a warning bar', () => {
+      component.variant.set('warning');
+      component.showValue.set(true);
+      component.labelPosition.set('inside');
+      component.value.set(50);
+      fixture.detectChanges();
+      const value = progressEl.querySelector('.overflow-hidden > div > span');
+      expect(value?.textContent).toContain('50%');
+      // white on amber-500 is ~2.2:1
+      expect(value?.className).toContain('text-amber-950');
+      expect(value?.className).not.toContain('text-white');
     });
   });
 

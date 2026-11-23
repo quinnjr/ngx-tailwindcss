@@ -135,7 +135,7 @@ export class TwLogViewerComponent implements AfterViewChecked {
     const base = 'transition-colors';
 
     if (!isActive) {
-      return `${base} bg-gray-100 dark:bg-gray-700 text-gray-400`;
+      return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300`;
     }
 
     const levelClasses: Record<LogEntry['level'], string> = {

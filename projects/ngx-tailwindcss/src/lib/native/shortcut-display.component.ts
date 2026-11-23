@@ -124,7 +124,7 @@ export class TwShortcutDisplayComponent {
         return `${baseClasses} px-1 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded`;
       }
       case 'inline': {
-        return `${baseClasses} px-1 text-xs text-slate-500`;
+        return `${baseClasses} px-1 text-xs text-slate-500 dark:text-slate-400`;
       }
       default: {
         return `${baseClasses} px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-sm`;

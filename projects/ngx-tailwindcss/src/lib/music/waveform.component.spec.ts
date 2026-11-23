@@ -114,4 +114,17 @@ describe('TwWaveformComponent', () => {
 
     expect(internals.loading()).toBe(false);
   });
+
+  it('should render the zoom scrollbar time labels readably on the dark strip', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.componentRef.setInput('peaks', [0.1, 0.2, 0.3]);
+    component.setZoom(4);
+    fixture.detectChanges();
+    const labels = [...fixture.nativeElement.querySelectorAll('div')].find((d: HTMLElement) =>
+      d.classList.contains('text-[8px]')
+    ) as HTMLElement;
+    // slate-500 on the slate-800 strip was ~3:1
+    expect(labels.classList).toContain('text-slate-300');
+    expect(labels.classList).not.toContain('text-slate-500');
+  });
 });

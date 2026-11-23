@@ -101,55 +101,49 @@ export class TwTimelineComponent {
     );
   }
 
-  protected connectorClasses(index: number) {
+  /**
+   * Connector geometry per marker kind and size. The line runs through the centre of the
+   * item's marker (markers have z-10, so they sit ON TOP of the line). Dot markers are
+   * w-3/w-4/w-5 (centre 6/8/10px), icon markers w-8/w-10/w-12 (centre 16/20/24px); the
+   * 2px line is offset by 1px to centre it. Static strings so Tailwind can see them.
+   */
+  private readonly CONNECTOR_GEOMETRY = {
+    dot: {
+      verticalTop: { sm: 'top-[6px]', md: 'top-[8px]', lg: 'top-[10px]' },
+      verticalLeft: { sm: 'left-[5px]', md: 'left-[7px]', lg: 'left-[9px]' },
+      verticalRight: { sm: 'right-[5px]', md: 'right-[7px]', lg: 'right-[9px]' },
+      horizontalTop: { sm: 'top-[5px]', md: 'top-[7px]', lg: 'top-[9px]' },
+      horizontalLeft: { sm: 'left-[6px]', md: 'left-[8px]', lg: 'left-[10px]' },
+    },
+    icon: {
+      verticalTop: { sm: 'top-[16px]', md: 'top-[20px]', lg: 'top-[24px]' },
+      verticalLeft: { sm: 'left-[15px]', md: 'left-[19px]', lg: 'left-[23px]' },
+      verticalRight: { sm: 'right-[15px]', md: 'right-[19px]', lg: 'right-[23px]' },
+      horizontalTop: { sm: 'top-[15px]', md: 'top-[19px]', lg: 'top-[23px]' },
+      horizontalLeft: { sm: 'left-[16px]', md: 'left-[20px]', lg: 'left-[24px]' },
+    },
+  } as const;
+
+  protected connectorClasses(index: number, event?: TimelineEvent) {
+    const geometry = this.CONNECTOR_GEOMETRY[event?.icon ? 'icon' : 'dot'];
+    const size = this.markerSize();
+
     if (this.layout() === 'horizontal') {
-      // Items are equal-width columns with the dot at their top-left, so a line one item
-      // wide starting at this dot's centre ends at the next dot's centre
-      const horizontalTop = { sm: 'top-[5px]', md: 'top-[7px]', lg: 'top-[9px]' };
-      const horizontalLeft = { sm: 'left-[6px]', md: 'left-[8px]', lg: 'left-[10px]' };
+      // Items are equal-width columns with the marker at their top-left, so a line one item
+      // wide starting at this marker's centre ends at the next marker's centre
       return this.twClass.merge(
         'absolute w-full h-0.5 bg-slate-300',
-        horizontalTop[this.markerSize()],
-        horizontalLeft[this.markerSize()]
+        geometry.horizontalTop[size],
+        geometry.horizontalLeft[size]
       );
     }
 
-    // Line runs through the CENTER of the marker (not starting at the bottom)
-    // This creates a continuous visual connection through all markers
-    // The markers have z-10, so they appear ON TOP of the line
-
-    // Position line at the vertical center of the marker
-    // sm (w-3 = 12px): center at 6px
-    // md (w-4 = 16px): center at 8px
-    // lg (w-5 = 20px): center at 10px
-    const topPosition = {
-      sm: 'top-[6px]',
-      md: 'top-[8px]',
-      lg: 'top-[10px]',
-    };
-
-    // Calculate the left position to center the 2px line (w-0.5) with the marker dot
-    // sm (w-3 = 12px): center at 6px, line at 6px - 1px = 5px
-    // md (w-4 = 16px): center at 8px, line at 8px - 1px = 7px
-    // lg (w-5 = 20px): center at 10px, line at 10px - 1px = 9px
-    const leftPosition = {
-      sm: 'left-[5px]',
-      md: 'left-[7px]',
-      lg: 'left-[9px]',
-    };
-
-    const rightPosition = {
-      sm: 'right-[5px]',
-      md: 'right-[7px]',
-      lg: 'right-[9px]',
-    };
-
     return this.twClass.merge(
       'absolute w-0.5 bg-slate-300 bottom-0',
-      topPosition[this.markerSize()],
+      geometry.verticalTop[size],
       this.effectiveAlign(index) === 'right'
-        ? rightPosition[this.markerSize()]
-        : leftPosition[this.markerSize()]
+        ? geometry.verticalRight[size]
+        : geometry.verticalLeft[size]
     );
   }
 

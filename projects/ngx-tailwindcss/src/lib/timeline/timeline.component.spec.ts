@@ -1,4 +1,4 @@
-import { Component, DebugElement, signal, ViewChild } from '@angular/core';
+import { Component, DebugElement, signal, TemplateRef, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -51,6 +51,26 @@ class TestHostComponent {
   layout = signal<TimelineLayout>('vertical');
   align = signal<TimelineAlign>('left');
   markerSize = signal<'sm' | 'md' | 'lg'>('md');
+}
+
+@Component({
+  template: `
+    <ng-template #icon><span>*</span></ng-template>
+    <tw-timeline [events]="events(icon)" [layout]="layout()"></tw-timeline>
+  `,
+  standalone: true,
+  imports: [TwTimelineComponent],
+})
+class IconTimelineHostComponent {
+  layout = signal<TimelineLayout>('vertical');
+  private cached?: TimelineEvent[];
+  events(icon: TemplateRef<unknown>): TimelineEvent[] {
+    this.cached ??= [
+      { id: 'a', title: 'A', icon },
+      { id: 'b', title: 'B', icon },
+    ];
+    return this.cached;
+  }
 }
 
 describe('TwTimelineComponent', () => {
@@ -234,6 +254,25 @@ describe('TwTimelineComponent', () => {
       expect(cls).toContain('w-full');
       expect(cls).not.toContain('left-full');
       expect(cls).not.toContain('-translate-x-1/2');
+    });
+  });
+
+  describe('icon marker connectors', () => {
+    it('should centre connectors on icon markers, vertically and horizontally', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.detectChanges();
+      const el = iconFixture.debugElement.query(By.directive(TwTimelineComponent));
+
+      // md icon marker (40px): centre at 20px; 2px line offset by 1px
+      let cls = el.queryAll(By.css('.bg-slate-300'))[0].nativeElement.className as string;
+      expect(cls).toContain('top-[20px]');
+      expect(cls).toContain('left-[19px]');
+
+      iconFixture.componentInstance.layout.set('horizontal');
+      iconFixture.detectChanges();
+      cls = el.queryAll(By.css('.bg-slate-300'))[0].nativeElement.className as string;
+      expect(cls).toContain('top-[19px]');
+      expect(cls).toContain('left-[20px]');
     });
   });
 

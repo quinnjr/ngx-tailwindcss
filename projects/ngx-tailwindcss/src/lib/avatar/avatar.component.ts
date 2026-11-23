@@ -172,7 +172,7 @@ export class TwAvatarComponent {
     };
 
     return [
-      'absolute flex items-center justify-center rounded-full bg-rose-500 text-white font-medium px-1',
+      'absolute flex items-center justify-center rounded-full bg-rose-600 text-white font-medium px-1',
       sizeClasses[sz],
     ].join(' ');
   });

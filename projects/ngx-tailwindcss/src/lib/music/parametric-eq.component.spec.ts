@@ -132,4 +132,34 @@ describe('TwParametricEQComponent', () => {
       expect(['#64748B', '#78716C', '#666666']).not.toContain(internals.colors().gridText);
     }
   });
+
+  it('should pick band chip text that contrasts with the band colour', () => {
+    // white on orange-500 / yellow-500 / green-500 was ~1.9-2.8:1
+    expect(internals.bandTextColor('#EAB308')).toBe('#0F172A');
+    expect(internals.bandTextColor('#22C55E')).toBe('#0F172A');
+    expect(internals.bandTextColor('#F97316')).toBe('#0F172A');
+    expect(internals.bandTextColor('#1E3A8A')).toBe('#FFFFFF');
+    expect(internals.bandTextColor('#000')).toBe('#FFFFFF');
+    expect(internals.bandTextColor('rgb(0, 0, 0)')).toBe('#FFFFFF');
+    expect(internals.bandTextColor(undefined)).toBe('#FFFFFF');
+
+    const chip = fixture.nativeElement.querySelector('[role="switch"]')!
+      .parentElement as HTMLElement;
+    expect(chip.style.color).not.toBe('white');
+    expect(chip.style.color).toBe('rgb(15, 23, 42)'); // first default band is red-500
+  });
+
+  it('should render the selected-band readout legibly on the light variant', () => {
+    fixture.componentRef.setInput('variant', 'light');
+    internals.selectBand(internals.bands()[0]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const label = [...el.querySelectorAll('label')].find(l => l.textContent?.trim() === 'Gain')!;
+
+    expect(label.classList).toContain('text-slate-600');
+    expect(label.classList).toContain('block');
+    expect(label.nextElementSibling!.classList).toContain('text-slate-900');
+    expect(label.closest('.rounded-lg.p-3')!.classList).toContain('bg-slate-100');
+    expect(el.querySelectorAll('.text-white, .text-slate-400')).toHaveLength(0);
+  });
 });

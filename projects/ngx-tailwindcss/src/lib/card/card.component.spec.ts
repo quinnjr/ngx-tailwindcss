@@ -272,6 +272,13 @@ describe('Card section directives', () => {
       ).nativeElement;
       expect(subtitle.className).toContain('text-sm');
     });
+
+    it('should stay readable on the dark filled card (slate-400 on slate-700 is ~4:1)', () => {
+      const subtitle = fixture.debugElement.query(
+        By.directive(TwCardSubtitleDirective)
+      ).nativeElement;
+      expect(subtitle.className).toContain('dark:text-slate-300');
+    });
   });
 
   describe('TwCardBodyDirective', () => {

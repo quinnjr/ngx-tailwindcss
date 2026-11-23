@@ -9,7 +9,7 @@
     <div [class]="itemClasses(i, first, last)">
       <!-- Connector line -->
       @if (!last) {
-        <div [class]="connectorClasses(i)"></div>
+        <div [class]="connectorClasses(i, event)"></div>
       }
 
       <!-- Marker -->

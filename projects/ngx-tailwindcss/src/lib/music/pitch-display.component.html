@@ -15,7 +15,7 @@
           [class.bg-blue-600]="internalKeyLock()"
           [class.text-white]="internalKeyLock()"
           [class.bg-slate-700]="!internalKeyLock()"
-          [class.text-slate-400]="!internalKeyLock()"
+          [class.text-slate-300]="!internalKeyLock()"
           [class.hover:bg-slate-600]="!internalKeyLock()"
           [disabled]="disabled()"
           (click)="toggleKeyLock()"
@@ -94,7 +94,7 @@
 
     <!-- Note Preview -->
     @if (showNotePreview()) {
-      <div class="text-center text-sm text-slate-400">
+      <div class="text-center text-sm" [class]="labelClass()">
         {{ referenceNote() }}{{ referenceOctave() }} →
         <span [class]="pitchDirectionClass()" class="font-medium"
           >{{ resultingNote().note }}{{ resultingNote().octave }}</span
@@ -377,8 +377,8 @@
       <div class="flex flex-wrap gap-1 justify-center">
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-blue-600]="internalSemitones() === -12 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors"
+          [class]="presetButtonClass(-12, 'bg-blue-700')"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveDown)"
         >
@@ -386,8 +386,8 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-blue-600]="internalSemitones() === -7 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors"
+          [class]="presetButtonClass(-7, 'bg-blue-700')"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthDown)"
         >
@@ -395,8 +395,8 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-green-600]="internalSemitones() === 0 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors"
+          [class]="presetButtonClass(0, 'bg-green-700')"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.zero)"
         >
@@ -404,8 +404,8 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-amber-600]="internalSemitones() === 7 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors"
+          [class]="presetButtonClass(7, 'bg-amber-700')"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthUp)"
         >
@@ -413,8 +413,8 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-amber-600]="internalSemitones() === 12 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors"
+          [class]="presetButtonClass(12, 'bg-amber-700')"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveUp)"
         >

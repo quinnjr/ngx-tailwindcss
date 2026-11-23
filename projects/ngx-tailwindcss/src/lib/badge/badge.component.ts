@@ -26,10 +26,11 @@ const BADGE_BASE_CLASSES = `
 const BADGE_SOLID_VARIANTS: Record<BadgeVariant, string> = {
   primary: 'bg-blue-600 text-white',
   secondary: 'bg-slate-600 text-white',
-  success: 'bg-emerald-600 text-white',
-  warning: 'bg-amber-500 text-white',
+  // Shades chosen so the text meets WCAG AA (4.5:1); white on amber is unreadable
+  success: 'bg-emerald-700 text-white',
+  warning: 'bg-amber-500 text-amber-950',
   danger: 'bg-rose-600 text-white',
-  info: 'bg-cyan-600 text-white',
+  info: 'bg-cyan-700 text-white',
   neutral: 'bg-slate-200 text-slate-800',
 };
 
@@ -49,12 +50,12 @@ const BADGE_OUTLINE_VARIANTS: Record<BadgeVariant, string> = {
   secondary:
     'bg-transparent border border-slate-600 dark:border-slate-400 text-slate-600 dark:text-slate-400',
   success:
-    'bg-transparent border border-emerald-600 dark:border-emerald-400 text-emerald-600 dark:text-emerald-400',
+    'bg-transparent border border-emerald-600 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400',
   warning:
-    'bg-transparent border border-amber-500 dark:border-amber-400 text-amber-600 dark:text-amber-400',
+    'bg-transparent border border-amber-500 dark:border-amber-400 text-amber-700 dark:text-amber-400',
   danger:
     'bg-transparent border border-rose-600 dark:border-rose-400 text-rose-600 dark:text-rose-400',
-  info: 'bg-transparent border border-cyan-600 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400',
+  info: 'bg-transparent border border-cyan-600 dark:border-cyan-400 text-cyan-700 dark:text-cyan-400',
   neutral:
     'bg-transparent border border-slate-400 dark:border-slate-500 text-slate-600 dark:text-slate-400',
 };

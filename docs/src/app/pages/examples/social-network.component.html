@@ -39,7 +39,7 @@
               <fa-icon [icon]="icons.bell" class="w-6 h-6 text-slate-600 dark:text-zinc-300"></fa-icon>
             </tw-button>
             @if (unreadNotifications() > 0) {
-              <span class="absolute -top-1 -right-1 w-5 h-5 bg-sky-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse pointer-events-none">
+              <span class="absolute -top-1 -right-1 w-5 h-5 bg-sky-700 text-white text-xs rounded-full flex items-center justify-center animate-pulse pointer-events-none">
                 {{ unreadNotifications() }}
               </span>
             }
@@ -311,7 +311,7 @@
                       }
                     </div>
                     <p class="text-xs text-slate-500 dark:text-zinc-500 mb-2">{{ formatNumber(user.followers) }} followers</p>
-                    <tw-button size="sm" class="bg-sky-500 hover:bg-sky-600 text-white" (click)="followUser(user)">
+                    <tw-button size="sm" class="bg-sky-700 hover:bg-sky-800 text-white" (click)="followUser(user)">
                       Follow
                     </tw-button>
                   </div>
@@ -374,7 +374,7 @@
 
     <div footer class="flex gap-3">
       <tw-button variant="outline" class="border-slate-200 dark:border-zinc-600" (click)="closeNewPost()">Cancel</tw-button>
-      <tw-button class="bg-sky-500 hover:bg-sky-600 text-white" (click)="submitPost()" [disabled]="loading()">
+      <tw-button class="bg-sky-700 hover:bg-sky-800 text-white" (click)="submitPost()" [disabled]="loading()">
         @if (loading()) {
           <span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
         }

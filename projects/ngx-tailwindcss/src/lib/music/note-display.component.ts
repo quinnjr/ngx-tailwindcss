@@ -308,8 +308,9 @@ export class TwNoteDisplayComponent {
     const variantClasses: Record<NoteDisplayVariant, string> = {
       default: 'text-slate-400',
       minimal: 'text-slate-500 dark:text-slate-400',
-      led: 'text-red-400/70',
-      lcd: 'text-lime-500/70',
+      // /70 was ~4.0-4.4:1 on the black / lime-950 surfaces at the small (non-large) size
+      led: 'text-red-400/80',
+      lcd: 'text-lime-500/80',
       meter: 'text-amber-500/70',
     };
 

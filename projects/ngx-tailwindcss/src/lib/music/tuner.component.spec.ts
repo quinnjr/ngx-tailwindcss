@@ -158,4 +158,35 @@ describe('TwTunerComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelectorAll('.text-slate-500, .text-slate-600')
     ).toHaveLength(0);
   });
+
+  it('should keep minimal-variant text readable on a light page background', () => {
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    // slate-400 alone is ~2.6:1 on white; minimal pairs a darker shade with dark:
+    const hint = el.querySelector('p') as HTMLElement;
+    expect(hint.classList).toContain('text-slate-600');
+    expect(hint.classList).toContain('dark:text-slate-400');
+    expect(hint.classList).toContain('max-w-xs');
+
+    (component as any).currentCents.set(20);
+    expect((component as any).centsDisplayClasses()).toContain('text-red-700');
+    (component as any).currentCents.set(-20);
+    expect((component as any).centsDisplayClasses()).toContain('text-blue-700');
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(hint.classList).toContain('text-slate-400');
+    expect(hint.classList).not.toContain('text-slate-600');
+  });
+
+  it('should render the start button label above 4.5:1 (white on green-700)', () => {
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(b =>
+      b.textContent?.includes('Start Tuner')
+    )!;
+    expect(button.classList).toContain('bg-green-700');
+    expect(button.classList).not.toContain('bg-green-600');
+    expect(button.classList).toContain('text-white');
+  });
 });

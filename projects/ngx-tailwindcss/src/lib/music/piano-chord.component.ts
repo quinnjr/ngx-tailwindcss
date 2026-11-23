@@ -379,7 +379,8 @@ export class TwPianoChordComponent {
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
           text: '#334155',
-          noteLabel: '#94A3B8',
+          // slate-400 was ~2.6:1 on the white keys
+          noteLabel: '#64748B',
         };
       }
       case 'colorful': {

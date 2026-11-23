@@ -95,6 +95,14 @@ describe('TwMenuComponent', () => {
     expect(item.className).toContain('focus-visible:ring-blue-500');
   });
 
+  it('should render shortcuts with WCAG AA text contrast on the white menu', () => {
+    const shortcut = menuItems()[1].querySelector<HTMLElement>('span.ml-auto')!;
+    expect(shortcut.textContent?.trim()).toBe('Ctrl+S');
+    expect(shortcut.classList).toContain('text-slate-500');
+    expect(shortcut.classList).not.toContain('text-slate-400');
+    expect(shortcut.classList).toContain('dark:text-slate-400');
+  });
+
   describe('visible', () => {
     it('should hide items with visible: false', () => {
       component.items.set([

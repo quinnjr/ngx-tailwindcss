@@ -350,6 +350,8 @@ describe('TwTextareaComponent', () => {
       const count = fixture.debugElement.query(By.css('.text-right'));
       expect(count).toBeTruthy();
       expect(count.nativeElement.textContent).toContain('0 / 100');
+      expect(count.nativeElement.className).toContain('text-slate-500');
+      expect(count.nativeElement.className).toContain('dark:text-slate-400');
     });
 
     it('should show bare count without maxlength', () => {

@@ -228,6 +228,34 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     }
   });
 
+  // Selected-band readout panel. The translucent slate-800 panel with white /
+  // slate-400 text is ~1.2-3:1 on the light variant's white surroundings.
+  protected readonly panelClasses = computed(() =>
+    this.variant() === 'light'
+      ? { panel: 'bg-slate-100', label: 'text-slate-600', value: 'text-slate-900' }
+      : { panel: 'bg-slate-800/50', label: 'text-slate-400', value: 'text-white' }
+  );
+
+  /**
+   * Text colour for a band chip: white or slate-900, whichever contrasts more
+   * with the band colour (white on the default orange/yellow/green bands was
+   * ~1.9-2.8:1).
+   */
+  protected bandTextColor(color: string | undefined): string {
+    const hex = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(color ?? '')?.[1];
+    if (!hex) return '#FFFFFF';
+    const full = hex.length === 3 ? hex.replaceAll(/./g, c => c + c) : hex;
+    const [r, g, b] = [0, 2, 4].map(i => {
+      const c = Number.parseInt(full.slice(i, i + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // slate-900 (#0F172A) has a relative luminance of ~0.0089
+    const onWhite = 1.05 / (luminance + 0.05);
+    const onDark = (luminance + 0.05) / 0.0589;
+    return onDark > onWhite ? '#0F172A' : '#FFFFFF';
+  }
+
   protected readonly containerClasses = computed(() => {
     const base = 'relative rounded-lg overflow-hidden';
     return [base, this.classOverride()].filter(Boolean).join(' ');

@@ -96,4 +96,19 @@ describe('TwPianoChordComponent', () => {
       expect(Number(circle.getAttribute('cx'))).toBeLessThan(width);
     }
   });
+
+  it('draws the minimal variant key labels >= 4.5:1 on the white keys', () => {
+    fixture.componentRef.setInput('chord', 'C');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('showKeyLabels', true);
+    fixture.detectChanges();
+    const labels = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>('svg text'),
+    ].filter(t => /^C\d$/.test(t.textContent?.trim() ?? ''));
+    expect(labels.length).toBeGreaterThan(0);
+    // slate-400 (#94A3B8) was ~2.6:1 on white
+    for (const label of labels) {
+      expect(label.getAttribute('fill')?.toUpperCase()).toBe('#64748B');
+    }
+  });
 });

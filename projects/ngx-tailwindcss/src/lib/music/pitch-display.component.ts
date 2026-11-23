@@ -242,8 +242,21 @@ export class TwPitchDisplayComponent {
   });
 
   // Color indicator based on pitch direction
+  // The 400 shades are ~1.7-2.6:1 on a white panel, so the light variant (and
+  // minimal, which sits on the page background) use the darker 700 shades
   protected readonly pitchDirectionClass = computed(() => {
     const total = this.totalCents();
+    const variant = this.variant();
+    if (variant === 'light') {
+      if (total > 0) return 'text-amber-700';
+      if (total < 0) return 'text-blue-700';
+      return 'text-slate-600';
+    }
+    if (variant === 'minimal') {
+      if (total > 0) return 'text-amber-700 dark:text-amber-400';
+      if (total < 0) return 'text-blue-700 dark:text-blue-400';
+      return 'text-slate-600 dark:text-slate-400';
+    }
     if (total > 0) return 'text-amber-400'; // Sharp/up
     if (total < 0) return 'text-blue-400'; // Flat/down
     return 'text-slate-400'; // Neutral
@@ -513,6 +526,14 @@ export class TwPitchDisplayComponent {
     if (variant === 'minimal') return 'text-slate-600 dark:text-slate-400';
     return 'text-slate-400';
   });
+
+  // Quick preset buttons. The active colour replaces the grey (rather than both
+  // being applied) and takes white text: slate-300 on the active blue/green/
+  // amber fills was ~2-3.4:1.
+  protected presetButtonClass(semitones: number, activeBg: string): string {
+    const active = this.internalSemitones() === semitones && this.internalCents() === 0;
+    return active ? `${activeBg} text-white` : 'bg-slate-700 hover:bg-slate-600 text-slate-300';
+  }
 
   protected readonly centsValueClasses = computed(() => {
     const variant = this.variant();

@@ -241,4 +241,27 @@ describe('TwNoteInputComponent clefs and layout', () => {
     }
     expect(byText('Shortcuts').classList).not.toContain('text-slate-400');
   });
+
+  it('keeps the voice button numerals readable (>= 4.5:1) in light and dark mode', () => {
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const voiceBtn = (voice: number) =>
+      host.querySelector<HTMLButtonElement>(`button[title^="Voice ${voice} "]`)!;
+
+    // Active voice 1: white on slate-800, with the selection ring
+    expect(voiceBtn(1).classList).toContain('bg-slate-800');
+    expect(voiceBtn(1).classList).toContain('text-white');
+    expect(voiceBtn(1).classList).toContain('ring-2');
+    // Inactive: no raw voice colour as text (slate-800 on the slate-700 dark button was ~1.3:1)
+    expect(voiceBtn(3).style.color).toBe('');
+    expect(voiceBtn(3).classList).toContain('text-emerald-800');
+    expect(voiceBtn(3).classList).toContain('dark:text-emerald-300');
+
+    // Selecting voice 3: emerald-700 fill (white on emerald-600 was ~3.8:1)
+    voiceBtn(3).click();
+    fixture.detectChanges();
+    expect(voiceBtn(3).classList).toContain('bg-emerald-700');
+    expect(voiceBtn(3).style.backgroundColor).toBe('');
+    expect(voiceBtn(1).classList).toContain('dark:text-slate-200');
+  });
 });

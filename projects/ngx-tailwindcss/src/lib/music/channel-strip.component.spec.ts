@@ -94,4 +94,22 @@ describe('TwChannelStripComponent', () => {
     expect(text('Kick').className).toContain('dark:text-white');
     expect(text('GAIN').className).toContain('text-slate-600');
   });
+
+  it('should scope dark mode to the always-dark strips so nested dials and meters stay readable', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const container = () => el.firstElementChild as HTMLElement;
+    // The volume readout (text-slate-700 dark:text-slate-300) and the meter's L/R
+    // labels follow the page scheme: on a light page they were dark text on the strip
+    expect(el.querySelector('tw-volume-dial')).not.toBeNull();
+    for (const variant of ['default', 'compact', 'vintage']) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      expect(container().classList).toContain('dark');
+    }
+
+    // Minimal is transparent and must keep following the page
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(container().classList).not.toContain('dark');
+  });
 });

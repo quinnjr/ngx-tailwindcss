@@ -102,4 +102,27 @@ describe('TwLeadSheetComponent', () => {
     buttons[1].click();
     expect(measureClicks).toEqual([{ section: 0, measure: 1 }]);
   });
+
+  it('colours measure markers for the variant surface instead of inheriting the page colour', () => {
+    fixture.componentRef.setInput('variant', 'dark');
+    fixture.componentRef.setInput('showMeasureNumbers', true);
+    fixture.componentRef.setInput('data', {
+      sections: [{ measures: [{ chords: [], repeatEnd: true }] }],
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const span = (text: string) =>
+      [...host.querySelectorAll<HTMLElement>('span')].find(el => el.textContent?.trim() === text)!;
+
+    // Black page text on the slate-950 surface was unreadable
+    expect(span('𝄇').parentElement!.classList).toContain('text-slate-300');
+    expect(span('1').closest('.text-slate-300')).not.toBeNull();
+    expect(span('1').classList).not.toContain('opacity-50');
+    expect(span('%').classList).toContain('text-slate-300');
+    expect(span('%').classList).not.toContain('opacity-30');
+
+    fixture.componentRef.setInput('variant', 'fakebook');
+    fixture.detectChanges();
+    expect(span('%').classList).toContain('text-amber-900');
+  });
 });

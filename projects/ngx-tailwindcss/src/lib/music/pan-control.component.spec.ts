@@ -49,6 +49,16 @@ describe('TwPanControlComponent', () => {
     expect(received).toEqual([]);
   });
 
+  it('should show a focus indicator for the invisible stereo-width range input', () => {
+    fixture.componentRef.setInput('variant', 'stereo-width');
+    fixture.detectChanges();
+
+    // The range input is opacity-0, so its own focus ring is never visible
+    const range = hostEl.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(range.className).toContain('opacity-0');
+    expect(range.parentElement!.className).toContain('has-[:focus-visible]:ring-2');
+  });
+
   it('should leave stereo-width keyboard handling to the native range input', () => {
     fixture.componentRef.setInput('variant', 'stereo-width');
     fixture.detectChanges();

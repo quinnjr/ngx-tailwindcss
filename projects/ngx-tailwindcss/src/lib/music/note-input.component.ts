@@ -202,6 +202,23 @@ export class TwNoteInputComponent implements OnDestroy {
     thirtysecond: '𝅀',
   };
 
+  // Voice selector buttons. The raw voice colours were unreadable as button text (white on
+  // emerald-600 ~3.8:1; slate-800/blue/red/emerald on the slate-700 dark-mode button ~1.3-2.7:1),
+  // so the buttons use darker fills and light/dark text shades that keep >= 4.5:1.
+  private readonly voiceButtonColors: Record<Voice, { active: string; inactive: string }> = {
+    1: { active: 'bg-slate-800', inactive: 'text-slate-800 dark:text-slate-200' },
+    2: { active: 'bg-blue-700', inactive: 'text-blue-700 dark:text-blue-300' },
+    3: { active: 'bg-emerald-700', inactive: 'text-emerald-800 dark:text-emerald-300' },
+    4: { active: 'bg-red-700', inactive: 'text-red-700 dark:text-red-300' },
+  };
+
+  protected voiceButtonClasses(voice: number, active: boolean): string {
+    const colors = this.voiceButtonColors[voice as Voice] ?? this.voiceButtonColors[1];
+    return active
+      ? `${colors.active} text-white ring-2 ring-blue-500`
+      : `bg-slate-200 dark:bg-slate-700 ${colors.inactive}`;
+  }
+
   protected getVoiceColorByNumber(voice: number): string {
     const v = voice as Voice;
     return this.voiceColors[v] ?? this.voiceColors[1];

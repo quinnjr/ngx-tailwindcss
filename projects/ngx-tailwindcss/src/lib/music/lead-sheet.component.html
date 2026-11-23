@@ -111,7 +111,10 @@
               "
             >
               <!-- Repeat/Navigation Markers -->
-              <div class="flex items-start justify-between text-xs mb-1">
+              <div
+                class="flex items-start justify-between text-xs mb-1"
+                [class]="textClasses().marker"
+              >
                 @if (interactive()) {
                   <!-- Keyboard access to measureClick: a sibling of the chord buttons, not a
                        wrapper, so interactive elements are never nested -->
@@ -154,7 +157,7 @@
                   <span class="border-l border-t border-current px-1"> {{ measure.ending }}. </span>
                 }
                 @if (showMeasureNumbers()) {
-                  <span class="text-[10px] opacity-50">
+                  <span class="text-[10px]">
                     {{
                       getMeasureGlobalIndex(
                         sectionIndex,
@@ -255,7 +258,7 @@
                   }
                 } @else {
                   <!-- Empty measure / repeat previous marker -->
-                  <span class="opacity-30">%</span>
+                  <span [class]="textClasses().marker">%</span>
                 }
               </div>
 

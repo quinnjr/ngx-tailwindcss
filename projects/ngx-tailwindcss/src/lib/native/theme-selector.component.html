@@ -111,7 +111,7 @@
   <div>
     <h3 class="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">Font Size</h3>
     <div class="flex items-center gap-4">
-      <span class="text-xs text-slate-500">A</span>
+      <span class="text-xs text-slate-500 dark:text-slate-400">A</span>
       <input
         type="range"
         [min]="12"
@@ -121,7 +121,7 @@
         (input)="setFontSize($any($event.target).valueAsNumber)"
         class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
       />
-      <span class="text-lg text-slate-500">A</span>
+      <span class="text-lg text-slate-500 dark:text-slate-400">A</span>
       <span class="w-12 text-sm text-slate-600 dark:text-slate-400 text-right"
         >{{ fontSize() }}px</span
       >

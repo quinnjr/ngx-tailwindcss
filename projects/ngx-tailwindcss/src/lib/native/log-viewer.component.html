@@ -34,6 +34,7 @@
           type="button"
           class="px-2 py-1 text-xs font-medium rounded transition-colors"
           [class]="getLevelFilterClasses(level.value)"
+          [attr.aria-pressed]="activeLevels().has(level.value)"
           (click)="toggleLevelFilter(level.value)"
         >
           {{ level.label }}
@@ -45,7 +46,7 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
         [class.text-blue-500]="autoScroll()"
         [attr.aria-label]="autoScroll() ? 'Disable auto-scroll' : 'Enable auto-scroll'"
         (click)="autoScroll.set(!autoScroll())"
@@ -61,7 +62,7 @@
       </button>
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
         [attr.aria-label]="'Export logs'"
         (click)="exportLogs()"
       >
@@ -76,7 +77,7 @@
       </button>
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
         [attr.aria-label]="'Clear logs'"
         (click)="clearLogs.emit()"
       >

@@ -204,6 +204,34 @@ describe('TwSelectComponent', () => {
     });
   });
 
+  describe('variants', () => {
+    it('should render the default variant with a white background and visible border', () => {
+      const cls: string = selectEl.query(By.css('button')).nativeElement.className;
+      expect(cls).toContain('bg-white');
+      expect(cls).toContain('border-slate-300');
+    });
+
+    it('should apply filled styles when variant is filled', () => {
+      component.variant.set('filled');
+      fixture.detectChanges();
+      const cls: string = selectEl.query(By.css('button')).nativeElement.className;
+      expect(cls).toContain('bg-slate-100');
+      expect(cls).toContain('border-transparent');
+      expect(cls).not.toMatch(/(^|\s)bg-white(\s|$)/);
+      expect(cls).toContain('focus:border-blue-500');
+    });
+
+    it('should keep the error border on a filled select', () => {
+      component.variant.set('filled');
+      component.errorMsg.set('Required');
+      fixture.detectChanges();
+      const cls: string = selectEl.query(By.css('button')).nativeElement.className;
+      expect(cls).toContain('bg-slate-100');
+      expect(cls).toContain('border-rose-500');
+      expect(cls).not.toContain('border-transparent');
+    });
+  });
+
   describe('disabled state', () => {
     it('should apply disabled classes', () => {
       component.disabled.set(true);

@@ -168,6 +168,14 @@ describe('TwChipComponent', () => {
         fixture.detectChanges();
         expect(getInnerSpan().className).toContain('bg-emerald-600');
       });
+
+      it('should use dark text on the amber warning solid chip (white fails WCAG AA)', () => {
+        component.variant.set('warning');
+        fixture.detectChanges();
+        expect(getInnerSpan().className).toContain('bg-amber-500');
+        expect(getInnerSpan().className).toContain('text-slate-900');
+        expect(getInnerSpan().className).not.toContain('text-white');
+      });
     });
 
     describe('outline style', () => {
@@ -179,6 +187,19 @@ describe('TwChipComponent', () => {
       it('should apply primary outline variant', () => {
         expect(getInnerSpan().className).toContain('border');
         expect(getInnerSpan().className).toContain('border-blue-600');
+      });
+
+      it('should use AA-contrast text colours for success/warning/info outline chips', () => {
+        const expected: Record<string, string> = {
+          success: 'text-emerald-700',
+          warning: 'text-amber-700',
+          info: 'text-cyan-700',
+        };
+        for (const [variant, cls] of Object.entries(expected)) {
+          component.variant.set(variant as ChipVariant);
+          fixture.detectChanges();
+          expect(getInnerSpan().className).toContain(cls);
+        }
       });
     });
   });

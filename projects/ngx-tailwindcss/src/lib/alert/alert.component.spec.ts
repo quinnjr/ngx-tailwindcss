@@ -113,6 +113,24 @@ describe('TwAlertComponent', () => {
       expect(alertEl.className).toContain('bg-blue-600');
       expect(alertEl.className).toContain('text-white');
     });
+
+    it('should use dark text on the solid warning alert', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('warning');
+      fixture.detectChanges();
+
+      // white on amber-500 is ~2.2:1
+      expect(alertEl.className).toContain('text-amber-950');
+      expect(alertEl.className).not.toContain('text-white');
+      expect(alertEl.querySelector('[aria-hidden="true"]')?.className).toContain('text-amber-950');
+    });
+
+    it('should use an AA-contrast background on the solid success alert', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('success');
+      fixture.detectChanges();
+      expect(alertEl.className).toContain('bg-emerald-700');
+    });
   });
 
   describe('icon', () => {

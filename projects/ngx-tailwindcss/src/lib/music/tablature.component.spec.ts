@@ -83,4 +83,24 @@ describe('TwTablatureComponent', () => {
     ).filter(t => /^\d+$/.test(t ?? ''));
     expect(frets).toEqual(['0', '1', '2', '3', '4', '5', '6', '7']);
   });
+
+  it('keeps the TAB label, measure numbers and empty state readable (no 50-60% fades)', () => {
+    const faded = () =>
+      (fixture.nativeElement as HTMLElement).querySelectorAll('text.opacity-50, text.opacity-60');
+    // opacity-50 slate-800 on white was ~3.1:1 for the 10px measure numbers
+    fixture.componentRef.setInput('showMeasureNumbers', true);
+    fixture.componentRef.setInput('measures', [{ notes: [[{ string: 1, fret: 3 }]] }]);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const text = (t: string) =>
+      [...host.querySelectorAll('text')].find(el => el.textContent?.trim() === t)!;
+    expect(text('TAB').classList).toContain('opacity-80');
+    expect(text('1').classList).toContain('opacity-80');
+    expect(faded()).toHaveLength(0);
+
+    fixture.componentRef.setInput('measures', []);
+    fixture.detectChanges();
+    expect(text('No tablature data').classList).toContain('opacity-80');
+    expect(faded()).toHaveLength(0);
+  });
 });

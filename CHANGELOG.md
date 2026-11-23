@@ -147,6 +147,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-timeline layout="horizontal"` connectors run from one marker to the
   next (they used to start mid-item, below the markers); marker rings match
   the dark background in dark mode instead of showing a white halo
+- Visible keyboard focus indicators: `tw-input` with a prefix, suffix or clear
+  button rings its wrapper while the input has focus; `tw-tabs` panels,
+  `tw-menu` items and `tw-dropdown` items show a focus ring; the confirm
+  dialog buttons' focus ring is offset from the button
+- Text contrast (WCAG AA) on the music components' fixed dark/light surfaces
+  (labels and readouts in the compressor meter, looper, tuner, pitch display,
+  graphic/parametric EQ, channel strip, mixer, VU meter, fader, BPM display,
+  metronome, audio stats, audio player, pan control, sheet music, note
+  display, note input, piano and score editor); `tw-chips` input text and the
+  `tw-multiselect variant="filled"` trigger text are readable in both themes
+- Inputs that had no effect now apply: `tw-status-bar` `variant`,
+  `tw-native-confirm-dialog` `type`, `tw-file-tree` `showDate`,
+  `tw-search-bar` `filters`, `tw-settings-panel` `twSettingTemplate` custom
+  controls, `tw-tab-panel` `icon` and `tw-pitch-display` `size` (a second
+  `[class]` binding replaced its size classes)
+- `twRipple` draws one ripple per tap instead of two (touch plus the emulated
+  mouse event); `twTooltip` honours an `opacity-*` class in `tooltipClass`
+- Touch drag helpers read the lifted finger on `touchend`/`touchcancel`
+  instead of throwing
+- Text contrast (WCAG AA): solid `warning` buttons, badges and alerts use dark
+  text on amber (white was ~2.2:1); solid `success`/`info` buttons, badges,
+  alerts and progress bars use the 700 shade; outline badge text, the
+  `tw-avatar` count badge, the `tw-progress` inside value on `warning`, the
+  `variant="link"` button in dark mode and `tw-card-subtitle` on dark filled
+  cards are readable
+- `tw-timeline` connectors run through the centre of icon markers instead of
+  their left edge (vertical) or top (horizontal)
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

@@ -155,4 +155,29 @@ describe('TwCompressorMeterComponent', () => {
     expect(label('Thresh').nextElementSibling!.classList).toContain('text-slate-800');
     expect(el.querySelectorAll('.text-slate-300')).toHaveLength(0);
   });
+
+  it('should use readable gain-reduction and graph A/R text colours on the light variant', () => {
+    fixture.componentRef.setInput('showSettings', true);
+    fixture.componentRef.setInput('attackReleaseDisplay', 'graph');
+    fixture.componentRef.setInput('variant', 'light');
+    internals.setGainReduction(-12);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const grValue = [...el.querySelectorAll<HTMLElement>('span')].find(s =>
+      s.textContent?.includes(' dB')
+    )!;
+    expect(grValue.classList).toContain('text-orange-700');
+    expect(grValue.classList).toContain('font-mono');
+    // amber/green/orange/red 400 shades are ~1.7-2.8:1 on the white panel
+    expect(
+      el.querySelectorAll('.text-amber-400, .text-green-400, .text-orange-400, .text-red-400')
+    ).toHaveLength(0);
+    expect(el.querySelector('.text-green-700')).not.toBeNull();
+    expect(el.querySelector('.text-amber-700')).not.toBeNull();
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(grValue.classList).toContain('text-orange-400');
+  });
 });

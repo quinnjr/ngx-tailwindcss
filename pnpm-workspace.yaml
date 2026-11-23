@@ -8,6 +8,16 @@ packages:
 overrides:
   '@typescript-eslint/utils': '8.62.0'
 
+peerDependencyRules:
+  allowedVersions:
+    # Plugin declares eslint ^9 only; it works under ESLint 10.
+    '@pegasusheavy/eslint-typescript-access>eslint': '10'
+    # oxc-parser's wasm32-wasi binding (pulled in by @angular/build 22.3) ships
+    # an @emnapi 2.0 pre-release outside @napi-rs/wasm-runtime's declared range.
+    # The wasm binding is unused on platforms with native binaries.
+    '@napi-rs/wasm-runtime>@emnapi/core': '2.0.0-alpha.6'
+    '@napi-rs/wasm-runtime>@emnapi/runtime': '2.0.0-alpha.6'
+
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true

@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
+import { refocusIfLost } from './native-focus.util';
 import { TabBarPosition, TabBarVariant, TabEvent, TabItem } from './native.types';
 
 /**
@@ -165,15 +166,13 @@ export class TwTabBarComponent {
     if (!hadFocus) return;
 
     // Removing the closed tab drops focus with its close button; move it to the
-    // tab that took its place (or the new last tab) so keyboard users keep their place
-    afterNextRender(
-      () => {
-        if (host.contains(host.ownerDocument.activeElement)) return;
-        const remaining = host.querySelectorAll<HTMLElement>('[data-tab-id]');
-        remaining[Math.min(index, remaining.length - 1)]?.focus();
-      },
-      { injector: this.injector }
-    );
+    // tab that took its place (or the new last tab, or another tab-bar control
+    // once no tabs remain) so keyboard users keep their place. Only when focus
+    // was actually lost: never pull it back from wherever the parent moved it.
+    refocusIfLost(this.injector, () => {
+      const remaining = host.querySelectorAll<HTMLElement>('[data-tab-id]');
+      return remaining[Math.min(index, remaining.length - 1)] ?? host.querySelector('button');
+    });
   }
 
   protected onMiddleClick(tab: TabItem, index: number, event: MouseEvent): void {

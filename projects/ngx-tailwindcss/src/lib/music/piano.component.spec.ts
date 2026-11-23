@@ -245,6 +245,26 @@ describe('TwPianoComponent', () => {
     expect(group?.getAttribute('aria-label')).toBe('Piano keyboard');
   });
 
+  it('releases mouse-held keys with noteOff when the piano becomes disabled', () => {
+    const offs: NoteEvent[] = [];
+    piano.noteOff.subscribe(e => offs.push(e));
+    const c4 = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-label="C4"]'
+    )!;
+
+    c4.dispatchEvent(new MouseEvent('mousedown'));
+    fixture.detectChanges();
+    expect(c4.getAttribute('aria-pressed')).toBe('true');
+
+    // A disabled button never receives the mouseup, so the note used to hang forever
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(offs.map(e => e.midi)).toEqual([60]);
+    expect(piano.getActiveNotes()).toEqual([]);
+    expect(c4.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('ignores MIDI note-ons while disabled but still releases held keys', () => {
     const internals = piano as unknown as { handleMidiMessage: (e: { data: Uint8Array }) => void };
     const ons: NoteEvent[] = [];

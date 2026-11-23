@@ -180,6 +180,14 @@ describe('TwSpinnerComponent', () => {
         const spinner = spinnerEl.querySelector('.animate-spin');
         expect(spinner?.className).toContain('border-slate-500');
       });
+
+      it('should lighten the secondary color in dark mode (>= 3:1 on slate-900)', () => {
+        component.color.set('secondary');
+        fixture.detectChanges();
+        const spinner = spinnerEl.querySelector('.animate-spin');
+        expect(spinner?.className).toContain('border-slate-600');
+        expect(spinner?.className).toContain('dark:border-slate-400');
+      });
     });
 
     describe('dots variant', () => {

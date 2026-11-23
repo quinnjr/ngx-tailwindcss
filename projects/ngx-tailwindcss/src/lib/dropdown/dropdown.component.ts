@@ -10,11 +10,13 @@ import {
   forwardRef,
   inject,
   Input,
+  OnChanges,
   OnDestroy,
   Output,
   PLATFORM_ID,
   Renderer2,
   signal,
+  SimpleChanges,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
@@ -108,7 +110,7 @@ export class TwDropdownHeaderComponent {}
     class: 'inline-block text-left',
   },
 })
-export class TwDropdownComponent implements OnDestroy {
+export class TwDropdownComponent implements OnChanges, OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly elementRef = inject(ElementRef);
   private readonly document = inject(DOCUMENT);
@@ -186,6 +188,12 @@ export class TwDropdownComponent implements OnDestroy {
     effect(() => {
       this.triggerDirective()?.expanded.set(this.isOpen());
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Disabling an open dropdown closes it: its trigger no longer toggles, so the menu
+    // (and its actionable items) would otherwise stay open on a disabled control
+    if (changes['disabled'] && this.disabled) this.close();
   }
 
   ngOnDestroy(): void {

@@ -18,23 +18,27 @@ const PROGRESS_SIZE_CLASSES: Record<ProgressSize, string> = {
   lg: 'h-4',
 };
 
+/**
+ * Bar fill, >= 3:1 against the track (slate-200, or slate-700 in dark mode, where
+ * the light-mode fills were 1.4-2.2:1 and the lighter 400/500 shades are used)
+ */
 const PROGRESS_VARIANT_CLASSES: Record<ProgressVariant, string> = {
-  primary: 'bg-blue-600',
-  secondary: 'bg-slate-600',
-  success: 'bg-emerald-700',
+  primary: 'bg-blue-600 dark:bg-blue-400',
+  secondary: 'bg-slate-600 dark:bg-slate-400',
+  success: 'bg-emerald-700 dark:bg-emerald-500',
   warning: 'bg-amber-500',
-  danger: 'bg-rose-600',
-  info: 'bg-cyan-700',
+  danger: 'bg-rose-600 dark:bg-rose-400',
+  info: 'bg-cyan-700 dark:bg-cyan-500',
 };
 
 /** Text colour of the value shown inside the bar, >= 4.5:1 on that bar's colour */
 const PROGRESS_INSIDE_TEXT_CLASSES: Record<ProgressVariant, string> = {
-  primary: 'text-white',
-  secondary: 'text-white',
-  success: 'text-white',
+  primary: 'text-white dark:text-slate-900',
+  secondary: 'text-white dark:text-slate-900',
+  success: 'text-white dark:text-slate-900',
   warning: 'text-amber-950',
-  danger: 'text-white',
-  info: 'text-white',
+  danger: 'text-white dark:text-slate-900',
+  info: 'text-white dark:text-slate-900',
 };
 
 const CIRCULAR_STROKE_COLORS: Record<ProgressVariant, string> = {

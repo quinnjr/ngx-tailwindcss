@@ -102,8 +102,14 @@ export class TwRatingComponent implements ControlValueAccessor {
     );
   });
 
-  /** Value currently displayed: the hovered value while hovering, otherwise the selected value */
-  protected currentValue = computed(() => this.hoverValue() ?? this.value());
+  /**
+   * Value currently displayed: the hovered value while hovering, otherwise the selected value.
+   * A hover preview is ignored once disabled/readonly: disabled buttons may never get the
+   * `mouseleave` that clears it, which would leave a value that was never chosen on show.
+   */
+  protected currentValue = computed(() =>
+    this.isDisabled() || this.readonly() ? this.value() : (this.hoverValue() ?? this.value())
+  );
 
   /** Index of the star that participates in the roving tabindex */
   protected activeStarIndex = computed(() => Math.max(0, Math.ceil(this.value()) - 1));

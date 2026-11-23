@@ -205,6 +205,22 @@ describe('TwSplitterComponent', () => {
       expect(removeSpy).toHaveBeenCalledWith('touchmove', expect.any(Function));
       removeSpy.mockRestore();
     });
+
+    it('should end an in-progress drag when disabled and stop resizing', () => {
+      const dragEnd = vi.fn();
+      component.splitter.dragEnd.subscribe(dragEnd);
+
+      gutter().nativeElement.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 100 })
+      );
+      component.disabled.set(true);
+      fixture.detectChanges();
+      expect(dragEnd).toHaveBeenCalledTimes(1);
+
+      component.onSizesChangeSpy.mockClear();
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200 }));
+      expect(component.onSizesChangeSpy).not.toHaveBeenCalled();
+    });
   });
 });
 

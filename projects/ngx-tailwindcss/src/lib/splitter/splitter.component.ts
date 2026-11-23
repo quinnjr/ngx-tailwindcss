@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   EventEmitter,
   inject,
@@ -122,6 +123,16 @@ export class TwSplitterComponent implements OnDestroy {
   private readonly mouseUpHandler = this.onMouseUp.bind(this);
   private readonly touchMoveHandler = this.onTouchMove.bind(this);
   private readonly touchEndHandler = this.onTouchEnd.bind(this);
+
+  constructor() {
+    // Disabling the splitter mid-drag ends the drag: the disabled gutter must not keep resizing
+    effect(() => {
+      if (this.disabled() && this.isDragging()) {
+        this.endDrag();
+        this.removeListeners();
+      }
+    });
+  }
 
   ngOnDestroy(): void {
     this.removeListeners();

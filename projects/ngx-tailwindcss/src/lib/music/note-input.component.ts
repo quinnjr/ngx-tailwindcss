@@ -295,6 +295,18 @@ export class TwNoteInputComponent implements OnDestroy {
       });
     });
 
+    // Becoming read-only mid-drag cancels the drag; the mouseup used to commit the move
+    // (noteMoved/notesChanged) on a non-editable staff
+    effect(() => {
+      if (this.editable()) return;
+      untracked(() => {
+        this.noteDragController?.abort();
+        this.noteDragController = null;
+        this.isDragging.set(false);
+        this.draggedNote.set(null);
+      });
+    });
+
     // Connect / disconnect MIDI whenever enableMidiInput changes (e.g. tw-score-editor only
     // enables it on the selected part). The host is focusable (tabindex 0) for keyboard
     // input; it is not focused automatically so rendering never steals the page's focus.

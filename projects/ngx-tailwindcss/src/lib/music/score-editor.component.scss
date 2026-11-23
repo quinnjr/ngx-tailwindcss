@@ -494,8 +494,13 @@
   font-weight: 500;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #2563eb;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
@@ -532,10 +537,15 @@
   cursor: pointer;
   transition: all 0.15s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f8fafc;
     border-color: #3b82f6;
     color: #3b82f6;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 

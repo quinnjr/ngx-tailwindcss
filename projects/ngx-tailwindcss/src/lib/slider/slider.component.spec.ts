@@ -470,3 +470,34 @@ describe('TwSliderComponent (round 10)', () => {
     expect(readout.classList).toContain('dark:text-slate-100');
   });
 });
+
+describe('TwSliderComponent (round 34)', () => {
+  it('should end the drag and commit the dragged value when disabled mid-drag', () => {
+    const fixture = TestBed.createComponent(FormControlTestComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+
+    input.dispatchEvent(new MouseEvent('mousedown'));
+    input.value = '60';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.scale-110')).not.toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(25);
+
+    // Disabled before release: the browser never delivers mouseup/change to a disabled input
+    fixture.componentInstance.control.disable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.scale-110')).toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(60);
+    expect(input.value).toBe('60');
+  });
+
+  it('should not commit anything on disable when no drag is pending', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.disabled.set(true);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.changeValue).toBeNull();
+  });
+});

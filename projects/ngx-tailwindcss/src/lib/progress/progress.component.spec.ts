@@ -180,6 +180,26 @@ describe('TwProgressComponent', () => {
       expect(bar?.className).toContain('bg-cyan-700');
     });
 
+    it('should use lighter fills with dark value text against the dark-mode slate-700 track', () => {
+      component.showValue.set(true);
+      component.labelPosition.set('inside');
+      component.value.set(50);
+      const expected: Array<[ProgressVariant, string]> = [
+        ['primary', 'dark:bg-blue-400'],
+        ['secondary', 'dark:bg-slate-400'],
+        ['success', 'dark:bg-emerald-500'],
+        ['danger', 'dark:bg-rose-400'],
+        ['info', 'dark:bg-cyan-500'],
+      ];
+      for (const [variant, darkFill] of expected) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        const bar = progressEl.querySelector('.overflow-hidden > div');
+        expect(bar?.className).toContain(darkFill);
+        expect(bar?.querySelector('span')?.className).toContain('dark:text-slate-900');
+      }
+    });
+
     it('should use dark value text inside a warning bar', () => {
       component.variant.set('warning');
       component.showValue.set(true);

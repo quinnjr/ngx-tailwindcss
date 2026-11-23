@@ -21,7 +21,7 @@ import { TwClassService } from '../core/tw-class.service';
       <tw-tab-panel value="tab2" label="Tab 2" data-testid="panel-2">
         Content for Tab 2
       </tw-tab-panel>
-      <tw-tab-panel value="tab3" label="Tab 3" [disabled]="tab3Disabled" data-testid="panel-3">
+      <tw-tab-panel value="tab3" label="Tab 3" [disabled]="tab3Disabled()" data-testid="panel-3">
         Content for Tab 3
       </tw-tab-panel>
     </tw-tabs>
@@ -35,7 +35,7 @@ class TestHostComponent {
   variant: TabsVariant = 'line';
   size: TabsSize = 'md';
   fullWidth = false;
-  tab3Disabled = false;
+  tab3Disabled = signal(false);
   tabChangeCount = 0;
   lastSelectedTab = '';
 
@@ -179,6 +179,22 @@ describe('TwTabsComponent', () => {
 
       expect(tabButtons[0].nativeElement.getAttribute('tabindex')).toBe('0');
       expect(tabButtons[1].nativeElement.getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('should keep a tab stop on the first enabled tab when the active tab becomes disabled', () => {
+      component.tabs.select('tab3');
+      fixture.detectChanges();
+      component.tab3Disabled.set(true);
+      fixture.detectChanges();
+
+      const tabButtons = fixture.debugElement.queryAll(By.css('[role="tab"]'));
+      expect(tabButtons.map(t => t.nativeElement.getAttribute('tabindex'))).toEqual([
+        '0',
+        '-1',
+        '-1',
+      ]);
+      expect(tabButtons[2].nativeElement.disabled).toBe(true);
+      expect(tabButtons[2].nativeElement.getAttribute('aria-selected')).toBe('true');
     });
   });
 

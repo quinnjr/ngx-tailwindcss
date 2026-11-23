@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or replaced by re-fetched objects); the next `selectionChange` no longer
   includes them, so code that relied on the selection keeping such rows must
   track them itself
+- A visible `twTooltip` now receives pointer events: the pointer can move onto
+  it (and across the gap from its host) without it closing, so it can be
+  hovered and it covers, and catches clicks on, whatever is underneath it
+- In dark mode the `tw-progress` bars use lighter fills (`blue-400`,
+  `slate-400`, `emerald-500`, `rose-400`, `cyan-500`) with dark inside-value
+  text, and in light mode the `tw-avatar` `online`, `offline` and `away` status
+  dots are one shade darker (`emerald-600`, `slate-500`, `amber-600`)
 
 ### 🐛 Fixed
 
@@ -480,6 +487,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uses `cyan-700`, like the linear bar
 - `tw-select` and `tw-multiselect` close, and ignore option selection, when
   they are disabled while open
+- `twTooltip` is hoverable (WCAG 1.4.13): moving the pointer from the host onto
+  the tooltip keeps it open; `twAnnounce` announces a message again after it
+  was cleared
+- Native: closing a `tw-tab-bar` tab from its focused close button keeps focus
+  in the tab bar
+- Music: disabling a playing `tw-metronome` stops it
+- Graphics contrast (3:1): unchecked `tw-multiselect` checkbox borders; the
+  `tw-progress` fill against its dark-mode track (`secondary` was 1.4:1); the
+  `tw-avatar` `online`, `offline` and `away` status dots against their white
+  border; the `secondary` `tw-spinner` in dark mode
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: the README and docs quick start tell you to register an

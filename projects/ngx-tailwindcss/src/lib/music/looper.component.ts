@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   Injector,
@@ -11,6 +12,7 @@ import {
   OnDestroy,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -157,6 +159,20 @@ export class TwLooperComponent implements OnDestroy {
   });
 
   constructor() {
+    // Disabling the looper mid-take or mid-playback stops it: every transport button
+    // is disabled too, so the recorder (mic), click track and loop would otherwise
+    // carry on with no way to stop them. A take still being set up is cancelled.
+    effect(() => {
+      if (!this.disabled()) return;
+      untracked(() => {
+        this.takeGeneration++;
+        const s = this.state();
+        if (s === 'recording' || s === 'playing' || s === 'overdubbing') {
+          this.stop();
+        }
+      });
+    });
+
     // Position ticker only runs while playing/overdubbing (idle otherwise)
     toObservable(this.state)
       .pipe(

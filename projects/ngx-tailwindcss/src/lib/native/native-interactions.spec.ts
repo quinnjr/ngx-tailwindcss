@@ -467,6 +467,61 @@ describe('TwTabBarComponent close button', () => {
       fixture.nativeElement.remove();
     }
   });
+
+  it('does not pull focus back from where the parent moved it on close', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.autoDetectChanges();
+    const tabs = [
+      { id: 'one', label: 'One' },
+      { id: 'two', label: 'Two' },
+    ];
+    fixture.componentRef.setInput('tabs', tabs);
+    const editor = document.createElement('textarea');
+    document.body.append(editor);
+    fixture.componentInstance.tabClose.subscribe(e => {
+      fixture.componentRef.setInput(
+        'tabs',
+        tabs.filter(t => t.id !== e.tab.id)
+      );
+      editor.focus();
+    });
+    fixture.detectChanges();
+    document.body.append(fixture.nativeElement);
+    try {
+      const close = fixture.nativeElement.querySelector(
+        '[aria-label="Close One"]'
+      ) as HTMLButtonElement;
+      close.focus();
+      close.click();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(editor);
+    } finally {
+      fixture.nativeElement.remove();
+      editor.remove();
+    }
+  });
+
+  it('keeps focus in the tab bar when the last tab is closed', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.autoDetectChanges();
+    fixture.componentRef.setInput('tabs', [{ id: 'one', label: 'One' }]);
+    fixture.componentInstance.tabClose.subscribe(() => {
+      fixture.componentRef.setInput('tabs', []);
+    });
+    fixture.detectChanges();
+    document.body.append(fixture.nativeElement);
+    try {
+      const close = fixture.nativeElement.querySelector(
+        '[aria-label="Close One"]'
+      ) as HTMLButtonElement;
+      close.focus();
+      close.click();
+      fixture.detectChanges();
+      expect(document.activeElement?.getAttribute('aria-label')).toBe('New tab');
+    } finally {
+      fixture.nativeElement.remove();
+    }
+  });
 });
 
 describe('Native a11y semantics', () => {

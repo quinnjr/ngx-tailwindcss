@@ -405,6 +405,7 @@
               <button
                 type="button"
                 class="preset-btn"
+                [disabled]="!editable()"
                 (click)="addPart(preset); showPartDialog.set(false)"
               >
                 {{ INSTRUMENT_PRESETS[preset].name }}
@@ -474,6 +475,7 @@
             <button
               type="button"
               class="btn-primary"
+              [disabled]="!editable()"
               (click)="transposeSelectedPart(transposeAmount()); showTransposeDialog.set(false)"
             >
               Transpose Selected
@@ -481,6 +483,7 @@
             <button
               type="button"
               class="btn-primary"
+              [disabled]="!editable()"
               (click)="transposeAll(transposeAmount()); showTransposeDialog.set(false)"
             >
               Transpose All

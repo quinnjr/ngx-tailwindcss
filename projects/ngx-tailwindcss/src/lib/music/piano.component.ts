@@ -128,6 +128,15 @@ export class TwPianoComponent implements OnDestroy {
   private midiRequestId = 0;
 
   constructor() {
+    // Disabled keys receive no mouseup/touchend/keyup, so release keys held via the UI
+    // when the piano becomes disabled (they used to stay pressed with no noteOff, ever)
+    effect(() => {
+      if (!this.disabled()) return;
+      untracked(() => {
+        this.releaseKeysWhere(note => note.source === 'mouse' || note.source === 'touch');
+      });
+    });
+
     // Request MIDI access when enableMidi is turned on, release it when turned off (browser only)
     effect(() => {
       const enabled = this.enableMidi();
@@ -434,8 +443,7 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   onKeyUp(key: PianoKey): void {
-    if (this.disabled()) return;
-
+    // No disabled guard: releasing a held key must always be possible
     const keyId = this.getKeyId(key);
     const keys = new Map(this.activeKeys());
     if (keys.has(keyId)) {
@@ -684,14 +692,21 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   releaseAllKeys(): void {
+    this.releaseKeysWhere(() => true);
+  }
+
+  private releaseKeysWhere(predicate: (note: ActiveNote) => boolean): void {
     const active = this.activeKeys();
-    if (active.size === 0) return;
+    const released = [...active].filter(([, note]) => predicate(note)).map(([keyId]) => keyId);
+    if (released.length === 0) return;
 
     const allKeys = [...this.whiteKeys(), ...this.blackKeys()];
-    this.activeKeys.set(new Map());
+    const remaining = new Map(active);
+    for (const keyId of released) remaining.delete(keyId);
+    this.activeKeys.set(remaining);
 
     // Emit noteOff for every released key so consumers don't leave notes hanging
-    for (const keyId of active.keys()) {
+    for (const keyId of released) {
       const key = allKeys.find(k => this.getKeyId(k) === keyId);
       if (key) {
         this.noteOff.emit({ note: key.note, octave: key.octave, midi: key.midi, velocity: 0 });

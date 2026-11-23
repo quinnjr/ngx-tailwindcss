@@ -144,11 +144,12 @@ export class TwAvatarComponent {
       '2xl': 'w-4 h-4 border-2',
     };
 
+    // >= 3:1 against the white (light) / slate-800 (dark) border around the dot
     const statusColors: Record<AvatarStatus, string> = {
-      online: 'bg-emerald-500',
-      offline: 'bg-slate-400',
+      online: 'bg-emerald-600 dark:bg-emerald-500',
+      offline: 'bg-slate-500 dark:bg-slate-400',
       busy: 'bg-rose-500',
-      away: 'bg-amber-500',
+      away: 'bg-amber-600 dark:bg-amber-500',
       none: '',
     };
 

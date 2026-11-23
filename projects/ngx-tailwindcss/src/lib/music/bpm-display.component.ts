@@ -14,6 +14,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
@@ -127,6 +128,17 @@ export class TwBpmDisplayComponent implements OnDestroy {
       onCleanup(() => {
         clearInterval(beatInterval);
       });
+    });
+
+    // Disabling while the tempo editor is open discards the edit: the input would otherwise
+    // stay live and commit a new tempo on Enter/blur
+    effect(() => {
+      if (this.disabled() && untracked(() => this.isEditing())) {
+        untracked(() => {
+          this.isEditing.set(false);
+          this.editValue.set(this.internalBpm().toString());
+        });
+      }
     });
   }
 
@@ -242,6 +254,10 @@ export class TwBpmDisplayComponent implements OnDestroy {
   protected finishEditing(): void {
     // Enter/Escape already ended editing; the blur from removing the input must not re-commit
     if (!this.isEditing()) return;
+    if (this.disabled()) {
+      this.isEditing.set(false);
+      return;
+    }
     const value = Number.parseFloat(String(this.editValue()));
     if (!Number.isNaN(value)) {
       this.setBpm(value);

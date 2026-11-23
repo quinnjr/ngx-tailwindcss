@@ -3,12 +3,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   forwardRef,
   inject,
   input,
   numberAttribute,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -125,6 +127,26 @@ export class TwSliderComponent implements ControlValueAccessor {
 
   protected isDisabled = computed(() => this.disabled() || this._disabled());
 
+  /** A value from `input` events that has not yet been committed by a `change` event */
+  private pendingValue: number | null = null;
+
+  constructor() {
+    // Disabling the native input mid-drag swallows the release (no mouseup/change), so end
+    // the drag here and commit the value the user dragged to instead of leaving the form
+    // model behind the view and the drag state (and value bubble) stuck on.
+    effect(() => {
+      if (!this.isDisabled()) return;
+      untracked(() => {
+        this.isDragging.set(false);
+        const pending = this.pendingValue;
+        if (pending === null) return;
+        this.pendingValue = null;
+        this.onChangeFn(pending);
+        this.onChange.emit(pending);
+      });
+    });
+  }
+
   protected fillPercentage = computed(() => {
     const range = this.max() - this.min();
     if (range <= 0) return 0;
@@ -207,6 +229,7 @@ export class TwSliderComponent implements ControlValueAccessor {
     const inputEl = event.target as HTMLInputElement;
     const newValue = Number.parseFloat(inputEl.value);
     this.rawValue.set(newValue);
+    this.pendingValue = newValue;
     this.onInput.emit(newValue);
   }
 
@@ -214,6 +237,7 @@ export class TwSliderComponent implements ControlValueAccessor {
     const inputEl = event.target as HTMLInputElement;
     const newValue = Number.parseFloat(inputEl.value);
     this.rawValue.set(newValue);
+    this.pendingValue = null;
     // `change` fires on release even when the pointer is released off the input
     this.isDragging.set(false);
     this.onChangeFn(newValue);
@@ -235,6 +259,7 @@ export class TwSliderComponent implements ControlValueAccessor {
 
   // ControlValueAccessor implementation
   writeValue(value: number | null | undefined): void {
+    this.pendingValue = null;
     this.rawValue.set(value ?? null);
   }
 

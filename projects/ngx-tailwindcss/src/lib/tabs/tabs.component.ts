@@ -319,6 +319,17 @@ export class TwTabsComponent implements AfterContentInit {
     );
   });
 
+  /**
+   * The tab list's single tab stop: the active tab, or the first enabled tab when the
+   * active one is disabled (a disabled button can't take focus, which would leave the
+   * whole tab list unreachable by keyboard)
+   */
+  protected isTabStop(panel: TwTabPanelComponent): boolean {
+    const active = this.panels.find(p => p.active());
+    if (active && !active.disabled()) return panel === active;
+    return panel === this.panels.find(p => !p.disabled());
+  }
+
   protected getTabClasses(panel: TwTabPanelComponent): string {
     const variantConfig = TABS_VARIANTS[this.variant()];
 

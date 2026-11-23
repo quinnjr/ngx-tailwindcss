@@ -9,7 +9,7 @@
         [id]="tabId(panel)"
         [attr.aria-selected]="panel.active()"
         [attr.aria-controls]="panelDomId(panel)"
-        [attr.tabindex]="panel.active() ? 0 : -1"
+        [attr.tabindex]="isTabStop(panel) ? 0 : -1"
         [disabled]="panel.disabled()"
         role="tab"
         (click)="selectTab(panel.value())"

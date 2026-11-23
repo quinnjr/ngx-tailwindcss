@@ -9,7 +9,8 @@ export type SpinnerColor =
 // Border color classes for border variant
 const BORDER_COLORS: Record<SpinnerColor, string> = {
   primary: 'border-blue-600',
-  secondary: 'border-slate-600',
+  // slate-600 is 2.4:1 on a slate-900 dark page
+  secondary: 'border-slate-600 dark:border-slate-400',
   success: 'border-emerald-600',
   warning: 'border-amber-600',
   danger: 'border-rose-600',
@@ -20,7 +21,7 @@ const BORDER_COLORS: Record<SpinnerColor, string> = {
 // Background color classes for dots/pulse/bars variants
 const BG_COLORS: Record<SpinnerColor, string> = {
   primary: 'bg-blue-600',
-  secondary: 'bg-slate-600',
+  secondary: 'bg-slate-600 dark:bg-slate-400',
   success: 'bg-emerald-600',
   warning: 'bg-amber-600',
   danger: 'bg-rose-600',

@@ -184,6 +184,18 @@ describe('TwDropdownComponent', () => {
     expect(isDropdownOpen(component.dropdown)).toBe(false);
   });
 
+  it('should close an open menu when the dropdown becomes disabled', () => {
+    trigger.click();
+    fixture.detectChanges();
+    expect(isDropdownOpen(component.dropdown)).toBe(true);
+
+    component.disabled.set(true);
+    fixture.detectChanges();
+
+    expect(isDropdownOpen(component.dropdown)).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+
   describe('trigger aria-expanded', () => {
     it('should be false initially', () => {
       expect(trigger.getAttribute('aria-expanded')).toBe('false');

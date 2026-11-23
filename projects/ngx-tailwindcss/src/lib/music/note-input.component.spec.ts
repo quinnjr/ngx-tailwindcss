@@ -232,6 +232,34 @@ describe('TwNoteInputComponent', () => {
     expect(moved).toHaveLength(0);
     expect((cmp as unknown as { undoStack: () => unknown[] }).undoStack().length).toBe(undoBefore);
   });
+
+  it('cancels an in-progress drag when editable becomes false', () => {
+    const n = note('note-0');
+    cmp.setNotes([n]);
+    const moved: unknown[] = [];
+    const changed: unknown[] = [];
+    cmp.noteMoved.subscribe(e => moved.push(e));
+    cmp.notesChanged.subscribe(e => changed.push(e));
+    // Drive the drag state directly (jsdom + zone.js reject AbortSignal listener options)
+    const drag = cmp as unknown as {
+      draggedNote: { (): PlacedNote | null; set: (v: PlacedNote | null) => void };
+      isDragging: { (): boolean; set: (v: boolean) => void };
+      finalizeDrag: () => void;
+    };
+    drag.isDragging.set(true);
+    drag.draggedNote.set({ ...n, name: 'E', x: 260 });
+
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+    // The document mouseup that ends the gesture
+    drag.finalizeDrag();
+
+    expect(drag.isDragging()).toBe(false);
+    expect(drag.draggedNote()).toBeNull();
+    expect(moved).toHaveLength(0);
+    expect(changed).toHaveLength(0);
+    expect(internals.notes()[0]).toEqual(n);
+  });
 });
 
 describe('TwNoteInputComponent clefs and layout', () => {

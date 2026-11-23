@@ -186,6 +186,62 @@ describe('TwLooperComponent', () => {
     expect(internals.mediaRecorder).toBeNull();
   });
 
+  it('should stop recording and playback when disabled mid-take (its controls are disabled too)', () => {
+    const recorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
+    const source = { stop: vi.fn() };
+    internals.mediaRecorder = recorder;
+    internals.sourceNodes = [source];
+    internals.gainNodes = [{}];
+    internals.state.set('overdubbing');
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(recorder.stop).toHaveBeenCalled();
+    expect(source.stop).toHaveBeenCalled();
+    expect(internals.state()).toBe('stopped');
+  });
+
+  it('should stop a playing loop when disabled', () => {
+    const source = { stop: vi.fn() };
+    internals.sourceNodes = [source];
+    internals.gainNodes = [{}];
+    internals.state.set('playing');
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(source.stop).toHaveBeenCalled();
+    expect(internals.state()).toBe('stopped');
+  });
+
+  it('should not start a take that was disabled while being set up', async () => {
+    let resolveInit!: () => void;
+    vi.spyOn(internals, 'initAudio').mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          resolveInit = resolve;
+        })
+    );
+    internals.audioContext = { currentTime: 0, close: () => Promise.resolve() };
+    internals.mediaStream = {};
+
+    const take = internals.record();
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    resolveInit();
+    await take;
+
+    expect(internals.state()).toBe('idle');
+    expect(internals.mediaRecorder).toBeNull();
+  });
+
+  it('should leave an idle looper idle when disabled', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(internals.state()).toBe('idle');
+  });
+
   it('should finish the take (and not auto-play) when stopped while recording', () => {
     const recorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
     internals.mediaRecorder = recorder;

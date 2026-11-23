@@ -203,17 +203,17 @@ describe('TwAvatarComponent', () => {
 
   describe('status', () => {
     it('should not show status indicator by default', () => {
-      const status = avatarEl.querySelector(
-        '.bg-emerald-500, .bg-rose-500, .bg-amber-500, .bg-slate-400'
-      );
+      const status = avatarEl.querySelector('span.absolute.bottom-0.right-0');
       expect(status).toBeNull();
     });
 
     it('should show online status', () => {
       component.status.set('online');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-emerald-500');
+      // emerald-500 is 2.5:1 against the white border around the dot
+      const status = avatarEl.querySelector('.bg-emerald-600');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-emerald-500');
     });
 
     it('should expose the status to assistive technology', () => {
@@ -227,8 +227,9 @@ describe('TwAvatarComponent', () => {
     it('should show offline status', () => {
       component.status.set('offline');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-slate-400');
+      const status = avatarEl.querySelector('.bg-slate-500');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-slate-400');
     });
 
     it('should show busy status', () => {
@@ -241,8 +242,9 @@ describe('TwAvatarComponent', () => {
     it('should show away status', () => {
       component.status.set('away');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-amber-500');
+      const status = avatarEl.querySelector('.bg-amber-600');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-amber-500');
     });
   });
 

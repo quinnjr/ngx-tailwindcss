@@ -546,3 +546,25 @@ describe('TwRatingComponent (round 28)', () => {
     expect(stars[0].getAttribute('tabindex')).toBe('0');
   });
 });
+
+describe('TwRatingComponent (round 34)', () => {
+  it('should stop showing a hover preview once disabled mid-hover', () => {
+    const fixture = TestBed.createComponent(TestHostWithFormControlComponent);
+    fixture.detectChanges();
+    const filled = () =>
+      fixture.nativeElement.querySelectorAll('[role="radio"] svg[fill="currentColor"]').length;
+    expect(filled()).toBe(3);
+
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('[role="radio"]'),
+    ];
+    stars[4].dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    expect(filled()).toBe(5);
+
+    // Disabled buttons may never receive the mouseleave that clears the preview
+    fixture.componentInstance.ratingControl.disable();
+    fixture.detectChanges();
+    expect(filled()).toBe(3);
+  });
+});

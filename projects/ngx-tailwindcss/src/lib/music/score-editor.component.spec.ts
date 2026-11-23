@@ -508,6 +508,33 @@ describe('TwScoreEditorComponent', () => {
     expect(root.querySelector<HTMLSelectElement>('.part-presets select')!.disabled).toBe(true);
   });
 
+  it('disables the actions of an already-open dialog when editable becomes false', () => {
+    fixture = TestBed.createComponent(TwScoreEditorComponent);
+    fixture.componentRef.setInput('initialScore', score([placed('n1')]));
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const internals = fixture.componentInstance as unknown as {
+      showPartDialog: { set: (v: boolean) => void };
+      showTransposeDialog: { set: (v: boolean) => void };
+    };
+
+    internals.showPartDialog.set(true);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+    const presets = [...root.querySelectorAll<HTMLButtonElement>('.preset-btn')];
+    expect(presets.length).toBeGreaterThan(0);
+    // These used to stay enabled and add parts to a read-only score
+    expect(presets.every(b => b.disabled)).toBe(true);
+
+    internals.showPartDialog.set(false);
+    internals.showTransposeDialog.set(true);
+    fixture.detectChanges();
+    const apply = [...root.querySelectorAll<HTMLButtonElement>('.dialog-actions .btn-primary')];
+    expect(apply).toHaveLength(2);
+    expect(apply.every(b => b.disabled)).toBe(true);
+  });
+
   it('fills the active voice buttons with colours that keep white text >= 4.5:1', () => {
     createWith(score([placed('n1')]));
     const root = fixture.nativeElement as HTMLElement;

@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { Observable, Subject } from 'rxjs';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc } from './electron-bridge.util';
 
 export interface UpdateInfo {
   currentVersion: string;
@@ -132,7 +133,7 @@ export class UpdateService {
 
   private async setupElectronListeners(): Promise<void> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       ipcRenderer.on('update-available', (_event: unknown, info: UpdateInfo) => {
         this.status.set('available');
@@ -189,7 +190,7 @@ export class UpdateService {
   }
 
   private async checkElectronUpdates(): Promise<UpdateInfo | null> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     const result = (await ipcRenderer.invoke('check-for-updates')) as {
       updateAvailable?: boolean;
       currentVersion?: string;
@@ -263,7 +264,7 @@ export class UpdateService {
   }
 
   private async downloadElectronUpdate(): Promise<void> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     ipcRenderer.send('download-update');
   }
 
@@ -273,7 +274,7 @@ export class UpdateService {
   }
 
   private async installElectronUpdate(): Promise<void> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     ipcRenderer.send('quit-and-install');
   }
 }

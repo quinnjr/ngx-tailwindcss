@@ -50,8 +50,6 @@ describe('TwSplitterComponent', () => {
     fixture = TestBed.createComponent(TestHostComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    // Flush the initialSizes applied in ngAfterViewInit
-    fixture.detectChanges();
     splitterEl = fixture.debugElement.query(By.directive(TwSplitterComponent));
   });
 
@@ -152,6 +150,30 @@ describe('TwSplitterComponent', () => {
       fixture.detectChanges();
       expect(component.onSizesChangeSpy).not.toHaveBeenCalled();
       expect((gutter().nativeElement as HTMLElement).getAttribute('tabindex')).toBe('-1');
+    });
+  });
+  describe('robustness', () => {
+    it('should follow later initialSizes changes', () => {
+      component.initialSizes.set([60, 40]);
+      fixture.detectChanges();
+      const container = splitterEl.query(By.css('div')).nativeElement as HTMLElement;
+      expect((container.children[0] as HTMLElement).style.flexBasis).toBe('60%');
+    });
+
+    it('should end a touch drag on touchcancel and release document listeners', () => {
+      const dragEnd = vi.fn();
+      component.splitter.dragEnd.subscribe(dragEnd);
+      const removeSpy = vi.spyOn(document, 'removeEventListener');
+
+      const touchStart = new Event('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(touchStart, 'touches', { value: [{ clientX: 100, clientY: 0 }] });
+      gutter().nativeElement.dispatchEvent(touchStart);
+
+      document.dispatchEvent(new Event('touchcancel'));
+
+      expect(dragEnd).toHaveBeenCalledTimes(1);
+      expect(removeSpy).toHaveBeenCalledWith('touchmove', expect.any(Function));
+      removeSpy.mockRestore();
     });
   });
 });

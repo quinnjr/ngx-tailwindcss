@@ -228,6 +228,87 @@ describe('TwClassService', () => {
         expect(service.merge('ring', 'ring-4')).toBe('ring-4');
       });
 
+      it('should classify ring arbitrary values, opacity modifiers and ring-inset', () => {
+        expect(service.merge('ring-[3px] ring-blue-500/50 ring-inset', 'ring-4')).toBe(
+          'ring-4 ring-blue-500/50 ring-inset'
+        );
+        expect(service.merge('ring-2 ring-blue-500/50', 'ring-[#fff]')).toBe('ring-2 ring-[#fff]');
+        expect(service.merge('ring-offset-2', 'ring-offset-[3px]')).toBe('ring-offset-[3px]');
+      });
+
+      it('should keep outline width, style, offset and color separate', () => {
+        expect(
+          service.merge(
+            'focus-visible:outline-2 focus-visible:outline-offset-2',
+            'focus-visible:outline-blue-500'
+          )
+        ).toBe(
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500'
+        );
+        expect(service.merge('outline-none ring-2', 'outline-dashed')).toBe(
+          'outline-dashed ring-2'
+        );
+      });
+
+      it('should keep shadow size and shadow color separate', () => {
+        expect(service.merge('shadow-lg', 'shadow-slate-900/50')).toBe(
+          'shadow-lg shadow-slate-900/50'
+        );
+        expect(service.merge('shadow-lg shadow-red-500', 'shadow-xl/20')).toBe(
+          'shadow-xl/20 shadow-red-500'
+        );
+      });
+
+      it('should keep side and corner radii separate from the shorthand', () => {
+        expect(service.merge('p-4 rounded-lg', 'border-l-4 rounded-l-none')).toBe(
+          'p-4 rounded-lg border-l-4 rounded-l-none'
+        );
+        expect(service.merge('rounded-t-lg rounded-b-none')).toBe('rounded-t-lg rounded-b-none');
+        expect(service.merge('rounded-t-lg rounded-bl-sm', 'rounded-md')).toBe('rounded-md');
+      });
+
+      it('should keep background color separate from other background utilities', () => {
+        expect(
+          service.merge(
+            'bg-white bg-no-repeat bg-cover bg-center bg-fixed bg-clip-text',
+            'bg-black'
+          )
+        ).toBe('bg-black bg-no-repeat bg-cover bg-center bg-fixed bg-clip-text');
+        expect(service.merge('bg-linear-to-r bg-blue-500', 'bg-none')).toBe('bg-none bg-blue-500');
+      });
+
+      it('should keep flex grow and shrink separate', () => {
+        expect(service.merge('grow shrink-0')).toBe('grow shrink-0');
+        expect(service.merge('shrink-0', 'shrink')).toBe('shrink');
+      });
+
+      it('should keep text wrapping, overflow and color separate', () => {
+        expect(service.merge('text-balance text-ellipsis', 'text-gray-500')).toBe(
+          'text-balance text-ellipsis text-gray-500'
+        );
+        expect(service.merge('text-[14px] text-gray-500', 'text-[0.75rem]')).toBe(
+          'text-[0.75rem] text-gray-500'
+        );
+        expect(service.merge('whitespace-nowrap break-words')).toBe(
+          'whitespace-nowrap break-words'
+        );
+      });
+
+      it('should keep grid placement and table border utilities separate', () => {
+        expect(service.merge('col-start-2 col-span-2')).toBe('col-start-2 col-span-2');
+        expect(service.merge('justify-between justify-items-center')).toBe(
+          'justify-between justify-items-center'
+        );
+        expect(service.merge('border-collapse border-spacing-2 border-gray-200')).toBe(
+          'border-collapse border-spacing-2 border-gray-200'
+        );
+      });
+
+      it('should honor the Tailwind v4 trailing important modifier', () => {
+        expect(service.merge('flex!', 'grid')).toBe('grid');
+        expect(service.merge('ring-2! ring-blue-500')).toBe('ring-2! ring-blue-500');
+      });
+
       it('should handle gradient from', () => {
         const result = service.merge('from-blue-500', 'from-red-500');
         expect(result).toBe('from-red-500');
@@ -314,8 +395,12 @@ describe('TwClassService', () => {
       });
 
       it('should handle variants on arbitrary values containing colons', () => {
-        const result = service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-red-500');
-        expect(result).toBe('hover:bg-red-500');
+        const result = service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-none');
+        expect(result).toBe('hover:bg-none');
+        // Background image and color are independent utilities
+        expect(service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-red-500')).toBe(
+          'hover:bg-[url(https://a.io/x.png)] hover:bg-red-500'
+        );
       });
 
       it('should treat border-x and border-y as border-width', () => {

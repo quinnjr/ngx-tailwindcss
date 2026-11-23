@@ -201,9 +201,7 @@
 
         <!-- Filled area under curve -->
         <path
-          [attr.d]="
-            curvePath() + ' L 100 ' + sliderHeight() / 2 + ' L 0 ' + sliderHeight() / 2 + ' Z'
-          "
+          [attr.d]="curvePath() + ' L 100 ' + zeroLineY() + ' L 0 ' + zeroLineY() + ' Z'"
           [attr.fill]="colors().curve"
           fill-opacity="0.1"
         />

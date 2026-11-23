@@ -25,6 +25,7 @@ export type ButtonVariant =
   | 'outline'
   | 'link';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type ButtonType = 'button' | 'submit' | 'reset';
 
 const BUTTON_BASE_CLASSES = `
   inline-flex items-center justify-center gap-2
@@ -95,6 +96,7 @@ const SPINNER_SIZES: Record<ButtonSize, string> = {
  * <tw-button variant="primary" size="lg">Large Primary</tw-button>
  * <tw-button variant="outline" [loading]="isLoading">Submit</tw-button>
  * <tw-button variant="danger" [disabled]="!canDelete">Delete</tw-button>
+ * <tw-button type="submit">Save</tw-button>
  * ```
  */
 @Component({
@@ -133,6 +135,7 @@ export class TwButtonComponent {
   protected readonly _rippleColor = signal('rgba(255, 255, 255, 0.4)');
   protected readonly _classOverride = signal('');
   protected readonly _classReplace = signal('');
+  protected readonly _type = signal<ButtonType>('button');
 
   // Input setters that update signals
   @Input() set variant(value: ButtonVariant) {
@@ -164,6 +167,13 @@ export class TwButtonComponent {
   }
   @Input() set classReplace(value: string) {
     this._classReplace.set(value);
+  }
+  /**
+   * Form behavior, mirroring the native `<button type>`: `submit` submits and
+   * `reset` resets the enclosing `<form>` when clicked. Defaults to `button` (no form action).
+   */
+  @Input() set type(value: ButtonType | null | undefined) {
+    this._type.set(value ?? 'button');
   }
 
   // Computed signals
@@ -210,6 +220,11 @@ export class TwButtonComponent {
     return this.isDisabled() || null;
   }
 
+  /** Whether `type="submit" | "reset"` acts on the enclosing form; overridden by link buttons */
+  protected supportsFormActions(): boolean {
+    return true;
+  }
+
   constructor() {
     // Sync ripple directive state
     effect(() => {
@@ -225,6 +240,32 @@ export class TwButtonComponent {
       if (this.isDisabled()) {
         event.preventDefault();
         event.stopImmediatePropagation();
+        return;
+      }
+      this.runFormAction(event);
+    });
+  }
+
+  /**
+   * Submit/reset the enclosing form like a native button would. The host is not a
+   * native <button>, so the browser does not do this itself. Deferred until the click
+   * has finished dispatching so consumer handlers can still cancel it via preventDefault().
+   */
+  private runFormAction(event: Event): void {
+    const type = this._type();
+    if (type === 'button' || !this.supportsFormActions()) return;
+
+    const form = (this.elementRef.nativeElement as HTMLElement).closest('form');
+    if (!form) return;
+
+    setTimeout(() => {
+      if (event.defaultPrevented) return;
+      if (type === 'reset') {
+        form.reset();
+      } else if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       }
     });
   }
@@ -284,6 +325,10 @@ export class TwButtonLinkComponent extends TwButtonComponent {
 
   protected override hostDisabledAttr(): null {
     return null;
+  }
+
+  protected override supportsFormActions(): boolean {
+    return false;
   }
 
   @HostBinding('style.pointer-events')

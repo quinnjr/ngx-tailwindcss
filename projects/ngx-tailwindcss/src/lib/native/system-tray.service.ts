@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc } from './electron-bridge.util';
 
 export interface TrayConfig {
   icon: string;
@@ -58,9 +59,14 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-set-icon', icon);
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-set-icon', icon);
+        return true;
+      } catch (error) {
+        console.error('Failed to update Electron tray:', error);
+        return false;
+      }
     }
     return false;
   }
@@ -78,9 +84,14 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-set-tooltip', tooltip);
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-set-tooltip', tooltip);
+        return true;
+      } catch (error) {
+        console.error('Failed to update Electron tray:', error);
+        return false;
+      }
     }
     return false;
   }
@@ -99,10 +110,15 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      await this.registerElectronMenuClickListener();
-      ipcRenderer.send('tray-set-menu', this.convertMenuForElectron(menu));
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        await this.registerElectronMenuClickListener();
+        ipcRenderer.send('tray-set-menu', this.convertMenuForElectron(menu));
+        return true;
+      } catch (error) {
+        console.error('Failed to set Electron tray menu:', error);
+        return false;
+      }
     }
     return false;
   }
@@ -118,8 +134,12 @@ export class SystemTrayService {
         console.error('Failed to destroy Tauri tray:', error);
       }
     } else if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-destroy');
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-destroy');
+      } catch (error) {
+        console.error('Failed to destroy Electron tray:', error);
+      }
     }
 
     this.electronMenuActions.clear();
@@ -150,7 +170,7 @@ export class SystemTrayService {
 
   private async createElectronTray(config: TrayConfig): Promise<boolean> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       await this.registerElectronMenuClickListener();
       await ipcRenderer.invoke('tray-create', {
@@ -225,7 +245,7 @@ export class SystemTrayService {
     if (this.electronMenuListenerRegistered) return;
 
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
       ipcRenderer.on('tray-menu-click', (_event: unknown, id: unknown) => {
         this.electronMenuActions.get(String(id))?.();
       });

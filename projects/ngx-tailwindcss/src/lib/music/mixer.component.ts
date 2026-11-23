@@ -11,8 +11,6 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChannelStripState, TwChannelStripComponent } from './channel-strip.component';
-import { TwVolumeDialComponent } from './volume-dial.component';
-import { TwVuMeterComponent } from './vu-meter.component';
 
 export type MixerVariant = 'default' | 'compact' | 'studio' | 'vintage';
 export type MixerSize = 'sm' | 'md' | 'lg';
@@ -75,13 +73,7 @@ const BREAKPOINT_CONFIGS: Record<
 @Component({
   selector: 'tw-mixer',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    TwChannelStripComponent,
-    TwVolumeDialComponent,
-    TwVuMeterComponent,
-  ],
+  imports: [CommonModule, FormsModule, TwChannelStripComponent],
   templateUrl: './mixer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -129,7 +121,8 @@ export class TwMixerComponent {
     });
   }
 
-  protected readonly visibleChannels = computed(() => {
+  // Channels not hidden by a collapsed section
+  protected readonly filteredChannels = computed(() => {
     const all = this.channels();
     const collapsed = this.collapsedSections();
     const sectionsList = this.sections();
@@ -147,9 +140,14 @@ export class TwMixerComponent {
       }
       filtered = all.filter(ch => !collapsedChannelIds.has(ch.id));
     }
+    return filtered;
+  });
 
+  protected readonly visibleChannels = computed(() => {
+    const filtered = this.filteredChannels();
     const max = this.effectiveMaxChannels();
-    const offset = this.scrollOffset();
+    // Clamp: the list may have shrunk (input change, collapsed section)
+    const offset = this.effectiveScrollOffset();
 
     if (!this.scrollable() || filtered.length <= max) {
       return filtered;
@@ -231,15 +229,22 @@ export class TwMixerComponent {
     return !!channel.groupId && this.groups().some(g => g.id === channel.groupId);
   }
 
+  // Scroll offset clamped to the channels that can currently be scrolled through
+  protected readonly effectiveScrollOffset = computed(() =>
+    Math.min(
+      this.scrollOffset(),
+      Math.max(0, this.filteredChannels().length - this.effectiveMaxChannels())
+    )
+  );
+
   protected readonly canScrollLeft = computed(() => {
-    return this.scrollable() && this.scrollOffset() > 0;
+    return this.scrollable() && this.effectiveScrollOffset() > 0;
   });
 
   protected readonly canScrollRight = computed(() => {
-    const all = this.channels();
+    const count = this.filteredChannels().length;
     const max = this.effectiveMaxChannels();
-    const offset = this.scrollOffset();
-    return this.scrollable() && offset + max < all.length;
+    return this.scrollable() && this.effectiveScrollOffset() + max < count;
   });
 
   protected readonly containerClasses = computed(() => {
@@ -293,6 +298,10 @@ export class TwMixerComponent {
     if (!this.responsive()) return '';
     return 'w-full';
   });
+
+  protected readonly rootClasses = computed(() =>
+    [this.containerClasses(), this.responsiveClasses()].filter(Boolean).join(' ')
+  );
 
   protected onChannelStateChange(state: ChannelStripState, index: number): void {
     const channel = this.channels()[index];
@@ -390,14 +399,14 @@ export class TwMixerComponent {
 
   protected scrollLeft(): void {
     if (this.canScrollLeft()) {
-      this.scrollOffset.update(v => Math.max(0, v - 1));
+      this.scrollOffset.set(Math.max(0, this.effectiveScrollOffset() - 1));
     }
   }
 
   protected scrollRight(): void {
     if (this.canScrollRight()) {
-      const max = this.channels().length - this.effectiveMaxChannels();
-      this.scrollOffset.update(v => Math.min(max, v + 1));
+      const max = this.filteredChannels().length - this.effectiveMaxChannels();
+      this.scrollOffset.set(Math.min(max, this.effectiveScrollOffset() + 1));
     }
   }
 

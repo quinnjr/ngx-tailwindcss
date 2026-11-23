@@ -20,6 +20,11 @@ import { CommonModule, DOCUMENT } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
 import { animate, style, transition, trigger } from '@angular/animations';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
@@ -30,9 +35,6 @@ const MODAL_SIZES: Record<ModalSize, string> = {
   xl: 'max-w-xl',
   full: 'max-w-full mx-4',
 };
-
-/** Currently open modals, in opening order; only the last one reacts to Escape. */
-const openModalStack: TwModalComponent[] = [];
 
 /**
  * Modal/Dialog component with accessibility features
@@ -163,8 +165,9 @@ export class TwModalComponent implements OnDestroy {
       const isOpen = this._open();
       if (isOpen) {
         this.lockScroll();
-        if (!openModalStack.includes(this)) {
-          openModalStack.push(this);
+        if (previousOpen !== true) {
+          // Open modals join the shared layer stack; only the topmost reacts to Escape
+          pushEscapeLayer(this);
         }
         // Emit only on an actual closed -> open transition,
         // not when the component is constructed already open
@@ -173,7 +176,7 @@ export class TwModalComponent implements OnDestroy {
         }
       } else {
         this.unlockScroll();
-        this.removeFromStack();
+        removeEscapeLayer(this);
       }
       previousOpen = isOpen;
     });
@@ -181,14 +184,14 @@ export class TwModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.unlockScroll();
-    this.removeFromStack();
+    removeEscapeLayer(this);
   }
 
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKey(event: Event): void {
-    // With stacked modals only the topmost one closes
-    const isTopmost = openModalStack.at(-1) === this;
-    if (this._open() && this._closeOnEscape() && isTopmost) {
+    // With stacked layers only the topmost one closes, and not when content inside
+    // the modal already handled the key
+    if (this._open() && this._closeOnEscape() && shouldHandleEscape(this, event)) {
       event.preventDefault();
       this.closeModal();
     }
@@ -253,13 +256,6 @@ export class TwModalComponent implements OnDestroy {
     if (!this.scrollLocked) return;
     this.document.body.style.overflow = this.previousOverflow;
     this.scrollLocked = false;
-  }
-
-  private removeFromStack(): void {
-    const index = openModalStack.indexOf(this);
-    if (index !== -1) {
-      openModalStack.splice(index, 1);
-    }
   }
 }
 

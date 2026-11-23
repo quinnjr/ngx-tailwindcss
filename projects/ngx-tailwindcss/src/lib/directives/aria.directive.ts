@@ -7,8 +7,10 @@ import {
   inject,
   Input,
   numberAttribute,
+  OnChanges,
   Renderer2,
   signal,
+  SimpleChanges,
 } from '@angular/core';
 import { AriaUtils, TwAriaService } from '../core/aria.service';
 
@@ -52,11 +54,20 @@ export class TwSrOnlyDirective {
   selector: '[twAnnounce]',
   standalone: true,
 })
-export class TwAnnounceDirective {
+export class TwAnnounceDirective implements OnChanges {
   private readonly ariaService = inject(TwAriaService);
   private previousMessage = '';
 
-  @Input() set twAnnounce(message: string) {
+  @Input() twAnnounce = '';
+
+  @Input({ transform: booleanAttribute }) announceAssertive = false;
+
+  // Announce from ngOnChanges (not the input setter) so `announceAssertive` is
+  // already set regardless of the order the inputs are bound in
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['twAnnounce']) return;
+
+    const message = this.twAnnounce;
     if (message && message !== this.previousMessage) {
       if (this.announceAssertive) {
         this.ariaService.announceAssertive(message);
@@ -66,8 +77,6 @@ export class TwAnnounceDirective {
       this.previousMessage = message;
     }
   }
-
-  @Input({ transform: booleanAttribute }) announceAssertive = false;
 }
 
 /**

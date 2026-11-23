@@ -118,7 +118,7 @@ describe('TwAccordionComponent', () => {
       header.nativeElement.click();
       fixture.detectChanges();
 
-      const content = items[0].query(By.css('[class*="pb-4"]'));
+      const content = items[0].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeTruthy();
     });
 
@@ -134,7 +134,9 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       // First item should be closed (no content visible)
-      const firstItemContent = items[0].nativeElement.querySelector('[class*="pb-4"]');
+      const firstItemContent = items[0].nativeElement.querySelector(
+        '[role="region"]:not([hidden])'
+      );
       expect(firstItemContent).toBeNull();
     });
   });
@@ -157,8 +159,8 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       // Both items should have content visible
-      const firstContent = items[0].query(By.css('[class*="pb-4"]'));
-      const secondContent = items[1].query(By.css('[class*="pb-4"]'));
+      const firstContent = items[0].query(By.css('[role="region"]:not([hidden])'));
+      const secondContent = items[1].query(By.css('[role="region"]:not([hidden])'));
       expect(firstContent).toBeTruthy();
       expect(secondContent).toBeTruthy();
     });
@@ -175,7 +177,7 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
-      const content = items[1].query(By.css('[class*="pb-4"]'));
+      const content = items[1].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeTruthy();
     });
   });
@@ -188,7 +190,7 @@ describe('TwAccordionComponent', () => {
       disabledHeader.nativeElement.click();
       fixture.detectChanges();
 
-      const content = items[2].query(By.css('[class*="pb-4"]'));
+      const content = items[2].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeNull();
     });
 
@@ -225,6 +227,17 @@ describe('TwAccordionComponent', () => {
       expect(panel.id).toBeTruthy();
       expect(header.getAttribute('aria-controls')).toBe(panel.id);
       expect(panel.getAttribute('aria-labelledby')).toBe(header.id);
+    });
+
+    it('should keep aria-controls resolvable while the item is collapsed', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      const header = items[0].query(By.css('button')).nativeElement as HTMLButtonElement;
+
+      expect(header.getAttribute('aria-expanded')).toBe('false');
+      const controlsId = header.getAttribute('aria-controls');
+      const panel = items[0].nativeElement.querySelector(`#${controlsId}`) as HTMLElement;
+      expect(panel).toBeTruthy();
+      expect(panel.hidden).toBe(true);
     });
 
     it('should set aria-expanded on the header button', () => {

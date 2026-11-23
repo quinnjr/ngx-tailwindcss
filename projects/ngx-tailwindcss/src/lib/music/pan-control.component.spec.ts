@@ -48,4 +48,23 @@ describe('TwPanControlComponent', () => {
 
     expect(received).toEqual([]);
   });
+
+  it('should leave stereo-width keyboard handling to the native range input', () => {
+    fixture.componentRef.setInput('variant', 'stereo-width');
+    fixture.detectChanges();
+    const received: number[] = [];
+    component.registerOnChange(v => received.push(v));
+
+    const range = hostEl.querySelector<HTMLInputElement>('input[type="range"]')!;
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      cancelable: true,
+    });
+    range.dispatchEvent(event);
+
+    // Must not be swallowed by the host and must not drive width below 0
+    expect(event.defaultPrevented).toBe(false);
+    expect(received).toEqual([]);
+  });
 });

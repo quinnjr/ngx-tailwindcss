@@ -18,6 +18,9 @@ import { MobileSupportService, TouchGuardConfig } from './mobile-support.service
  * <tw-dial twTouchGuard axisLock="y"></tw-dial>
  * ```
  */
+/** Mouse events within this window after a touch are treated as emulated */
+const COMPAT_MOUSE_WINDOW_MS = 1000;
+
 @Directive({
   selector: '[twTouchGuard]',
   standalone: true,
@@ -70,6 +73,9 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
   readonly guardedDragEnd = output<TouchEvent | MouseEvent>();
 
   private isDragging = false;
+  // Time of the last touch event; browsers dispatch emulated (compatibility)
+  // mousedown/mouseup after a tap, which must not be handled a second time
+  private lastTouchTime = 0;
   private isLongPressTriggered = false;
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartHandler!: (e: TouchEvent) => void;
@@ -95,6 +101,7 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
   private setupEventHandlers(): void {
     // Touch handlers
     this.touchStartHandler = (e: TouchEvent) => {
+      this.lastTouchTime = Date.now();
       if (this.guardDisabled()) return;
 
       this.mobileSupport.startTouchTracking(e);
@@ -162,6 +169,7 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
     };
 
     this.touchEndHandler = (e: TouchEvent) => {
+      this.lastTouchTime = Date.now();
       if (this.guardDisabled()) return;
 
       // Clean up
@@ -196,6 +204,9 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
     // Mouse handlers (for non-touch devices)
     this.mouseDownHandler = (e: MouseEvent) => {
       if (this.guardDisabled()) return;
+      // Ignore compatibility mouse events emulated from a touch that the touch
+      // handlers already processed (would emit guardedClick twice per tap)
+      if (Date.now() - this.lastTouchTime < COMPAT_MOUSE_WINDOW_MS) return;
 
       this.mobileSupport.startTouchTracking(e);
       this.isDragging = false;

@@ -121,6 +121,24 @@ describe('TwVolumeDialComponent', () => {
       expect(component.valueChanges).toContain(100);
     });
 
+    it('should keep the drawn arc within the dial for out-of-range or degenerate values', () => {
+      const indicator = (): SVGLineElement =>
+        svgEl.querySelectorAll('line')[svgEl.querySelectorAll('line').length - 1];
+      component.value.set(100);
+      fixture.detectChanges();
+      const atMax = [indicator().getAttribute('x2'), indicator().getAttribute('y2')];
+      const fillAtMax = svgEl.querySelectorAll('path')[1].getAttribute('d');
+
+      component.value.set(250);
+      fixture.detectChanges();
+      expect([indicator().getAttribute('x2'), indicator().getAttribute('y2')]).toEqual(atMax);
+      expect(svgEl.querySelectorAll('path')[1].getAttribute('d')).toBe(fillAtMax);
+
+      component.min.set(100);
+      fixture.detectChanges();
+      expect(svgEl.querySelectorAll('path')[1].getAttribute('d')).not.toContain('NaN');
+    });
+
     it('should apply the step to keyboard increments', () => {
       component.step.set(5);
       fixture.detectChanges();

@@ -153,21 +153,47 @@
                         [class.font-mono]="variant() !== 'fakebook'"
                         [class.cursor-pointer]="interactive() || showChordDiagrams()"
                         [class.hover:underline]="interactive()"
+                        [attr.role]="interactive() || showChordDiagrams() ? 'button' : null"
+                        [attr.tabindex]="interactive() || showChordDiagrams() ? 0 : null"
+                        [attr.aria-expanded]="
+                          showChordDiagrams()
+                            ? isDiagramExpanded(
+                                getChordId(
+                                  sectionIndex,
+                                  rowIndex * measuresPerRow() + measureInRowIndex,
+                                  chordIndex
+                                )
+                              )
+                            : null
+                        "
                         (click)="
-                          onChordClick(
+                          activateChord(
+                            $event,
                             sectionIndex,
                             rowIndex * measuresPerRow() + measureInRowIndex,
+                            chordIndex,
                             chord
-                          );
-                          showChordDiagrams() &&
-                            toggleDiagram(
-                              getChordId(
-                                sectionIndex,
-                                rowIndex * measuresPerRow() + measureInRowIndex,
-                                chordIndex
-                              )
-                            );
-                          $event.stopPropagation()
+                          )
+                        "
+                        (keydown.enter)="
+                          (interactive() || showChordDiagrams()) &&
+                            activateChord(
+                              $event,
+                              sectionIndex,
+                              rowIndex * measuresPerRow() + measureInRowIndex,
+                              chordIndex,
+                              chord
+                            )
+                        "
+                        (keydown.space)="
+                          (interactive() || showChordDiagrams()) &&
+                            activateChord(
+                              $event,
+                              sectionIndex,
+                              rowIndex * measuresPerRow() + measureInRowIndex,
+                              chordIndex,
+                              chord
+                            )
                         "
                       >
                         {{ convertChord(chord.chord) }}

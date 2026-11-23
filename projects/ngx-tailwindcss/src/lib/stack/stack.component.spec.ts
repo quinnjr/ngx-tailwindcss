@@ -156,3 +156,32 @@ describe('TwHStackComponent', () => {
     expect(div.className).toContain('flex-wrap');
   });
 });
+
+describe('Stack bare boolean attributes', () => {
+  it('should treat bare wrap/fullWidth attributes as true', async () => {
+    @Component({
+      template: `
+        <tw-stack wrap fullWidth><div>Item</div></tw-stack>
+        <tw-hstack wrap><div>Item</div></tw-hstack>
+      `,
+      standalone: true,
+      imports: [TwStackComponent, TwHStackComponent],
+    })
+    class BareAttrHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [BareAttrHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(BareAttrHostComponent);
+    fixture.detectChanges();
+
+    const stack = fixture.debugElement.query(By.css('tw-stack div')).nativeElement as HTMLElement;
+    expect(stack.className).toContain('flex-wrap');
+    expect(stack.className).toContain('w-full');
+
+    const hstack = fixture.debugElement.query(By.css('tw-hstack div')).nativeElement as HTMLElement;
+    expect(hstack.className).toContain('flex-wrap');
+  });
+});

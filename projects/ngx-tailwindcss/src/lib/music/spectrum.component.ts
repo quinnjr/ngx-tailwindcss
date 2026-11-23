@@ -513,9 +513,14 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
 
     this.ctx.beginPath();
 
-    const step = w / (data.length - 1);
-    for (const [i, datum] of data.entries()) {
-      const value = datum / 255;
+    // With an analyser, plot through the frequency-scaled bar mapping so the
+    // line honours frequencyScale/minFrequency/maxFrequency like the other
+    // variants (and lines up with the labels); raw bins span 0..Nyquist linearly.
+    const useMapping = this.binToBarMapping.length > 0;
+    const pointCount = useMapping ? this.barCount() : data.length;
+    const step = pointCount > 1 ? w / (pointCount - 1) : 0;
+    for (let i = 0; i < pointCount; i++) {
+      const value = useMapping ? this.getBarValue(data, i) : data[i] / 255;
       const x = i * step;
       const y = h - value * h;
 

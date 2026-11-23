@@ -25,7 +25,7 @@
     [readonly]="readonly()"
     [required]="required()"
     [attr.aria-invalid]="hasError()"
-    [attr.aria-describedby]="describedBy() || null"
+    [attr.aria-describedby]="ariaDescribedBy()"
     [attr.autocomplete]="autocomplete() || null"
     [attr.inputmode]="inputmode() || null"
     [attr.pattern]="pattern() || null"
@@ -59,11 +59,15 @@
 </div>
 
 @if (hint() && !error()) {
-  <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{ hint() }}</span>
+  <span [id]="hintId()" class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{
+    hint()
+  }}</span>
 }
 
 @if (error()) {
-  <span class="block text-xs text-rose-600 mt-1.5" role="alert">{{ error() }}</span>
+  <span [id]="errorId()" class="block text-xs text-rose-600 mt-1.5" role="alert">{{
+    error()
+  }}</span>
 }
 
 <ng-content select="tw-hint, [twHint], tw-error, [twError]"></ng-content>

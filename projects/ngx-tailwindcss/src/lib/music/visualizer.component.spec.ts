@@ -127,4 +127,46 @@ describe('TwVisualizerComponent', () => {
       expect(arcSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe('wave variant', () => {
+    function recordLineTo(): Array<[number, number]> {
+      const points: Array<[number, number]> = [];
+      internals.ctx = new Proxy(
+        {},
+        {
+          get: (_t, prop) =>
+            prop === 'lineTo' || prop === 'moveTo'
+              ? (x: number, y: number) => points.push([x, y])
+              : () => ({ addColorStop: () => {} }),
+          set: () => true,
+        }
+      );
+      return points;
+    }
+
+    it('should plot positive samples above the centre line', () => {
+      fixture.componentRef.setInput('height', 200);
+      fixture.componentRef.setInput('sensitivity', 1);
+      fixture.detectChanges();
+      const points = recordLineTo();
+      internals.timeDomainData = new Uint8Array([255, 255, 0, 0]);
+
+      internals.drawWave();
+
+      // [initial moveTo to centre, then the 4 samples]
+      expect(points[1][1]).toBeLessThan(100);
+      expect(points[3][1]).toBeGreaterThan(100);
+    });
+
+    it('should generate centred mock waveform data in demo mode', () => {
+      fixture.componentRef.setInput('demoMode', true);
+      fixture.detectChanges();
+
+      internals.draw();
+
+      const data: Uint8Array = internals.timeDomainData;
+      const mean = data.reduce((a, b) => a + b, 0) / data.length;
+      expect(Math.abs(mean - 128)).toBeLessThan(10);
+    });
+  });
 });

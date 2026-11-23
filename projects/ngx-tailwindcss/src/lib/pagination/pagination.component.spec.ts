@@ -239,3 +239,25 @@ describe('TwPaginationComponent', () => {
     });
   });
 });
+
+@Component({
+  template: `<tw-pagination [totalItems]="95" [itemsPerPage]="10"></tw-pagination>`,
+  standalone: true,
+  imports: [TwPaginationComponent],
+})
+class ItemsOnlyHostComponent {}
+
+describe('TwPaginationComponent (totalItems only)', () => {
+  it('should derive the page count from totalItems when totalPages is not bound', async () => {
+    await TestBed.configureTestingModule({ imports: [ItemsOnlyHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ItemsOnlyHostComponent);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent.replaceAll(/\s+/g, ' ');
+    expect(text).toContain('10');
+    const next = fixture.nativeElement.querySelector(
+      'button[aria-label="Next page"]'
+    ) as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+  });
+});

@@ -38,4 +38,26 @@ describe('TwNoteDisplayComponent', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('A♯');
   });
+
+  it('derives manual note frequencies from the referenceA4 tuning', () => {
+    const changes: DetectedNote[] = [];
+    fixture.componentInstance.noteChange.subscribe(n => changes.push(n));
+    fixture.componentRef.setInput('referenceA4', 442);
+    fixture.componentRef.setInput('noteName', 'A');
+    fixture.componentRef.setInput('octave', 4);
+    fixture.detectChanges();
+    expect(changes.at(-1)?.frequency).toBeCloseTo(442);
+
+    fixture.componentInstance.setNote('A', 5);
+    expect(changes.at(-1)?.frequency).toBeCloseTo(884);
+  });
+
+  it('accepts flat note names for manual notes', () => {
+    const changes: DetectedNote[] = [];
+    fixture.componentInstance.noteChange.subscribe(n => changes.push(n));
+    fixture.componentRef.setInput('noteName', 'Bb');
+    fixture.componentRef.setInput('octave', 4);
+    fixture.detectChanges();
+    expect(changes.at(-1)?.frequency).toBeCloseTo(466.16, 1);
+  });
 });

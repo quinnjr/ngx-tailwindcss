@@ -79,6 +79,8 @@ const JUSTIFY_CLASSES: Record<string, string> = {
     // Reflect the axis onto the host element so `[axis]` property bindings
     // match the `:host([axis='horizontal'])` style below, not just static usage.
     '[attr.axis]': 'axis()',
+    // The host is the flex item, so size="auto" must grow the host, not the inner div
+    '[class.flex-1]': "size() === 'auto'",
   },
   styles: [
     `

@@ -198,6 +198,8 @@ export class TwAvatarGroupComponent implements AfterContentInit {
   protected _total = signal(0);
   protected _size = signal<AvatarSize>('md');
   protected _spacing = signal<'tight' | 'normal' | 'loose'>('normal');
+  /** Number of projected avatars; the overflow count falls back to this when `total` is unset */
+  protected _avatarCount = signal(0);
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -224,6 +226,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
 
     const max = this._max();
     const size = this._size();
+    this._avatarCount.set(this.avatars.length);
 
     this.avatars.forEach((avatar, index) => {
       avatar.size = size;
@@ -234,7 +237,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
   protected maxVal = computed(() => this._max());
   protected overflowVal = computed(() => {
     const mx = this._max();
-    const tot = this._total();
+    const tot = this._total() || this._avatarCount();
     return mx > 0 && tot > mx ? tot - mx : 0;
   });
 

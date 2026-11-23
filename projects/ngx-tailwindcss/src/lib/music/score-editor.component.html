@@ -137,6 +137,23 @@
 
       <div class="toolbar-spacer"></div>
 
+      <!-- Lyrics -->
+      @if (showLyricsEditor()) {
+        <div class="toolbar-group">
+          <button
+            type="button"
+            class="toolbar-btn"
+            [class.active]="editingLyrics()"
+            [attr.aria-pressed]="editingLyrics()"
+            [disabled]="!editable() || !selectedPart()"
+            (click)="editingLyrics() ? editingLyrics.set(false) : openLyricsEditor()"
+            title="Edit lyrics of the selected part"
+          >
+            <span class="label">Lyrics</span>
+          </button>
+        </div>
+      }
+
       <!-- Transpose -->
       <div class="toolbar-group">
         <button
@@ -294,7 +311,7 @@
               [clef]="part.clef"
               [keySignature]="keySignature()"
               [timeSignature]="timeSignature()"
-              [measures]="measures()"
+              [measures]="measureCount()"
               [width]="width() - 120"
               [height]="staffHeight()"
               [lineSpacing]="lineSpacing()"
@@ -311,11 +328,9 @@
             @if (showLyricsEditor() && part.lyrics.length > 0) {
               <div class="lyrics-row">
                 @for (lyric of getLyricsForPart(part.id); track lyric.id) {
-                  <span
-                    class="lyric-syllable"
-                    [style.left.px]="130 + lyric.measure * 150 + lyric.beat * 30"
-                    >{{ lyric.text }}</span
-                  >
+                  <span class="lyric-syllable" [style.left.px]="lyricX(lyric)">{{
+                    lyric.text
+                  }}</span>
                 }
               </div>
             }
@@ -448,6 +463,15 @@
               <span class="export-label">ABC Notation</span>
               <span class="export-desc">Text format</span>
             </button>
+            <button
+              type="button"
+              class="export-btn"
+              (click)="downloadExport('pdf'); showExportDialog.set(false)"
+            >
+              <span class="export-icon">🖨</span>
+              <span class="export-label">PDF</span>
+              <span class="export-desc">Printable page (image)</span>
+            </button>
           </div>
         </div>
       </div>
@@ -458,11 +482,24 @@
   @if (showLyricsEditor() && editingLyrics()) {
     <div class="lyrics-editor-panel">
       <div class="panel-header">
-        <span>Lyrics Editor</span>
-        <button type="button" (click)="editingLyrics.set(false)">×</button>
+        <span id="lyrics-editor-title">Lyrics Editor ({{ selectedPart()?.name }})</span>
+        <div class="lyrics-actions">
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="!editable()"
+            (click)="applyLyrics(); editingLyrics.set(false)"
+          >
+            Apply
+          </button>
+          <button type="button" aria-label="Close lyrics editor" (click)="editingLyrics.set(false)">
+            ×
+          </button>
+        </div>
       </div>
       <textarea
         class="lyrics-input"
+        aria-labelledby="lyrics-editor-title"
         [ngModel]="currentLyricText()"
         (ngModelChange)="currentLyricText.set($event)"
         placeholder="Enter lyrics here...&#10;Use hyphens for syllables: Hel-lo world"

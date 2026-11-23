@@ -1,7 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { TimeSignature, TwMetronomeComponent } from './metronome.component';
+import { By } from '@angular/platform-browser';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AccentLevel, TimeSignature, TwMetronomeComponent } from './metronome.component';
 
 @Component({
   template: `<tw-metronome [bpm]="bpm()" [timeSignature]="timeSignature()"></tw-metronome>`,
@@ -50,5 +51,128 @@ describe('TwMetronomeComponent', () => {
     fixture.detectChanges();
 
     expect(buttonByText('6/8').classList).toContain('bg-blue-600');
+  });
+});
+
+@Component({
+  template: `<tw-metronome
+    [accentPattern]="pattern()"
+    [showAccentConfig]="true"
+    (accentPatternChange)="changes.push($event)"
+  ></tw-metronome>`,
+  standalone: true,
+  imports: [TwMetronomeComponent],
+})
+class AccentHostComponent {
+  pattern = signal<AccentLevel[] | null>(['strong', 'none', 'none', 'none']);
+  changes: AccentLevel[][] = [];
+}
+
+describe('TwMetronomeComponent accent pattern', () => {
+  let fixture: ComponentFixture<AccentHostComponent>;
+  let el: HTMLElement;
+
+  const beatButtons = (): HTMLButtonElement[] =>
+    [...el.querySelectorAll('button')].filter(b => b.title.startsWith('Click to cycle accent'));
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [AccentHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(AccentHostComponent);
+    el = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+  });
+
+  it('should apply a beat click even when accentPattern is bound', () => {
+    beatButtons()[1].click();
+    fixture.detectChanges();
+
+    expect(beatButtons()[1].title).toBe('Click to cycle accent: soft');
+    expect(fixture.componentInstance.changes).toEqual([['strong', 'soft', 'none', 'none']]);
+  });
+
+  it('should re-sync to a new bound accentPattern', () => {
+    beatButtons()[1].click();
+    fixture.detectChanges();
+    fixture.componentInstance.pattern.set(['none', 'none', 'medium', 'none']);
+    fixture.detectChanges();
+
+    expect(beatButtons().map(b => b.title.split(': ')[1])).toEqual([
+      'none',
+      'none',
+      'medium',
+      'none',
+    ]);
+  });
+});
+
+describe('TwMetronomeComponent subdivisions', () => {
+  const frequencies: number[] = [];
+  let currentTime = 0;
+
+  class FakeAudioContext {
+    state = 'running';
+    destination = {};
+    get currentTime(): number {
+      return currentTime;
+    }
+    createOscillator() {
+      const osc = {
+        frequency: { value: 0 },
+        type: 'sine',
+        connect: vi.fn(),
+        start: vi.fn(() => frequencies.push(osc.frequency.value)),
+        stop: vi.fn(),
+      };
+      return osc;
+    }
+    createGain() {
+      return {
+        gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        connect: vi.fn(),
+      };
+    }
+    resume = vi.fn(() => Promise.resolve());
+    close = vi.fn(() => Promise.resolve());
+  }
+
+  @Component({
+    template: `<tw-metronome [bpm]="120" [subdivisions]="2"></tw-metronome>`,
+    standalone: true,
+    imports: [TwMetronomeComponent],
+  })
+  class SubdivisionHostComponent {}
+
+  beforeEach(() => {
+    frequencies.length = 0;
+    currentTime = 0;
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should play audible clicks on subdivisions between main beats', async () => {
+    await TestBed.configureTestingModule({
+      imports: [SubdivisionHostComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(SubdivisionHostComponent);
+    fixture.detectChanges();
+    const metronome = fixture.debugElement.query(By.directive(TwMetronomeComponent))
+      .componentInstance as unknown as { start(): Promise<void>; scheduler(): void; stop(): void };
+
+    await metronome.start();
+    // 120 bpm, 2 subdivisions => a click every 0.25s starting at 0.05s
+    currentTime = 0.9;
+    metronome.scheduler();
+    metronome.stop();
+
+    // main, sub, main, sub (0.05, 0.3, 0.55, 0.8)
+    expect(frequencies.length).toBe(4);
+    expect(frequencies[1]).toBe(600);
+    expect(frequencies[3]).toBe(600);
+    expect(frequencies[0]).not.toBe(600);
+    expect(frequencies[2]).not.toBe(600);
+    fixture.destroy();
   });
 });

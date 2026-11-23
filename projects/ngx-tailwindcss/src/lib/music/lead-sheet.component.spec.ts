@@ -52,4 +52,33 @@ describe('TwLeadSheetComponent', () => {
     // Dm has no built-in diagram; it must not fall back to D major
     expect(diagramFor('Dm')).toBeNull();
   });
+
+  it('uses two beats per measure for cut time', () => {
+    fixture.componentRef.setInput('data', { timeSignature: 'C|', sections: [] });
+    const internals = fixture.componentInstance as unknown as {
+      getBeatsPerMeasure: () => number;
+      getDefaultSlashBeats: () => number[];
+    };
+    expect(internals.getBeatsPerMeasure()).toBe(2);
+    expect(internals.getDefaultSlashBeats()).toEqual([1, 2]);
+    fixture.componentRef.setInput('data', { timeSignature: 'C', sections: [] });
+    expect(internals.getBeatsPerMeasure()).toBe(4);
+  });
+
+  it('makes clickable chord symbols keyboard accessible', () => {
+    const clicks: unknown[] = [];
+    fixture.componentInstance.chordClick.subscribe(c => clicks.push(c));
+    fixture.componentRef.setInput('interactive', true);
+    fixture.componentRef.setInput('data', {
+      sections: [{ measures: [{ chords: [{ chord: 'G' }] }] }],
+    });
+    fixture.detectChanges();
+    const chord = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[role="button"]'
+    );
+    expect(chord).not.toBeNull();
+    expect(chord!.tabIndex).toBe(0);
+    chord!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(clicks).toHaveLength(1);
+  });
 });

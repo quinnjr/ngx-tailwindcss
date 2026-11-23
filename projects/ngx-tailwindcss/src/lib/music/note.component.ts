@@ -94,7 +94,9 @@ const CLEF_POSITION_OFFSETS: Record<ClefType, number> = {
 };
 
 @Component({
-  selector: 'tw-note',
+  // Inside an <svg> (e.g. projected into tw-staff) use the attribute form on an SVG group,
+  // <svg:g twNote ...>: an unknown <tw-note> element there is not rendered by browsers.
+  selector: 'tw-note, g[twNote]',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './note.component.html',
@@ -280,11 +282,11 @@ export class TwNoteComponent {
     const x = this.x();
     const size = this.size();
 
-    if (this.dotted()) {
+    // A double-dotted note may also have `dotted` set; draw each dot only once
+    if (this.dotted() || this.doubleDotted()) {
       dots.push(x + size * 0.7);
     }
     if (this.doubleDotted()) {
-      dots.push(x + size * 0.7);
       dots.push(x + size);
     }
     return dots;

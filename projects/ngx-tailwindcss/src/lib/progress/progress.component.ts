@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, Input, signal } from '@angular/core';
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  Input,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export type ProgressSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -80,19 +87,19 @@ export class TwProgressComponent {
   @Input() set label(val: string) {
     this._label.set(val);
   }
-  @Input() set showValue(val: boolean) {
+  @Input({ transform: booleanAttribute }) set showValue(val: boolean) {
     this._showValue.set(val);
   }
   @Input() set labelPosition(val: 'top' | 'bottom' | 'inside') {
     this._labelPosition.set(val);
   }
-  @Input() set striped(val: boolean) {
+  @Input({ transform: booleanAttribute }) set striped(val: boolean) {
     this._striped.set(val);
   }
-  @Input() set animated(val: boolean) {
+  @Input({ transform: booleanAttribute }) set animated(val: boolean) {
     this._animated.set(val);
   }
-  @Input() set indeterminate(val: boolean) {
+  @Input({ transform: booleanAttribute }) set indeterminate(val: boolean) {
     this._indeterminate.set(val);
   }
 
@@ -223,10 +230,10 @@ export class TwProgressCircularComponent {
   @Input() set variant(val: ProgressVariant) {
     this._variant.set(val);
   }
-  @Input() set showValue(val: boolean) {
+  @Input({ transform: booleanAttribute }) set showValue(val: boolean) {
     this._showValue.set(val);
   }
-  @Input() set indeterminate(val: boolean) {
+  @Input({ transform: booleanAttribute }) set indeterminate(val: boolean) {
     this._indeterminate.set(val);
   }
   @Input() set thickness(val: number) {

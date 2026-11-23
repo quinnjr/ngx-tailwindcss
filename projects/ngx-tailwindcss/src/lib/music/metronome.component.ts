@@ -141,8 +141,22 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   protected readonly currentTimeSignature = linkedSignal(() => this.timeSignature());
   protected readonly pendulumAngle = signal(0);
   protected readonly tapTimes = signal<number[]>([]);
-  protected readonly internalAccentPattern = signal<AccentLevel[]>([]);
-  protected readonly selectedPresetIndex = signal(0);
+  // Working accent pattern: tracks the accentPattern input (or, when none is
+  // bound, the first preset of the current time signature) but can be edited
+  // locally (beat clicks, presets). Edits are emitted via accentPatternChange,
+  // so [(accentPattern)] two-way binding works.
+  protected readonly internalAccentPattern = linkedSignal<AccentLevel[]>(() => {
+    const custom = this.accentPattern();
+    if (custom && custom.length > 0) {
+      return [...custom];
+    }
+    const presets = ACCENT_PRESETS[this.currentTimeSignature()];
+    return presets && presets.length > 0 ? [...presets[0].pattern] : [];
+  });
+  protected readonly selectedPresetIndex = linkedSignal(() => {
+    this.currentTimeSignature();
+    return 0;
+  });
   /** True when the AudioContext could not resume without a user gesture (e.g. autoStart). */
   protected readonly needsGesture = signal(false);
 
@@ -177,13 +191,8 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return Array.from({ length: count }, (_, i) => i + 1);
   });
 
-  // Get effective accent pattern (custom > preset > legacy)
+  // Get effective accent pattern (custom/edited/preset > legacy)
   protected readonly effectiveAccentPattern = computed((): AccentLevel[] => {
-    const custom = this.accentPattern();
-    if (custom && custom.length > 0) {
-      return custom;
-    }
-
     const internal = this.internalAccentPattern();
     if (internal.length > 0) {
       return internal;
@@ -271,24 +280,8 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.initializeAccentPattern();
-
     if (this.autoStart()) {
       void this.start();
-    }
-  }
-
-  private initializeAccentPattern(): void {
-    const custom = this.accentPattern();
-    if (custom && custom.length > 0) {
-      this.internalAccentPattern.set([...custom]);
-    } else {
-      // Use first preset for time signature
-      const presets = ACCENT_PRESETS[this.currentTimeSignature()];
-      if (presets && presets.length > 0) {
-        this.internalAccentPattern.set([...presets[0].pattern]);
-        this.selectedPresetIndex.set(0);
-      }
     }
   }
 
@@ -362,10 +355,14 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     const ctx = this.audioContext;
     if (!ctx) return;
 
-    const subs = this.subdivisions();
+    const subs = Math.max(1, Math.floor(this.subdivisions()) || 1);
+    const isMainBeat = this.subBeatCounter % subs === 0;
     this.subBeatCounter++;
-    const isMainBeat = subs === 1 || this.subBeatCounter % subs === 1;
-    if (!isMainBeat) return;
+    if (!isMainBeat) {
+      // Off-beat subdivision: a quieter, lower click (no beat/UI update)
+      this.playClick('none', time, true);
+      return;
+    }
 
     const beats = this.beatsPerMeasure();
     const beatNum = (this.beatCounter % beats) + 1;
@@ -513,7 +510,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return [...this.effectiveAccentPattern()];
   }
 
-  private playClick(accentLevel: AccentLevel, when?: number): void {
+  private playClick(accentLevel: AccentLevel, when?: number, subdivision = false): void {
     if (!this.audioContext) return;
 
     const startTime = when ?? this.audioContext.currentTime;
@@ -538,10 +535,10 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
       strong: 0.5,
     };
 
-    oscillator.frequency.value = frequencies[accentLevel];
+    oscillator.frequency.value = subdivision ? 600 : frequencies[accentLevel];
     oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(volumes[accentLevel], startTime);
+    gainNode.gain.setValueAtTime(subdivision ? 0.1 : volumes[accentLevel], startTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.05);
 
     oscillator.start(startTime);

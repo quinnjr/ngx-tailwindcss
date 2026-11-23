@@ -135,6 +135,17 @@ describe('TwClickOutsideDirective', () => {
     expect(component.clickOutsideCount).toBe(0);
   });
 
+  it('should emit once for a tap (touchstart followed by its synthesized click)', async () => {
+    await Promise.resolve();
+
+    const outsideButton = fixture.debugElement.query(By.css('[data-testid="outside-button"]'))
+      .nativeElement as HTMLElement;
+    outsideButton.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    outsideButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(component.clickOutsideCount).toBe(1);
+  });
+
   it('should not attach a document listener when destroyed before the deferred attach', async () => {
     const addSpy = vi.spyOn(document, 'addEventListener');
     const fresh = TestBed.createComponent(TestHostComponent);

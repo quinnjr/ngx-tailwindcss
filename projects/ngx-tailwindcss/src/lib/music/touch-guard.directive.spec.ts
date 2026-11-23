@@ -18,6 +18,7 @@ function makeTouchEvent(type: string, x: number = 0, y: number = 0): TouchEvent 
     <button
       twTouchGuard
       [requireLongPress]="requireLongPress()"
+      [cooldownMs]="cooldownMs()"
       (guardedClick)="clicks.push($event)"
       (longPress)="longPresses.push($event)"
     >
@@ -29,6 +30,7 @@ function makeTouchEvent(type: string, x: number = 0, y: number = 0): TouchEvent 
 })
 class TestHostComponent {
   readonly requireLongPress = signal(false);
+  readonly cooldownMs = signal(100);
   readonly clicks: Array<MouseEvent | TouchEvent> = [];
   readonly longPresses: TouchEvent[] = [];
 }
@@ -79,6 +81,28 @@ describe('TwTouchGuardDirective', () => {
 
       expect(component.clicks.length).toBe(1);
       expect(component.longPresses.length).toBe(0);
+    });
+  });
+
+  describe('compatibility mouse events after touch', () => {
+    it('should not emit guardedClick twice for one tap when the cooldown is disabled', () => {
+      vi.useFakeTimers();
+      component.cooldownMs.set(0);
+      fixture.detectChanges();
+
+      // A tap fires touchstart/touchend followed by emulated mousedown/mouseup
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart'));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend'));
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(component.clicks.length).toBe(1);
+
+      // A genuine mouse click well after the touch is still handled
+      vi.advanceTimersByTime(2000);
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(component.clicks.length).toBe(2);
     });
   });
 

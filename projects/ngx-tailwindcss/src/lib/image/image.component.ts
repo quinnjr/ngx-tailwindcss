@@ -200,6 +200,8 @@ export class TwImageComponent {
   }
 
   openPreview(): void {
+    // Re-opening while open would overwrite the saved overflow with 'hidden'
+    if (this.previewVisible()) return;
     this.previewVisible.set(true);
     this.zoomLevel.set(1);
     this.rotation.set(0);
@@ -211,6 +213,7 @@ export class TwImageComponent {
   }
 
   closePreview(): void {
+    if (!this.previewVisible()) return;
     this.previewVisible.set(false);
     this.onHide.emit();
     if (isPlatformBrowser(this.platformId)) {

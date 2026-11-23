@@ -9,7 +9,13 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ClefType, KeySignature, StaffTimeSignature, TwStaffComponent } from './staff.component';
+import {
+  ClefType,
+  getStaffLayout,
+  KeySignature,
+  StaffTimeSignature,
+  TwStaffComponent,
+} from './staff.component';
 import {
   NoteAccidental,
   NoteData,
@@ -291,7 +297,7 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
     let tempo = 120;
     let timeSignature: StaffTimeSignature = '4/4';
     let keySignature: KeySignature = 'C';
-    let defaultNoteLength = 'eighth'; // L:1/8 is common default
+    let defaultNoteLength = 1 / 8; // L:1/8 is the common default (fraction of a whole note)
     const measures: MeasureData[] = [];
 
     // Parse header fields
@@ -316,25 +322,9 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
         keySignature = abcKeyToKeySignature(key);
       } else if (line.startsWith('L:')) {
         // Default note length: L:1/8, L:1/4
-        const length = line.slice(2).trim();
-        switch (length) {
-          case '1/4': {
-            defaultNoteLength = 'quarter';
-            break;
-          }
-          case '1/8': {
-            defaultNoteLength = 'eighth';
-            break;
-          }
-          case '1/16': {
-            defaultNoteLength = 'sixteenth';
-            break;
-          }
-          case '1/2': {
-            defaultNoteLength = 'half';
-            // No default
-            break;
-          }
+        const lengthMatch = /^(\d+)\/(\d+)$/.exec(line.slice(2).trim());
+        if (lengthMatch && Number(lengthMatch[2]) > 0) {
+          defaultNoteLength = Number(lengthMatch[1]) / Number(lengthMatch[2]);
         }
       }
     }
@@ -361,7 +351,7 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
       const tokens = tokenizeABC(measureStr.trim());
 
       for (const token of tokens) {
-        const noteData = parseABCNote(token, defaultNoteLength as NoteDuration);
+        const noteData = parseABCNote(token, defaultNoteLength);
         if (noteData) {
           notes.push(noteData);
         }
@@ -387,36 +377,52 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
   }
 }
 
+// Circle-of-fifths position of each major-key tonic (sharps positive, flats negative)
+const ABC_TONIC_FIFTHS: Record<string, number> = {
+  Cb: -7,
+  Gb: -6,
+  Db: -5,
+  Ab: -4,
+  Eb: -3,
+  Bb: -2,
+  F: -1,
+  C: 0,
+  G: 1,
+  D: 2,
+  A: 3,
+  E: 4,
+  B: 5,
+  'F#': 6,
+  'C#': 7,
+  'G#': 8,
+  'D#': 9,
+  'A#': 10,
+  Fb: -8,
+};
+
+// Fifths offset of each mode relative to its major (ionian) tonic
+const ABC_MODE_FIFTHS: Array<[RegExp, number]> = [
+  [/^(m|min|minor|aeo|aeolian)$/i, -3],
+  [/^(dor|dorian)$/i, -2],
+  [/^(phr|phrygian)$/i, -4],
+  [/^(lyd|lydian)$/i, 1],
+  [/^(mix|mixolydian)$/i, -1],
+  [/^(loc|locrian)$/i, -5],
+];
+
 function abcKeyToKeySignature(key: string): KeySignature {
-  // Remove mode suffixes and extract key
-  const keyMatch = /^([A-G][#b]?)/i.exec(key);
+  // Tonic (letter + optional #/b) followed by an optional mode such as m, min, dor, mix
+  const keyMatch = /^([A-G])([#b]?)\s*([A-Za-z]*)/.exec(key);
   if (!keyMatch) return 'C';
 
-  let keyLetter = keyMatch[1];
-  // Normalize
-  if (keyLetter.includes('#')) keyLetter = keyLetter.replace('#', '#');
-  if (keyLetter.includes('b')) keyLetter = keyLetter.replace('b', 'b');
+  const tonicFifths = ABC_TONIC_FIFTHS[`${keyMatch[1]}${keyMatch[2]}`];
+  if (tonicFifths === undefined) return 'C';
 
-  // Map to KeySignature
-  const keyMap: Record<string, KeySignature> = {
-    C: 'C',
-    G: 'G',
-    D: 'D',
-    A: 'A',
-    E: 'E',
-    B: 'B',
-    'F#': 'F#',
-    'C#': 'C#',
-    F: 'F',
-    Bb: 'Bb',
-    Eb: 'Eb',
-    Ab: 'Ab',
-    Db: 'Db',
-    Gb: 'Gb',
-    Cb: 'Cb',
-  };
-
-  return keyMap[keyLetter] || 'C';
+  const mode = keyMatch[3];
+  const modeOffset = ABC_MODE_FIFTHS.find(([pattern]) => pattern.test(mode))?.[1] ?? 0;
+  const fifths = tonicFifths + modeOffset;
+  if (fifths < -7 || fifths > 7) return 'C';
+  return fifthsToKeySignature(fifths, 'major');
 }
 
 function tokenizeABC(str: string): string[] {
@@ -508,7 +514,7 @@ function tokenizeABC(str: string): string[] {
   return tokens;
 }
 
-function parseABCNote(token: string, defaultDuration: NoteDuration): NoteData | null {
+function parseABCNote(token: string, defaultLength: number): NoteData | null {
   // Skip rests
   if (token.includes('z') || token.includes('Z')) return null;
 
@@ -584,47 +590,60 @@ function parseABCNote(token: string, defaultDuration: NoteDuration): NoteData | 
   const baseOctave = isLowerCase ? 5 : 4;
   const octave = baseOctave + octaveModifier;
 
-  // Determine duration
-  let duration = defaultDuration;
-  if (durationMod) {
-    duration = abcDurationToDuration(durationMod, defaultDuration);
-  }
+  // Determine duration (default length scaled by the modifier, e.g. 3/2 = dotted)
+  const { duration, dotted, doubleDotted } = abcLengthToDuration(
+    defaultLength * parseABCLengthMultiplier(durationMod)
+  );
 
   return {
     name: noteLetter.toUpperCase() as NoteName,
     octave,
     duration,
     accidental,
-    dotted: false,
+    dotted,
+    ...(doubleDotted ? { doubleDotted } : {}),
   };
 }
 
-function abcDurationToDuration(mod: string, defaultDuration: NoteDuration): NoteDuration {
-  // Duration modifiers: 2 = double, /2 = half, 3/2 = dotted, etc.
-  const durationOrder: NoteDuration[] = [
-    'thirtysecond',
-    'sixteenth',
-    'eighth',
-    'quarter',
-    'half',
-    'whole',
-  ];
-  const defaultIndex = durationOrder.indexOf(defaultDuration);
+// ABC length modifier: '2' = x2, '/2' or '/' = x1/2, '//' = x1/4, '3/2' or '3/' = x3/2
+function parseABCLengthMultiplier(mod: string): number {
+  const match = /^(\d*)(\/*)(\d*)$/.exec(mod);
+  if (!match || mod === '') return 1;
+  const numerator = match[1] ? Number(match[1]) : 1;
+  const slashes = match[2].length;
+  if (slashes === 0) return numerator;
+  const denominator = match[3] ? Number(match[3]) : 2 ** slashes;
+  return denominator > 0 ? numerator / denominator : 1;
+}
 
-  if (mod === '2') {
-    return durationOrder[Math.min(defaultIndex + 1, durationOrder.length - 1)];
-  }
-  if (mod === '4') {
-    return durationOrder[Math.min(defaultIndex + 2, durationOrder.length - 1)];
-  }
-  if (mod === '/2' || mod === '/') {
-    return durationOrder[Math.max(defaultIndex - 1, 0)];
-  }
-  if (mod === '/4') {
-    return durationOrder[Math.max(defaultIndex - 2, 0)];
-  }
+const ABC_DURATIONS: Array<[NoteDuration, number]> = [
+  ['whole', 1],
+  ['half', 1 / 2],
+  ['quarter', 1 / 4],
+  ['eighth', 1 / 8],
+  ['sixteenth', 1 / 16],
+  ['thirtysecond', 1 / 32],
+];
 
-  return defaultDuration;
+// Map a length (fraction of a whole note) to a note value, recognising (double-)dotted values
+function abcLengthToDuration(length: number): {
+  duration: NoteDuration;
+  dotted: boolean;
+  doubleDotted: boolean;
+} {
+  const close = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9;
+  for (const [duration, value] of ABC_DURATIONS) {
+    if (close(length, value)) return { duration, dotted: false, doubleDotted: false };
+    if (close(length, value * 1.5)) return { duration, dotted: true, doubleDotted: false };
+    if (close(length, value * 1.75)) return { duration, dotted: false, doubleDotted: true };
+  }
+  // Not representable: use the longest note value that fits (whole for anything longer)
+  const fitting = ABC_DURATIONS.find(([, value]) => value <= length);
+  return {
+    duration: fitting ? fitting[0] : 'thirtysecond',
+    dotted: false,
+    doubleDotted: false,
+  };
 }
 
 // Sample music for demo
@@ -873,15 +892,25 @@ export class TwSheetMusicComponent {
     }
   });
 
-  protected getMeasureStartX(measureIndex: number, lineIndex: number): number {
-    const perLine = this.measuresPerLine();
-    const measureInLine = measureIndex % perLine;
-    const width = this.width();
-    const margin = 80; // Space for clef/key/time
-    const availableWidth = width - margin - 20;
-    const measureWidth = availableWidth / perLine;
+  // Mirrors the tw-staff drawn for a line: only the first line shows the key and time
+  // signatures, and the last line may hold fewer measures than measuresPerLine
+  private getLineLayout(lineIndex: number): { contentStartX: number; measureWidth: number } {
+    const music = this.musicData();
+    const measureCount = this.lines()[lineIndex]?.length ?? this.measuresPerLine();
+    const showHeader = lineIndex === 0;
+    return getStaffLayout({
+      width: this.width(),
+      measures: measureCount,
+      keySignature: music.keySignature,
+      showKeySignature: showHeader,
+      showTimeSignature: showHeader && !!music.timeSignature,
+    });
+  }
 
-    return margin + measureInLine * measureWidth;
+  protected getMeasureStartX(measureIndex: number, lineIndex: number): number {
+    const measureInLine = measureIndex % this.measuresPerLine();
+    const { contentStartX, measureWidth } = this.getLineLayout(lineIndex);
+    return contentStartX + measureInLine * measureWidth;
   }
 
   protected getNoteX(
@@ -891,12 +920,7 @@ export class TwSheetMusicComponent {
     lineIndex: number
   ): number {
     const measureX = this.getMeasureStartX(measureIndex, lineIndex);
-    const perLine = this.measuresPerLine();
-    const width = this.width();
-    const margin = 80;
-    const availableWidth = width - margin - 20;
-    const measureWidth = availableWidth / perLine;
-
+    const { measureWidth } = this.getLineLayout(lineIndex);
     const noteSpacing = measureWidth / (totalNotes + 1);
     return measureX + noteSpacing * (noteIndex + 1);
   }
@@ -986,11 +1010,7 @@ export class TwSheetMusicComponent {
     // Calculate position within measure based on beat fraction
     // Unscaled coordinates: zoom is applied to the whole container via CSS transform
     const measureX = this.getMeasureStartX(measureIndex, lineIndex);
-    const perLine = this.measuresPerLine();
-    const width = this.width();
-    const margin = 80;
-    const availableWidth = width - margin - 20;
-    const measureWidth = availableWidth / perLine;
+    const { measureWidth } = this.getLineLayout(lineIndex);
 
     return measureX + beatPart * measureWidth;
   }

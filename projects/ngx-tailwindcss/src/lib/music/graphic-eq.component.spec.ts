@@ -54,4 +54,19 @@ describe('TwGraphicEQComponent', () => {
 
     expect(changes.at(-1)).toEqual({ frequency: 63, gain: 0 });
   });
+
+  it('should anchor the response curve on the 0 dB line for asymmetric ranges', () => {
+    fixture.componentRef.setInput('minGain', -24);
+    fixture.componentRef.setInput('maxGain', 12);
+    fixture.componentRef.setInput('sliderHeight', 360);
+    fixture.detectChanges();
+
+    const path: string = internals.curvePath();
+    const start = /^M 0 ([\d.]+) L 5 ([\d.]+)/.exec(path)!;
+    const end = / L 100 ([\d.]+)$/.exec(path)!;
+    expect(Number(start[1])).toBeCloseTo(120, 6);
+    // Flat bands lie on the 0 dB line too
+    expect(Number(start[2])).toBeCloseTo(120, 6);
+    expect(Number(end[1])).toBeCloseTo(120, 6);
+  });
 });

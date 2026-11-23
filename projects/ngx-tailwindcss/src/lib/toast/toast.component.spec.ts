@@ -410,3 +410,16 @@ describe('TwToastContainerComponent', () => {
     });
   });
 });
+
+describe('TwToastContainerComponent keyframes', () => {
+  it('should register the toast-in keyframes unscoped so the toast animation class resolves', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwToastContainerComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwToastContainerComponent);
+    fixture.detectChanges();
+
+    const css = [...document.querySelectorAll('style')].map(s => s.textContent ?? '').join('\n');
+    expect(css).toMatch(/@keyframes\s+toast-in\s*\{/);
+  });
+});

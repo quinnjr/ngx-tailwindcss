@@ -60,6 +60,7 @@ module.exports = {
 Import components directly in your Angular components:
 
 ```typescript
+// example.component.ts
 import { Component } from '@angular/core';
 import {
   TwButtonComponent,
@@ -71,15 +72,18 @@ import {
   selector: 'app-example',
   standalone: true,
   imports: [TwButtonComponent, TwCardComponent, TwCardBodyDirective],
-  template: `
-    <tw-card>
-      <tw-card-body>
-        <tw-button variant="primary">Click me!</tw-button>
-      </tw-card-body>
-    </tw-card>
-  `,
+  templateUrl: './example.component.html',
 })
 export class ExampleComponent {}
+```
+
+```html
+<!-- example.component.html -->
+<tw-card>
+  <tw-card-body>
+    <tw-button variant="primary">Click me!</tw-button>
+  </tw-card-body>
+</tw-card>
 ```
 
 Or import everything at once:
@@ -125,6 +129,7 @@ export const appConfig: ApplicationConfig = {
 <tw-button variant="primary">Primary</tw-button>
 <tw-button variant="danger" size="lg">Large Danger</tw-button>
 <tw-button variant="outline" [loading]="isLoading">Submit</tw-button>
+<tw-button type="submit">Save</tw-button> <!-- submits the enclosing <form> -->
 <tw-button variant="ghost" [iconOnly]="true">
   <svg twButtonIcon>...</svg>
 </tw-button>
@@ -133,6 +138,7 @@ export const appConfig: ApplicationConfig = {
 **Props:**
 - `variant`: `'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'ghost' | 'outline' | 'link'`
 - `size`: `'xs' | 'sm' | 'md' | 'lg' | 'xl'`
+- `type`: `'button' | 'submit' | 'reset'` (default `'button'`); `submit`/`reset` act on the enclosing `<form>`
 - `disabled`, `loading`, `fullWidth`, `iconOnly`: `boolean`
 - `classOverride`: Additional classes to merge
 - `classReplace`: Complete class replacement

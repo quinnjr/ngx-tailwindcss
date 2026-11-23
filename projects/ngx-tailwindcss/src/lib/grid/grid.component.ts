@@ -216,6 +216,11 @@ export class TwGridComponent {
     const colGap = this.colGap();
     if (rowGap && colGap) {
       classes.push(GAP_Y_CLASSES[rowGap], GAP_X_CLASSES[colGap]);
+    } else if (rowGap) {
+      // Only one axis overridden: the other axis keeps the `gap` value
+      classes.push(GAP_X_CLASSES[this.gap()], GAP_Y_CLASSES[rowGap]);
+    } else if (colGap) {
+      classes.push(GAP_Y_CLASSES[this.gap()], GAP_X_CLASSES[colGap]);
     } else {
       classes.push(GAP_CLASSES[this.gap()]);
     }

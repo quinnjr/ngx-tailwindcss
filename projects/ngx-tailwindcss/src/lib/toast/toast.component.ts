@@ -5,6 +5,7 @@ import {
   Injectable,
   Input,
   signal,
+  ViewEncapsulation,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
@@ -191,6 +192,9 @@ export class TwToastComponent {
   imports: [CommonModule, TwToastComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toast-container.component.html',
+  // Unencapsulated: emulated encapsulation renames @keyframes, but the toast's
+  // global Tailwind class `animate-[toast-in_...]` references the plain name
+  encapsulation: ViewEncapsulation.None,
   styles: [
     `
       @keyframes toast-in {

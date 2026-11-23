@@ -249,6 +249,19 @@ describe('TwImageComponent', () => {
       document.body.style.overflow = '';
     });
 
+    it('should restore body overflow when openPreview is called twice', () => {
+      document.body.style.overflow = 'scroll';
+
+      component.image.openPreview();
+      component.image.openPreview();
+      fixture.detectChanges();
+      component.image.closePreview();
+      fixture.detectChanges();
+
+      expect(document.body.style.overflow).toBe('scroll');
+      document.body.style.overflow = '';
+    });
+
     it('should restore body overflow when destroyed with the preview open', () => {
       document.body.style.overflow = 'scroll';
 

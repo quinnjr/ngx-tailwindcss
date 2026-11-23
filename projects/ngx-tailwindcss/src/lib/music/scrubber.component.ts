@@ -111,7 +111,7 @@ export class TwScrubberComponent implements OnDestroy {
   protected readonly progressPercent = computed(() => {
     const dur = this.duration();
     if (dur <= 0) return 0;
-    return (this.currentTime() / dur) * 100;
+    return Math.max(0, Math.min(100, (this.currentTime() / dur) * 100));
   });
 
   protected readonly containerClasses = computed(() => {

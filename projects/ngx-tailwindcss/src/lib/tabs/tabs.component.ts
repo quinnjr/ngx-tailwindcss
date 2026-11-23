@@ -2,6 +2,7 @@ import {
   AfterContentInit,
   booleanAttribute,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   ContentChildren,
@@ -171,6 +172,7 @@ export class TwTabPanelComponent {
 })
 export class TwTabsComponent implements AfterContentInit {
   private readonly twClass = inject(TwClassService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   @ContentChildren(TwTabPanelComponent) tabPanels!: QueryList<TwTabPanelComponent>;
 
@@ -245,6 +247,8 @@ export class TwTabsComponent implements AfterContentInit {
     this.tabPanels.changes.subscribe(() => {
       this.panels = this.tabPanels.toArray();
       this.syncPanels();
+      // `panels` is a plain array read by the OnPush template: re-render the tab list
+      this.cdr.markForCheck();
     });
   }
 

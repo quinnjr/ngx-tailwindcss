@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwCompressorMeterComponent } from './compressor-meter.component';
 
 describe('TwCompressorMeterComponent', () => {
@@ -48,5 +48,34 @@ describe('TwCompressorMeterComponent', () => {
     internals.updateEnvelopePosition(start + 50, false);
 
     expect(internals.envelopePosition()).toBeCloseTo(Math.exp(-1.5), 5);
+  });
+
+  describe('peak hold', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should track sub-0 dB peaks and fall back once the hold expires', () => {
+      vi.useFakeTimers();
+      fixture.componentRef.setInput('peakHoldTime', 1000);
+      fixture.componentRef.setInput('inputLevel', -12);
+      internals.updateLevels();
+      expect(internals.inputPeakLevel()).toBe(-12);
+
+      // Lower level: the peak is held
+      fixture.componentRef.setInput('inputLevel', -30);
+      internals.updateLevels();
+      expect(internals.inputPeakLevel()).toBe(-12);
+
+      // Hold expires: the marker drops to the current level...
+      vi.advanceTimersByTime(1000);
+      expect(internals.inputPeakLevel()).toBe(-30);
+
+      // ...and keeps following the level down afterwards
+      fixture.componentRef.setInput('inputLevel', -40);
+      vi.advanceTimersByTime(1000);
+      internals.updateLevels();
+      expect(internals.inputPeakLevel()).toBe(-40);
+    });
   });
 });

@@ -195,6 +195,29 @@ describe('TwSidebarComponent', () => {
   it('should render the header text', () => {
     expect(panelEl().textContent).toContain('Menu');
   });
+
+  describe('focus management', () => {
+    it('should move focus into the modal panel on open and restore it on close', () => {
+      vi.useFakeTimers();
+      try {
+        const opener = document.createElement('button');
+        document.body.append(opener);
+        opener.focus();
+
+        component.visible.set(true);
+        fixture.detectChanges();
+        vi.runAllTimers();
+        expect(panelEl().contains(document.activeElement)).toBe(true);
+
+        component.visible.set(false);
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(opener);
+        opener.remove();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 describe('TwSidebarComponent footer projection', () => {

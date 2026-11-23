@@ -1,18 +1,22 @@
-import { Component, signal, ViewChild } from '@angular/core';
+import { Component, signal, TemplateRef, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import { By, DomSanitizer } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BreadcrumbItem, BreadcrumbSeparator, TwBreadcrumbComponent } from './breadcrumb.component';
 
 @Component({
   template: `
     <tw-breadcrumb [items]="items()" [separator]="separator()" [size]="size()"></tw-breadcrumb>
+    <ng-template #svgIcon>
+      <svg class="tpl-icon" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9" /></svg>
+    </ng-template>
   `,
   standalone: true,
   imports: [TwBreadcrumbComponent],
 })
 class TestHostComponent {
   @ViewChild(TwBreadcrumbComponent) breadcrumb!: TwBreadcrumbComponent;
+  @ViewChild('svgIcon', { static: true }) svgIcon!: TemplateRef<unknown>;
   items = signal<BreadcrumbItem[]>([
     { label: 'Home', href: '/' },
     { label: 'Products', href: '/products' },
@@ -103,8 +107,53 @@ describe('TwBreadcrumbComponent', () => {
     });
 
     it('should not render an icon wrapper for items without icons', () => {
-      const wrappers = breadcrumbEl.querySelectorAll('[aria-hidden="true"]');
+      const wrappers = breadcrumbEl.querySelectorAll('[data-tw-breadcrumb-icon]');
       expect(wrappers.length).toBe(0);
+    });
+
+    it('should render inline SVG icons passed as a template', () => {
+      component.items.set([
+        { label: 'Home', href: '/', icon: component.svgIcon },
+        { label: 'Here' },
+      ]);
+      fixture.detectChanges();
+
+      const svg = breadcrumbEl.querySelector('[data-tw-breadcrumb-icon] svg.tpl-icon');
+      expect(svg).toBeTruthy();
+    });
+
+    it('should render inline SVG icons explicitly trusted via DomSanitizer', () => {
+      const sanitizer = TestBed.inject(DomSanitizer);
+      component.items.set([
+        {
+          label: 'Home',
+          href: '/',
+          icon: sanitizer.bypassSecurityTrustHtml('<svg class="trusted-icon"></svg>'),
+        },
+        { label: 'Here' },
+      ]);
+      fixture.detectChanges();
+
+      expect(breadcrumbEl.querySelector('[data-tw-breadcrumb-icon] svg.trusted-icon')).toBeTruthy();
+    });
+
+    it('should still sanitize plain string icons', () => {
+      component.items.set([
+        { label: 'Home', href: '/', icon: '<img src="x" onerror="alert(1)"><b class="ok">i</b>' },
+        { label: 'Here' },
+      ]);
+      fixture.detectChanges();
+
+      const wrapper = breadcrumbEl.querySelector('[data-tw-breadcrumb-icon]')!;
+      expect(wrapper.querySelector('.ok')).toBeTruthy();
+      expect(wrapper.innerHTML).not.toContain('onerror');
+    });
+
+    it('should hide separators from assistive technology', () => {
+      const separators = breadcrumbEl.querySelectorAll('[class*="mx-2"]');
+      separators.forEach(sep => {
+        expect(sep.getAttribute('aria-hidden')).toBe('true');
+      });
     });
   });
 

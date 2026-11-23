@@ -5,6 +5,7 @@ import {
   computed,
   ContentChild,
   effect,
+  ElementRef,
   HostListener,
   inject,
   Input,
@@ -17,6 +18,12 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export type SidebarPosition = 'left' | 'right' | 'top' | 'bottom';
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -41,7 +48,7 @@ const SIDEBAR_SIZES: Record<SidebarPosition, Record<SidebarSize, string>> = {
 @Component({
   selector: 'tw-sidebar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './sidebar.component.html',
   host: {
@@ -51,6 +58,10 @@ const SIDEBAR_SIZES: Record<SidebarPosition, Record<SidebarSize, string>> = {
 export class TwSidebarComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Element focused before the sidebar opened, restored when it closes */
+  private previouslyFocused: HTMLElement | null = null;
 
   /** Whether the sidebar is visible. Supports two-way binding via `[(visible)]`. */
   readonly visible = model(false);
@@ -195,11 +206,13 @@ export class TwSidebarComponent implements OnDestroy {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapePress(): void {
-    if (this.closeOnEscape() && this.visible()) {
-      this.hide();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapePress(event?: Event): void {
+    if (!this.closeOnEscape() || !this.visible()) return;
+    // Only the topmost open layer closes, and not when content inside already handled it
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.hide();
   }
 
   onBackdropClick(): void {
@@ -210,6 +223,15 @@ export class TwSidebarComponent implements OnDestroy {
 
   private applyShowEffects(): void {
     this.onShow.emit();
+    pushEscapeLayer(this);
+
+    if (isPlatformBrowser(this.platformId)) {
+      const active = document.activeElement;
+      this.previouslyFocused =
+        active instanceof HTMLElement && !this.elementRef.nativeElement.contains(active)
+          ? active
+          : null;
+    }
 
     if (this.modal() && this.previousBodyOverflow === null && isPlatformBrowser(this.platformId)) {
       this.previousBodyOverflow = document.body.style.overflow;
@@ -219,12 +241,31 @@ export class TwSidebarComponent implements OnDestroy {
 
   private applyHideEffects(): void {
     this.onHide.emit();
+    removeEscapeLayer(this);
     this.releaseScrollLock();
+    this.restoreFocus();
   }
 
   ngOnDestroy(): void {
     // Destroyed while open (e.g. route change): don't leave the page scroll-locked
+    removeEscapeLayer(this);
     this.releaseScrollLock();
+  }
+
+  /**
+   * Returns focus to the element that opened the sidebar, but only when focus is
+   * still inside the (now inert) panel or was lost to the body.
+   */
+  private restoreFocus(): void {
+    const target = this.previouslyFocused;
+    this.previouslyFocused = null;
+    if (!target || !isPlatformBrowser(this.platformId)) return;
+
+    const active = document.activeElement;
+    const focusLost = !active || active === document.body;
+    if (focusLost || this.elementRef.nativeElement.contains(active)) {
+      target.focus();
+    }
   }
 
   /** Restores body overflow only if this sidebar locked it. */

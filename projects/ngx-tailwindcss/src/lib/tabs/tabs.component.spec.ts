@@ -253,3 +253,39 @@ describe('TwTabsComponent (multiple instances / external value)', () => {
     );
   });
 });
+
+@Component({
+  template: `
+    <tw-tabs value="a">
+      <tw-tab-panel value="a" label="A">A</tw-tab-panel>
+      @if (showB()) {
+        <tw-tab-panel value="b" label="B">B</tw-tab-panel>
+      }
+    </tw-tabs>
+  `,
+  standalone: true,
+  imports: [TwTabsComponent, TwTabPanelComponent],
+})
+class DynamicTabsHostComponent {
+  showB = signal(false);
+}
+
+describe('TwTabsComponent (dynamic panels)', () => {
+  it('should render a tab button for a panel added after init', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DynamicTabsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DynamicTabsHostComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(1);
+
+    fixture.componentInstance.showB.set(true);
+    fixture.detectChanges();
+
+    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
+    expect(tabs.length).toBe(2);
+    expect(tabs[1].textContent.trim()).toBe('B');
+  });
+});

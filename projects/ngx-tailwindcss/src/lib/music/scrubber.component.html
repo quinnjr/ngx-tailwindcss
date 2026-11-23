@@ -16,7 +16,9 @@
     [attr.aria-valuenow]="currentTime()"
     [attr.aria-valuemin]="0"
     [attr.aria-valuemax]="duration()"
+    [attr.aria-valuetext]="formatTime(currentTime()) + ' of ' + formatTime(duration())"
     [attr.aria-label]="'Seek slider'"
+    [attr.aria-disabled]="disabled()"
     [attr.tabindex]="disabled() ? -1 : 0"
     (keydown)="onKeyDown($event)"
   >

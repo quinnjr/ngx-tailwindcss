@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🎯 Behavior Changes
+
+- `tw-tabs` panel ids are now unique per tab set (`tw-tabs-N-panel-<value>`)
+  instead of `panel-<value>`; update any CSS or test selectors that targeted
+  the old ids
+- `styles/theme.css` is now shipped at the exported path
+  (`@quinnjr/ngx-tailwindcss/styles/theme.css`); previously the export pointed
+  at a file that was not in the package
+- `rxjs` (`^7.4.0`) is now a declared peer dependency
+- `tw-button` gains a `type` input (`'button' | 'submit' | 'reset'`, default
+  `'button'`): `type="submit"` submits and `type="reset"` resets the enclosing
+  `<form>`. Previously a `tw-button` could not submit a form
+- Boolean inputs on `tw-stack` (`wrap`, `fullWidth`), `tw-hstack` (`wrap`),
+  `tw-progress` (`showValue`, `striped`, `animated`, `indeterminate`) and
+  `tw-progress-circular` (`showValue`, `indeterminate`) accept bare attributes
+  (`<tw-stack wrap>`)
+
+### 🐛 Fixed
+
+- Focus rings survive class merges (`ring-*` groups no longer collapse)
+- SSR guards and listener/timer cleanup in `twAutoFocus`, `twLazyImage`,
+  `twClickOutside`, `twLongPress`, `twKeyboardShortcut` and `twScrollAnchor`
+- Forms: disabled `FormControl` state, checkbox indeterminate/readonly, slider
+  clamping, select keyboard navigation over grouped/filtered options, rating
+  ids/focus, chips two-way binding
+- Overlays and navigation: modal scroll lock and stacked Escape handling,
+  dropdown portal restore, tree keyboard navigation, table page clamping
+- Display: progress `aria-valuenow` clamped to its range, image preview
+  restores body scrolling (also when destroyed while open or opened twice),
+  clickable `tw-card` no longer swallows Enter/Space typed in descendants,
+  `a[tw-button]` keeps native link semantics
+- `tw-avatar-group` shows the `+N` overflow indicator when `total` is not set;
+  avatar initials/status are exposed to assistive technology
+- `tw-grid` honors `rowGap` or `colGap` when only one of them is set
+- `tw-spacer size="auto"` grows inside a flex container
+- `tw-progress` uses its `label` as the progressbar's accessible name
+- Native services, music components and audio services: many correctness and
+  resource-cleanup fixes
+- Documentation: corrected package name and documented APIs
+
 ## [1.1.1] - 2026-11-23
 
 ### 🐛 Fixed

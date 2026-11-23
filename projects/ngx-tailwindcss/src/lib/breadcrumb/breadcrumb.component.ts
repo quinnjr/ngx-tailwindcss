@@ -1,14 +1,22 @@
-import { Component, computed, Input, signal } from '@angular/core';
+import { Component, computed, Input, signal, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { SafeHtml } from '@angular/platform-browser';
+
+/**
+ * Icon rendered before a breadcrumb label:
+ * - `TemplateRef`: rendered as-is (recommended for inline SVG icons)
+ * - `SafeHtml`: trusted markup the consumer produced with
+ *   `DomSanitizer.bypassSecurityTrustHtml` (e.g. an inline SVG string)
+ * - `string`: plain HTML that goes through Angular's HTML sanitizer, which
+ *   strips `<svg>` and other unsafe markup
+ */
+export type BreadcrumbIcon = string | SafeHtml | TemplateRef<unknown>;
 
 export interface BreadcrumbItem {
   label: string;
   href?: string;
-  /**
-   * Optional icon rendered before the label. Treated as an HTML string
-   * (e.g. an inline SVG) and sanitized by Angular's built-in HTML sanitizer.
-   */
-  icon?: string;
+  /** Optional icon rendered before the label. See {@link BreadcrumbIcon}. */
+  icon?: BreadcrumbIcon;
 }
 
 export type BreadcrumbSeparator = 'slash' | 'chevron' | 'arrow' | 'dot';
@@ -57,6 +65,10 @@ export class TwBreadcrumbComponent {
     () =>
       'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors'
   );
+
+  protected iconTemplate(icon: BreadcrumbIcon): TemplateRef<unknown> | null {
+    return icon instanceof TemplateRef ? icon : null;
+  }
 
   protected currentClasses = computed(() => 'font-medium text-slate-900 dark:text-slate-100');
 }

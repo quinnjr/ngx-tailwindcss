@@ -205,8 +205,9 @@ export class TwMenuComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './context-menu.component.html',
   host: {
-    '(document:click)': 'hide()',
-    '(document:contextmenu)': 'onDocumentContextMenu($event)',
+    '(document:click)': 'onDocumentDismiss($event)',
+    '(document:contextmenu)': 'onDocumentDismiss($event)',
+    '(document:keydown.escape)': 'hide()',
   },
 })
 export class TwContextMenuComponent {
@@ -218,7 +219,7 @@ export class TwContextMenuComponent {
   protected x = signal(0);
   protected y = signal(0);
 
-  /** The contextmenu event that opened the menu; it still bubbles to the document. */
+  /** The (contextmenu or click) event that opened the menu; it still bubbles to the document. */
   private openingEvent: Event | null = null;
 
   show(event: MouseEvent): void {
@@ -229,7 +230,7 @@ export class TwContextMenuComponent {
     this.visible.set(true);
   }
 
-  protected onDocumentContextMenu(event: Event): void {
+  protected onDocumentDismiss(event: Event): void {
     // Ignore the same event that just opened the menu, otherwise it closes immediately
     if (event === this.openingEvent) {
       this.openingEvent = null;

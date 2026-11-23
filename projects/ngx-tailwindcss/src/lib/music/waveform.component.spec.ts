@@ -56,4 +56,62 @@ describe('TwWaveformComponent', () => {
 
     expect(Math.max(...internals.peakData)).toBeCloseTo(0.8, 5);
   });
+
+  it('should draw the realtime line with positive samples above the centre', () => {
+    fixture.componentRef.setInput('height', 100);
+    fixture.detectChanges();
+    const points: Array<[number, number]> = [];
+    internals.ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) =>
+          prop === 'lineTo' || prop === 'moveTo'
+            ? (x: number, y: number) => points.push([x, y])
+            : () => {},
+        set: () => true,
+      }
+    );
+    internals.timeDomainData = new Uint8Array([255, 0]);
+
+    internals.drawRealTimeLine();
+
+    expect(points[0][1]).toBeLessThan(50);
+    expect(points[1][1]).toBeGreaterThan(50);
+  });
+
+  it('should position the zoom scrollbar thumb at the visible window', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.detectChanges();
+    component.setZoom(2, 0.75); // visible window 0.5..1
+
+    expect(internals.panPosition()).toBeCloseTo(0.5, 10);
+    expect(internals.scrollbarPosition()).toBeCloseTo(50, 10);
+    expect(internals.scrollbarPosition() + internals.scrollbarWidth()).toBeCloseTo(100, 10);
+  });
+
+  it('should centre the visible window on a clicked scrollbar point', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.detectChanges();
+    component.setZoom(4, 0.125); // visible width 0.25
+    const track = document.createElement('div');
+    const rect = { left: 0, width: 100 };
+    track.getBoundingClientRect = () => rect as unknown as DOMRect;
+
+    component.onScrollbarDrag({
+      clientX: 50,
+      currentTarget: track,
+      preventDefault: () => {},
+    } as unknown as MouseEvent);
+
+    expect(internals.visibleRange().start).toBeCloseTo(0.375, 10);
+    expect(internals.visibleRange().end).toBeCloseTo(0.625, 10);
+  });
+
+  it('should clear the loading state when peaks supersede a pending buffer scan', () => {
+    internals.loading.set(true);
+    fixture.componentRef.setInput('peaks', [0.1, 0.2]);
+    fixture.detectChanges();
+
+    expect(internals.loading()).toBe(false);
+  });
 });

@@ -26,7 +26,7 @@ export type PanControlSize = 'sm' | 'md' | 'lg';
  * @example
  * ```html
  * <tw-pan-control [(ngModel)]="panValue"></tw-pan-control>
- * <tw-pan-control variant="slider" [value]="pan"></tw-pan-control>
+ * <tw-pan-control variant="knob" [(ngModel)]="pan" (valueChange)="onPan($event)"></tw-pan-control>
  * <tw-pan-control variant="stereo-width" [(ngModel)]="width"></tw-pan-control>
  * ```
  */
@@ -247,7 +247,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
 
   @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (this.isDisabled()) return;
+    // stereo-width keys are handled natively by its 0-100 range input
+    if (this.isDisabled() || this.variant() === 'stereo-width') return;
 
     const step = this.step();
     const largeStep = step * 10;

@@ -48,4 +48,31 @@ describe('TwBpmDisplayComponent', () => {
     expect(el.textContent).toContain('60');
     expect(el.textContent).not.toContain('120');
   });
+
+  it('should commit an Enter edit once, not again on the following blur', () => {
+    const display = el.querySelector<HTMLElement>('[role="button"]')!;
+    display.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    const editor = el.querySelector<HTMLInputElement>('input[type="number"]')!;
+    expect(editor).toBeTruthy();
+    editor.value = '140';
+    editor.dispatchEvent(new Event('input'));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    // Removing the focused input fires blur in browsers
+    editor.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(host.changes).toEqual([140]);
+  });
+
+  it('should not commit on the blur after Escape cancels', () => {
+    el.querySelector<HTMLElement>('[role="button"]')!.click();
+    fixture.detectChanges();
+    const editor = el.querySelector<HTMLInputElement>('input[type="number"]')!;
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    editor.dispatchEvent(new Event('blur'));
+
+    expect(host.changes).toEqual([]);
+  });
 });

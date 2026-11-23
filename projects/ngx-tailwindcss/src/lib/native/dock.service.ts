@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc } from './electron-bridge.util';
 
 @Injectable({
   providedIn: 'root',
@@ -33,7 +34,7 @@ export class DockService {
       console.warn('Dock badge not directly supported in Tauri, consider using notifications');
     } else if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('set-dock-badge', text);
       } catch (error) {
         console.error('Failed to set Electron dock badge:', error);
@@ -54,7 +55,7 @@ export class DockService {
   public async setProgress(progress: number): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         // Progress should be between 0 and 1, or -1 to clear
         const normalizedProgress = progress < 0 ? -1 : Math.min(1, Math.max(0, progress / 100));
         ipcRenderer.send('set-progress', normalizedProgress);
@@ -78,7 +79,7 @@ export class DockService {
   public async bounce(type: 'informational' | 'critical' = 'informational'): Promise<number> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         return await ipcRenderer.invoke('dock-bounce', type);
       } catch (error) {
         console.error('Failed to bounce Electron dock:', error);
@@ -95,7 +96,7 @@ export class DockService {
   public async cancelBounce(id: number): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('cancel-dock-bounce', id);
       } catch (error) {
         console.error('Failed to cancel Electron dock bounce:', error);
@@ -111,7 +112,7 @@ export class DockService {
   public async setMenu(items: NativeMenuItem[]): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         await this.registerElectronMenuClickListener();
         ipcRenderer.send('set-dock-menu', this.convertMenuForElectron(items));
       } catch (error) {
@@ -126,7 +127,7 @@ export class DockService {
   public async show(): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('show-dock');
       } catch (error) {
         console.error('Failed to show Electron dock:', error);
@@ -140,7 +141,7 @@ export class DockService {
   public async hide(): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('hide-dock');
       } catch (error) {
         console.error('Failed to hide Electron dock:', error);
@@ -162,7 +163,7 @@ export class DockService {
       }
     } else if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('flash-frame', flash);
       } catch (error) {
         console.error('Failed to flash Electron frame:', error);
@@ -179,7 +180,7 @@ export class DockService {
     if (this.electronMenuListenerRegistered) return;
 
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
       ipcRenderer.on('dock-menu-click', (_event: unknown, id: unknown) => {
         this.electronMenuActions.get(String(id))?.();
       });

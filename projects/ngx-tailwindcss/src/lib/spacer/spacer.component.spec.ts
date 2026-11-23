@@ -116,6 +116,8 @@ describe('TwSpacerComponent', () => {
       fixture.detectChanges();
       const inner = spacerEl.querySelector('div');
       expect(inner?.className).toContain('flex-1');
+      // The host is the flex item in the consumer's flex container
+      expect(spacerEl.classList.contains('flex-1')).toBe(true);
     });
   });
 

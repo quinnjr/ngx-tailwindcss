@@ -247,10 +247,18 @@ export class TwTablatureComponent {
     return labelWidth + measureIndex * measureW;
   }
 
+  // Note positions in a measure: at least beatsPerMeasure, more if the measure supplies more
+  // (e.g. eighth-note positions)
+  protected getBeatPositions(measure: TabMeasure): number[] {
+    const count = Math.max(this.beatsPerMeasure(), measure.notes?.length ?? 0);
+    return Array.from({ length: count }, (_, i) => i);
+  }
+
   protected getBeatX(measureIndex: number, beatIndex: number): number {
     const measureX = this.getMeasureX(measureIndex);
     const measureW = this.measureWidth();
-    const beats = this.beatsPerMeasure();
+    const measure = this.measures()[measureIndex];
+    const beats = measure ? this.getBeatPositions(measure).length : this.beatsPerMeasure();
     const beatWidth = measureW / (beats + 1);
     return measureX + beatWidth * (beatIndex + 1);
   }
@@ -276,10 +284,6 @@ export class TwTablatureComponent {
     if (!this.interactive()) return;
     this.measureClick.emit(measureIndex);
   }
-
-  protected readonly beats = computed(() => {
-    return Array.from({ length: this.beatsPerMeasure() }, (_, i) => i);
-  });
 
   // Calculate note from fret position
   protected calculateNoteFromFret(
@@ -351,19 +355,18 @@ export class TwTablatureComponent {
     const topLine = this.getStaffLineY(1);
     const bottomLine = this.getStaffLineY(5);
     const lines: number[] = [];
+    // Tolerance for floating point drift; a note in the space beyond a ledger line must not
+    // get an extra ledger line of its own
+    const epsilon = spacing / 4;
 
     // Above staff
-    if (y < topLine - spacing / 2) {
-      for (let lineY = topLine - spacing; lineY >= y - spacing / 2; lineY -= spacing) {
-        lines.push(lineY);
-      }
+    for (let lineY = topLine - spacing; lineY >= y - epsilon; lineY -= spacing) {
+      lines.push(lineY);
     }
 
     // Below staff
-    if (y > bottomLine + spacing / 2) {
-      for (let lineY = bottomLine + spacing; lineY <= y + spacing / 2; lineY += spacing) {
-        lines.push(lineY);
-      }
+    for (let lineY = bottomLine + spacing; lineY <= y + epsilon; lineY += spacing) {
+      lines.push(lineY);
     }
 
     return lines;

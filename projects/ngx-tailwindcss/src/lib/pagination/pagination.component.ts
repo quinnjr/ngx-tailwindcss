@@ -60,7 +60,8 @@ export class TwPaginationComponent {
   @Output() pageChange = new EventEmitter<number>();
 
   protected _currentPage = signal(1);
-  protected _totalPages = signal(1);
+  /** 0 = not bound, in which case the count is derived from totalItems/itemsPerPage */
+  protected _totalPages = signal(0);
   protected _totalItems = signal(0);
   protected _itemsPerPage = signal(10);
   protected _siblingCount = signal(1);
@@ -77,7 +78,7 @@ export class TwPaginationComponent {
     const itemsPerPage = this._itemsPerPage();
 
     if (totalPages > 0) return totalPages;
-    if (totalItems > 0) return Math.ceil(totalItems / itemsPerPage);
+    if (totalItems > 0 && itemsPerPage > 0) return Math.ceil(totalItems / itemsPerPage);
     return 1;
   });
 

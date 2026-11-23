@@ -678,6 +678,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   protected toggleBand(band: EQBand): void {
+    if (!this.interactive()) return;
     const updatedBands = this.bands().map(b =>
       b.id === band.id ? { ...b, enabled: !b.enabled } : b
     );
@@ -690,9 +691,18 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   // Keyboard control for the focused band: arrows adjust gain (up/down) and
-  // frequency (left/right); Home/End jump gain to 0/max
+  // frequency (left/right); Home/End jump gain to 0/max; Enter/Space toggle
+  // the band on/off (the keyboard equivalent of double-click)
   protected onBandKeydown(event: KeyboardEvent, band: EQBand): void {
     if (!this.interactive()) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      // Suppress the synthesized click; toggling is the keyboard action here
+      event.preventDefault();
+      this.selectedBandId.set(band.id);
+      this.toggleBand(band);
+      return;
+    }
 
     const freqFactor = event.shiftKey ? 2 ** (1 / 3) : 2 ** (1 / 12); // major third / semitone
     let updatedBand: EQBand | null = null;

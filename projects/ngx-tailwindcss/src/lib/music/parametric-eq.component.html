@@ -27,9 +27,14 @@
         (click)="selectBand(band)"
         (dblclick)="toggleBand(band)"
         (keydown)="onBandKeydown($event, band)"
-        [title]="band.enabled ? 'Double-click to disable' : 'Double-click to enable'"
+        [title]="
+          band.enabled
+            ? 'Press Enter/Space or double-click to disable'
+            : 'Press Enter/Space or double-click to enable'
+        "
         [attr.aria-label]="bandAriaLabel(band)"
-        [attr.aria-pressed]="selectedBandId() === band.id"
+        [attr.aria-pressed]="band.enabled"
+        [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
       >
         <span
           class="w-2 h-2 rounded-full"
@@ -83,7 +88,8 @@
           </div>
 
           <div class="mt-2 text-[10px] text-slate-500">
-            Drag node to adjust • Shift+drag for Q • Double-click to reset
+            Drag node to adjust • Shift+drag for Q • Double-click node to reset • Enter/Space on a
+            band button toggles it
           </div>
         </div>
       }

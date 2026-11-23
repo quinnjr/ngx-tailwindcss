@@ -344,7 +344,7 @@ describe('TwTreeComponent', () => {
   });
 
   describe('keyboard navigation', () => {
-    const rows = () => treeEl.queryAll(By.css('.cursor-pointer'));
+    const rows = () => treeEl.queryAll(By.css('[role="treeitem"]'));
     const pressKey = (row: DebugElement, key: string) => {
       row.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       fixture.detectChanges();
@@ -413,7 +413,8 @@ describe('TwTreeComponent', () => {
   });
 
   describe('regressions', () => {
-    const rows = () => treeEl.queryAll(By.css('.cursor-pointer'));
+    const rows = () => treeEl.queryAll(By.css('[role="treeitem"]'));
+    const focusedLabel = () => (document.activeElement as HTMLElement).getAttribute('aria-label');
     const pressKey = (row: DebugElement, key: string) => {
       row.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       fixture.detectChanges();
@@ -433,7 +434,7 @@ describe('TwTreeComponent', () => {
     it('should move focus in DOM order when several nodes are expanded', () => {
       pressKey(rows()[0], 'ArrowRight'); // expand Documents
       pressKey(rows()[3], 'ArrowRight'); // expand Pictures
-      const labels = rows().map(r => r.nativeElement.textContent.trim());
+      const labels = rows().map(r => r.nativeElement.getAttribute('aria-label'));
       expect(labels.slice(0, 6)).toEqual([
         'Documents',
         'Work',
@@ -444,16 +445,53 @@ describe('TwTreeComponent', () => {
       ]);
 
       pressKey(rows()[0], 'ArrowDown');
-      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Work');
+      expect(focusedLabel()).toBe('Work');
 
       pressKey(rows()[3], 'ArrowDown');
-      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Vacation');
+      expect(focusedLabel()).toBe('Vacation');
     });
 
     it('should move focus to the parent with ArrowLeft on a child node', () => {
       pressKey(rows()[0], 'ArrowRight'); // expand Documents
       pressKey(rows()[1], 'ArrowLeft'); // on Work
-      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Documents');
+      expect(focusedLabel()).toBe('Documents');
+    });
+
+    it('should focus the treeitem element itself, carrying level and state', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[0], 'ArrowDown');
+
+      const active = document.activeElement as HTMLElement;
+      expect(active.getAttribute('role')).toBe('treeitem');
+      expect(active.getAttribute('aria-label')).toBe('Work');
+      expect(active.getAttribute('aria-level')).toBe('2');
+      expect(active.getAttribute('aria-selected')).toBe('false');
+      expect(rows()[0].nativeElement.getAttribute('aria-level')).toBe('1');
+      expect(rows()[0].nativeElement.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should not let a child keydown also act on its ancestor treeitems', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], 'ArrowLeft'); // Work -> focus parent; must not collapse Documents
+      expect(component.nodes()[0].expanded).toBe(true);
+    });
+
+    it('should expose tri-state aria-checked and toggle with Space in checkbox mode', () => {
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      expect(rows()[0].nativeElement.getAttribute('aria-selected')).toBeNull();
+      expect(rows()[0].nativeElement.getAttribute('aria-checked')).toBe('false');
+
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], ' '); // check Work
+      expect(rows()[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+      expect(rows()[0].nativeElement.getAttribute('aria-checked')).toBe('mixed');
+
+      // Checkboxes stay out of the tab order (roving tabindex lives on treeitems)
+      const checkbox = treeEl.query(By.css('input[type="checkbox"]')).nativeElement;
+      expect(checkbox.getAttribute('tabindex')).toBe('-1');
     });
   });
 });

@@ -173,7 +173,9 @@ describe('TwNativeContextMenuComponent', () => {
 });
 
 describe('NativeStorageService', () => {
-  afterEach(() => { localStorage.clear(); });
+  afterEach(() => {
+    localStorage.clear();
+  });
 
   it('returns null (not the storage wrapper) for a stored null value', () => {
     const service = TestBed.inject(NativeStorageService);

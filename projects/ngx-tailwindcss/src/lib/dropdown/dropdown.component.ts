@@ -20,6 +20,11 @@ import {
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export type DropdownPosition =
   'bottom-start' | 'bottom-end' | 'top-start' | 'top-end' | 'left' | 'right';
@@ -200,6 +205,8 @@ export class TwDropdownComponent implements OnDestroy {
     // so outside clicks don't have their focus stolen
     const shouldRestoreFocus = !!this.portalElement?.contains(this.document.activeElement);
 
+    // Leave the Escape stack right away (the portal itself is torn down by the effect)
+    removeEscapeLayer(this);
     this.isOpen.set(false);
     this.closed.emit();
 
@@ -217,6 +224,13 @@ export class TwDropdownComponent implements OnDestroy {
       '[twdropdownitem]:not([disabled]):not([aria-disabled="true"])'
     );
     return [...items];
+  }
+
+  /** Arrow/Home/End navigation applies only while focus is on the trigger or in the menu. */
+  private isFocusWithinDropdown(): boolean {
+    const active = this.document.activeElement;
+    if (!active || active === this.document.body) return true;
+    return !!this.portalElement?.contains(active) || this.elementRef.nativeElement.contains(active);
   }
 
   private moveItemFocus(key: string): void {
@@ -327,19 +341,23 @@ export class TwDropdownComponent implements OnDestroy {
       this.updatePosition();
     });
 
-    // Escape is handled in the capture phase and stopped there, so only this (topmost)
-    // layer closes and an enclosing modal/sidebar listening on document stays open
+    // Escape closes only the topmost layer (via the shared layer stack) and is left to
+    // handlers inside the menu that already claimed it; marking it handled keeps an
+    // enclosing modal/sidebar open without suppressing other listeners
+    pushEscapeLayer(this);
     this.escapeListener = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (shouldHandleEscape(this, event)) {
         event.preventDefault();
-        event.stopImmediatePropagation();
         this.close();
       }
     };
-    this.document.addEventListener('keydown', this.escapeListener, true);
+    this.document.addEventListener('keydown', this.escapeListener);
 
     this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      if (
+        ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) &&
+        this.isFocusWithinDropdown()
+      ) {
         event.preventDefault();
         this.moveItemFocus(event.key);
       }
@@ -398,9 +416,10 @@ export class TwDropdownComponent implements OnDestroy {
       this.keydownListener = null;
     }
     if (this.escapeListener) {
-      this.document.removeEventListener('keydown', this.escapeListener, true);
+      this.document.removeEventListener('keydown', this.escapeListener);
       this.escapeListener = null;
     }
+    removeEscapeLayer(this);
     if (this.menuClickListener) {
       this.menuClickListener();
       this.menuClickListener = null;

@@ -488,3 +488,56 @@ describe('TwInputComponent / TwTextareaComponent (regressions)', () => {
     expect(textareaEl.disabled).toBe(false);
   });
 });
+
+@Component({
+  template: `<tw-input describedBy="external" error="Oops"></tw-input>`,
+  standalone: true,
+  imports: [TwInputComponent],
+})
+class DescribedByHostComponent {}
+
+describe('TwInputComponent / TwTextareaComponent aria-describedby', () => {
+  it('should describe the input by its hint, then by its error', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.hint.set('Helpful hint');
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const hintId = input.getAttribute('aria-describedby');
+    expect(hintId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`#${hintId}`).textContent).toContain('Helpful hint');
+
+    fixture.componentInstance.error.set('Bad value');
+    fixture.detectChanges();
+    const errorId = input.getAttribute('aria-describedby');
+    expect(errorId).not.toBe(hintId);
+    expect(fixture.nativeElement.querySelector(`#${errorId}`).textContent).toContain('Bad value');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+
+    fixture.componentInstance.error.set('');
+    fixture.componentInstance.hint.set('');
+    fixture.detectChanges();
+    expect(input.hasAttribute('aria-describedby')).toBe(false);
+    expect(input.getAttribute('aria-invalid')).not.toBe('true');
+  });
+
+  it('should keep an explicit describedBy alongside the error id', () => {
+    const fixture = TestBed.createComponent(DescribedByHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const ids = input.getAttribute('aria-describedby')!.split(' ');
+    expect(ids[0]).toBe('external');
+    expect(ids.length).toBe(2);
+    expect(fixture.nativeElement.querySelector(`#${ids[1]}`).textContent).toContain('Oops');
+  });
+
+  it('should describe the textarea by its error', () => {
+    const fixture = TestBed.createComponent(TextareaHostComponent);
+    fixture.componentInstance.error.set('Too short');
+    fixture.detectChanges();
+    const textarea: HTMLTextAreaElement = fixture.nativeElement.querySelector('textarea');
+    const errorId = textarea.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`#${errorId}`).textContent).toContain('Too short');
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+  });
+});

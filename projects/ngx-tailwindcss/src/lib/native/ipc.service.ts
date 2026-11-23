@@ -2,6 +2,7 @@ import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { IpcResponse } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 type IpcCallback<T> = (data: T) => void;
 
@@ -65,7 +66,7 @@ export class NativeIpcService implements OnDestroy {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         const data = await electron.ipcRenderer.invoke(command, payload);
         return { success: true, data };
       } catch (error) {
@@ -92,7 +93,7 @@ export class NativeIpcService implements OnDestroy {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         electron.ipcRenderer.send(channel, payload);
       } catch (error) {
         console.warn('Electron send failed:', error);
@@ -127,17 +128,21 @@ export class NativeIpcService implements OnDestroy {
 
     if (!unlisten && this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         const handler = (_event: unknown, data: T) => {
           this.ngZone.run(() => {
             callback(data);
           });
         };
-        electron.ipcRenderer.on(channel, handler);
-        unlisten = () => electron.ipcRenderer.removeListener(channel, handler);
+        unlisten = subscribeElectronIpc(electron.ipcRenderer, channel, handler);
       } catch (error) {
         console.warn('Electron on failed:', error);
       }
+    }
+
+    if (!unlisten && typeof window === 'undefined') {
+      // SSR: nothing to listen to
+      unlisten = () => {};
     }
 
     if (!unlisten) {
@@ -184,7 +189,7 @@ export class NativeIpcService implements OnDestroy {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         electron.ipcRenderer.once(channel, (_event: unknown, data: T) => {
           this.ngZone.run(() => {
             callback(data);
@@ -197,6 +202,7 @@ export class NativeIpcService implements OnDestroy {
     }
 
     // Browser fallback
+    if (typeof window === 'undefined') return;
     const handler = (event: Event) => {
       this.ngZone.run(() => {
         callback((event as CustomEvent<T>).detail);

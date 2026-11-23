@@ -240,6 +240,27 @@
           [class.cursor-grabbing]="draggedNote()?.id === note.id"
           (mousedown)="onNoteMouseDown($event, note)"
         >
+          <!-- Ledger lines -->
+          @for (
+            lineY of draggedNote()?.id === note.id
+              ? ledgerLines(draggedNote()!.name, draggedNote()!.octave)
+              : ledgerLines(note.name, note.octave);
+            track $index
+          ) {
+            <line
+              [attr.x1]="
+                (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) - lineSpacing() * 0.8
+              "
+              [attr.y1]="lineY"
+              [attr.x2]="
+                (draggedNote()?.id === note.id ? draggedNote()!.x : note.x) + lineSpacing() * 0.8
+              "
+              [attr.y2]="lineY"
+              [attr.stroke]="getVoiceColor(note.voice)"
+              stroke-width="1"
+            />
+          }
+
           <!-- Note head -->
           <ellipse
             [attr.cx]="draggedNote()?.id === note.id ? draggedNote()!.x : note.x"

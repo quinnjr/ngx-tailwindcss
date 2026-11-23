@@ -7,8 +7,6 @@
     [class]="trackClasses()"
     [disabled]="isDisabled()"
     (click)="toggle()"
-    (keydown.space)="toggle(); $event.preventDefault()"
-    (keydown.enter)="toggle(); $event.preventDefault()"
   >
     <span [class]="thumbClasses()"></span>
   </button>

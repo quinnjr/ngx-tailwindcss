@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { dynamicImport } from './dynamic-import.util';
+import { isElectronIpcAvailable, loadElectronIpc } from './electron-bridge.util';
 
 export interface NativeFileFilter {
   name: string;
@@ -38,7 +39,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.openFileTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.openFileElectron(options);
     }
     return this.openFileWeb(options);
@@ -48,7 +49,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.saveFileTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.saveFileElectron(options);
     }
     return this.saveFileWeb(options);
@@ -58,7 +59,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.selectDirectoryTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.selectDirectoryElectron(options);
     }
     return this.selectDirectoryWeb();
@@ -102,7 +103,7 @@ export class FilePickerService {
     options: NativeOpenFileOptions
   ): Promise<FilePickerResult[] | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-open-dialog', {
         title: options.title,
@@ -194,7 +195,7 @@ export class FilePickerService {
 
   private async saveFileElectron(options: NativeSaveFileOptions): Promise<string | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-save-dialog', {
         title: options.title,
@@ -239,7 +240,7 @@ export class FilePickerService {
 
   private async selectDirectoryElectron(options: NativeOpenFileOptions): Promise<string | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-open-dialog', {
         title: options.title,

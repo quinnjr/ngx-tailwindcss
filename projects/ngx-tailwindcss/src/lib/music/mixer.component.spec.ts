@@ -54,3 +54,56 @@ describe('TwMixerComponent', () => {
     expect(mixer.getChannelState(channel)).toBe(mixer.getChannelState(channel));
   });
 });
+
+@Component({
+  template: `<tw-mixer
+    [channels]="channels"
+    [sections]="sections"
+    [showSectionHeaders]="false"
+    [maxVisibleChannels]="2"
+    [showMasterChannel]="false"
+  ></tw-mixer>`,
+  standalone: true,
+  imports: [TwMixerComponent],
+})
+class ScrollHostComponent {
+  channels: MixerChannel[] = ['a', 'b', 'c', 'd'].map(id => ({
+    id,
+    label: id.toUpperCase(),
+    volume: 50,
+    pan: 0,
+    mute: false,
+    solo: false,
+  }));
+  sections = [{ id: 's', name: 'S', channelIds: ['c', 'd'], collapsed: false }];
+}
+
+describe('TwMixerComponent layout', () => {
+  it('should keep the variant container classes on the root element', async () => {
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const root = (fixture.nativeElement as HTMLElement).querySelector('tw-mixer > div')!;
+    expect(root.classList).toContain('rounded-xl');
+    expect(root.classList).toContain('bg-slate-900');
+  });
+
+  it('should bound scrolling by the channels left after collapsing sections', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as {
+      toggleSection(id: string): void;
+      canScrollRight(): boolean;
+    };
+
+    expect(mixer.canScrollRight()).toBe(true);
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+
+    // Only a and b remain visible, which fit within maxVisibleChannels
+    expect(mixer.canScrollRight()).toBe(false);
+    expect(fixture.debugElement.queryAll(By.css('button[title="Scroll Right"]')).length).toBe(0);
+  });
+});

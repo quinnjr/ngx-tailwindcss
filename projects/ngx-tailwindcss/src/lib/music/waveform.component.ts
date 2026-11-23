@@ -321,8 +321,9 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   });
 
   protected readonly scrollbarPosition = computed(() => {
-    // Position of scrollbar thumb
-    return this.panPosition() * (100 - this.scrollbarWidth());
+    // Left edge of the thumb (%): panPosition is already the visible window's
+    // left edge as a fraction of the whole waveform
+    return this.panPosition() * 100;
   });
 
   protected readonly containerClasses = computed(() => {
@@ -354,12 +355,15 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     const token = ++this.peakProcessToken;
 
     if (inputPeaks.length > 0) {
+      // A superseded chunked scan must not leave the loading overlay up
+      this.loading.set(false);
       this.peakData = inputPeaks;
       this.draw();
       return;
     }
 
     if (!buffer) {
+      this.loading.set(false);
       this.peakData = [];
       this.draw();
       return;
@@ -560,7 +564,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     for (let i = 0; i < bufferLength; i++) {
       // Convert byte (0-255) to normalized (-1 to 1)
       const v = (this.timeDomainData[i] / 128 - 1) * gainValue;
-      const y = (v * h) / 2 + h / 2;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = h / 2 - (v * h) / 2;
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -1354,10 +1359,10 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     const scrollbarEl = event.currentTarget as HTMLElement;
     const rect = scrollbarEl.getBoundingClientRect();
     const thumbWidth = this.scrollbarWidth() / 100;
-    const availableWidth = 1 - thumbWidth;
 
+    // Centre the thumb (the visible window) on the clicked point
     const relativeX = (event.clientX - rect.left) / rect.width;
-    const newPan = (relativeX - thumbWidth / 2) / (1 - thumbWidth);
+    const newPan = relativeX - thumbWidth / 2;
 
     this.setPan(Math.max(0, Math.min(1 - 1 / this.zoomLevel(), newPan)));
   }

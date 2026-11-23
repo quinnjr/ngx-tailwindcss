@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NativeAppPlatformService } from './platform.service';
 import { OsPlatform } from './native.types';
+import { setElectronIpcBridge } from './electron-bridge.util';
 
 interface RuntimeGlobals {
   __TAURI_INTERNALS__?: unknown;
   __TAURI__?: unknown;
   process?: { type?: string };
+  electron?: unknown;
 }
 
 const runtimeWindow = window as Window & RuntimeGlobals;
@@ -29,6 +31,8 @@ describe('NativeAppPlatformService', () => {
     delete runtimeWindow.__TAURI_INTERNALS__;
     delete runtimeWindow.__TAURI__;
     delete runtimeWindow.process;
+    delete runtimeWindow.electron;
+    setElectronIpcBridge(null);
   });
 
   describe('detectPlatform()', () => {
@@ -90,7 +94,47 @@ describe('NativeAppPlatformService', () => {
       expect(service.isNative()).toBe(true);
       expect(service.isWeb()).toBe(false);
     });
+
+    it('detects Electron from the user agent (contextIsolation hides process)', () => {
+      setUserAgent('Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 my-app/1.0 Electron/33.0.0');
+      expect(new NativeAppPlatformService().isElectron()).toBe(true);
+    });
+
+    it('detects Electron from a preload-exposed window.electron.ipcRenderer bridge', () => {
+      runtimeWindow.electron = {
+        ipcRenderer: { send: () => {}, invoke: async () => {}, on: () => {}, once: () => {} },
+      };
+      expect(new NativeAppPlatformService().isElectron()).toBe(true);
+    });
   });
+
+  describe('Electron window commands', () => {
+    it('sends window commands through the preload-exposed bridge', async () => {
+      const send = vi.fn();
+      runtimeWindow.electron = {
+        ipcRenderer: { send, invoke: async () => {}, on: () => {}, once: () => {} },
+      };
+      const service = new NativeAppPlatformService();
+      const before = document.title;
+      await service.setTitle('Bridged');
+      expect(send).toHaveBeenCalledWith('window-set-title', 'Bridged');
+      expect(document.title).toBe(before);
+    });
+
+    it('falls back to web behaviour when no ipcRenderer is reachable', async () => {
+      setUserAgent('Mozilla/5.0 Electron/33.0.0');
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const service = new NativeAppPlatformService();
+        expect(service.isElectron()).toBe(true);
+        await expect(service.setTitle('Fallback title')).resolves.toBeUndefined();
+        expect(document.title).toBe('Fallback title');
+      } finally {
+        warn.mockRestore();
+      }
+    });
+  });
+
   describe('isDarkMode', () => {
     it('re-evaluates when the OS color scheme changes in system mode', () => {
       let changeListener: ((event: { matches: boolean }) => void) | undefined;

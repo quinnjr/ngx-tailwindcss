@@ -221,6 +221,12 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
         this.frequencyData[i] =
           Math.random() * 100 + Math.sin(Date.now() / 500 + i * 0.1) * 50 + 50;
       }
+      // Mock waveform centred on 128 (silence); an all-zero buffer would draw
+      // the 'wave' variant as a flat line pinned to the edge
+      const phase = Date.now() / 200;
+      for (let i = 0; i < this.timeDomainData.length; i++) {
+        this.timeDomainData[i] = Math.round(128 + Math.sin(phase + i * 0.2) * 48);
+      }
     }
 
     // Beat detection only runs on real analyser data — never on mock data
@@ -663,7 +669,8 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     for (let i = 0; i < this.timeDomainData.length; i++) {
       const x = (i / this.timeDomainData.length) * width;
       const value = (this.timeDomainData[i] / 128 - 1) * sensitivity;
-      const y = height / 2 + value * height * 0.4;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = height / 2 - value * height * 0.4;
 
       if (i === 0) {
         this.ctx.moveTo(x, y);

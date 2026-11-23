@@ -9,53 +9,66 @@
     </label>
   }
 
-  <!-- Trigger Button -->
-  <button
-    #triggerButton
-    type="button"
-    [id]="triggerId"
-    [class]="triggerClasses()"
-    [disabled]="_disabled()"
-    (click)="toggleDropdown()"
-    [attr.aria-expanded]="isOpen()"
-    [attr.aria-haspopup]="'listbox'"
-    [attr.aria-controls]="isOpen() ? listboxId : null"
-    [attr.aria-activedescendant]="activeOptionId()"
-  >
-    <span class="flex-1 text-left truncate">
-      {{ displayText() }}
-    </span>
+  <!-- Trigger Button + Clear Button (siblings: buttons must not be nested) -->
+  <div class="relative">
+    <button
+      #triggerButton
+      type="button"
+      [id]="triggerId"
+      [class]="triggerClasses()"
+      [disabled]="_disabled()"
+      (click)="toggleDropdown()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-haspopup]="'listbox'"
+      [attr.aria-controls]="isOpen() ? listboxId : null"
+      [attr.aria-activedescendant]="activeOptionId()"
+    >
+      <span class="flex-1 text-left truncate">
+        {{ displayText() }}
+      </span>
 
-    <div class="flex items-center gap-2">
-      @if (selectedValues().size > 0 && !_disabled()) {
-        <button
-          type="button"
-          class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-          (click)="clearAll(); $event.stopPropagation()"
-          aria-label="Clear all selections"
+      <div class="flex items-center gap-2">
+        @if (showClearButton()) {
+          <!-- Reserves the space the clear button is overlaid on -->
+          <span class="w-4 h-4" aria-hidden="true"></span>
+        }
+
+        <svg
+          class="w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform"
+          [class.rotate-180]="isOpen()"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      }
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </div>
+    </button>
 
-      <svg
-        class="w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform"
-        [class.rotate-180]="isOpen()"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+    @if (showClearButton()) {
+      <button
+        #clearButton
+        type="button"
+        [class]="clearButtonClasses()"
+        (click)="onClearClick()"
+        aria-label="Clear all selections"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
-    </div>
-  </button>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    }
+  </div>
 
   <!-- Dropdown -->
   @if (isOpen()) {

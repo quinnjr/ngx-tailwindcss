@@ -21,18 +21,29 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^flex-(row|col)(-reverse)?$/, 'flex-direction'],
   [/^flex-(wrap|nowrap|wrap-reverse)$/, 'flex-wrap'],
   [/^flex-/, 'flex'],
-  [/^(grow|shrink)-?/, 'flex-grow-shrink'],
+  [/^grow(-|$)/, 'flex-grow'],
+  [/^shrink(-|$)/, 'flex-shrink'],
   [/^basis-/, 'flex-basis'],
+  [/^justify-items-/, 'justify-items'],
+  [/^justify-self-/, 'justify-self'],
   [/^justify-/, 'justify'],
   [/^items-/, 'items'],
   [/^self-/, 'self'],
   [/^content-/, 'content'],
-  [/^place-/, 'place'],
+  [/^place-content-/, 'place-content'],
+  [/^place-items-/, 'place-items'],
+  [/^place-self-/, 'place-self'],
   [/^gap-x-/, 'gap-x'],
   [/^gap-y-/, 'gap-y'],
   [/^gap-/, 'gap'],
-  [/^(grid-cols|col-span|col-start|col-end)-/, 'grid-cols'],
-  [/^(grid-rows|row-span|row-start|row-end)-/, 'grid-rows'],
+  [/^grid-cols-/, 'grid-cols'],
+  [/^col-start-/, 'col-start'],
+  [/^col-end-/, 'col-end'],
+  [/^col-/, 'col'],
+  [/^grid-rows-/, 'grid-rows'],
+  [/^row-start-/, 'row-start'],
+  [/^row-end-/, 'row-end'],
+  [/^row-/, 'row'],
 
   // Spacing - each direction is a separate group
   [/^px-/, 'padding-x'],
@@ -63,7 +74,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
 
   // Typography
   [/^text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)/, 'font-size'],
+  [/^text-\[(?:length:|\d)/, 'font-size'],
   [/^text-(left|center|right|justify|start|end)$/, 'text-align'],
+  [/^text-(wrap|nowrap|balance|pretty)$/, 'text-wrap'],
+  [/^(truncate|text-ellipsis|text-clip)$/, 'text-overflow'],
   [/^text-/, 'text-color'],
   [/^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/, 'font-weight'],
   [/^font-/, 'font-family'],
@@ -71,10 +85,18 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^tracking-/, 'letter-spacing'],
   [/^(uppercase|lowercase|capitalize|normal-case)$/, 'text-transform'],
   [/^(underline|overline|line-through|no-underline)$/, 'text-decoration'],
-  [/^(truncate|text-ellipsis|text-clip)$/, 'text-overflow'],
-  [/^(whitespace|break)-/, 'whitespace'],
+  [/^whitespace-/, 'whitespace'],
+  [/^break-(normal|words|all|keep)$/, 'word-break'],
 
   // Backgrounds
+  [/^bg-(fixed|local|scroll)$/, 'bg-attachment'],
+  [/^bg-clip-/, 'bg-clip'],
+  [/^bg-origin-/, 'bg-origin'],
+  [/^bg-blend-/, 'bg-blend'],
+  [/^bg-(no-repeat|repeat(-x|-y|-round|-space)?)$/, 'bg-repeat'],
+  [/^bg-((auto|cover|contain)$|size-)/, 'bg-size'],
+  [/^bg-((bottom|center|left|right|top)(-|$)|position-)/, 'bg-position'],
+  [/^bg-(none$|gradient-|linear-|radial|conic|\[url\()/, 'bg-image'],
   [/^bg-/, 'background'],
   [/^from-/, 'gradient-from'],
   [/^via-/, 'gradient-via'],
@@ -85,7 +107,11 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
     /^border(?:$|-[blrtxy](?:$|-\d)|-\d|-(?:solid|dashed|dotted|double|hidden|none)$)/,
     'border-width',
   ],
+  [/^border-(collapse|separate)$/, 'border-collapse'],
+  [/^border-spacing-/, 'border-spacing'],
   [/^border-/, 'border-color'],
+  // Corner/side radii are separate groups; the bare `rounded-*` shorthand subsumes them
+  [/^rounded-(tl|tr|br|bl|ss|se|ee|es|t|r|b|l|s|e)(-|$)/, 'border-radius-$1'],
   [/^rounded(-|$)/, 'border-radius'],
   // Ring width, offset and color are distinct utilities that are used together
   // (e.g. `focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500`)
@@ -96,7 +122,9 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^ring-/, 'ring-color'],
 
   // Effects
-  [/^shadow(-|$)/, 'shadow'],
+  // Shadow size (optionally with a v4 `/opacity` modifier) vs shadow color
+  [/^shadow(-(2xs|xs|sm|md|lg|xl|2xl|inner|none)(\/\S+)?$|$|-\[\d)/, 'shadow'],
+  [/^shadow-/, 'shadow-color'],
   [/^opacity-/, 'opacity'],
   [/^blur(-|$)/, 'blur'],
 
@@ -126,7 +154,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^scroll-(auto|smooth)$/, 'scroll-behavior'],
   [/^scroll-p[trblxye]?-/, 'scroll-padding'],
   [/^scroll-m[trblxye]?-/, 'scroll-margin'],
-  [/^(outline|ring)-/, 'outline-ring'],
+  [/^outline(-\d+$|-\[\d[^\]]*(px|rem|em)\]$|$)/, 'outline-width'],
+  [/^outline-(none|hidden|solid|dashed|dotted|double)$/, 'outline-style'],
+  [/^outline-offset-/, 'outline-offset'],
+  [/^outline-/, 'outline-color'],
 ];
 
 /**
@@ -145,6 +176,22 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
   gap: ['gap-x', 'gap-y'],
   overflow: ['overflow-x', 'overflow-y'],
   scale: ['scale-x', 'scale-y'],
+  'border-radius': [
+    'border-radius-t',
+    'border-radius-r',
+    'border-radius-b',
+    'border-radius-l',
+    'border-radius-s',
+    'border-radius-e',
+    'border-radius-tl',
+    'border-radius-tr',
+    'border-radius-br',
+    'border-radius-bl',
+    'border-radius-ss',
+    'border-radius-se',
+    'border-radius-ee',
+    'border-radius-es',
+  ],
   translate: ['translate-x', 'translate-y'],
 };
 
@@ -252,15 +299,21 @@ export class TwClassService {
     let baseClass = parts.at(-1) ?? cls;
     const prefix = parts.slice(0, -1).join(':');
 
-    // Strip important (!) and negative (-) markers for group matching
+    // Strip important (leading `!` in v3, trailing `!` in v4) and negative (-)
+    // markers for group matching
     while (baseClass.startsWith('!') || baseClass.startsWith('-')) {
       baseClass = baseClass.slice(1);
+    }
+    while (baseClass.endsWith('!')) {
+      baseClass = baseClass.slice(0, -1);
     }
 
     let group = cls;
     for (const [pattern, groupName] of GROUP_PATTERNS) {
-      if (pattern.test(baseClass)) {
-        group = prefix ? `${prefix}:${groupName}` : groupName;
+      const match = pattern.exec(baseClass);
+      if (match) {
+        const resolved = groupName.replace('$1', match[1] ?? '');
+        group = prefix ? `${prefix}:${resolved}` : resolved;
         break;
       }
     }

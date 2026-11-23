@@ -1,7 +1,7 @@
 import { Component, signal, ViewChild, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { TwCommandPaletteComponent } from './command-palette.component';
 import { NativeAppPlatformService } from './platform.service';
 import { CommandItem } from './native.types';
@@ -28,19 +28,23 @@ class TestHostComponent {
 describe('TwCommandPaletteComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
-  let copyAction: ReturnType<typeof vi.fn>;
-  let pasteAction: ReturnType<typeof vi.fn>;
+  let copyAction: Mock<() => void>;
+  let pasteAction: Mock<() => void>;
   let mockPlatformService: {
     platform: WritableSignal<'macos' | 'windows' | 'linux' | 'web'>;
     formatShortcut: (shortcut: string) => string;
   };
 
   const getOptions = (): HTMLButtonElement[] => [
-    ...fixture.nativeElement.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      '[role="option"]'
+    ),
   ];
 
   const getSearchInput = (): HTMLInputElement => {
-    const input = fixture.nativeElement.querySelector<HTMLInputElement>('input[type="text"]');
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[type="text"]'
+    );
     expect(input).toBeTruthy();
     return input!;
   };
@@ -77,8 +81,8 @@ describe('TwCommandPaletteComponent', () => {
 
     fixture = TestBed.createComponent(TestHostComponent);
     component = fixture.componentInstance;
-    copyAction = vi.fn();
-    pasteAction = vi.fn();
+    copyAction = vi.fn<() => void>();
+    pasteAction = vi.fn<() => void>();
     component.commands.set([
       { id: 'copy', label: 'Copy', action: copyAction },
       { id: 'paste', label: 'Paste', action: pasteAction },

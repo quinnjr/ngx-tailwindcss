@@ -396,9 +396,11 @@ describe('TwSliderComponent (regressions)', () => {
     fixture.componentInstance.step = 0.25;
     fixture.componentInstance.control.setValue(0);
     fixture.detectChanges();
-    const ticks = [...fixture.nativeElement.querySelectorAll(
+    const ticks = [
+      ...(fixture.nativeElement.querySelectorAll(
         '.flex.justify-between.px-1 span'
-      ) as NodeListOf<HTMLElement>].map(t => t.textContent?.trim());
+      ) as NodeListOf<HTMLElement>),
+    ].map(t => t.textContent?.trim());
     expect(ticks).toEqual(['0', '0.25', '0.5', '0.75', '1']);
   });
 });

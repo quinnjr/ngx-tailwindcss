@@ -207,20 +207,25 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       this.drawGrHistoryGraph();
     }
 
-    // Update peak hold
+    // Update peak hold: a new (or equal) peak restarts the hold; once the hold
+    // has expired the marker follows the level down. (Previously the marker
+    // started at 0 dB and only moved for levels above it, so it never tracked
+    // normal sub-0 dB signals, and stuck after a hold expired.)
     if (this.peakHold()) {
-      if (inputLevel > this.inputPeakLevel()) {
+      if (inputLevel >= this.inputPeakLevel() || this.inputPeakTimeout === null) {
         this.inputPeakLevel.set(inputLevel);
         if (this.inputPeakTimeout) clearTimeout(this.inputPeakTimeout);
         this.inputPeakTimeout = setTimeout(() => {
+          this.inputPeakTimeout = null;
           this.inputPeakLevel.set(this.internalInputLevel());
         }, this.peakHoldTime());
       }
 
-      if (outputLevel > this.outputPeakLevel()) {
+      if (outputLevel >= this.outputPeakLevel() || this.outputPeakTimeout === null) {
         this.outputPeakLevel.set(outputLevel);
         if (this.outputPeakTimeout) clearTimeout(this.outputPeakTimeout);
         this.outputPeakTimeout = setTimeout(() => {
+          this.outputPeakTimeout = null;
           this.outputPeakLevel.set(this.internalOutputLevel());
         }, this.peakHoldTime());
       }

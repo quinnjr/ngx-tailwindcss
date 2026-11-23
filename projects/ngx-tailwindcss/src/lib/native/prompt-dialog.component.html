@@ -31,8 +31,12 @@
           #inputElement
           [type]="inputType()"
           [ngModel]="inputValue()"
-          (ngModelChange)="inputValue.set($event)"
+          (ngModelChange)="onInput($event)"
+          (blur)="onBlur()"
           [placeholder]="placeholder()"
+          [attr.aria-label]="title()"
+          [attr.aria-invalid]="validationError() ? true : null"
+          [attr.aria-describedby]="validationError() ? errorId : null"
           (keydown.enter)="confirm()"
           (keydown.escape)="cancel()"
           class="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
@@ -40,7 +44,9 @@
           [class.focus:ring-red-500]="validationError()"
         />
         @if (validationError()) {
-          <p class="mt-2 text-sm text-red-500">{{ validationError() }}</p>
+          <p [id]="errorId" class="mt-2 text-sm text-red-500" role="alert">
+            {{ validationError() }}
+          </p>
         }
       </div>
 

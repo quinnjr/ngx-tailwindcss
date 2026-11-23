@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { StorageOptions } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc } from './electron-bridge.util';
 
 // Type definitions for dynamic imports
 interface TauriStore {
@@ -144,7 +145,7 @@ export class NativeStorageService {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         // Await so an IPC rejection is caught below rather than escaping to the caller
         return (await electron.ipcRenderer.invoke('secure-storage-get', key)) as T | null;
       } catch (error) {
@@ -180,7 +181,7 @@ export class NativeStorageService {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-set', key, value);
       } catch (error) {
         console.error('Electron secure storage error:', error);
@@ -212,7 +213,7 @@ export class NativeStorageService {
 
     if (this.platformService.isElectron()) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-remove', key);
       } catch (error) {
         console.error('Electron secure storage error:', error);

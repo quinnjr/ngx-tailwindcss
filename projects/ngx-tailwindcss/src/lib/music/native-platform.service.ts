@@ -944,7 +944,11 @@ export class NativePlatformService {
     document.body.append(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously after click() can cancel the download in some
+    // browsers (the download starts asynchronously); defer it as FileSaver does
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 40_000);
   }
 
   /**

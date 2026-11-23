@@ -12,6 +12,7 @@ import {
   OnDestroy,
   output,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, NgStyle } from '@angular/common';
@@ -60,7 +61,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     // Watch for peakLevel changes
     effect(() => {
       const level = this.peakLevel();
-      this.updatePeakHold(level);
+      untracked(() => {
+        this.updatePeakHold(level);
+      });
     });
   }
 
@@ -137,7 +140,6 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   private onChange: (value: number) => void = () => {};
   private onTouched: () => void = () => {};
   private peakHoldTimeout: ReturnType<typeof setTimeout> | null = null;
-  private lastPeakLevel = 0;
   private dragController: AbortController | null = null;
   private lastHapticTime = 0;
 
@@ -390,9 +392,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   updatePeakHold(level: number): void {
     if (!this.peakHold()) return;
 
-    if (level > this.lastPeakLevel || level > this.peakHoldLevel()) {
+    // Only a new maximum restarts the hold; rising below the held peak must not lower it
+    if (level > this.peakHoldLevel()) {
       this.peakHoldLevel.set(level);
-      this.lastPeakLevel = level;
 
       // Clear existing timeout
       if (this.peakHoldTimeout) {
@@ -402,11 +404,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
       // Set decay timeout
       this.peakHoldTimeout = setTimeout(() => {
         this.peakHoldLevel.set(this.peakLevel());
-        this.lastPeakLevel = this.peakLevel();
       }, this.peakHoldTime());
     }
-
-    this.lastPeakLevel = level;
   }
 
   // Call this from ngOnChanges or effect to track peakLevel changes
@@ -476,6 +475,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
     if (handled) {
       event.preventDefault();
+      this.onTouched();
     }
   }
 
@@ -554,6 +554,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
       Math.max(this.min(), Math.min(this.max(), value))
     );
     const previousValue = this.internalValue();
+    // Nothing changed (e.g. key presses at a boundary, drag moves within one step)
+    if (clampedValue === previousValue) return;
     this.internalValue.set(clampedValue);
     this.onChange(clampedValue);
     this.valueChange.emit(clampedValue);

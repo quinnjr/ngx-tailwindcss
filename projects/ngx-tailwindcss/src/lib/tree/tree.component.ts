@@ -125,7 +125,7 @@ export class TwTreeComponent {
         indeterminate: total > 0 && selectedCount > 0 && selectedCount < total,
         nodeClass: this.twClass.merge(
           'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
-          'hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+          'hover:bg-slate-100',
           selected ? 'bg-blue-50' : '',
           node.disabled ? 'opacity-50 cursor-not-allowed' : '',
           node.styleClass || ''
@@ -201,9 +201,25 @@ export class TwTreeComponent {
   }
 
   onCheckboxChange(node: TreeNode, event: Event): void {
+    this.setChecked(node, (event.target as HTMLInputElement).checked);
+  }
+
+  /** aria-selected for single/multiple selection; omitted otherwise. */
+  protected ariaSelected(node: TreeNode): boolean | null {
+    const mode = this.selectionMode();
+    return mode === 'single' || mode === 'multiple' ? this.isSelected(node) : null;
+  }
+
+  /** aria-checked (tri-state) for checkbox selection; omitted otherwise. */
+  protected ariaChecked(node: TreeNode): 'true' | 'false' | 'mixed' | null {
+    if (this.selectionMode() !== 'checkbox') return null;
+    if (this.isIndeterminate(node)) return 'mixed';
+    return this.isSelected(node) ? 'true' : 'false';
+  }
+
+  private setChecked(node: TreeNode, checked: boolean): void {
     if (node.disabled) return;
 
-    const { checked } = event.target as HTMLInputElement;
     const next = new Set(this.selection());
 
     if (checked) {
@@ -243,6 +259,9 @@ export class TwTreeComponent {
   }
 
   protected onNodeKeydown(event: KeyboardEvent, node: TreeNode): void {
+    // Keydown bubbles through ancestor treeitems; only the focused item handles it
+    if (event.target !== event.currentTarget) return;
+
     switch (event.key) {
       case 'ArrowDown': {
         event.preventDefault();
@@ -281,8 +300,17 @@ export class TwTreeComponent {
         }
         break;
       }
-      case 'Enter':
       case ' ': {
+        event.preventDefault();
+        if (this.selectionMode() === 'checkbox') {
+          // Space toggles the item's checkbox (the checkbox itself is not focusable)
+          this.setChecked(node, !this.isSelected(node));
+        } else {
+          this.onNodeClick(node);
+        }
+        break;
+      }
+      case 'Enter': {
         event.preventDefault();
         this.onNodeClick(node);
         break;
@@ -294,10 +322,10 @@ export class TwTreeComponent {
     const target = visible[index];
     if (!target) return;
     this.focusedNode.set(target);
-    // Query rows in DOM order: a @ViewChildren QueryList over the recursive
+    // Query treeitems in DOM order: a @ViewChildren QueryList over the recursive
     // template outlet is ordered by view insertion, not by visual position
-    const rows = this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[data-tw-tree-row]');
-    rows[index]?.focus();
+    const items = this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[role="treeitem"]');
+    items[index]?.focus();
   }
 
   /** Nodes currently rendered, in DOM order (visible and all ancestors expanded). */

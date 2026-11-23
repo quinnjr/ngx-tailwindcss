@@ -76,7 +76,8 @@
                   <!-- Notes in this line -->
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     @for (note of measure.notes; track $index; let noteIndex = $index) {
-                      <tw-note
+                      <svg:g
+                        twNote
                         [name]="note.name"
                         [octave]="note.octave"
                         [duration]="note.duration"
@@ -95,6 +96,7 @@
                         [staffTop]="noteStaffTop()"
                         [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
+                        [size]="lineSpacing()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -109,7 +111,7 @@
                             note
                           )
                         "
-                      ></tw-note>
+                      ></svg:g>
                     }
                   }
                 </tw-staff>
@@ -164,12 +166,14 @@
                 >
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     @for (note of measure.notes; track $index; let noteIndex = $index) {
-                      <tw-note
+                      <svg:g
+                        twNote
                         [name]="note.name"
                         [octave]="note.octave"
                         [duration]="note.duration"
                         [accidental]="note.accidental || null"
                         [dotted]="note.dotted || false"
+                        [doubleDotted]="note.doubleDotted || false"
                         [x]="
                           getNoteX(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
@@ -181,13 +185,14 @@
                         [staffTop]="noteStaffTop()"
                         [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
+                        [size]="lineSpacing()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
                             noteIndex
                           )
                         "
-                      ></tw-note>
+                      ></svg:g>
                     }
                   }
                 </tw-staff>
@@ -235,18 +240,21 @@
             >
               @for (measure of line; track $index; let measureInLineIndex = $index) {
                 @for (note of measure.notes; track $index; let noteIndex = $index) {
-                  <tw-note
+                  <svg:g
+                    twNote
                     [name]="note.name"
                     [octave]="note.octave"
                     [duration]="note.duration"
                     [accidental]="note.accidental || null"
                     [dotted]="note.dotted || false"
+                    [doubleDotted]="note.doubleDotted || false"
                     [x]="getNoteX(measureInLineIndex, noteIndex, measure.notes.length, 0)"
                     [staffTop]="noteStaffTop()"
                     [clef]="musicData().clef"
                     [lineSpacing]="lineSpacing()"
+                    [size]="lineSpacing()"
                     [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
-                  ></tw-note>
+                  ></svg:g>
                 }
               }
             </tw-staff>

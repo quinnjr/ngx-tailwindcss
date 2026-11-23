@@ -87,7 +87,9 @@
     <div class="relative">
       @if (isEditing()) {
         <input
+          #editInput
           type="number"
+          aria-label="Tempo in BPM"
           [ngModel]="editValue()"
           (ngModelChange)="editValue.set($event)"
           (blur)="finishEditing()"
@@ -102,6 +104,13 @@
           [class]="bpmValueClasses()"
           [class.cursor-pointer]="editable() && !disabled()"
           (click)="editable() ? startEditing() : null"
+          (keydown.enter)="editable() ? startEditing() : null"
+          (keydown.space)="$event.preventDefault(); editable() ? startEditing() : null"
+          [attr.role]="editable() ? 'button' : null"
+          [attr.tabindex]="editable() && !disabled() ? 0 : null"
+          [attr.aria-label]="
+            editable() ? 'Tempo ' + internalBpm() + ' BPM, activate to edit' : null
+          "
           title="Click to edit"
         >
           {{ bpmDisplay() }}

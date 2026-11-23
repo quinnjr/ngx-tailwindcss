@@ -158,6 +158,28 @@ describe('TwTableComponent', () => {
       expect(cells[2]).toContain('Carol');
     });
 
+    it('should sort rows with missing values consistently (empty values last)', () => {
+      component.data.set([
+        { id: 1, name: 'Dave', age: 1 },
+        { id: 2, name: undefined as unknown as string, age: 2 },
+        { id: 3, name: 'Bob', age: 3 },
+        { id: 4, name: null as unknown as string, age: 4 },
+        { id: 5, name: 'Alice', age: 5 },
+        { id: 6, name: 'Carol', age: 6 },
+      ]);
+      fixture.detectChanges();
+      const order = () =>
+        bodyRows().map(row => Number(row.queryAll(By.css('td'))[1].nativeElement.textContent));
+
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      expect(order().slice(0, 4)).toEqual([5, 3, 6, 1]);
+
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      expect(order().slice(0, 4)).toEqual([1, 6, 3, 5]);
+    });
+
     it('should not render a sort button for non-sortable columns', () => {
       component.columns.set([{ field: 'name', header: 'Name', sortable: false }]);
       fixture.detectChanges();

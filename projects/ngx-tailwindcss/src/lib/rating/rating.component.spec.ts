@@ -433,7 +433,9 @@ describe('TwRatingComponent (regressions)', () => {
   it('should use document-unique half-star gradient ids', () => {
     const fixture = TestBed.createComponent(RatingRegressionHostComponent);
     fixture.detectChanges();
-    const ids = [...fixture.nativeElement.querySelectorAll('linearGradient') as NodeListOf<Element>].map(g => g.id);
+    const ids = [
+      ...(fixture.nativeElement.querySelectorAll('linearGradient') as NodeListOf<Element>),
+    ].map(g => g.id);
     expect(ids.length).toBe(2);
     expect(new Set(ids).size).toBe(2);
   });
@@ -450,7 +452,9 @@ describe('TwRatingComponent (regressions)', () => {
     const fixture = TestBed.createComponent(RatingRegressionHostComponent);
     fixture.componentInstance.a.setValue(2);
     fixture.detectChanges();
-    const stars: HTMLButtonElement[] = [...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]')];
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]'),
+    ];
     stars[1].focus();
     stars[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     fixture.detectChanges();

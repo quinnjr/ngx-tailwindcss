@@ -58,7 +58,7 @@
           />
         }
 
-        @for (beat of beats(); track beat) {
+        @for (beat of getBeatPositions(measure); track beat) {
           @for (note of getNoteAtBeat(measure, beat); track $index) {
             @if (autoCalculateNotes() || note.noteName) {
               <!-- Calculate note data -->
@@ -258,7 +258,7 @@
         }
 
         <!-- Notes in this measure -->
-        @for (beat of beats(); track beat) {
+        @for (beat of getBeatPositions(measure); track beat) {
           @for (note of getNoteAtBeat(measure, beat); track $index) {
             <g
               [class.cursor-pointer]="interactive()"

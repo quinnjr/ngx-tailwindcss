@@ -50,4 +50,83 @@ describe('TwPianoComponent', () => {
 
     expect(offs.map(e => e.midi)).toEqual([62]);
   });
+
+  it('positions each black key so it straddles the boundary between its white keys', () => {
+    const keys = piano as unknown as {
+      blackKeys: () => Array<{ note: string; octave: number; position: number }>;
+      whiteKeyWidth: () => number;
+      blackKeyWidth: () => number;
+    };
+    const w = keys.whiteKeyWidth();
+    const bw = keys.blackKeyWidth();
+    // Index of the white key boundary each black key sits on (C#: C|D = 1, D#: D|E = 2, ...)
+    const boundaries: Record<string, number> = { 'C#': 1, 'D#': 2, 'F#': 4, 'G#': 5, 'A#': 6 };
+    for (const key of keys.blackKeys()) {
+      const octaveOffset = (key.octave - 4) * 7 * w;
+      const boundary = octaveOffset + boundaries[key.note] * w;
+      expect(key.position).toBeLessThan(boundary);
+      expect(key.position + bw).toBeGreaterThan(boundary);
+    }
+  });
+
+  it('stops listening to MIDI when enableMidi is turned off', async () => {
+    const listeners = new Set<unknown>();
+    const midiInput = {
+      id: 'in',
+      name: 'Keys',
+      manufacturer: 'X',
+      state: 'connected',
+      onmidimessage: null as unknown,
+    };
+    const access = {
+      inputs: new Map([['in', midiInput]]),
+      addEventListener: (_: string, fn: unknown) => listeners.add(fn),
+      removeEventListener: (_: string, fn: unknown) => listeners.delete(fn),
+    };
+    const nav = navigator as unknown as { requestMIDIAccess?: () => Promise<unknown> };
+    const original = nav.requestMIDIAccess;
+    nav.requestMIDIAccess = () => Promise.resolve(access);
+    try {
+      fixture.componentRef.setInput('enableMidi', true);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await Promise.resolve();
+      expect(listeners.size).toBe(1);
+      expect(midiInput.onmidimessage).not.toBeNull();
+
+      fixture.componentRef.setInput('enableMidi', false);
+      fixture.detectChanges();
+      expect(listeners.size).toBe(0);
+      expect(midiInput.onmidimessage).toBeNull();
+    } finally {
+      nav.requestMIDIAccess = original;
+    }
+  });
+
+  it('does not attach MIDI listeners when destroyed before access resolves', async () => {
+    const listeners = new Set<unknown>();
+    let resolve!: (v: unknown) => void;
+    const access = {
+      inputs: new Map(),
+      addEventListener: (_: string, fn: unknown) => listeners.add(fn),
+      removeEventListener: (_: string, fn: unknown) => listeners.delete(fn),
+    };
+    const nav = navigator as unknown as { requestMIDIAccess?: () => Promise<unknown> };
+    const original = nav.requestMIDIAccess;
+    nav.requestMIDIAccess = () =>
+      new Promise(r => {
+        resolve = r;
+      });
+    try {
+      fixture.componentRef.setInput('enableMidi', true);
+      fixture.detectChanges();
+      fixture.destroy();
+      resolve(access);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(listeners.size).toBe(0);
+    } finally {
+      nav.requestMIDIAccess = original;
+    }
+  });
 });

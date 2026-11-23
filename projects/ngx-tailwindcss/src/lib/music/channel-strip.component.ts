@@ -241,14 +241,15 @@ export class TwChannelStripComponent implements ControlValueAccessor {
       solo: this.solo(),
       record: this.record(),
       inputGain: this.inputGain(),
-      auxSends: auxSendValues.slice(0, this.auxSendCount()).map((value, i) => ({
+      auxSends: Array.from({ length: this.auxSendCount() }, (_, i) => ({
         id: `aux-${i}`,
         label: auxSendLabels[i] || `Aux ${i + 1}`,
-        value,
+        value: auxSendValues[i] ?? 0,
       })),
     };
     this.stateChange.emit(state);
     this.onChange(state);
+    this.onTouched();
   }
 
   // ControlValueAccessor

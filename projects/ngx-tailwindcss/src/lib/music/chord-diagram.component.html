@@ -1,4 +1,10 @@
-<div [class]="containerClasses()" [style.width.px]="dimensions().width" [style.padding]="'8px'">
+<!-- Width includes the 8px padding on each side (border-box) so the SVG is not clipped -->
+<div
+  [class]="containerClasses()"
+  [style.width.px]="dimensions().width + 16"
+  [style.padding]="'8px'"
+  [style.box-sizing]="'border-box'"
+>
   <svg
     [attr.width]="dimensions().width"
     [attr.height]="dimensions().height"

@@ -98,4 +98,39 @@ describe('TwFaderComponent', () => {
       expect(hostEl.getAttribute('aria-valuetext')).toContain('dB');
     });
   });
+
+  describe('peak hold', () => {
+    const held = (): number =>
+      (component as unknown as { peakHoldLevel(): number }).peakHoldLevel();
+
+    it('should keep holding the peak while the level rises below it', () => {
+      fixture.componentRef.setInput('peakLevel', 80);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('peakLevel', 30);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('peakLevel', 40);
+      fixture.detectChanges();
+
+      expect(held()).toBe(80);
+    });
+  });
+
+  describe('keyboard', () => {
+    it('should not re-emit an unchanged value at the boundary', () => {
+      const received: number[] = [];
+      component.registerOnChange(value => received.push(value));
+      hostEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+      hostEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+
+      expect(received).toEqual([12]);
+    });
+
+    it('should mark the control touched on keyboard interaction', () => {
+      let touched = false;
+      component.registerOnTouched(() => (touched = true));
+      hostEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+
+      expect(touched).toBe(true);
+    });
+  });
 });

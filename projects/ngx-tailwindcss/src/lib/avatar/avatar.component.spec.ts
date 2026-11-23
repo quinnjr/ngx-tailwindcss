@@ -100,6 +100,16 @@ describe('TwAvatarComponent', () => {
       expect(avatarEl.textContent).toContain('JD');
     });
 
+    it('should expose alt as the accessible name of the initials fallback', () => {
+      component.src.set('');
+      component.initials.set('JD');
+      fixture.detectChanges();
+
+      const initials = avatarEl.querySelector('[role="img"]');
+      expect(initials?.getAttribute('aria-label')).toBe('User Avatar');
+      expect(initials?.textContent).toContain('JD');
+    });
+
     it('should show initials when image fails to load', () => {
       component.initials.set('JD');
       fixture.detectChanges();
@@ -204,6 +214,14 @@ describe('TwAvatarComponent', () => {
       fixture.detectChanges();
       const status = avatarEl.querySelector('.bg-emerald-500');
       expect(status).toBeTruthy();
+    });
+
+    it('should expose the status to assistive technology', () => {
+      component.status.set('busy');
+      fixture.detectChanges();
+      const status = avatarEl.querySelector('.bg-rose-500');
+      expect(status?.getAttribute('role')).toBe('img');
+      expect(status?.getAttribute('aria-label')).toBe('busy');
     });
 
     it('should show offline status', () => {
@@ -315,6 +333,14 @@ describe('TwAvatarGroupComponent', () => {
 
       // Should show +3
       expect(groupEl.textContent).toContain('+3');
+    });
+
+    it('should count hidden projected avatars when total is not set', () => {
+      component.max.set(2);
+      fixture.detectChanges();
+      fixture.detectChanges();
+
+      expect(groupEl.textContent).toContain('+1');
     });
 
     it('should not show overflow when total is less than max', () => {

@@ -219,6 +219,16 @@ describe('TwStepsComponent', () => {
       const list = stepsEl.query(By.css('.flex'));
       expect(list.nativeElement.className).toContain('flex-col');
     });
+
+    it('should name vertical step buttons by their label and keep only <li> children in the list', () => {
+      component.orientation.set('vertical');
+      fixture.detectChanges();
+      const buttons = stepsEl.queryAll(By.css('li > button'));
+      expect(buttons[0].nativeElement.textContent).toContain('Personal Info');
+      expect(buttons[1].nativeElement.textContent).toContain('Account Setup');
+      const list = stepsEl.query(By.css('ol')).nativeElement as HTMLOListElement;
+      expect([...list.children].every(child => child.tagName === 'LI')).toBe(true);
+    });
   });
 
   describe('sizes', () => {

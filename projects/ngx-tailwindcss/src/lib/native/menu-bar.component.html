@@ -3,8 +3,8 @@
   role="menubar"
   [attr.aria-label]="'Application menu'"
 >
-  @for (menu of items(); track menu.id) {
-    <div class="relative">
+  @for (menu of items(); track menu.id; let menuIndex = $index) {
+    <div class="relative" role="none">
       <!-- Menu trigger -->
       <button
         type="button"
@@ -14,9 +14,12 @@
         [class.hover:bg-gray-100]="openMenuId() !== menu.id"
         [class.dark:hover:bg-gray-700/50]="openMenuId() !== menu.id"
         role="menuitem"
-        [attr.aria-haspopup]="true"
+        data-menubar-trigger
+        [attr.tabindex]="focusedMenuIndex() === menuIndex ? 0 : -1"
+        aria-haspopup="menu"
         [attr.aria-expanded]="openMenuId() === menu.id"
         (click)="toggleMenu(menu.id)"
+        (keydown)="onTriggerKeydown($event, menuIndex)"
         (mouseenter)="onMenuHover(menu.id)"
       >
         <span class="text-gray-700 dark:text-gray-300">{{ menu.label }}</span>
@@ -27,11 +30,12 @@
         <div
           class="absolute top-full left-0 mt-0.5 min-w-48 py-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
           role="menu"
-          [attr.aria-label]="menu.label + ' menu'"
+          [attr.aria-label]="menu.label"
+          (keydown)="onMenuKeydown($event, menuIndex)"
         >
           @for (item of menu.items; track item.id) {
             @if (item.type === 'separator') {
-              <div class="h-px my-1 bg-gray-200 dark:bg-gray-700"></div>
+              <div class="h-px my-1 bg-gray-200 dark:bg-gray-700" role="separator"></div>
             } @else {
               <button
                 type="button"
@@ -44,7 +48,17 @@
                 [class.dark:text-gray-300]="hoveredItemId() !== item.id"
                 [class.opacity-50]="item.disabled"
                 [class.cursor-not-allowed]="item.disabled"
-                role="menuitem"
+                [attr.role]="
+                  item.type === 'checkbox'
+                    ? 'menuitemcheckbox'
+                    : item.type === 'radio'
+                      ? 'menuitemradio'
+                      : 'menuitem'
+                "
+                [attr.aria-checked]="
+                  item.type === 'checkbox' || item.type === 'radio' ? !!item.checked : null
+                "
+                tabindex="-1"
                 [attr.aria-disabled]="item.disabled"
                 [disabled]="item.disabled"
                 (click)="selectItem(item)"

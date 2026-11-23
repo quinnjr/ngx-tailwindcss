@@ -13,6 +13,9 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
+/** Max delay between a touchstart and the click the browser synthesizes from it */
+const TOUCH_CLICK_WINDOW_MS = 1000;
+
 /**
  * Emits an event when a click occurs outside the host element
  * Useful for closing dropdowns, modals, and other overlays
@@ -56,6 +59,8 @@ export class TwClickOutsideDirective implements OnInit, OnDestroy {
   private isListening = false;
   private delayTimeout: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
+  /** Timestamp of the last touchstart, used to drop the click that a tap synthesizes */
+  private lastTouchTime = -Infinity;
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -82,6 +87,13 @@ export class TwClickOutsideDirective implements OnInit, OnDestroy {
 
     this.clickHandler = (event: MouseEvent) => {
       if (!this.clickOutsideEnabled) return;
+
+      // A tap fires touchstart and then a compatibility click; only emit once
+      if (event.type === 'touchstart') {
+        this.lastTouchTime = event.timeStamp;
+      } else if (event.timeStamp - this.lastTouchTime < TOUCH_CLICK_WINDOW_MS) {
+        return;
+      }
 
       const target = event.target as HTMLElement;
 

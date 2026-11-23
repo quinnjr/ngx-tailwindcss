@@ -1,23 +1,23 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
   output,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwTransportComponent } from './transport.component';
 import { TwScrubberComponent } from './scrubber.component';
 import { TwTimeDisplayComponent } from './time-display.component';
-import { TwVolumeDialComponent } from './volume-dial.component';
 import { TwWaveformComponent } from './waveform.component';
-import { TwButtonComponent } from '../button/button.component';
 
 export type AudioPlayerVariant = 'default' | 'minimal' | 'compact' | 'full';
 export type AudioPlayerTheme = 'dark' | 'light' | 'transparent';
@@ -39,9 +39,7 @@ export interface AudioTrack {
     TwTransportComponent,
     TwScrubberComponent,
     TwTimeDisplayComponent,
-    TwVolumeDialComponent,
     TwWaveformComponent,
-    TwButtonComponent,
   ],
   templateUrl: './audio-player.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,7 +47,7 @@ export interface AudioTrack {
     class: 'block',
   },
 })
-export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
+export class TwAudioPlayerComponent implements OnDestroy {
   @ViewChild('audioElement') private readonly audioRef!: ElementRef<HTMLAudioElement>;
 
   readonly track = input<AudioTrack | null>(null);
@@ -77,14 +75,30 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
   protected readonly currentTime = signal(0);
   protected readonly duration = signal(0);
   protected readonly buffered = signal(0);
-  protected readonly internalVolume = signal(0.8);
-  protected readonly isMuted = signal(false);
-  protected readonly isLooping = signal(false);
+  // Track the inputs, but can be changed locally (volume slider, mute/loop buttons)
+  protected readonly internalVolume = linkedSignal(() => this.volume());
+  protected readonly isMuted = linkedSignal(() => this.muted());
+  protected readonly isLooping = linkedSignal(() => this.loop());
   protected readonly isExpanded = signal(false);
   protected readonly isLoading = signal(false);
   protected readonly audioBuffer = signal<AudioBuffer | null>(null);
 
   private audioContext: AudioContext | null = null;
+  private destroyed = false;
+
+  constructor() {
+    // (Re)load the waveform whenever the source changes or the waveform is enabled
+    effect(() => {
+      const src = this.audioSrc();
+      const show = this.showWaveform();
+      untracked(() => {
+        this.audioBuffer.set(null);
+        if (show && src) {
+          void this.loadAudioBuffer(src);
+        }
+      });
+    });
+  }
 
   protected readonly progress = computed(() => {
     const dur = this.duration();
@@ -144,36 +158,30 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
     };
   });
 
-  ngAfterViewInit(): void {
-    this.internalVolume.set(this.volume());
-    this.isMuted.set(this.muted());
-    this.isLooping.set(this.loop());
-
-    if (this.showWaveform() && this.audioSrc()) {
-      void this.loadAudioBuffer();
-    }
-  }
-
   ngOnDestroy(): void {
+    this.destroyed = true;
     if (this.audioContext) {
       void this.audioContext.close();
     }
   }
 
-  private async loadAudioBuffer(): Promise<void> {
-    const src = this.audioSrc();
+  private async loadAudioBuffer(src: string): Promise<void> {
     // No Web Audio during SSR / in unsupported environments
-    if (!src || typeof AudioContext === 'undefined') return;
+    if (!src || this.destroyed || typeof AudioContext === 'undefined') return;
 
     try {
       this.isLoading.set(true);
-      this.audioContext = new AudioContext();
+      // Reuse one context across source changes
+      this.audioContext ??= new AudioContext();
       const response = await fetch(src);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      this.audioBuffer.set(audioBuffer);
+      // Ignore a stale load superseded by a newer source (or by destroy)
+      if (!this.destroyed && src === this.audioSrc()) {
+        this.audioBuffer.set(audioBuffer);
+      }
     } catch (error) {
-      console.error('Error loading audio buffer:', error);
+      if (!this.destroyed) console.error('Error loading audio buffer:', error);
     } finally {
       this.isLoading.set(false);
     }
@@ -182,7 +190,10 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
   protected onPlay(): void {
     const audio = this.audioRef?.nativeElement;
     if (audio) {
-      void audio.play();
+      // play() rejects when blocked by autoplay policy or interrupted by pause()
+      Promise.resolve(audio.play()).catch(() => {
+        this.isPlaying.set(!audio.paused);
+      });
     }
   }
 

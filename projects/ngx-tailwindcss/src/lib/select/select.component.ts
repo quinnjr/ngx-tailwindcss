@@ -153,6 +153,13 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
 
   protected isDisabled = computed(() => this.disabled() || this._disabled());
 
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+  protected readonly ariaDescribedBy = computed(() =>
+    this.error() ? this.errorId() : this.hint() ? this.hintId() : null
+  );
+
   protected allOptions = computed(() => {
     if (this.groups().length > 0) {
       return this.groups().flatMap(g => g.options);
@@ -356,14 +363,17 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case 'Home': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.navigableOptions().length > 0 ? 0 : -1);
+          this.activeIndex.set(this.navigableOptions().findIndex(option => !option.disabled));
         }
         break;
       }
       case 'End': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.navigableOptions().length - 1);
+          const options = this.navigableOptions();
+          let index = options.length - 1;
+          while (index >= 0 && options[index].disabled) index--;
+          this.activeIndex.set(index);
         }
         break;
       }
@@ -415,11 +425,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
 
   private openDropdown(): void {
     this.isOpen.set(true);
+    const options = this.navigableOptions();
+    const selectedIndex = options.findIndex(option => this.isSelected(option));
+    // Start on the selected option, else the first enabled one
     this.activeIndex.set(
-      Math.max(
-        0,
-        this.navigableOptions().findIndex(option => this.isSelected(option))
-      )
+      selectedIndex >= 0 ? selectedIndex : options.findIndex(option => !option.disabled)
     );
     this.updateDropdownPosition();
     this.attachPositionListeners();
@@ -493,6 +503,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     window.removeEventListener('scroll', this.positionListener, { capture: true });
     window.removeEventListener('resize', this.positionListener);
     this.positionListener = null;
+  }
+
+  /** Marks the control as touched when focus leaves the trigger */
+  onTriggerBlur(): void {
+    this.onTouchedFn();
   }
 
   // ControlValueAccessor implementation

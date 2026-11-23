@@ -102,13 +102,14 @@ export class TwTimeDisplayComponent {
   });
 
   protected readonly flipSegments = computed((): FlipSegment[] => {
-    const time = this.value();
+    const time = Math.max(0, Number.isFinite(this.value()) ? this.value() : 0);
     const hrs = Math.floor(time / 3600);
-    const mins = Math.floor((time % 3600) / 60);
     const secs = Math.floor(time % 60);
 
     const segments: FlipSegment[] = [];
     const showHrs = this.showHours() === 'always' || (this.showHours() === 'auto' && hrs > 0);
+    // Without an hours field, minutes carry the full duration (e.g. 65:00)
+    const mins = showHrs ? Math.floor((time % 3600) / 60) : Math.floor(time / 60);
 
     if (showHrs) {
       segments.push({ id: 'h', value: hrs.toString().padStart(2, '0'), separator: true });
@@ -186,13 +187,17 @@ export class TwTimeDisplayComponent {
       return this.showMilliseconds() ? `${zero}.000` : zero;
     }
 
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 1000);
+    // Work in whole milliseconds to avoid float noise (e.g. 1.005 % 1 -> 0.00499...)
+    const totalMs = Math.floor(seconds * 1000 + 1e-6);
+    const totalSecs = Math.floor(totalMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const secs = totalSecs % 60;
+    const ms = totalMs % 1000;
 
     let result: string;
     const showHrs = this.showHours() === 'always' || (this.showHours() === 'auto' && hrs > 0);
+    // Without an hours field, minutes carry the full duration (e.g. 65:00)
+    const mins = showHrs ? Math.floor((totalSecs % 3600) / 60) : Math.floor(totalSecs / 60);
 
     if (showHrs) {
       result = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;

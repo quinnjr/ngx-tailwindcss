@@ -106,7 +106,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'C', octave: 4, finger: 1, isRoot: true },
-      { note: 'D#', octave: 4, finger: 3 },
+      { note: 'Eb', octave: 4, finger: 3 },
       { note: 'G', octave: 4, finger: 5 },
     ],
   },
@@ -133,7 +133,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'F', octave: 4, finger: 1, isRoot: true },
-      { note: 'G#', octave: 4, finger: 3 },
+      { note: 'Ab', octave: 4, finger: 3 },
       { note: 'C', octave: 5, finger: 5 },
     ],
   },
@@ -142,7 +142,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'G', octave: 4, finger: 1, isRoot: true },
-      { note: 'A#', octave: 4, finger: 3 },
+      { note: 'Bb', octave: 4, finger: 3 },
       { note: 'D', octave: 5, finger: 5 },
     ],
   },
@@ -172,7 +172,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
       { note: 'C', octave: 4, finger: 1, isRoot: true },
       { note: 'E', octave: 4, finger: 2 },
       { note: 'G', octave: 4, finger: 3 },
-      { note: 'A#', octave: 4, finger: 5 },
+      { note: 'Bb', octave: 4, finger: 5 },
     ],
   },
   G7: {
@@ -261,6 +261,19 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES = ['C#', 'D#', 'F#', 'G#', 'A#'];
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NATURAL_SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+// Map any spelling (C#, Db, E#, Cb, ...) to the keyboard key it is played on
+function toKey(note: string, octave: number): { note: string; octave: number } {
+  const match = /^([A-G])(#|b)?$/.exec(note);
+  if (!match) return { note, octave };
+  const shift = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const semitone = NATURAL_SEMITONES[match[1]] + shift;
+  return {
+    note: ALL_NOTES[(semitone + 12) % 12],
+    octave: octave + Math.floor(semitone / 12),
+  };
+}
 
 /**
  * Piano Chord Diagram component
@@ -435,8 +448,9 @@ export class TwPianoChordComponent {
     const { whiteKeyWidth } = this.dimensions();
     const keys: Array<{ note: string; octave: number; position: number }> = [];
 
-    // Black key positions relative to white keys
-    const blackKeyPositions = [0.65, 1.75, 3.6, 4.65, 5.7]; // C#, D#, F#, G#, A#
+    // Centre of each black key, in white-key widths from the octave's C (C#, D#, F#, G#, A#).
+    // Keys are 0.6 wide, so each straddles the boundary between its neighbouring white keys.
+    const blackKeyPositions = [0.95, 2.05, 3.9, 5, 6.1];
 
     for (let o = 0; o < octaves; o++) {
       const octaveOffset = o * 7 * whiteKeyWidth;
@@ -456,18 +470,28 @@ export class TwPianoChordComponent {
     const chord = this.chordData();
     if (!chord) return false;
 
-    return chord.notes.some(n => n.note === note && n.octave === octave);
+    const target = toKey(note, octave);
+    return chord.notes.some(n => {
+      const key = toKey(n.note, n.octave);
+      return key.note === target.note && key.octave === target.octave;
+    });
   }
 
   protected getNoteInfo(note: string, octave: number): PianoChordNote | null {
     const chord = this.chordData();
     if (!chord) return null;
 
-    return chord.notes.find(n => n.note === note && n.octave === octave) || null;
+    const target = toKey(note, octave);
+    return (
+      chord.notes.find(n => {
+        const key = toKey(n.note, n.octave);
+        return key.note === target.note && key.octave === target.octave;
+      }) || null
+    );
   }
 
   protected isBlackKey(note: string): boolean {
-    return BLACK_NOTES.includes(note);
+    return BLACK_NOTES.includes(toKey(note, 0).note);
   }
 
   protected getWhiteKeyX(index: number): number {
@@ -490,9 +514,10 @@ export class TwPianoChordComponent {
     return topOffset + padding + whiteKeyHeight - this.dimensions().fingerRadius - 8;
   }
 
-  protected getFingerX(note: string, octave: number): number {
-    const { whiteKeyWidth, padding, blackKeyWidth } = this.dimensions();
+  protected getFingerX(rawNote: string, rawOctave: number): number {
+    const { whiteKeyWidth, padding } = this.dimensions();
     const startOct = this.startOctave();
+    const { note, octave } = toKey(rawNote, rawOctave);
 
     if (this.isBlackKey(note)) {
       // Find the black key

@@ -243,8 +243,18 @@
           stroke-width="1.5"
           fill="none"
         />
+        <!-- Lower mordent: vertical line through (MusicXML <mordent>) -->
+        <line
+          [attr.x1]="x()"
+          [attr.y1]="y() - size() * 0.4"
+          [attr.x2]="x()"
+          [attr.y2]="y() + size() * 0.4"
+          [attr.stroke]="effectiveColor()"
+          stroke-width="1"
+        />
       }
       @case ('invertedMordent') {
+        <!-- Upper mordent / pralltriller: no vertical line (MusicXML <inverted-mordent>) -->
         <path
           [attr.d]="
             'M ' +
@@ -271,15 +281,6 @@
           [attr.stroke]="effectiveColor()"
           stroke-width="1.5"
           fill="none"
-        />
-        <!-- Vertical line through -->
-        <line
-          [attr.x1]="x()"
-          [attr.y1]="y() - size() * 0.4"
-          [attr.x2]="x()"
-          [attr.y2]="y() + size() * 0.4"
-          [attr.stroke]="effectiveColor()"
-          stroke-width="1"
         />
       }
       @case ('turn') {

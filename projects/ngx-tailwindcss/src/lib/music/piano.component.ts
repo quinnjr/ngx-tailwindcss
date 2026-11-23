@@ -46,7 +46,9 @@ export interface MidiDevice {
 
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES = ['C#', 'D#', 'F#', 'G#', 'A#'];
-const BLACK_KEY_OFFSETS = [0.65, 1.75, 3.6, 4.7, 5.8]; // Position multipliers for black keys within an octave
+// Left edge of each black key within an octave, in white-key widths (keys are 0.6 wide, so
+// each one straddles the boundary between its neighbouring white keys)
+const BLACK_KEY_OFFSETS = [0.65, 1.75, 3.6, 4.7, 5.8];
 
 /**
  * Interactive Piano Keyboard component
@@ -119,20 +121,33 @@ export class TwPianoComponent implements OnDestroy {
   };
 
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private destroyed = false;
+  // Incremented on every connect/disconnect so a stale requestMIDIAccess() result is ignored
+  private midiRequestId = 0;
 
   constructor() {
-    // Request MIDI access when enableMidi is turned on (browser only)
+    // Request MIDI access when enableMidi is turned on, release it when turned off (browser only)
     effect(() => {
-      if (!this.enableMidi() || !this.isBrowser) return;
+      const enabled = this.enableMidi();
+      if (!this.isBrowser) return;
       untracked(() => {
-        if (!this.midiAccess) {
-          void this.initMidi();
+        if (enabled) {
+          if (!this.midiAccess) {
+            void this.initMidi();
+          }
+        } else if (this.midiAccess) {
+          this.disconnectMidi();
+        } else {
+          // Cancel a request that is still pending
+          this.midiRequestId++;
         }
       });
     });
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.midiRequestId++;
     this.midiAccess?.removeEventListener('statechange', this.midiStateChangeHandler);
     for (const midiInput of this.midiInputs) {
       midiInput.onmidimessage = null;
@@ -213,7 +228,7 @@ export class TwPianoComponent implements OnDestroy {
           octave,
           midi: this.noteToMidi(note, octave),
           isBlack: true,
-          position: octaveOffset + BLACK_KEY_OFFSETS[i] * whiteWidth - this.blackKeyWidth() / 2,
+          position: octaveOffset + BLACK_KEY_OFFSETS[i] * whiteWidth,
         });
       });
     }
@@ -445,8 +460,12 @@ export class TwPianoComponent implements OnDestroy {
       return;
     }
 
+    const requestId = ++this.midiRequestId;
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      const access = await navigator.requestMIDIAccess();
+      // Destroyed or disabled while the permission prompt was pending
+      if (this.destroyed || requestId !== this.midiRequestId) return;
+      this.midiAccess = access;
       this.updateMidiDevices();
 
       // Listen for device changes (removed again in ngOnDestroy/disconnectMidi)
@@ -561,6 +580,7 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   disconnectMidi(): void {
+    this.midiRequestId++;
     this.midiAccess?.removeEventListener('statechange', this.midiStateChangeHandler);
     for (const midiInput of this.midiInputs) {
       midiInput.onmidimessage = null;

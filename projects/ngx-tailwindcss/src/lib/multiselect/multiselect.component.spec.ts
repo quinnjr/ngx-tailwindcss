@@ -333,3 +333,63 @@ describe('TwMultiSelectComponent (regressions)', () => {
     expect(label.htmlFor).toBe(trigger.id);
   });
 });
+
+@Component({
+  template: `<tw-multiselect [options]="options" [formControl]="control"></tw-multiselect>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class ClearButtonHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  control = new FormControl<unknown[]>(['apple']);
+}
+
+describe('TwMultiSelectComponent clear button', () => {
+  it('should not nest the clear button inside the trigger button', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    expect(clear).toBeTruthy();
+    expect(clear.parentElement?.closest('button')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('button button').length).toBe(0);
+  });
+
+  it('should clear the selection without opening the dropdown and refocus the trigger', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    clear.focus();
+    clear.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+    fixture.nativeElement.remove();
+  });
+
+  it('should not hijack Enter pressed on the clear button while an option is active', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    clear.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(fixture.componentInstance.control.value).toEqual(['apple']);
+  });
+});

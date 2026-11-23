@@ -17,14 +17,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { ClefType, KeySignature, StaffTimeSignature, TwStaffComponent } from './staff.component';
 import {
-  NoteAccidental,
-  NoteData,
-  NoteDuration,
-  NoteName,
-  TwNoteComponent,
-} from './note.component';
+  ClefType,
+  getStaffLayout,
+  KeySignature,
+  StaffTimeSignature,
+  TwStaffComponent,
+} from './staff.component';
+import { NoteAccidental, NoteData, NoteDuration, NoteName } from './note.component';
 
 export type Voice = 1 | 2 | 3 | 4;
 
@@ -85,6 +85,23 @@ const DURATION_SHORTCUTS: Record<string, NoteDuration> = {
 };
 
 // Keyboard shortcuts for note names
+// Diatonic step index within an octave (C = 0)
+const STEP_INDEX: Record<NoteName, number> = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+const STEP_NAMES: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+// Absolute diatonic step (octave * 7 + step) of the top staff line for each clef
+// (treble F5, bass A3, alto G4, tenor E4; percussion uses the treble layout)
+const CLEF_TOP_LINE_STEPS: Record<ClefType, number> = {
+  treble: 5 * 7 + STEP_INDEX.F,
+  bass: 3 * 7 + STEP_INDEX.A,
+  alto: 4 * 7 + STEP_INDEX.G,
+  tenor: 4 * 7 + STEP_INDEX.E,
+  percussion: 5 * 7 + STEP_INDEX.F,
+};
+
+// How far outside the staff a pointer position may map to (in half-spaces): 3 ledger lines
+const MAX_LEDGER_STEPS = 6;
+
 const NOTE_SHORTCUTS: Record<string, NoteName> = {
   c: 'C',
   d: 'D',
@@ -98,7 +115,7 @@ const NOTE_SHORTCUTS: Record<string, NoteName> = {
 @Component({
   selector: 'tw-note-input',
   standalone: true,
-  imports: [CommonModule, TwStaffComponent, TwNoteComponent],
+  imports: [CommonModule, TwStaffComponent],
   templateUrl: './note-input.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -197,18 +214,19 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     return (h - totalStaffHeight) / 2;
   });
 
-  protected readonly measureWidth = computed(() => {
-    const w = this.width();
-    const clefWidth = 50;
-    const keyWidth = 40;
-    const timeWidth = 30;
-    const availableWidth = w - clefWidth - keyWidth - timeWidth - 20;
-    return availableWidth / this.measures();
-  });
+  // Mirror tw-staff's layout so the grid lines up with its bar lines (the key signature
+  // width depends on the number of accidentals)
+  private readonly staffLayout = computed(() =>
+    getStaffLayout({
+      width: this.width(),
+      measures: this.measures(),
+      keySignature: this.keySignature(),
+    })
+  );
 
-  protected readonly contentStartX = computed(() => {
-    return 50 + 40 + 30 + 10; // clef + key + time + padding
-  });
+  protected readonly measureWidth = computed(() => this.staffLayout().measureWidth);
+
+  protected readonly contentStartX = computed(() => this.staffLayout().contentStartX);
 
   protected readonly gridPositions = computed(() => {
     const positions: number[] = [];
@@ -364,35 +382,14 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     const staffTop = this.staffTop();
     const spacing = this.lineSpacing();
 
-    // Calculate position relative to staff
-    // Position 0 = top line (F5 in treble), each half-space is one step
-    const position = (y - staffTop) / (spacing / 2);
-
-    // Map position to note (treble clef: F5 at top)
-    const noteNames: NoteName[] = [
-      'F',
-      'E',
-      'D',
-      'C',
-      'B',
-      'A',
-      'G',
-      'F',
-      'E',
-      'D',
-      'C',
-      'B',
-      'A',
-      'G',
-    ];
-    const octaves = [5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3];
-
-    const index = Math.round(position);
-    const clampedIndex = Math.max(0, Math.min(noteNames.length - 1, index));
+    // Position 0 = top line, each half-space is one diatonic step downwards
+    const position = Math.round((y - staffTop) / (spacing / 2));
+    const clamped = Math.max(-MAX_LEDGER_STEPS, Math.min(8 + MAX_LEDGER_STEPS, position));
+    const step = CLEF_TOP_LINE_STEPS[this.clef()] - clamped;
 
     return {
-      note: noteNames[clampedIndex],
-      octave: octaves[clampedIndex],
+      note: STEP_NAMES[((step % 7) + 7) % 7],
+      octave: Math.floor(step / 7),
     };
   }
 
@@ -641,7 +638,6 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     if (key === 'arrowright') {
       event.preventDefault();
       this.moveSelectedNotes(1, 0);
-      
     }
   }
 
@@ -653,12 +649,13 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
         note: name,
       });
     } else {
-      // Place at first available position
+      // Place at first available position, in the octave that sits on the current clef's staff
       const x = this.contentStartX() + 20;
+      const octave = Math.round((CLEF_TOP_LINE_STEPS[this.clef()] - 7 - STEP_INDEX[name]) / 7);
       this.placeNote({
         x,
         note: name,
-        octave: 4,
+        octave,
         measure: 0,
         beat: 0,
       });
@@ -875,13 +872,27 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     const spacing = this.lineSpacing();
 
     // Diatonic step index (C0 = 0); octaves start at C, so B4 is one step below C5
-    const stepIndex: Record<NoteName, number> = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-    const step = octave * 7 + stepIndex[name];
+    const step = octave * 7 + STEP_INDEX[name];
 
-    // Position 0 = top line (F5 in treble clef), each step is half a space downwards
-    const topLineStep = 5 * 7 + stepIndex.F;
+    // Position 0 = top line of the current clef, each step is half a space downwards
+    return staffTop + (CLEF_TOP_LINE_STEPS[this.clef()] - step) * (spacing / 2);
+  }
 
-    return staffTop + (topLineStep - step) * (spacing / 2);
+  // Y positions of the ledger lines needed for a note outside the staff
+  protected ledgerLines(name: NoteName, octave: number): number[] {
+    const staffTop = this.staffTop();
+    const spacing = this.lineSpacing();
+    const bottom = staffTop + spacing * 4;
+    const y = this.noteToY(name, octave);
+    const epsilon = spacing / 4;
+    const lines: number[] = [];
+    for (let lineY = staffTop - spacing; lineY >= y - epsilon; lineY -= spacing) {
+      lines.push(lineY);
+    }
+    for (let lineY = bottom + spacing; lineY <= y + epsilon; lineY += spacing) {
+      lines.push(lineY);
+    }
+    return lines;
   }
 
   isNoteSelected(note: PlacedNote): boolean {

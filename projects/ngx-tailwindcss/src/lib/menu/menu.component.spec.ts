@@ -270,3 +270,48 @@ describe('TwContextMenuComponent', () => {
     expect(fixture.componentInstance.hideCount).toBe(1);
   });
 });
+
+describe('TwContextMenuComponent dismissal', () => {
+  @Component({
+    template: `
+      <button type="button" class="more" (click)="cm.show($event)">More</button>
+      <tw-context-menu #cm [items]="items" (onHide)="hideCount = hideCount + 1"></tw-context-menu>
+    `,
+    standalone: true,
+    imports: [TwContextMenuComponent],
+  })
+  class ClickOpenHostComponent {
+    items: MenuItem[] = [{ label: 'Copy' }];
+    hideCount = 0;
+  }
+
+  let fixture: ComponentFixture<ClickOpenHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ClickOpenHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ClickOpenHostComponent);
+    fixture.detectChanges();
+  });
+
+  const open = () => {
+    (fixture.nativeElement.querySelector('.more') as HTMLButtonElement).click();
+    fixture.detectChanges();
+  };
+
+  it('should stay open when opened from a click that bubbles to the document', () => {
+    open();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeTruthy();
+    expect(fixture.componentInstance.hideCount).toBe(0);
+  });
+
+  it('should close on Escape', () => {
+    open();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.hideCount).toBe(1);
+  });
+});

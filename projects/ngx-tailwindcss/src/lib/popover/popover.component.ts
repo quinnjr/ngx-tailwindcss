@@ -1,4 +1,5 @@
 import {
+  AfterViewInit,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
@@ -20,6 +21,13 @@ import {
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
+
+let nextPopoverId = 0;
 
 export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
 export type PopoverTrigger = 'click' | 'hover' | 'focus' | 'manual';
@@ -45,7 +53,7 @@ export type PopoverTrigger = 'click' | 'hover' | 'focus' | 'manual';
     class: 'inline-block',
   },
 })
-export class TwPopoverComponent implements OnDestroy {
+export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly elementRef = inject(ElementRef);
   private readonly document = inject(DOCUMENT);
@@ -89,6 +97,10 @@ export class TwPopoverComponent implements OnDestroy {
   protected visible = signal(false);
   private hoverTimeout: any = null;
 
+  /** Id of the popover panel, referenced from the trigger while open */
+  protected readonly popoverId = `tw-popover-${nextPopoverId++}`;
+  private readonly headerId = `${this.popoverId}-header`;
+
   // Portal elements
   private portalHost: HTMLElement | null = null;
   private portalElement: HTMLElement | null = null;
@@ -124,9 +136,48 @@ export class TwPopoverComponent implements OnDestroy {
     });
   }
 
+  ngAfterViewInit(): void {
+    this.syncTriggerAria();
+  }
+
   ngOnDestroy(): void {
     this.clearHoverTimeout();
     this.destroyPortal();
+  }
+
+  /**
+   * Hover/focus popovers are non-interactive descriptions (tooltip semantics);
+   * click/manual popovers can hold interactive content and are exposed as dialogs.
+   */
+  private get isTooltip(): boolean {
+    return this.trigger === 'hover' || this.trigger === 'focus';
+  }
+
+  /** The projected trigger element, which carries the ARIA relationship to the panel. */
+  private getTriggerElement(): HTMLElement | null {
+    const container: HTMLElement | undefined = this.triggerContainer?.nativeElement;
+    return container?.querySelector<HTMLElement>('[twPopoverTrigger]') ?? null;
+  }
+
+  private syncTriggerAria(): void {
+    const trigger = this.getTriggerElement();
+    if (!trigger) return;
+    const open = !!this.portalElement;
+
+    // The trigger mode may change at runtime, so each branch clears the other's attributes
+    const tooltip = this.isTooltip;
+    this.setOrRemoveAttribute(trigger, 'aria-describedby', tooltip && open ? this.popoverId : null);
+    this.setOrRemoveAttribute(trigger, 'aria-haspopup', tooltip ? null : 'dialog');
+    this.setOrRemoveAttribute(trigger, 'aria-expanded', tooltip ? null : String(open));
+    this.setOrRemoveAttribute(trigger, 'aria-controls', !tooltip && open ? this.popoverId : null);
+  }
+
+  private setOrRemoveAttribute(element: HTMLElement, name: string, value: string | null): void {
+    if (value === null) {
+      this.renderer.removeAttribute(element, name);
+    } else {
+      this.renderer.setAttribute(element, name, value);
+    }
   }
 
   onTriggerClick(): void {
@@ -162,7 +213,9 @@ export class TwPopoverComponent implements OnDestroy {
   }
 
   onTriggerFocusOut(): void {
-    if (this.trigger === 'focus') {
+    // Hover popovers also open on focus, so they must close when focus leaves
+    if (this.trigger === 'focus' || this.trigger === 'hover') {
+      this.clearHoverTimeout();
       this.hide();
     }
   }
@@ -195,6 +248,8 @@ export class TwPopoverComponent implements OnDestroy {
   }
 
   hide(): void {
+    // Leave the Escape stack right away (the portal itself is torn down by the effect)
+    removeEscapeLayer(this);
     this.visible.set(false);
     this.onHide.emit();
   }
@@ -240,12 +295,17 @@ export class TwPopoverComponent implements OnDestroy {
     );
 
     // Set ARIA attributes
-    this.renderer.setAttribute(this.portalElement, 'role', 'tooltip');
+    this.renderer.setAttribute(this.portalElement, 'id', this.popoverId);
+    this.renderer.setAttribute(this.portalElement, 'role', this.isTooltip ? 'tooltip' : 'dialog');
+    if (!this.isTooltip && this.header) {
+      this.renderer.setAttribute(this.portalElement, 'aria-labelledby', this.headerId);
+    }
 
     // Build popover content
     this.buildPopoverContent();
 
     this.renderer.appendChild(this.portalHost, this.portalElement);
+    this.syncTriggerAria();
 
     // Position the popover
     this.updatePosition();
@@ -280,16 +340,17 @@ export class TwPopoverComponent implements OnDestroy {
     });
 
     if (this.closeOnEscape) {
-      // Capture phase + stop, so only the popover closes and an enclosing modal/sidebar
-      // that listens for Escape on document stays open
+      // Escape closes only the topmost layer (via the shared layer stack) and is left to
+      // handlers inside the popover that already claimed it; marking it handled keeps an
+      // enclosing modal/sidebar open without suppressing other listeners
+      pushEscapeLayer(this);
       this.keydownListener = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
+        if (shouldHandleEscape(this, event)) {
           event.preventDefault();
-          event.stopImmediatePropagation();
           this.hide();
         }
       };
-      this.document.addEventListener('keydown', this.keydownListener, true);
+      this.document.addEventListener('keydown', this.keydownListener);
     }
 
     // Hover listeners for portal
@@ -319,6 +380,7 @@ export class TwPopoverComponent implements OnDestroy {
     // Header
     if (this.header) {
       const headerEl = this.renderer.createElement('div');
+      this.renderer.setAttribute(headerEl, 'id', this.headerId);
       this.renderer.addClass(headerEl, 'px-4');
       this.renderer.addClass(headerEl, 'py-2');
       this.renderer.addClass(headerEl, 'border-b');
@@ -406,6 +468,7 @@ export class TwPopoverComponent implements OnDestroy {
     }
     this.portalHost = null;
     this.portalElement = null;
+    this.syncTriggerAria();
 
     if (this.clickOutsideListener) {
       this.clickOutsideListener();
@@ -420,9 +483,10 @@ export class TwPopoverComponent implements OnDestroy {
       this.resizeListener = null;
     }
     if (this.keydownListener) {
-      this.document.removeEventListener('keydown', this.keydownListener, true);
+      this.document.removeEventListener('keydown', this.keydownListener);
       this.keydownListener = null;
     }
+    removeEscapeLayer(this);
     if (this.portalMouseEnterListener) {
       this.portalMouseEnterListener();
       this.portalMouseEnterListener = null;

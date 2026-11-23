@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+# PR title validation reads the PR; the size labeler creates and applies labels
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   pr-title:
     name: Validate PR Title
@@ -61,4 +67,3 @@ jobs:
           message_if_xl: >
             This PR is quite large. Consider breaking it into smaller PRs
             for easier review.
-

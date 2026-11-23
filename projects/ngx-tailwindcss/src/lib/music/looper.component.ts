@@ -229,7 +229,8 @@ export class TwLooperComponent implements OnDestroy {
 
   // Main control methods
   async record(): Promise<void> {
-    if (this.disabled()) return;
+    // Starting a second take would orphan the running MediaRecorder (and the mic)
+    if (this.disabled() || this.state() === 'recording' || this.state() === 'overdubbing') return;
 
     await this.initAudio();
     if (this.destroyed || !this.audioContext) return;
@@ -340,6 +341,16 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   clear(): void {
+    // Abandon any in-progress take: otherwise the recorder (and click track)
+    // keeps running with no way to stop it once the state is 'idle'
+    this.stopClickTrack();
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
+    }
+    this.mediaRecorder = null;
+    this.recordedChunks = [];
+
     this.stopAllPlayback();
     this.layers.set([]);
     this.loopDuration.set(0);
@@ -693,6 +704,12 @@ export class TwLooperComponent implements OnDestroy {
     this.ctx = canvas.getContext('2d');
     if (!this.ctx) return;
 
+    // Never run two frame loops at once (e.g. play() while a loop is pending)
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+
     // Draw loop never writes template state, so keep it out of the zone
     this.zone.runOutsideAngular(() => {
       this.drawWaveformFrame();
@@ -751,8 +768,9 @@ export class TwLooperComponent implements OnDestroy {
           if (datum > max) max = datum;
         }
 
-        const yMin = ((1 + min) / 2) * height;
-        const yMax = ((1 + max) / 2) * height;
+        // Canvas y grows downward: positive samples plot above the centre
+        const yMin = ((1 - min) / 2) * height;
+        const yMax = ((1 - max) / 2) * height;
 
         if (i === 0) {
           ctx.moveTo(i, yMin);

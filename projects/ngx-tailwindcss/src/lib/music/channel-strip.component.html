@@ -31,7 +31,8 @@
         [disabled]="isDisabled()"
         [centerDetent]="true"
         [detentValue]="0"
-        label=""
+        label="Input gain"
+        unit="dB"
         [showValue]="false"
       ></tw-volume-dial>
       <span class="text-[9px] text-slate-500 font-mono">{{ formatGain(inputGain()) }}dB</span>
@@ -81,7 +82,7 @@
               size="xs"
               [variant]="variant() === 'vintage' ? 'vintage' : 'minimal'"
               [disabled]="isDisabled() || mute()"
-              label=""
+              [label]="aux.label"
               [showValue]="false"
             ></tw-volume-dial>
             <span class="text-[8px] text-slate-500 truncate max-w-full">{{ aux.label }}</span>
@@ -157,7 +158,7 @@
     [size]="dialSize()"
     [variant]="variant() === 'vintage' ? 'vintage' : 'modern'"
     [disabled]="isDisabled() || mute()"
-    label=""
+    label="Volume"
     [showValue]="size() !== 'sm'"
   ></tw-volume-dial>
 
@@ -174,7 +175,7 @@
       [disabled]="isDisabled()"
       [centerDetent]="true"
       [detentValue]="0"
-      label=""
+      label="Pan"
       [showValue]="false"
     ></tw-volume-dial>
     <span class="text-[10px] text-slate-500">PAN</span>

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeIpcService } from './ipc.service';
+import { setElectronIpcBridge } from './electron-bridge.util';
 
 describe('NativeIpcService', () => {
   let service: NativeIpcService;
@@ -105,6 +106,44 @@ describe('NativeIpcService', () => {
 
       expect(a).not.toHaveBeenCalled();
       expect(b).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Electron preload bridge', () => {
+    afterEach(() => {
+      setElectronIpcBridge(null);
+    });
+
+    it('invokes through the bridge and unsubscribes via the function on() returns', async () => {
+      const unsubscribe = vi.fn();
+      let listener: ((event: unknown, data: unknown) => void) | undefined;
+      const bridge = {
+        send: vi.fn(),
+        invoke: vi.fn(() => Promise.resolve('pong')),
+        on: vi.fn((_channel: string, fn: (event: unknown, data: unknown) => void) => {
+          listener = fn;
+          return unsubscribe;
+        }),
+        once: vi.fn(),
+      };
+      setElectronIpcBridge(bridge);
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({});
+      const electronService = TestBed.inject(NativeIpcService);
+
+      await expect(electronService.invoke('ping', { a: 1 })).resolves.toEqual({
+        success: true,
+        data: 'pong',
+      });
+      expect(bridge.invoke).toHaveBeenCalledWith('ping', { a: 1 });
+
+      const callback = vi.fn();
+      const off = await electronService.on('bridge-channel', callback);
+      listener?.({}, 'payload');
+      expect(callback).toHaveBeenCalledWith('payload');
+
+      off();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -9,6 +9,9 @@ import {
   OnInit,
 } from '@angular/core';
 
+/** Sub-pixel slack when checking whether the element is scrolled to an edge */
+const SCROLL_EDGE_TOLERANCE = 1;
+
 /**
  * Directive to trap scroll within an element, preventing scroll propagation to parent
  * Useful for dropdowns, modals, and scrollable panels
@@ -56,8 +59,9 @@ export class TwTrapScrollDirective implements OnInit, OnDestroy {
     }
 
     if (isVertical) {
-      const atTop = scrollTop <= 0;
-      const atBottom = scrollTop + clientHeight >= scrollHeight;
+      const atTop = scrollTop <= SCROLL_EDGE_TOLERANCE;
+      // scrollTop can be fractional on zoomed / high-DPI displays
+      const atBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_EDGE_TOLERANCE;
       const scrollingUp = event.deltaY < 0;
       const scrollingDown = event.deltaY > 0;
 
@@ -65,8 +69,13 @@ export class TwTrapScrollDirective implements OnInit, OnDestroy {
         event.preventDefault();
       }
     } else {
-      const atLeft = scrollLeft <= 0;
-      const atRight = scrollLeft + clientWidth >= scrollWidth;
+      // In RTL, scrollLeft runs from 0 (right edge) to -(scrollWidth - clientWidth)
+      const maxScroll = scrollWidth - clientWidth;
+      const isRtl = getComputedStyle(element).direction === 'rtl';
+      const minLeft = isRtl ? -maxScroll : 0;
+      const maxLeft = isRtl ? 0 : maxScroll;
+      const atLeft = scrollLeft <= minLeft + SCROLL_EDGE_TOLERANCE;
+      const atRight = scrollLeft >= maxLeft - SCROLL_EDGE_TOLERANCE;
       const scrollingLeft = event.deltaX < 0;
       const scrollingRight = event.deltaX > 0;
 

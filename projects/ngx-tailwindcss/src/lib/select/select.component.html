@@ -19,8 +19,11 @@
       aria-haspopup="listbox"
       [attr.aria-controls]="isOpen() ? listboxId : null"
       [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-describedby]="ariaDescribedBy()"
+      [attr.aria-invalid]="error() ? true : null"
       (click)="toggleDropdown()"
       (keydown)="onKeydown($event)"
+      (blur)="onTriggerBlur()"
     >
       <span [class]="valueDisplayClasses()">
         @if (selectedOption()) {
@@ -132,10 +135,14 @@
   </div>
 
   @if (hint() && !error()) {
-    <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{ hint() }}</span>
+    <span [id]="hintId()" class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{
+      hint()
+    }}</span>
   }
   @if (error()) {
-    <span class="block text-xs text-rose-600 mt-1.5" role="alert">{{ error() }}</span>
+    <span [id]="errorId()" class="block text-xs text-rose-600 mt-1.5" role="alert">{{
+      error()
+    }}</span>
   }
 </div>
 

@@ -470,3 +470,56 @@ describe('TwSelectComponent keyboard (regressions)', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 });
+
+describe('TwSelectComponent (round 2)', () => {
+  it('should describe the trigger by its hint/error and flag aria-invalid', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.hint.set('Pick one');
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const hintId = trigger.getAttribute('aria-describedby');
+    expect(hintId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`#${hintId}`).textContent).toContain('Pick one');
+    expect(trigger.getAttribute('aria-invalid')).toBeNull();
+
+    fixture.componentInstance.errorMsg.set('Required');
+    fixture.detectChanges();
+    const errorId = trigger.getAttribute('aria-describedby');
+    expect(fixture.nativeElement.querySelector(`#${errorId}`).textContent).toContain('Required');
+    expect(trigger.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('should mark the control as touched when the trigger loses focus', () => {
+    const fixture = TestBed.createComponent(TestHostWithFormControlComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(fixture.componentInstance.selectControl.touched).toBe(false);
+    trigger.dispatchEvent(new FocusEvent('blur'));
+    expect(fixture.componentInstance.selectControl.touched).toBe(true);
+  });
+
+  it('should skip disabled options for Home/End', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.options.set([
+      { label: 'Disabled first', value: '0', disabled: true },
+      { label: 'Option 1', value: '1' },
+      { label: 'Option 2', value: '2' },
+      { label: 'Disabled last', value: '3', disabled: true },
+    ]);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const press = (key: string) => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+    const activeText = () =>
+      fixture.nativeElement.querySelector(`#${trigger.getAttribute('aria-activedescendant')}`)
+        ?.textContent;
+    press('ArrowDown');
+    expect(activeText()).toContain('Option 1');
+    press('End');
+    expect(activeText()).toContain('Option 2');
+    press('Home');
+    expect(activeText()).toContain('Option 1');
+  });
+});

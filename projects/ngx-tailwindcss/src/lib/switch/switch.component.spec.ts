@@ -317,3 +317,20 @@ describe('TwSwitchComponent with FormControl', () => {
     expect(button.getAttribute('aria-checked')).toBe('false');
   });
 });
+
+describe('TwSwitchComponent keyboard activation', () => {
+  it('should toggle exactly once for a native Space/Enter activation (keydown + click)', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button[role="switch"]');
+
+    for (const key of [' ', 'Enter']) {
+      const before = button.getAttribute('aria-checked');
+      // A browser fires keydown and then, as the button's activation behaviour, click
+      button.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      button.click();
+      fixture.detectChanges();
+      expect(button.getAttribute('aria-checked')).toBe(before === 'true' ? 'false' : 'true');
+    }
+  });
+});

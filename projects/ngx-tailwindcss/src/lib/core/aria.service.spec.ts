@@ -1,5 +1,6 @@
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AriaUtils, TwAriaService } from './aria.service';
 
 describe('TwAriaService', () => {
@@ -39,6 +40,33 @@ describe('TwAriaService', () => {
     const assertive = document.body.querySelector('[aria-live="assertive"]');
     expect(polite?.textContent).toBe('');
     expect(assertive?.textContent).toBe('');
+  });
+
+  it('should remove its live regions and pending timers when its injector is destroyed', () => {
+    vi.useFakeTimers();
+    try {
+      service.announce('Saved');
+      service.announceAssertive('Error occurred');
+      expect(document.body.querySelectorAll('[aria-live]')).toHaveLength(2);
+
+      TestBed.resetTestingModule();
+
+      expect(document.body.querySelectorAll('[aria-live]')).toHaveLength(0);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should not create live regions on the server', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: 'server' }] });
+    const serverService = TestBed.inject(TwAriaService);
+
+    serverService.announce('Saved');
+    serverService.announceAssertive('Error occurred');
+
+    expect(document.body.querySelectorAll('[aria-live]')).toHaveLength(0);
   });
 });
 

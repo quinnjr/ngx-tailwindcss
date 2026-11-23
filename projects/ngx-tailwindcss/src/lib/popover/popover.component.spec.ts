@@ -114,7 +114,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       const action = portal?.querySelector<HTMLButtonElement>('[data-testid="action"]');
       expect(action).toBeTruthy();
 
@@ -138,7 +138,7 @@ describe('TwPopoverComponent', () => {
       // Content survives a second open/close cycle
       component.popover.show();
       fixture.detectChanges();
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.querySelector('.popover-content')).toBeTruthy();
     });
   });
@@ -169,6 +169,19 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
 
       expect(component.popover.visible()).toBe(true);
+    });
+
+    it('should close a keyboard-opened hover popover when focus leaves the trigger', () => {
+      component.trigger.set('hover');
+      fixture.detectChanges();
+
+      const triggerContainer = popoverEl.querySelector('div') as HTMLElement;
+      triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      fixture.detectChanges();
+      triggerContainer.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.popover.visible()).toBe(false);
     });
   });
 
@@ -218,6 +231,92 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
 
       expect(component.popover.visible()).toBe(false);
+    });
+  });
+
+  describe('escape layering', () => {
+    it('should let handlers inside the content run, and stay open when they claim Escape', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      const portal = document.querySelector('[role="dialog"]');
+      const action = portal!.querySelector('[data-testid="action"]')!;
+      const inner = vi.fn((event: KeyboardEvent) => {
+        event.preventDefault();
+      });
+      action.addEventListener('keydown', inner);
+      action.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      fixture.detectChanges();
+
+      expect(inner).toHaveBeenCalled();
+      expect(component.popover.visible()).toBe(true);
+    });
+
+    it('should close only the topmost of nested popovers', () => {
+      const outer = TestBed.createComponent(TwPopoverComponent);
+      outer.detectChanges();
+      outer.componentInstance.show();
+      outer.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      expect(component.popover.visible()).toBe(false);
+      expect(outer.componentInstance.visible()).toBe(true);
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      expect(outer.componentInstance.visible()).toBe(false);
+      outer.destroy();
+    });
+  });
+
+  describe('ARIA semantics', () => {
+    const trigger = () => popoverEl.querySelector('[twPopoverTrigger]')!;
+
+    it('should expose click popovers as dialogs controlled by the trigger', () => {
+      expect(trigger().getAttribute('aria-haspopup')).toBe('dialog');
+      expect(trigger().getAttribute('aria-expanded')).toBe('false');
+      expect(trigger().getAttribute('aria-controls')).toBeNull();
+
+      component.header.set('Settings');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel).toBeTruthy();
+      expect(trigger().getAttribute('aria-expanded')).toBe('true');
+      expect(trigger().getAttribute('aria-controls')).toBe(panel.id);
+      const labelledBy = panel.getAttribute('aria-labelledby');
+      expect(document.querySelector(`#${labelledBy}`)?.textContent).toBe('Settings');
+
+      component.popover.hide();
+      fixture.detectChanges();
+      expect(trigger().getAttribute('aria-expanded')).toBe('false');
+      expect(trigger().getAttribute('aria-controls')).toBeNull();
+    });
+
+    it('should keep tooltip semantics for hover popovers', () => {
+      component.trigger.set('hover');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="tooltip"]')!;
+      expect(panel).toBeTruthy();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(trigger().getAttribute('aria-describedby')).toBe(panel.id);
+      expect(trigger().getAttribute('aria-expanded')).toBeNull();
+
+      component.popover.hide();
+      fixture.detectChanges();
+      expect(trigger().getAttribute('aria-describedby')).toBeNull();
     });
   });
 
@@ -285,7 +384,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.textContent).not.toContain('Settings');
     });
 
@@ -295,7 +394,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.textContent).toContain('Settings');
     });
   });
@@ -307,7 +406,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.className).toContain('custom-popover-class');
     });
   });
@@ -317,12 +416,12 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portalsBefore = document.querySelectorAll('[role="tooltip"]').length;
+      const portalsBefore = document.querySelectorAll('[role="dialog"]').length;
       expect(portalsBefore).toBe(1);
 
       fixture.destroy();
 
-      const portalsAfter = document.querySelectorAll('[role="tooltip"]').length;
+      const portalsAfter = document.querySelectorAll('[role="dialog"]').length;
       expect(portalsAfter).toBe(0);
     });
   });

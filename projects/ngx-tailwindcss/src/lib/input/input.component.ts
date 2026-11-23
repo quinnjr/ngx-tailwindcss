@@ -266,6 +266,18 @@ export class TwInputComponent implements ControlValueAccessor {
 
   protected readonly hasError = computed(() => !!this.error());
 
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+
+  /** describedBy input plus the visible error (or hint) text */
+  protected readonly ariaDescribedBy = computed(
+    () =>
+      [this.describedBy(), this.error() ? this.errorId() : this.hint() ? this.hintId() : '']
+        .filter(Boolean)
+        .join(' ') || null
+  );
+
   protected readonly wrapperClasses = computed(() => {
     const hasAffixes = this.elementRef.nativeElement.querySelector(
       '[twInputPrefix], [twInputSuffix]'
@@ -401,6 +413,15 @@ export class TwTextareaComponent implements ControlValueAccessor {
   private onTouched: () => void = () => {};
 
   protected readonly hasError = computed(() => !!this.error());
+
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+
+  /** The visible error (or hint) text describing the textarea */
+  protected readonly ariaDescribedBy = computed(() =>
+    this.error() ? this.errorId() : this.hint() ? this.hintId() : null
+  );
 
   protected readonly computedClasses = computed(() => {
     return this.twClass.merge(

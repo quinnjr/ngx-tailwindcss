@@ -223,6 +223,14 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     return Number.isInteger(val) ? val : val.toFixed(1);
   });
 
+  // Value position within min..max as 0..1 (clamped; safe for an empty range)
+  protected readonly percentage = computed(() => {
+    const range = this.max() - this.min();
+    if (!(range > 0)) return 0;
+    const pct = (this.value() - this.min()) / range;
+    return Math.max(0, Math.min(1, Number.isFinite(pct) ? pct : 0));
+  });
+
   // Calculate SVG arc path
   protected readonly trackPath = computed(() => {
     return this.describeArc(
@@ -235,8 +243,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly fillPath = computed(() => {
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
-    const fillAngle = this.startAngleDeg + percentage * this.totalAngle;
+    const fillAngle = this.startAngleDeg + this.percentage() * this.totalAngle;
     return this.describeArc(
       this.center(),
       this.center(),
@@ -247,8 +254,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly indicatorEnd = computed(() => {
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
-    const angle = this.startAngleDeg + percentage * this.totalAngle;
+    const angle = this.startAngleDeg + this.percentage() * this.totalAngle;
     const radians = (angle - 90) * (Math.PI / 180);
     const length = this.knobRadius() * 0.7;
     return {
@@ -294,7 +300,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     const segments: Array<{ index: number; x: number; y: number; active: boolean }> = [];
     const ledCount = 12;
     const ledRadius = this.radius() + this.sizeConfig().strokeWidth + 6;
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
+    const percentage = this.percentage();
 
     for (let i = 0; i < ledCount; i++) {
       const segmentPercentage = i / (ledCount - 1);

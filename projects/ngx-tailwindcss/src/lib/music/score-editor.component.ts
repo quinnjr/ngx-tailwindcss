@@ -7,6 +7,7 @@ import {
   HostListener,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   OnInit,
   output,
@@ -16,15 +17,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-import { ClefType, KeySignature, StaffTimeSignature, TwStaffComponent } from './staff.component';
-import {
-  NoteAccidental,
-  NoteData,
-  NoteDuration,
-  NoteName,
-  TwNoteComponent,
-} from './note.component';
-import { ClipboardData, PlacedNote, TwNoteInputComponent } from './note-input.component';
+import { ClefType, getStaffLayout, KeySignature, StaffTimeSignature } from './staff.component';
+import { NoteAccidental, NoteData, NoteDuration, NoteName } from './note.component';
+import { PlacedNote, TwNoteInputComponent } from './note-input.component';
 import {
   MeasureData,
   parseABCNotation,
@@ -81,6 +76,11 @@ export interface HistoryEntry {
 export interface TransposeOptions {
   semitones: number;
   partIds?: string[]; // If not specified, transpose all parts
+  /**
+   * Keep each note's accidental spelling family: notes written with a flat are respelled with
+   * flats (Bb +1 -> B, Eb +3 -> Gb). When false (default), black-key results are spelled
+   * with sharps (Eb +3 -> F#).
+   */
   preserveEnharmonic?: boolean;
 }
 
@@ -120,6 +120,27 @@ const CHROMATIC_TO_NOTE: Array<{ note: NoteName; accidental: NoteAccidental }> =
   { note: 'B', accidental: null },
 ];
 
+const CHROMATIC_TO_NOTE_FLAT: Array<{ note: NoteName; accidental: NoteAccidental }> = [
+  { note: 'C', accidental: null },
+  { note: 'D', accidental: 'flat' },
+  { note: 'D', accidental: null },
+  { note: 'E', accidental: 'flat' },
+  { note: 'E', accidental: null },
+  { note: 'F', accidental: null },
+  { note: 'G', accidental: 'flat' },
+  { note: 'G', accidental: null },
+  { note: 'A', accidental: 'flat' },
+  { note: 'A', accidental: null },
+  { note: 'B', accidental: 'flat' },
+  { note: 'B', accidental: null },
+];
+
+// tw-note-input's default grid: a note's `beat` is in eighths of a measure
+const NOTE_INPUT_GRID_DIVISION = 8;
+
+// Width the editor reserves next to each tw-note-input (part label + padding)
+const STAFF_ROW_RESERVED_WIDTH = 120;
+
 // MusicXML divisions per quarter note: 16 keeps dotted 32nd notes integral (3)
 const MUSICXML_DIVISIONS = 16;
 
@@ -136,7 +157,7 @@ const NOTE_TO_CHROMATIC: Record<NoteName, number> = {
 @Component({
   selector: 'tw-score-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, TwStaffComponent, TwNoteComponent, TwNoteInputComponent],
+  imports: [CommonModule, FormsModule, TwNoteInputComponent],
   templateUrl: './score-editor.component.html',
   styleUrl: './score-editor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -183,6 +204,10 @@ export class TwScoreEditorComponent implements OnInit {
   protected readonly tempo = signal(120);
   protected readonly keySignature = signal<KeySignature>('C');
   protected readonly timeSignature = signal<StaffTimeSignature>('4/4');
+
+  // Number of measures in the score: follows the `measures` input, and is replaced by a
+  // loaded/imported score's own length
+  protected readonly measureCount = linkedSignal(() => this.measures());
 
   protected readonly parts = signal<InstrumentPart[]>([]);
   protected readonly selectedPartId = signal<string | null>(null);
@@ -235,9 +260,18 @@ export class TwScoreEditorComponent implements OnInit {
     tempo: this.tempo(),
     keySignature: this.keySignature(),
     timeSignature: this.timeSignature(),
-    measures: this.measures(),
+    measures: this.measureCount(),
     parts: this.parts(),
   }));
+
+  // Note x positions inside each tw-note-input (mirrors tw-staff / tw-note-input layout)
+  private readonly noteInputLayout = computed(() =>
+    getStaffLayout({
+      width: this.width() - STAFF_ROW_RESERVED_WIDTH,
+      measures: this.measureCount(),
+      keySignature: this.keySignature(),
+    })
+  );
 
   // ==================== LIFECYCLE ====================
 
@@ -387,7 +421,7 @@ export class TwScoreEditorComponent implements OnInit {
     }
 
     const measures: MeasureData[] = [];
-    for (let m = 0; m < this.measures(); m++) {
+    for (let m = 0; m < this.measureCount(); m++) {
       measures.push({
         notes: measureMap.get(m) || [],
         timeSignature: m === 0 ? this.timeSignature() : undefined,
@@ -481,8 +515,13 @@ export class TwScoreEditorComponent implements OnInit {
       octaveChange += 1;
     }
 
-    // Convert back to note name and accidental
-    const newNoteData = CHROMATIC_TO_NOTE[newChromaticPosition];
+    // Convert back to note name and accidental; with preserveEnharmonic, flat-spelled notes
+    // stay flat-spelled
+    const useFlats =
+      preserveEnharmonic && (note.accidental === 'flat' || note.accidental === 'doubleFlat');
+    const newNoteData = (useFlats ? CHROMATIC_TO_NOTE_FLAT : CHROMATIC_TO_NOTE)[
+      newChromaticPosition
+    ];
 
     return {
       ...note,
@@ -549,6 +588,78 @@ export class TwScoreEditorComponent implements OnInit {
   getLyricsForPart(partId: string, verse = 1): LyricEntry[] {
     const part = this.parts().find(p => p.id === partId);
     return part?.lyrics.filter(l => l.verse === verse) || [];
+  }
+
+  /** Open the lyrics editor for the selected part, pre-filled with its verse 1 lyrics */
+  openLyricsEditor(): void {
+    const partId = this.selectedPartId();
+    const lyrics = partId
+      ? [...this.getLyricsForPart(partId)].sort((a, b) => a.measure - b.measure || a.beat - b.beat)
+      : [];
+    let text = '';
+    for (const lyric of lyrics) {
+      text += lyric.text;
+      text += lyric.syllableType === 'begin' || lyric.syllableType === 'middle' ? '-' : ' ';
+    }
+    this.currentLyricText.set(text.trim());
+    this.editingLyrics.set(true);
+  }
+
+  /**
+   * Replace the selected part's lyrics for `verse` with `text`, one syllable per (voice 1)
+   * note in time order. Words are separated by whitespace and syllables by hyphens
+   * ("Hel-lo world"). Syllables beyond the last note are ignored.
+   */
+  applyLyrics(text: string = this.currentLyricText(), verse = 1): void {
+    const partId = this.selectedPartId();
+    const part = this.parts().find(p => p.id === partId);
+    if (!part) return;
+
+    const syllables: Array<Pick<LyricEntry, 'text' | 'syllableType'>> = [];
+    for (const word of text.split(/\s+/)) {
+      const pieces = word.split('-').filter(Boolean);
+      pieces.forEach((syllable, i) => {
+        let syllableType: LyricEntry['syllableType'] = 'middle';
+        if (pieces.length === 1) syllableType = 'single';
+        else if (i === 0) syllableType = 'begin';
+        else if (i === pieces.length - 1) syllableType = 'end';
+        syllables.push({ text: syllable, syllableType });
+      });
+    }
+
+    const sounding = part.notes.filter(n => !(n as PlacedNote & { isRest?: boolean }).isRest);
+    const melody = sounding.some(n => n.voice === 1)
+      ? sounding.filter(n => n.voice === 1)
+      : sounding;
+    const anchors = [...melody].sort((a, b) => a.measure - b.measure || a.beat - b.beat);
+
+    const lyrics: LyricEntry[] = syllables.slice(0, anchors.length).map((syllable, i) => ({
+      id: `lyric-${this.lyricIdCounter++}`,
+      ...syllable,
+      measure: anchors[i].measure,
+      beat: anchors[i].beat,
+      verse,
+    }));
+
+    this.saveHistory('Edit Lyrics');
+    this.parts.update(parts =>
+      parts.map(p =>
+        p.id === part.id
+          ? { ...p, lyrics: [...p.lyrics.filter(l => l.verse !== verse), ...lyrics] }
+          : p
+      )
+    );
+    this.emitScoreChanged();
+  }
+
+  // x of a lyric inside its staff row, aligned with the note at the same measure/beat
+  protected lyricX(lyric: LyricEntry): number {
+    const { contentStartX, measureWidth } = this.noteInputLayout();
+    return (
+      contentStartX +
+      lyric.measure * measureWidth +
+      (lyric.beat / NOTE_INPUT_GRID_DIVISION) * measureWidth
+    );
   }
 
   // ==================== UNDO/REDO ====================
@@ -876,7 +987,7 @@ export class TwScoreEditorComponent implements OnInit {
     // Build absolute-time note on/off events so chords and overlapping voices keep their
     // positions (delta times must never be negative)
     const quartersPerMeasure = this.getQuartersPerMeasure(this.timeSignature());
-    const gridDivision = 8; // tw-note-input default: beats are eighths of a measure
+    const gridDivision = NOTE_INPUT_GRID_DIVISION;
     const timed: Array<{ tick: number; isOn: boolean; midiNote: number }> = [];
 
     for (const note of part.notes) {
@@ -1145,58 +1256,151 @@ export class TwScoreEditorComponent implements OnInit {
     return numerator === 1 ? `/${denominator}` : `${numerator}/${denominator}`;
   }
 
+  /**
+   * Render the score's staves to a single-page PDF (the notation is embedded as an image).
+   * Browser only: requires a DOM and canvas support.
+   */
   async exportToPDF(): Promise<Blob> {
-    // Generate a simple PDF using canvas
-    // In production, you'd want to use a library like jsPDF
-    const svg = this.elementRef.nativeElement.querySelector('svg');
-    if (!svg) {
+    const container: HTMLElement | null =
+      this.elementRef.nativeElement.querySelector('.staves-container');
+    // Top-level SVGs only (nested ones are drawn as part of their parent)
+    const svgs: SVGSVGElement[] = [
+      ...(container?.querySelectorAll<SVGSVGElement>('svg') ?? []),
+    ].filter(svg => !svg.parentElement?.closest('svg'));
+    if (!container || svgs.length === 0) {
       throw new Error('No SVG element found');
     }
 
-    // Create canvas from SVG
+    const containerRect = container.getBoundingClientRect();
+    const cssWidth = Math.max(1, Math.ceil(containerRect.width) || this.width());
+    const cssHeight = Math.max(1, Math.ceil(containerRect.height) || this.totalHeight());
+    const scale = 2;
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('Could not create canvas context');
     }
+    canvas.width = cssWidth * scale;
+    canvas.height = cssHeight * scale;
 
-    canvas.width = this.width() * 2;
-    canvas.height = this.totalHeight() * 2;
-
-    // Draw white background
+    // White background (JPEG has no transparency)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Serialize SVG
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-
-    // Draw to canvas
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.addEventListener('load', () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for (const svg of svgs) {
+      const rect = svg.getBoundingClientRect();
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgUrl = URL.createObjectURL(
+        new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+      );
+      try {
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.addEventListener('load', () => {
+            resolve();
+          });
+          img.addEventListener('error', () => {
+            reject(new Error('Failed to load SVG image for PDF export'));
+          });
+          img.src = svgUrl;
+        });
+        ctx.drawImage(
+          img,
+          (rect.left - containerRect.left) * scale,
+          (rect.top - containerRect.top) * scale,
+          rect.width * scale,
+          rect.height * scale
+        );
+      } finally {
         URL.revokeObjectURL(svgUrl);
-        resolve();
-      });
-      img.addEventListener('error', () => {
-        URL.revokeObjectURL(svgUrl);
-        reject(new Error('Failed to load SVG image for PDF export'));
-      });
-      img.src = svgUrl;
-    });
+      }
+    }
 
-    // Convert to PDF (basic - just an image)
-    // For real PDF with text, use jsPDF
-    return new Promise(resolve => {
-      canvas.toBlob(blob => {
-        resolve(blob!);
-      }, 'application/pdf');
-    });
+    // canvas.toBlob(..., 'application/pdf') is not supported (it silently yields a PNG), so
+    // wrap a JPEG of the canvas in a minimal PDF document. 1 CSS px = 0.75 pt.
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const jpeg = Uint8Array.from(
+      atob(dataUrl.slice(dataUrl.indexOf(',') + 1)),
+      c => c.codePointAt(0) ?? 0
+    );
+    const pdf = this.buildImagePdf(
+      jpeg,
+      canvas.width,
+      canvas.height,
+      cssWidth * 0.75,
+      cssHeight * 0.75
+    );
+    return new Blob([pdf.buffer as ArrayBuffer], { type: 'application/pdf' });
   }
 
-  async export(format: ExportFormat): Promise<void> {
+  // Minimal single-page PDF 1.4 document showing one JPEG image scaled to the page
+  private buildImagePdf(
+    jpeg: Uint8Array,
+    pixelWidth: number,
+    pixelHeight: number,
+    pageWidth: number,
+    pageHeight: number
+  ): Uint8Array {
+    const encoder = new TextEncoder();
+    const chunks: Uint8Array[] = [];
+    const offsets: number[] = [];
+    let length = 0;
+    const write = (data: string | Uint8Array): void => {
+      const bytes = typeof data === 'string' ? encoder.encode(data) : data;
+      chunks.push(bytes);
+      length += bytes.length;
+    };
+    const startObject = (): void => {
+      offsets.push(length);
+    };
+
+    const w = pageWidth.toFixed(2);
+    const h = pageHeight.toFixed(2);
+    const content = `q ${w} 0 0 ${h} 0 0 cm /Im0 Do Q\n`;
+
+    write('%PDF-1.4\n');
+    startObject();
+    write('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    startObject();
+    write('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    startObject();
+    write(
+      `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] ` +
+        '/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n'
+    );
+    startObject();
+    write(
+      `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pixelWidth} /Height ${pixelHeight} ` +
+        `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`
+    );
+    write(jpeg);
+    write('\nendstream\nendobj\n');
+    startObject();
+    write(
+      `5 0 obj\n<< /Length ${encoder.encode(content).length} >>\nstream\n${content}endstream\nendobj\n`
+    );
+
+    const xrefOffset = length;
+    let xref = `xref\n0 ${offsets.length + 1}\n0000000000 65535 f \n`;
+    for (const offset of offsets) {
+      xref += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    }
+    write(xref);
+    write(
+      `trailer\n<< /Size ${offsets.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`
+    );
+
+    const pdf = new Uint8Array(length);
+    let position = 0;
+    for (const chunk of chunks) {
+      pdf.set(chunk, position);
+      position += chunk.length;
+    }
+    return pdf;
+  }
+
+  async export(format: ExportFormat): Promise<string | Blob | undefined> {
     let data: string | Blob;
 
     switch (format) {
@@ -1218,59 +1422,43 @@ export class TwScoreEditorComponent implements OnInit {
         break;
       }
       default: {
-        return;
+        return undefined;
       }
     }
 
     this.exportRequested.emit({ format, data });
+    return data;
   }
 
   downloadExport(format: ExportFormat): void {
-    void this.export(format).then(() => {
-      // Trigger download
-      const score = this.scoreData();
-      const filename = score.title.replaceAll(/\s+/g, '_') || 'score';
+    const fileTypes: Record<ExportFormat, { mimeType: string; extension: string }> = {
+      musicxml: { mimeType: 'application/vnd.recordare.musicxml+xml', extension: 'musicxml' },
+      midi: { mimeType: 'audio/midi', extension: 'mid' },
+      abc: { mimeType: 'text/plain', extension: 'abc' },
+      pdf: { mimeType: 'application/pdf', extension: 'pdf' },
+    };
 
-      let content: string | Blob;
-      let mimeType: string;
-      let extension: string;
+    this.export(format)
+      .then(content => {
+        const fileType = fileTypes[format];
+        if (content === undefined || !fileType) return;
 
-      switch (format) {
-        case 'musicxml': {
-          content = this.exportToMusicXML();
-          mimeType = 'application/vnd.recordare.musicxml+xml';
-          extension = 'musicxml';
-          break;
-        }
-        case 'midi': {
-          const midiBytes = this.exportToMidi();
-          content = new Blob([midiBytes.buffer as ArrayBuffer], { type: 'audio/midi' });
-          mimeType = 'audio/midi';
-          extension = 'mid';
-          break;
-        }
-        case 'abc': {
-          content = this.exportToABC();
-          mimeType = 'text/plain';
-          extension = 'abc';
-          break;
-        }
-        default: {
-          return;
-        }
-      }
+        const filename = this.scoreData().title.replaceAll(/\s+/g, '_') || 'score';
+        const blob =
+          typeof content === 'string' ? new Blob([content], { type: fileType.mimeType }) : content;
 
-      const blob = typeof content === 'string' ? new Blob([content], { type: mimeType }) : content;
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${filename}.${extension}`;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.${fileType.extension}`;
+        document.body.append(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      })
+      .catch((error: unknown) => {
+        console.error(`Score export (${format}) failed:`, error);
+      });
   }
 
   // ==================== IMPORT ====================
@@ -1304,24 +1492,49 @@ export class TwScoreEditorComponent implements OnInit {
     this.keySignature.set(data.keySignature);
     this.timeSignature.set(data.timeSignature);
 
-    // Convert measures to notes
+    this.measureCount.set(Math.max(1, data.measures.length));
+
+    // Convert measures to notes, placing each at its rhythmic position on the editor's grid
     const notes: PlacedNote[] = [];
     let noteId = 0;
+    const quartersPerMeasure = this.getQuartersPerMeasure(data.timeSignature);
+    const { contentStartX, measureWidth } = this.noteInputLayout();
+    const quarterLengths: Record<NoteDuration, number> = {
+      whole: 4,
+      half: 2,
+      quarter: 1,
+      eighth: 0.5,
+      sixteenth: 0.25,
+      thirtysecond: 0.125,
+    };
 
     data.measures.forEach((measure, measureIndex) => {
-      measure.notes.forEach((note, noteIndex) => {
-        const totalNotes = measure.notes.length;
-        const x = 130 + measureIndex * 150 + (noteIndex / totalNotes) * 140;
+      let offset = 0; // quarters from the start of the measure
+      for (const note of measure.notes) {
+        const fraction = Math.min(offset / quartersPerMeasure, 1);
+        const beat = Math.min(
+          NOTE_INPUT_GRID_DIVISION - 1,
+          Math.round(fraction * NOTE_INPUT_GRID_DIVISION)
+        );
+        const x =
+          contentStartX +
+          measureIndex * measureWidth +
+          (beat / NOTE_INPUT_GRID_DIVISION) * measureWidth;
 
         notes.push({
           id: `note-${noteId++}`,
           ...note,
           x,
           measure: measureIndex,
-          beat: noteIndex,
+          beat,
           voice: 1,
         });
-      });
+
+        let length = quarterLengths[note.duration] ?? 1;
+        if (note.doubleDotted) length *= 1.75;
+        else if (note.dotted) length *= 1.5;
+        offset += length;
+      }
     });
 
     // Create single part
@@ -1352,6 +1565,9 @@ export class TwScoreEditorComponent implements OnInit {
     this.tempo.set(score.tempo);
     this.keySignature.set(score.keySignature);
     this.timeSignature.set(score.timeSignature);
+    if (Number.isFinite(score.measures) && score.measures > 0) {
+      this.measureCount.set(score.measures);
+    }
     this.parts.set(score.parts);
 
     if (score.parts.length > 0) {

@@ -145,3 +145,59 @@ describe('TwNoteInputComponent', () => {
     expect((cmp as unknown as { undoStack: () => unknown[] }).undoStack().length).toBe(undoBefore);
   });
 });
+
+describe('TwNoteInputComponent clefs and layout', () => {
+  let fixture: ComponentFixture<TwNoteInputComponent>;
+  const internals = () =>
+    fixture.componentInstance as unknown as NoteInputInternals & {
+      staffTop: () => number;
+      contentStartX: () => number;
+      ledgerLines: (name: NoteName, octave: number) => number[];
+    };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TwNoteInputComponent);
+  });
+
+  it('places and reads pitches according to the bass clef', () => {
+    fixture.componentRef.setInput('clef', 'bass');
+    fixture.detectChanges();
+    const cmp = internals();
+    const spacing = fixture.componentInstance.lineSpacing();
+    // Bass clef: A3 on the top line, G2 on the bottom line
+    expect(cmp.noteToY('A', 3)).toBe(cmp.staffTop());
+    expect(cmp.noteToY('G', 2)).toBe(cmp.staffTop() + spacing * 4);
+    for (const [name, octave] of [
+      ['A', 3],
+      ['D', 3],
+      ['G', 2],
+      ['C', 4],
+      ['E', 2],
+    ] as Array<[NoteName, number]>) {
+      expect(cmp.yToNote(cmp.noteToY(name, octave))).toEqual({ note: name, octave });
+    }
+  });
+
+  it('puts middle C on the middle line of the alto clef', () => {
+    fixture.componentRef.setInput('clef', 'alto');
+    fixture.detectChanges();
+    const cmp = internals();
+    expect(cmp.noteToY('C', 4)).toBe(cmp.staffTop() + fixture.componentInstance.lineSpacing() * 2);
+  });
+
+  it('starts the note grid after the key signature drawn by tw-staff', () => {
+    fixture.componentRef.setInput('keySignature', 'C#');
+    fixture.detectChanges();
+    // tw-staff: 10 padding + 50 clef + (7 * 12 + 10) key signature + 30 time signature
+    expect(internals().contentStartX()).toBe(184);
+  });
+
+  it('draws ledger lines for notes outside the staff', () => {
+    fixture.detectChanges();
+    const cmp = internals();
+    const spacing = fixture.componentInstance.lineSpacing();
+    expect(cmp.ledgerLines('C', 4)).toEqual([cmp.staffTop() + spacing * 5]);
+    expect(cmp.ledgerLines('G', 4)).toEqual([]);
+  });
+});

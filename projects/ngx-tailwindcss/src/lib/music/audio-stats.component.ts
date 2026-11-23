@@ -274,8 +274,14 @@ export class TwAudioStatsComponent {
   // Codec details
   protected readonly codecDetails = computed(() => {
     const info = this.effectiveInfo();
-    const codecKey = info.codec?.toLowerCase().replaceAll(/[^a-z0-9]/g, '') || '';
-    const codecInfo = CODEC_INFO[codecKey] || null;
+    // Match hyphenated keys ('aac-lc') as given, then a normalized form ('E-AC-3' -> 'eac3'),
+    // then fall back to the container format (e.g. a WAV file with no codec set)
+    const lookup = (value?: string): (typeof CODEC_INFO)[string] | null => {
+      const key = value?.toLowerCase().trim() ?? '';
+      if (!key) return null;
+      return CODEC_INFO[key] ?? CODEC_INFO[key.replaceAll(/[^a-z0-9]/g, '')] ?? null;
+    };
+    const codecInfo = lookup(info.codec) ?? lookup(info.format);
 
     return {
       info: codecInfo,

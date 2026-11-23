@@ -187,7 +187,7 @@ export class TwCardMediaDirective {
  *     Card content goes here
  *   </tw-card-body>
  *   <tw-card-footer>
- *     <button tw-button variant="primary">Action</button>
+ *     <tw-button variant="primary">Action</tw-button>
  *   </tw-card-footer>
  * </tw-card>
  *

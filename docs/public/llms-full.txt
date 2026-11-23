@@ -18,13 +18,13 @@
 
 ## Overview
 
-ngx-tailwindcss is an open-source Angular UI component library that provides 30+ production-ready components styled with Tailwind CSS 4+. It's designed for modern Angular applications (v19, v20, v21) using standalone components.
+ngx-tailwindcss is an open-source Angular UI component library that provides 30+ production-ready components styled with Tailwind CSS 4+. It's designed for modern Angular applications (v19, v20, v21, v22) using standalone components.
 
 ### Key Differentiators
 
 1. **No Bundled CSS**: Unlike other UI libraries, ngx-tailwindcss doesn't bundle its own CSS. Components use Tailwind CSS classes that are processed by your app's Tailwind setup.
 
-2. **Full Customization**: Every component supports `classOverride` (merge classes) and `classReplace` (replace classes) props.
+2. **Full Customization**: Most components support `classOverride` (merge classes); `tw-button` and `tw-card` also support `classReplace` (replace classes).
 
 3. **Modern Angular**: Uses signals, computed properties, and effects throughout. Compatible with zoneless change detection.
 
@@ -154,10 +154,12 @@ The most commonly used component. Supports multiple variants, sizes, and states.
 ```
 
 **Inputs:**
-- `variant`: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'ghost' | 'outline' | 'link'
+- `variant`: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'ghost' | 'outline' | 'link'
 - `size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+- `type`: 'button' | 'submit' | 'reset' (default: 'button'; `submit`/`reset` act on the enclosing `<form>`. Pressing Enter in a form field does not trigger implicit submission through a `tw-button`)
 - `disabled`: boolean
 - `loading`: boolean
+- `fullWidth`: boolean
 - `iconOnly`: boolean
 - `ripple`: boolean (default: true)
 - `rippleColor`: string (default: 'rgba(255,255,255,0.4)')
@@ -178,26 +180,27 @@ Container component with optional header, body, and footer sections.
   <p>Card content</p>
 </tw-card>
 
-<!-- With directives -->
+<!-- With sections -->
 <tw-card>
-  <ng-container twCardHeader>
+  <tw-card-header>
     <tw-card-title>Card Title</tw-card-title>
     <tw-card-subtitle>Subtitle</tw-card-subtitle>
-  </ng-container>
+  </tw-card-header>
 
-  <ng-container twCardBody>
+  <tw-card-body>
     <p>Card body content goes here.</p>
-  </ng-container>
+  </tw-card-body>
 
-  <ng-container twCardFooter>
+  <tw-card-footer>
     <tw-button variant="primary">Action</tw-button>
-  </ng-container>
+  </tw-card-footer>
 </tw-card>
 
 <!-- Variants -->
 <tw-card variant="elevated">Elevated card with shadow</tw-card>
 <tw-card variant="outlined">Outlined card with border</tw-card>
 <tw-card variant="filled">Filled card with background</tw-card>
+<tw-card variant="ghost">Transparent card</tw-card>
 
 <!-- Hoverable -->
 <tw-card [hoverable]="true">Hover effect on mouse over</tw-card>
@@ -444,7 +447,7 @@ Traps focus within an element (useful for modals).
 Intelligently merges Tailwind classes.
 
 ```html
-<div twClass="p-4 bg-blue-500" [twClass]="dynamicClasses">
+<div twClass="p-4 bg-blue-500" [twClassMerge]="dynamicClasses">
   Classes are merged intelligently
 </div>
 ```
@@ -708,12 +711,15 @@ provideTwConfig({
 
 ### Method 4: CSS Variables
 
-Override using CSS custom properties in your styles:
+Override the theme's CSS custom properties in your styles. These drive the
+theme-aware utilities (e.g. `bg-[var(--tw-color-primary)]`, exported as
+`THEME_CSS_CLASSES`); the built-in component variants use fixed Tailwind palette
+classes, so restyle those with `classOverride` or `provideTwConfig`.
 
 ```css
 :root {
-  --tw-primary-bg: theme('colors.indigo.600');
-  --tw-primary-hover: theme('colors.indigo.700');
+  --tw-color-primary: var(--color-indigo-600);
+  --tw-color-primary-hover: var(--color-indigo-700);
 }
 ```
 
@@ -783,9 +789,9 @@ All components include proper ARIA attributes, but always add context:
     [error]="form.get('password')?.invalid && form.get('password')?.touched ? 'Password must be 8+ characters' : ''">
   </tw-input>
 
-  <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white" [disabled]="form.invalid">
+  <tw-button type="submit" variant="primary" [disabled]="form.invalid">
     Submit
-  </button>
+  </tw-button>
 </form>
 ```
 
@@ -852,7 +858,7 @@ All components include proper ARIA attributes, but always add context:
 
 | ngx-tailwindcss | Angular | Tailwind CSS |
 |-----------------|---------|--------------|
-| 0.1.x           | 19, 20, 21 | 4.x |
+| 1.x             | 19, 20, 21, 22 | 4.x |
 
 ---
 

@@ -4,8 +4,11 @@
 }
 
 <!-- Sidebar panel -->
+<!-- Modal sidebars move focus inside and trap Tab while open; focus is restored on hide -->
 <div
   [class]="panelClasses()"
+  [twFocusTrap]="visible() && modal()"
+  [focusTrapRestoreFocus]="false"
   [attr.aria-hidden]="!visible()"
   [attr.inert]="visible() ? null : ''"
   role="dialog"

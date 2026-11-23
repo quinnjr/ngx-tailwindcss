@@ -128,10 +128,12 @@ const ARTICULATION_SYMBOLS: Record<
 
 const ORNAMENT_SYMBOLS: Record<OrnamentType, { symbol: string; text?: string }> = {
   trill: { symbol: 'tr', text: 'tr' },
-  mordent: { symbol: '𝆖' },
-  invertedMordent: { symbol: '𝆗' },
-  turn: { symbol: '𝆗' },
-  invertedTurn: { symbol: '𝆘' },
+  // Unicode has no single mordent code points; fall back to a wavy line (with a vertical
+  // stroke for the lower mordent). U+1D196 is 'tr', U+1D197 TURN, U+1D198 INVERTED TURN.
+  mordent: { symbol: '∿⃒' },
+  invertedMordent: { symbol: '∿' },
+  turn: { symbol: '\u{1D197}' },
+  invertedTurn: { symbol: '\u{1D198}' },
   shake: { symbol: '~' },
   graceNote: { symbol: '♪' },
   appoggiatura: { symbol: '♪' },

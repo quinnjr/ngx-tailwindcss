@@ -1,3 +1,4 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NoteName, TwNoteComponent } from './note.component';
@@ -47,6 +48,28 @@ describe('TwNoteComponent', () => {
   it('draws two ledger lines for A3 and C6', () => {
     expect(render('A', 3).ledger).toEqual([90, 100]);
     expect(render('C', 6).ledger).toEqual([30, 20]);
+  });
+
+  it('draws two dots (not three) for a note that is both dotted and double-dotted', () => {
+    fixture.componentRef.setInput('dotted', true);
+    fixture.componentRef.setInput('doubleDotted', true);
+    fixture.detectChanges();
+    const dots = (fixture.nativeElement as HTMLElement).querySelectorAll('circle');
+    expect(dots).toHaveLength(2);
+  });
+
+  it('can be hosted on an SVG group inside another SVG', () => {
+    @Component({
+      template: '<svg><g twNote name="C" [octave]="5"></g></svg>',
+      imports: [TwNoteComponent],
+    })
+    class SvgHostComponent {}
+
+    const host = TestBed.createComponent(SvgHostComponent);
+    host.detectChanges();
+    const g = (host.nativeElement as HTMLElement).querySelector('g');
+    expect(g?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(g?.querySelector('ellipse')).not.toBeNull();
   });
 
   it('positions notes according to the clef', () => {

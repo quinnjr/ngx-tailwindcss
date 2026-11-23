@@ -91,3 +91,62 @@ describe('TwVuMeterComponent', () => {
     expect(segments.length).toBeGreaterThan(0);
   });
 });
+
+@Component({
+  template: `<tw-vu-meter
+    [value]="value()"
+    [min]="-60"
+    [max]="0"
+    [segmentCount]="10"
+  ></tw-vu-meter>`,
+  standalone: true,
+  imports: [TwVuMeterComponent],
+})
+class DbRangeHostComponent {
+  value = signal(-60);
+}
+
+describe('TwVuMeterComponent with a non-zero min', () => {
+  let fixture: ComponentFixture<DbRangeHostComponent>;
+
+  const meter = (): TwVuMeterComponent =>
+    fixture.debugElement.query(By.directive(TwVuMeterComponent))
+      .componentInstance as TwVuMeterComponent;
+  const ariaLabel = (): string | null =>
+    (fixture.debugElement.query(By.css('[role="img"]')).nativeElement as HTMLElement).getAttribute(
+      'aria-label'
+    );
+  const activeSegments = (): number =>
+    fixture.debugElement
+      .queryAll(By.css('[role="img"] .rounded-sm'))
+      .filter(el => (el.nativeElement as HTMLElement).className.includes('bg-emerald-500')).length;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [DbRangeHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(DbRangeHostComponent);
+    fixture.detectChanges();
+    fixture.detectChanges();
+  });
+
+  it('should render the min value as an empty meter', () => {
+    expect(ariaLabel()).toBe('Level meter: 0%');
+    expect(activeSegments()).toBe(0);
+    expect(fixture.debugElement.queryAll(By.css('.h-1.absolute')).length).toBe(0);
+  });
+
+  it('should map values relative to min..max', () => {
+    fixture.componentInstance.value.set(-30);
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(ariaLabel()).toBe('Level meter: 50%');
+    expect(activeSegments()).toBe(5);
+    expect(meter().getPeakValue()).toBe(-30);
+    const peak = fixture.debugElement.query(By.css('.h-1.absolute')).nativeElement as HTMLElement;
+    expect(peak.style.bottom).toBe('50%');
+  });
+});

@@ -25,9 +25,14 @@
       <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   </button>
-  @if (isOpen()) {
-    <div [id]="panelId" role="region" [attr.aria-labelledby]="headerId" [class]="contentClasses()">
-      <ng-content></ng-content>
-    </div>
-  }
+  <!-- Kept in the DOM while collapsed so the header's aria-controls always resolves -->
+  <div
+    [id]="panelId"
+    role="region"
+    [attr.aria-labelledby]="headerId"
+    [class]="contentClasses()"
+    [hidden]="!isOpen()"
+  >
+    <ng-content></ng-content>
+  </div>
 </div>

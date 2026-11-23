@@ -35,11 +35,13 @@ export type MultiSelectSize = 'sm' | 'md' | 'lg';
 export type MultiSelectVariant = 'default' | 'filled';
 export type MultiSelectAppendTo = 'body' | 'self';
 
-const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string }> = {
-  sm: { trigger: 'px-3 py-1.5 min-h-8', text: 'text-sm' },
-  md: { trigger: 'px-4 py-2.5 min-h-10', text: 'text-base' },
-  lg: { trigger: 'px-5 py-3 min-h-12', text: 'text-lg' },
-};
+const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string; clear: string }> =
+  {
+    // `clear` offsets the clear button over its reserved slot: padding + chevron (w-5) + gap-2
+    sm: { trigger: 'px-3 py-1.5 min-h-8', text: 'text-sm', clear: 'right-10' },
+    md: { trigger: 'px-4 py-2.5 min-h-10', text: 'text-base', clear: 'right-11' },
+    lg: { trigger: 'px-5 py-3 min-h-12', text: 'text-lg', clear: 'right-12' },
+  };
 
 /**
  * Multi-select/Dropdown component with Tailwind CSS styling.
@@ -69,6 +71,7 @@ const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string
 export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, AfterViewInit {
   @ViewChild('triggerButton') triggerButton!: ElementRef<HTMLButtonElement>;
   @ViewChild('filterInput') filterInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('clearButton') clearButton?: ElementRef<HTMLButtonElement>;
 
   /** Options to display (flat list) */
   readonly options = input<MultiSelectOption[]>([]);
@@ -245,6 +248,17 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     return this.twClass.merge(baseClasses.join(' '), this.triggerClass());
   });
 
+  protected showClearButton = computed(() => this.selectedValues().size > 0 && !this._disabled());
+
+  protected clearButtonClasses = computed(() =>
+    [
+      'absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded',
+      'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+      MULTISELECT_SIZES[this.size()].clear,
+    ].join(' ')
+  );
+
   protected dropdownClasses = computed(() => {
     const baseClasses = [
       'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10',
@@ -416,6 +430,12 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     this.selectionChange.emit([]);
   }
 
+  /** Clear button handler: the button disappears once cleared, so keep focus on the trigger */
+  protected onClearClick(): void {
+    this.clearAll();
+    this.triggerButton?.nativeElement?.focus();
+  }
+
   protected onFilterInput(event: Event): void {
     const filterInput = event.target as HTMLInputElement;
     this.filterValue.set(filterInput.value);
@@ -425,6 +445,8 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   @HostListener('keydown', ['$event'])
   protected onKeydown(event: KeyboardEvent): void {
     if (this._disabled()) return;
+    // Let the clear button handle its own keys (native button activation)
+    if (event.target === this.clearButton?.nativeElement) return;
 
     const isFilterInput = event.target === this.filterInput?.nativeElement;
 

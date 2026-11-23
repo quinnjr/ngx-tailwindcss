@@ -1,5 +1,4 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -7,6 +6,7 @@ import {
   EventEmitter,
   inject,
   input,
+  linkedSignal,
   OnDestroy,
   Output,
   signal,
@@ -72,7 +72,7 @@ const KEYBOARD_RESIZE_STEP = 2;
     `,
   ],
 })
-export class TwSplitterComponent implements AfterViewInit, OnDestroy {
+export class TwSplitterComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
 
   @ViewChild('container') containerRef!: ElementRef<HTMLElement>;
@@ -108,7 +108,10 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   /** Emits when dragging ends */
   @Output() dragEnd = new EventEmitter<void>();
 
-  protected sizes = signal<[number, number]>([50, 50]);
+  /** Current sizes; reset whenever the `initialSizes` input changes */
+  protected sizes = linkedSignal<[number, number]>(
+    () => [...this.initialSizes()] as [number, number]
+  );
   protected isDragging = signal(false);
 
   private startPos = 0;
@@ -119,10 +122,6 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   private readonly mouseUpHandler = this.onMouseUp.bind(this);
   private readonly touchMoveHandler = this.onTouchMove.bind(this);
   private readonly touchEndHandler = this.onTouchEnd.bind(this);
-
-  ngAfterViewInit(): void {
-    this.sizes.set([...this.initialSizes()] as [number, number]);
-  }
 
   ngOnDestroy(): void {
     this.removeListeners();
@@ -184,6 +183,7 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
     this.startDrag(this.direction() === 'horizontal' ? touch.clientX : touch.clientY);
     document.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
     document.addEventListener('touchend', this.touchEndHandler);
+    document.addEventListener('touchcancel', this.touchEndHandler);
   }
 
   protected onGutterKeydown(event: KeyboardEvent): void {
@@ -308,6 +308,7 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
     document.removeEventListener('mouseup', this.mouseUpHandler);
     document.removeEventListener('touchmove', this.touchMoveHandler);
     document.removeEventListener('touchend', this.touchEndHandler);
+    document.removeEventListener('touchcancel', this.touchEndHandler);
   }
 
   /** Programmatically set sizes */

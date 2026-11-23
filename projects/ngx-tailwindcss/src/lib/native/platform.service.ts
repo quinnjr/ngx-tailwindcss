@@ -1,6 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { OsPlatform, PlatformTheme, WindowState } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { getExposedElectronIpc, loadElectronIpc } from './electron-bridge.util';
 
 // Type definitions for dynamic imports (Tauri/Electron may not be present)
 interface TauriWindow {
@@ -79,11 +80,37 @@ export class NativeAppPlatformService {
     );
   }
 
+  /**
+   * Electron detection. `window.process.type` is only visible with
+   * `nodeIntegration`/no context isolation, so the user agent (Electron adds
+   * `Electron/x.y.z` by default) and a preload-exposed ipcRenderer bridge
+   * (see `loadElectronIpc`) are checked as well.
+   */
   private checkElectron(): boolean {
-    return (
-      typeof window !== 'undefined' &&
-      typeof (window as Window & { process?: { type?: string } }).process?.type === 'string'
-    );
+    if (typeof window === 'undefined') return false;
+    if (typeof (window as Window & { process?: { type?: string } }).process?.type === 'string') {
+      return true;
+    }
+    if (typeof navigator !== 'undefined' && /\belectron\//i.test(navigator.userAgent)) {
+      return true;
+    }
+    return getExposedElectronIpc() !== null;
+  }
+
+  /**
+   * Send a window command to the Electron main process.
+   * @returns false when no ipcRenderer is reachable, so callers can fall back
+   * to web behaviour.
+   */
+  private async sendElectron(channel: string, ...args: unknown[]): Promise<boolean> {
+    try {
+      const { ipcRenderer } = await loadElectronIpc();
+      ipcRenderer.send(channel, ...args);
+      return true;
+    } catch (error) {
+      console.warn(`Electron ${channel} failed:`, error);
+      return false;
+    }
   }
 
   private querySystemPrefersDark(): boolean {
@@ -140,12 +167,7 @@ export class NativeAppPlatformService {
         console.warn('Tauri minimize failed:', error);
       }
     } else if (this._isElectron()) {
-      try {
-        const electron = await dynamicImport('electron');
-        electron.ipcRenderer.send('window-minimize');
-      } catch (error) {
-        console.warn('Electron minimize failed:', error);
-      }
+      await this.sendElectron('window-minimize');
     }
     this._windowState.update(s => ({ ...s, isMinimized: true }));
   }
@@ -166,12 +188,7 @@ export class NativeAppPlatformService {
         console.warn('Tauri maximize failed:', error);
       }
     } else if (this._isElectron()) {
-      try {
-        const electron = await dynamicImport('electron');
-        electron.ipcRenderer.send('window-maximize');
-      } catch (error) {
-        console.warn('Electron maximize failed:', error);
-      }
+      await this.sendElectron('window-maximize');
     }
   }
 
@@ -184,14 +201,9 @@ export class NativeAppPlatformService {
       } catch (error) {
         console.warn('Tauri close failed:', error);
       }
-    } else if (this._isElectron()) {
-      try {
-        const electron = await dynamicImport('electron');
-        electron.ipcRenderer.send('window-close');
-      } catch (error) {
-        console.warn('Electron close failed:', error);
-      }
-    } else {
+    } else if (this._isElectron() && (await this.sendElectron('window-close'))) {
+      // Handled by the main process
+    } else if (typeof window !== 'undefined') {
       window.close();
     }
   }
@@ -209,17 +221,14 @@ export class NativeAppPlatformService {
       } catch (error) {
         console.warn('Tauri fullscreen failed:', error);
       }
-    } else if (this._isElectron()) {
-      try {
-        const electron = await dynamicImport('electron');
-        electron.ipcRenderer.send('window-fullscreen');
-      } catch (error) {
-        console.warn('Electron fullscreen failed:', error);
-      }
+    } else if (this._isElectron() && (await this.sendElectron('window-fullscreen'))) {
+      // Handled by the main process
+    } else if (typeof document === 'undefined') {
+      // SSR: nothing to do
     } else if (document.fullscreenElement) {
       await document.exitFullscreen();
     } else {
-      await document.documentElement.requestFullscreen();
+      await document.documentElement.requestFullscreen?.();
     }
   }
 
@@ -232,14 +241,9 @@ export class NativeAppPlatformService {
       } catch (error) {
         console.warn('Tauri setTitle failed:', error);
       }
-    } else if (this._isElectron()) {
-      try {
-        const electron = await dynamicImport('electron');
-        electron.ipcRenderer.send('window-set-title', title);
-      } catch (error) {
-        console.warn('Electron setTitle failed:', error);
-      }
-    } else {
+    } else if (this._isElectron() && (await this.sendElectron('window-set-title', title))) {
+      // Handled by the main process
+    } else if (typeof document !== 'undefined') {
       document.title = title;
     }
   }

@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { pushEscapeLayer, removeEscapeLayer, shouldHandleEscape } from './escape-layer-stack';
 
 export type OverlayBlur = 'none' | 'sm' | 'md' | 'lg';
 export type OverlayOpacity = 'light' | 'medium' | 'dark' | 'solid';
@@ -107,6 +108,15 @@ export class TwOverlayComponent implements OnDestroy {
   private scrollLocked = false;
 
   constructor() {
+    // Visible overlays join the shared layer stack; only the topmost reacts to Escape
+    effect(() => {
+      if (this.visible()) {
+        pushEscapeLayer(this);
+      } else {
+        removeEscapeLayer(this);
+      }
+    });
+
     // Lock/unlock body scroll while visible when lockScroll is enabled
     effect(() => {
       const shouldLock = this.visible() && this.lockScroll();
@@ -125,17 +135,20 @@ export class TwOverlayComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    removeEscapeLayer(this);
     if (this.scrollLocked && isPlatformBrowser(this.platformId)) {
       this.document.body.style.overflow = this.previousOverflow;
       this.scrollLocked = false;
     }
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapeKey(): void {
-    if (this.visible() && this.closeOnEscape()) {
-      this.close.emit();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(event?: Event): void {
+    if (!this.visible() || !this.closeOnEscape()) return;
+    // Only the topmost open layer closes, and not when content inside already handled it
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.close.emit();
   }
 
   protected readonly overlayClasses = computed(() => {

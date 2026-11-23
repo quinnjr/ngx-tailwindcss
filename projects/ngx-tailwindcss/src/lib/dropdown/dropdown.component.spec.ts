@@ -2,7 +2,7 @@ import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DropdownPosition,
   TwDropdownComponent,
@@ -345,6 +345,57 @@ describe('TwDropdownComponent inside a modal', () => {
 
     expect(fixture.componentInstance.dropdown.isOpen()).toBe(false);
     expect(fixture.componentInstance.modalOpen()).toBe(true);
+    fixture.destroy();
+  });
+
+  it('should not swallow Escape from handlers inside the menu, and close layers one at a time', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DropdownInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DropdownInModalHostComponent);
+    fixture.detectChanges();
+
+    const ddTrigger = document.querySelector('.dd-trigger')!;
+    ddTrigger.click();
+    fixture.detectChanges();
+
+    const item = document.querySelector('[twdropdownitem]')!;
+    const itemHandler = vi.fn();
+    item.addEventListener('keydown', itemHandler);
+    const escape = () =>
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+
+    item.dispatchEvent(escape());
+    fixture.detectChanges();
+    expect(itemHandler).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.dropdown.isOpen()).toBe(false);
+    expect(fixture.componentInstance.modalOpen()).toBe(true);
+
+    ddTrigger.dispatchEvent(escape());
+    fixture.detectChanges();
+    expect(fixture.componentInstance.modalOpen()).toBe(false);
+    fixture.destroy();
+  });
+
+  it('should not hijack arrow keys while focus is outside the dropdown', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DropdownInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DropdownInModalHostComponent);
+    fixture.detectChanges();
+    document.querySelector('.dd-trigger')!.click();
+    fixture.detectChanges();
+
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.focus();
+    const event = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+
+    input.remove();
     fixture.destroy();
   });
 });

@@ -1,9 +1,12 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
+  ElementRef,
   inject,
+  Injector,
   input,
   linkedSignal,
   numberAttribute,
@@ -11,6 +14,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -54,6 +58,8 @@ export const BPM_RANGES = {
 })
 export class TwBpmDisplayComponent implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly injector = inject(Injector);
+  private readonly editInput = viewChild<ElementRef<HTMLInputElement>>('editInput');
 
   // Configuration
   readonly variant = input<BpmDisplayVariant>('default');
@@ -92,7 +98,8 @@ export class TwBpmDisplayComponent implements OnDestroy {
   protected readonly isSynced = linkedSignal(() => this.syncEnabled());
   protected readonly tapTimes = signal<number[]>([]);
   protected readonly isEditing = signal(false);
-  protected readonly editValue = signal('120');
+  // type="number" + ngModel yields numbers (or null when cleared)
+  protected readonly editValue = signal<string | number | null>('120');
   protected readonly beatActive = signal(false);
 
   private beatFlashTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -137,8 +144,9 @@ export class TwBpmDisplayComponent implements OnDestroy {
 
   protected onSliderChange(event: Event): void {
     if (this.disabled() || !this.editable()) return;
-    const value = parseInt((event.target as HTMLInputElement).value, 10);
-    this.setBpm(value);
+    // parseFloat: the slider step may be fractional
+    const value = Number.parseFloat((event.target as HTMLInputElement).value);
+    if (!Number.isNaN(value)) this.setBpm(value);
   }
 
   protected incrementBpm(amount: number): void {
@@ -225,10 +233,14 @@ export class TwBpmDisplayComponent implements OnDestroy {
     if (this.disabled() || !this.editable()) return;
     this.isEditing.set(true);
     this.editValue.set(this.internalBpm().toString());
+    // Move focus into the editor so keyboard users can type (and blur commits)
+    afterNextRender(() => this.editInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
   protected finishEditing(): void {
-    const value = Number.parseInt(this.editValue(), 10);
+    // Enter/Escape already ended editing; the blur from removing the input must not re-commit
+    if (!this.isEditing()) return;
+    const value = Number.parseFloat(String(this.editValue()));
     if (!Number.isNaN(value)) {
       this.setBpm(value);
     }

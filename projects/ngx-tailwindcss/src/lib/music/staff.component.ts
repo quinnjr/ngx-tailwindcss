@@ -47,6 +47,42 @@ const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 7] },
 };
 
+export interface StaffLayoutOptions {
+  width: number;
+  measures: number;
+  keySignature: KeySignature;
+  showClef?: boolean;
+  showKeySignature?: boolean;
+  /** Whether a time signature is drawn (shown and not null) */
+  showTimeSignature?: boolean;
+}
+
+/** Horizontal space taken by a key signature's accidentals in tw-staff */
+export function getStaffKeySignatureWidth(key: KeySignature): number {
+  const info = KEY_SIGNATURES[key];
+  const count = info.sharps || info.flats;
+  return count * 12 + 10;
+}
+
+/**
+ * Where tw-staff starts its first measure and how wide each measure is. Components that
+ * place notes over a tw-staff must use this so notes line up with its bar lines.
+ */
+export function getStaffLayout(options: StaffLayoutOptions): {
+  contentStartX: number;
+  measureWidth: number;
+} {
+  const { width, measures, keySignature } = options;
+  const clefWidth = options.showClef === false ? 0 : 50;
+  const keyWidth = options.showKeySignature === false ? 0 : getStaffKeySignatureWidth(keySignature);
+  const timeWidth = options.showTimeSignature === false ? 0 : 30;
+  const availableWidth = width - clefWidth - keyWidth - timeWidth - 20; // padding
+  return {
+    contentStartX: 10 + clefWidth + keyWidth + timeWidth,
+    measureWidth: availableWidth / Math.max(1, measures),
+  };
+}
+
 // SVG paths for musical symbols
 const CLEF_PATHS = {
   treble:
@@ -97,21 +133,22 @@ export class TwStaffComponent {
     return Array.from({ length: 5 }, (_, i) => top + i * spacing);
   });
 
-  protected readonly measureWidth = computed(() => {
-    const width = this.width();
-    const clefWidth = this.showClef() ? 50 : 0;
-    const keyWidth = this.showKeySignature() ? this.keySignatureWidth() : 0;
-    const timeWidth = this.showTimeSignature() && this.timeSignature() ? 30 : 0;
-    const availableWidth = width - clefWidth - keyWidth - timeWidth - 20; // padding
-    return availableWidth / this.measures();
-  });
+  private readonly layout = computed(() =>
+    getStaffLayout({
+      width: this.width(),
+      measures: this.measures(),
+      keySignature: this.keySignature(),
+      showClef: this.showClef(),
+      showKeySignature: this.showKeySignature(),
+      showTimeSignature: this.showTimeSignature() && !!this.timeSignature(),
+    })
+  );
 
-  protected readonly keySignatureWidth = computed(() => {
-    const key = this.keySignature();
-    const info = KEY_SIGNATURES[key];
-    const count = info.sharps || info.flats;
-    return count * 12 + 10;
-  });
+  protected readonly measureWidth = computed(() => this.layout().measureWidth);
+
+  protected readonly keySignatureWidth = computed(() =>
+    getStaffKeySignatureWidth(this.keySignature())
+  );
 
   protected readonly barLinePositions = computed(() => {
     const measures = this.measures();
@@ -126,13 +163,7 @@ export class TwStaffComponent {
     return positions;
   });
 
-  protected readonly contentStartX = computed(() => {
-    let x = 10; // Left padding
-    if (this.showClef()) x += 50;
-    if (this.showKeySignature()) x += this.keySignatureWidth();
-    if (this.showTimeSignature() && this.timeSignature()) x += 30;
-    return x;
-  });
+  protected readonly contentStartX = computed(() => this.layout().contentStartX);
 
   protected readonly colors = computed(() => {
     const variant = this.variant();

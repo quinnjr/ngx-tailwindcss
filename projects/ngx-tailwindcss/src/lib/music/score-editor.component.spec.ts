@@ -1,8 +1,14 @@
 import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { InstrumentPart, ScoreData, TwScoreEditorComponent } from './score-editor.component';
-import { PlacedNote } from './note-input.component';
+import {
+  InstrumentPart,
+  ScoreData,
+  TransposeOptions,
+  TwScoreEditorComponent,
+} from './score-editor.component';
+import { PlacedNote, TwNoteInputComponent } from './note-input.component';
 
 const placed = (id: string, overrides: Partial<PlacedNote> = {}): PlacedNote => ({
   id,
@@ -63,6 +69,18 @@ interface EditorInternals {
   onKeyDown: (event: KeyboardEvent) => void;
   updatePart: (id: string, updates: Partial<InstrumentPart>) => void;
   currentDuration: { set: (v: string) => void };
+  scoreData: () => ScoreData;
+  transpose: (options: TransposeOptions) => void;
+  importABC: (abc: string) => void;
+  applyLyrics: (text: string) => void;
+  editingLyrics: () => boolean;
+  buildImagePdf: (
+    jpeg: Uint8Array,
+    pixelWidth: number,
+    pixelHeight: number,
+    pageWidth: number,
+    pageHeight: number
+  ) => Uint8Array;
 }
 
 describe('TwScoreEditorComponent', () => {
@@ -155,5 +173,95 @@ describe('TwScoreEditorComponent', () => {
     const child = hostFixture.debugElement.query(el => el.name === 'tw-score-editor')
       .componentInstance as EditorInternals;
     expect(child.title()).toBe('Loaded');
+  });
+
+  it('uses the measure count of a loaded score', () => {
+    createWith({ ...score([placed('n1')]), measures: 6 });
+    expect(editor.scoreData().measures).toBe(6);
+    expect(editor.exportToMusicXML().match(/<measure /g)).toHaveLength(6);
+    fixture.detectChanges();
+    const noteInput = fixture.debugElement.query(By.directive(TwNoteInputComponent));
+    expect((noteInput.componentInstance as TwNoteInputComponent).measures()).toBe(6);
+  });
+
+  it('uses the measure count and rhythmic positions of an imported score', () => {
+    createWith(null);
+    editor.importABC(['X:1', 'L:1/8', 'K:C', 'C2 D2 E4|F8|G8|'].join('\n'));
+    expect(editor.scoreData().measures).toBe(3);
+    const notes = editor.parts()[0].notes;
+    // quarter, quarter, half on an 8-per-measure grid
+    expect(notes.slice(0, 3).map(n => n.beat)).toEqual([0, 2, 4]);
+    expect(notes[1].x).toBeGreaterThan(notes[0].x);
+    expect(notes.map(n => n.measure)).toEqual([0, 0, 0, 1, 2]);
+  });
+
+  it('keeps flat spellings when transposing with preserveEnharmonic', () => {
+    const notes = [
+      placed('n1', { name: 'E', accidental: 'flat' }),
+      placed('n2', { name: 'B', accidental: 'flat' }),
+    ];
+    createWith(score(notes));
+    editor.transpose({ semitones: 3, preserveEnharmonic: true });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.accidental, n.octave])).toEqual([
+      ['G', 'flat', 4],
+      ['D', 'flat', 5],
+    ]);
+
+    createWith(score(notes));
+    editor.transpose({ semitones: 3 });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.accidental, n.octave])).toEqual([
+      ['F', 'sharp', 4],
+      ['C', 'sharp', 5],
+    ]);
+  });
+
+  it('opens the lyrics editor from the toolbar and applies syllables to notes', () => {
+    createWith(
+      score([
+        placed('n1', { beat: 0 }),
+        placed('n2', { beat: 2 }),
+        placed('n3', { beat: 4 }),
+        placed('n4', { measure: 1, beat: 0, voice: 2 }),
+      ])
+    );
+    const button = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.toolbar-btn'),
+    ].find(b => b.textContent?.includes('Lyrics'));
+    expect(button).toBeDefined();
+    button!.click();
+    fixture.detectChanges();
+    expect(editor.editingLyrics()).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.lyrics-editor-panel')
+    ).not.toBeNull();
+
+    editor.applyLyrics('Hel-lo world extra');
+    const lyrics = editor.parts()[0].lyrics;
+    expect(lyrics.map(l => [l.text, l.syllableType, l.measure, l.beat])).toEqual([
+      ['Hel', 'begin', 0, 0],
+      ['lo', 'end', 0, 2],
+      ['world', 'single', 0, 4],
+    ]);
+  });
+
+  it('builds a structurally valid PDF around the rendered image', () => {
+    createWith(null);
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const pdf = editor.buildImagePdf(jpeg, 200, 100, 75, 37.5);
+    const text = new TextDecoder('latin1').decode(pdf);
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('/Filter /DCTDecode /Length 4');
+    expect(text.trimEnd().endsWith('%%EOF')).toBe(true);
+
+    // Every xref entry points at the start of its object, and startxref at the xref table
+    const startxref = Number(/startxref\n(\d+)/.exec(text)![1]);
+    expect(text.slice(startxref, startxref + 4)).toBe('xref');
+    const offsets = [...text.slice(startxref).matchAll(/(\d{10}) 00000 n /g)].map(m =>
+      Number(m[1])
+    );
+    expect(offsets).toHaveLength(5);
+    offsets.forEach((offset, i) => {
+      expect(text.slice(offset, offset + 7)).toBe(`${i + 1} 0 obj`);
+    });
   });
 });

@@ -7,9 +7,11 @@ describe('TwChordDiagramComponent', () => {
 
   // String labels are the small 10px texts below the grid, read left to right
   const labelsLeftToRight = (): string[] =>
-    [...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>(
+    [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>(
         'text[font-size="10"].opacity-60'
-      )]
+      ),
+    ]
       .sort((a, b) => Number(a.getAttribute('x')) - Number(b.getAttribute('x')))
       .map(t => t.textContent?.trim() ?? '');
 
@@ -51,5 +53,13 @@ describe('TwChordDiagramComponent', () => {
     fixture.detectChanges();
     const barre = (fixture.nativeElement as HTMLElement).querySelector('rect[rx="5"]');
     expect(barre).not.toBeNull();
+  });
+
+  it('sizes the padded container so the diagram SVG fits inside it', () => {
+    fixture.detectChanges();
+    const container = (fixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;
+    const svgWidth = Number(container.querySelector('svg')!.getAttribute('width'));
+    expect(container.style.boxSizing).toBe('border-box');
+    expect(Number.parseFloat(container.style.width)).toBe(svgWidth + 16);
   });
 });

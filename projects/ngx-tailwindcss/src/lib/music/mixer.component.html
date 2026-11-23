@@ -1,6 +1,6 @@
-<div [class]="containerClasses()" [class]="responsiveClasses()">
+<div [class]="rootClasses()">
   <!-- Scroll Left Button -->
-  @if (scrollable() && channels().length > effectiveMaxChannels()) {
+  @if (scrollable() && filteredChannels().length > effectiveMaxChannels()) {
     <button
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"
@@ -115,7 +115,7 @@
 
           <tw-channel-strip
             [label]="channel.label"
-            [channelNumber]="scrollOffset() + i + 1"
+            [channelNumber]="effectiveScrollOffset() + i + 1"
             [variant]="channelStripVariant()"
             [size]="stripSize()"
             [showMeter]="true"
@@ -137,7 +137,7 @@
   }
 
   <!-- Scroll Right Button -->
-  @if (scrollable() && channels().length > effectiveMaxChannels()) {
+  @if (scrollable() && filteredChannels().length > effectiveMaxChannels()) {
     <button
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"

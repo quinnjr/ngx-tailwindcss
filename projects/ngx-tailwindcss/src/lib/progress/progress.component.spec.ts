@@ -404,3 +404,42 @@ describe('TwProgressCircularComponent', () => {
     });
   });
 });
+
+describe('Progress bare boolean attributes', () => {
+  it('should treat bare showValue/indeterminate attributes as true', async () => {
+    @Component({
+      template: `
+        <tw-progress [value]="40" showValue></tw-progress>
+        <tw-progress-circular [value]="40" indeterminate></tw-progress-circular>
+      `,
+      standalone: true,
+      imports: [TwProgressComponent, TwProgressCircularComponent],
+    })
+    class BareAttrHostComponent {}
+
+    await TestBed.configureTestingModule({ imports: [BareAttrHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(BareAttrHostComponent);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('tw-progress')!.textContent).toContain('40%');
+    const circular = el.querySelector('tw-progress-circular [role="progressbar"]')!;
+    expect(circular.hasAttribute('aria-valuenow')).toBe(false);
+  });
+
+  it('should name the progressbar with its label', async () => {
+    @Component({
+      template: `<tw-progress [value]="40" label="Uploading"></tw-progress>`,
+      standalone: true,
+      imports: [TwProgressComponent],
+    })
+    class LabelHostComponent {}
+
+    await TestBed.configureTestingModule({ imports: [LabelHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(LabelHostComponent);
+    fixture.detectChanges();
+
+    const bar = (fixture.nativeElement as HTMLElement).querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-label')).toBe('Uploading');
+  });
+});

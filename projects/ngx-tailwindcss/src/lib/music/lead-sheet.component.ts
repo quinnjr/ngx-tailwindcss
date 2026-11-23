@@ -111,6 +111,14 @@ function parseChordSymbol(chord: string): ParsedChordSymbol | null {
   return { base: root, modifier: rest };
 }
 
+// Beats per measure for a time signature string ("3/4", "C" = 4, "C|" = 2)
+function beatsInTimeSignature(ts: string): number {
+  if (ts === 'C') return 4;
+  if (ts === 'C|') return 2;
+  const [beats] = ts.split('/').map(Number);
+  return beats || 4;
+}
+
 // Common slash patterns
 const SLASH_PATTERNS: Record<string, SlashPattern> = {
   '4/4-basic': { beats: [1, 2, 3, 4] },
@@ -331,9 +339,7 @@ export class TwLeadSheetComponent {
   }
 
   protected getBeatsPerMeasure(): number {
-    const ts = this.data()?.timeSignature || '4/4';
-    const [beats] = ts.split('/').map(Number);
-    return beats || 4;
+    return beatsInTimeSignature(this.data()?.timeSignature || '4/4');
   }
 
   protected getMeasureGlobalIndex(sectionIndex: number, measureIndex: number): number {
@@ -350,6 +356,22 @@ export class TwLeadSheetComponent {
   protected onChordClick(sectionIndex: number, measureIndex: number, chord: LeadSheetChord): void {
     if (!this.interactive()) return;
     this.chordClick.emit({ section: sectionIndex, measure: measureIndex, chord });
+  }
+
+  // Click / Enter / Space on a chord symbol: emit chordClick and toggle its diagram
+  protected activateChord(
+    event: Event,
+    sectionIndex: number,
+    measureIndex: number,
+    chordIndex: number,
+    chord: LeadSheetChord
+  ): void {
+    event.stopPropagation();
+    if (event instanceof KeyboardEvent) event.preventDefault();
+    this.onChordClick(sectionIndex, measureIndex, chord);
+    if (this.showChordDiagrams()) {
+      this.toggleDiagram(this.getChordId(sectionIndex, measureIndex, chordIndex));
+    }
   }
 
   protected onMeasureClick(sectionIndex: number, measureIndex: number): void {
@@ -418,9 +440,7 @@ export class TwLeadSheetComponent {
 
   // Get default slash beats
   protected getDefaultSlashBeats(): number[] {
-    const ts = this.data()?.timeSignature || '4/4';
-    const [beats] = ts.split('/').map(Number);
-    return Array.from({ length: beats || 4 }, (_, i) => i + 1);
+    return Array.from({ length: this.getBeatsPerMeasure() }, (_, i) => i + 1);
   }
 
   // Toggle expanded diagram

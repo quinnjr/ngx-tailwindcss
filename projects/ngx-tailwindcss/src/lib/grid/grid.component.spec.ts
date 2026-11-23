@@ -221,6 +221,22 @@ describe('TwGridComponent', () => {
       expect(inner?.className).toContain('gap-y-2');
       expect(inner?.className).toContain('gap-x-6');
     });
+
+    it('should apply rowGap alone, keeping gap for columns', () => {
+      component.rowGap.set('xl');
+      fixture.detectChanges();
+      const inner = gridEl.querySelector('div');
+      expect(inner?.className).toContain('gap-y-8');
+      expect(inner?.className).toContain('gap-x-4');
+    });
+
+    it('should apply colGap alone, keeping gap for rows', () => {
+      component.colGap.set('xs');
+      fixture.detectChanges();
+      const inner = gridEl.querySelector('div');
+      expect(inner?.className).toContain('gap-x-1');
+      expect(inner?.className).toContain('gap-y-4');
+    });
   });
 
   describe('input changes after init', () => {

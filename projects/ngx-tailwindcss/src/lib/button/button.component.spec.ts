@@ -408,3 +408,86 @@ describe('TwButtonComponent with icons', () => {
     expect(buttonEl.textContent).toContain('Button with icon');
   });
 });
+
+const flushTimers = (): Promise<void> =>
+  new Promise(resolve => {
+    setTimeout(resolve);
+  });
+
+describe('TwButtonComponent form type', () => {
+  @Component({
+    template: `
+      <form (submit)="onSubmit($event)">
+        <input name="field" value="initial" />
+        <tw-button [type]="type()" (click)="onClick($event)">Go</tw-button>
+      </form>
+    `,
+    standalone: true,
+    imports: [TwButtonComponent],
+  })
+  class FormHostComponent {
+    type = signal<'button' | 'submit' | 'reset'>('submit');
+    cancelClick = false;
+    submitCount = 0;
+    onSubmit(event: Event): void {
+      event.preventDefault();
+      this.submitCount++;
+    }
+    onClick(event: Event): void {
+      if (this.cancelClick) event.preventDefault();
+    }
+  }
+
+  let fixture: ComponentFixture<FormHostComponent>;
+  let host: FormHostComponent;
+  let buttonNative: HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FormHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(FormHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+    buttonNative = fixture.nativeElement.querySelector('tw-button');
+  });
+
+  it('should submit the enclosing form when type="submit"', async () => {
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+  });
+
+  it('should submit on keyboard activation when type="submit"', async () => {
+    buttonNative.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+  });
+
+  it('should not submit when type="button"', async () => {
+    host.type.set('button');
+    fixture.detectChanges();
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should not submit when a click handler calls preventDefault', async () => {
+    host.cancelClick = true;
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should reset the enclosing form when type="reset"', async () => {
+    host.type.set('reset');
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    input.value = 'changed';
+    buttonNative.click();
+    await flushTimers();
+    expect(input.value).toBe('initial');
+    expect(host.submitCount).toBe(0);
+  });
+});

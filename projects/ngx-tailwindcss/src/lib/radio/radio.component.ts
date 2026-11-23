@@ -9,6 +9,7 @@ import {
   forwardRef,
   HostListener,
   inject,
+  InjectionToken,
   input,
   output,
   QueryList,
@@ -35,6 +36,9 @@ const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {
   lg: { radio: 'w-6 h-6', label: 'text-lg' },
 };
 
+/** Provided by each radio group so radios can tell which group owns them */
+const TW_RADIO_GROUP = new InjectionToken<object>('TwRadioGroup');
+
 /**
  * Single radio button component
  *
@@ -52,6 +56,9 @@ const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {
 })
 export class TwRadioButtonComponent {
   private readonly twClass = inject(TwClassService);
+
+  /** Nearest enclosing radio group (resolved through the element injector) */
+  readonly _group = inject(TW_RADIO_GROUP, { optional: true });
 
   /** Value of the radio button */
   readonly value = input.required<any>();
@@ -152,6 +159,7 @@ export class TwRadioButtonComponent {
       useExisting: forwardRef(() => TwRadioGroupComponent),
       multi: true,
     },
+    { provide: TW_RADIO_GROUP, useExisting: forwardRef(() => TwRadioGroupComponent) },
   ],
   templateUrl: './radio-group.component.html',
 })
@@ -175,6 +183,11 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
 
   @ContentChildren(TwRadioButtonComponent, { descendants: true })
   radioButtons!: QueryList<TwRadioButtonComponent>;
+
+  /** Radios owned by this group (excludes radios of nested radio groups) */
+  private ownRadioButtons(): TwRadioButtonComponent[] {
+    return this.radioButtons.filter(radio => radio._group === this);
+  }
 
   protected selectedValue = signal<any>(null);
   private readonly _disabled = signal(false);
@@ -227,7 +240,7 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   }
 
   private updateRadioButtons(): void {
-    this.radioButtons.forEach(radio => {
+    this.ownRadioButtons().forEach(radio => {
       radio._nameOverride.set(this.name());
       radio.selectedValue.set(this.selectedValue());
       radio._disabledOverride.set(this.isDisabled());
@@ -241,7 +254,7 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   }
 
   private updateRadioButtonsSelection(): void {
-    this.radioButtons.forEach(radio => {
+    this.ownRadioButtons().forEach(radio => {
       radio.selectedValue.set(this.selectedValue());
     });
   }

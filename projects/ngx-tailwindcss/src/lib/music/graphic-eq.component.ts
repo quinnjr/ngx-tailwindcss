@@ -582,20 +582,18 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   protected readonly curvePath = computed(() => {
     const bands = this.bands();
-    const height = this.sliderHeight();
-    const minGain = this.minGain();
-    const maxGain = this.maxGain();
     const bandWidth = 100 / bands.length;
+    // Anchor the ends on the 0 dB line, which is only the vertical middle for
+    // symmetric gain ranges
+    const zeroY = this.zeroLineY();
 
-    const points = bands.map((band, i) => {
-      const x = (i + 0.5) * bandWidth;
-      const normalizedGain = (band.gain - minGain) / (maxGain - minGain);
-      const y = (1 - normalizedGain) * height;
-      return { x, y };
-    });
+    const points = bands.map((band, i) => ({
+      x: (i + 0.5) * bandWidth,
+      y: this.gainToY(band.gain),
+    }));
 
     // Create smooth curve using bezier
-    let path = `M 0 ${height / 2}`;
+    let path = `M 0 ${zeroY}`;
 
     for (let i = 0; i < points.length; i++) {
       if (i === 0) {
@@ -611,7 +609,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       }
     }
 
-    path += ` L 100 ${height / 2}`;
+    path += ` L 100 ${zeroY}`;
     return path;
   });
 

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -25,6 +25,7 @@ export interface ThemePreset {
 })
 export class TwThemeSelectorComponent {
   private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly presets = input<ThemePreset[]>([]);
   public readonly defaultMode = input<ThemeMode>('system');
@@ -39,6 +40,7 @@ export class TwThemeSelectorComponent {
 
   public readonly currentMode = signal<ThemeMode>('system');
   public readonly currentAccentColor = signal('#3b82f6');
+  /** Displayed font size; only applied to the document once the user picks one. */
   public readonly fontSize = signal(14);
   public readonly selectedPresetId = signal<string | null>(null);
   public readonly highContrast = signal(false);
@@ -63,7 +65,22 @@ export class TwThemeSelectorComponent {
     { name: 'Gray', value: '#6b7280' },
   ];
 
+  // Tracks the OS color scheme so 'system' mode follows OS theme changes
+  private readonly systemPrefersDark = signal(false);
+
   constructor() {
+    const mediaQuery = this.document.defaultView?.matchMedia?.('(prefers-color-scheme: dark)');
+    if (mediaQuery) {
+      this.systemPrefersDark.set(mediaQuery.matches);
+      const onChange = (event: MediaQueryListEvent) => {
+        this.systemPrefersDark.set(event.matches);
+      };
+      mediaQuery.addEventListener('change', onChange);
+      this.destroyRef.onDestroy(() => {
+        mediaQuery.removeEventListener('change', onChange);
+      });
+    }
+
     effect(() => {
       this.currentMode.set(this.defaultMode());
     });
@@ -75,21 +92,13 @@ export class TwThemeSelectorComponent {
     // Apply theme mode to document
     effect(() => {
       const mode = this.currentMode();
-      const isDark =
-        mode === 'dark' ||
-        (mode === 'system' &&
-          this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)').matches);
+      const isDark = mode === 'dark' || (mode === 'system' && this.systemPrefersDark());
 
       if (isDark) {
         this.document.documentElement.classList.add('dark');
       } else {
         this.document.documentElement.classList.remove('dark');
       }
-    });
-
-    // Apply font size
-    effect(() => {
-      this.document.documentElement.style.fontSize = `${this.fontSize()}px`;
     });
 
     // Apply accent color as CSS variable
@@ -112,7 +121,11 @@ export class TwThemeSelectorComponent {
   }
 
   public setFontSize(size: number): void {
+    if (!Number.isFinite(size)) return;
     this.fontSize.set(size);
+    // Only touch the root font size on an explicit choice: applying it on
+    // mount would rescale every rem in the host app just by rendering this.
+    this.document.documentElement.style.fontSize = `${size}px`;
     this.fontSizeChanged.emit(size);
   }
 

@@ -123,6 +123,11 @@ export class TwTableComponent {
       result.sort((a, b) => {
         const aVal = this.getFieldValue(a, field);
         const bVal = this.getFieldValue(b, field);
+        // null/undefined compare as neither < nor > anything, which makes the
+        // comparator inconsistent and scrambles the order: keep them last instead
+        const aEmpty = aVal === null || aVal === undefined;
+        const bEmpty = bVal === null || bVal === undefined;
+        if (aEmpty || bEmpty) return aEmpty === bEmpty ? 0 : aEmpty ? 1 : -1;
         const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
         return comparison * this.sortOrder();
       });

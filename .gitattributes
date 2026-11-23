@@ -1,0 +1,2 @@
+# Normalize line endings to LF everywhere (Prettier enforces endOfLine: lf).
+* text=auto eol=lf

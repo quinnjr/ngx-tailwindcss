@@ -347,10 +347,12 @@ export class TwBpmDisplayComponent implements OnDestroy {
   // Sync status indicator
   protected readonly syncStatusClass = computed(() => {
     const status = this.syncStatus();
+    // Status glyphs need 3:1 on their badge: slate-400 on slate-600 and white on
+    // green-500 were ~2.9:1 and ~2.3:1
     return {
-      disconnected: 'bg-slate-600 text-slate-400',
+      disconnected: 'bg-slate-600 text-slate-300',
       searching: 'bg-yellow-500 text-yellow-900 animate-pulse',
-      synced: 'bg-green-500 text-white',
+      synced: 'bg-green-600 text-white',
       master: 'bg-blue-500 text-white',
     }[status];
   });

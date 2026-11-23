@@ -22,13 +22,14 @@ export interface TimelineEvent {
 export type TimelineLayout = 'vertical' | 'horizontal';
 export type TimelineAlign = 'left' | 'right' | 'alternate';
 
-const TIMELINE_COLORS: Record<string, { bg: string; border: string }> = {
-  primary: { bg: 'bg-blue-600', border: 'border-blue-600' },
-  secondary: { bg: 'bg-slate-600', border: 'border-slate-600' },
-  success: { bg: 'bg-emerald-600', border: 'border-emerald-600' },
-  warning: { bg: 'bg-amber-500', border: 'border-amber-500' },
-  danger: { bg: 'bg-rose-600', border: 'border-rose-600' },
-  info: { bg: 'bg-cyan-600', border: 'border-cyan-600' },
+// `icon` is the colour of an icon drawn on the marker (>= 3:1; white on amber is ~2.2:1)
+const TIMELINE_COLORS: Record<string, { bg: string; border: string; icon: string }> = {
+  primary: { bg: 'bg-blue-600', border: 'border-blue-600', icon: 'text-white' },
+  secondary: { bg: 'bg-slate-600', border: 'border-slate-600', icon: 'text-white' },
+  success: { bg: 'bg-emerald-600', border: 'border-emerald-600', icon: 'text-white' },
+  warning: { bg: 'bg-amber-500', border: 'border-amber-500', icon: 'text-amber-950' },
+  danger: { bg: 'bg-rose-600', border: 'border-rose-600', icon: 'text-white' },
+  info: { bg: 'bg-cyan-600', border: 'border-cyan-600', icon: 'text-white' },
 };
 
 /**
@@ -169,9 +170,10 @@ export class TwTimelineComponent {
     const colorClasses = TIMELINE_COLORS[color];
 
     return this.twClass.merge(
-      'rounded-full flex items-center justify-center text-white ring-4 ring-white dark:ring-slate-900',
+      'rounded-full flex items-center justify-center ring-4 ring-white dark:ring-slate-900',
       size,
-      colorClasses.bg
+      colorClasses.bg,
+      colorClasses.icon
     );
   }
 

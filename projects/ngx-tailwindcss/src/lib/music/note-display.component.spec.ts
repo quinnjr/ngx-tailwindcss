@@ -132,4 +132,23 @@ describe('TwNoteDisplayComponent', () => {
       expect(octave().classList).toContain(cls);
     }
   });
+
+  it('keeps older history entries visible and readable instead of fading them out', () => {
+    fixture.componentRef.setInput('showHistory', true);
+    fixture.componentRef.setInput('historyLength', 12);
+    fixture.detectChanges();
+    const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    for (let i = 0; i < 12; i++) {
+      fixture.componentInstance.setNote(notes[i % 7], 3 + Math.floor(i / 7));
+    }
+    fixture.detectChanges();
+    const chips = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.font-mono.rounded'),
+    ].filter(el => el.style.opacity !== '');
+    expect(chips).toHaveLength(12);
+    // `1 - i * 0.1` was below 4.5:1 from the 4th entry and 0 (hidden) at the 11th
+    for (const chip of chips) {
+      expect(Number(chip.style.opacity)).toBeGreaterThanOrEqual(0.85);
+    }
+  });
 });

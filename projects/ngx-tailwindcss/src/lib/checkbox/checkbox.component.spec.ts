@@ -117,7 +117,7 @@ describe('TwCheckboxComponent', () => {
       component.variant.set('warning');
       fixture.detectChanges();
       const input = checkboxEl.querySelector('input');
-      expect(input?.className).toContain('text-amber-500');
+      expect(input?.className).toContain('text-amber-600');
     });
 
     it('should apply danger variant', () => {

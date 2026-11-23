@@ -166,14 +166,28 @@ describe('TwChipComponent', () => {
       it('should apply success solid variant', () => {
         component.variant.set('success');
         fixture.detectChanges();
-        expect(getInnerSpan().className).toContain('bg-emerald-600');
+        expect(getInnerSpan().className).toContain('bg-emerald-700');
+      });
+
+      it('should use 700-shade fills for white-text success/info solid chips (WCAG AA)', () => {
+        for (const [variant, bg] of [
+          ['success', 'bg-emerald-700'],
+          ['info', 'bg-cyan-700'],
+        ] as const) {
+          component.variant.set(variant);
+          fixture.detectChanges();
+          const cls = getInnerSpan().className;
+          expect(cls).toContain(bg);
+          expect(cls).toContain('text-white');
+          expect(cls).not.toMatch(/bg-(emerald|cyan)-600/);
+        }
       });
 
       it('should use dark text on the amber warning solid chip (white fails WCAG AA)', () => {
         component.variant.set('warning');
         fixture.detectChanges();
         expect(getInnerSpan().className).toContain('bg-amber-500');
-        expect(getInnerSpan().className).toContain('text-slate-900');
+        expect(getInnerSpan().className).toContain('text-amber-950');
         expect(getInnerSpan().className).not.toContain('text-white');
       });
     });

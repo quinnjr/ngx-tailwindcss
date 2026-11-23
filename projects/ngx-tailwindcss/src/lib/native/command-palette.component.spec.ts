@@ -179,4 +179,29 @@ describe('TwCommandPaletteComponent', () => {
     expect(undoAction).toHaveBeenCalledTimes(1);
     expect(viewAction).not.toHaveBeenCalled();
   });
+
+  it('keeps the selected row description and shortcut chip readable', () => {
+    component.commands.set([
+      { id: 'copy', label: 'Copy', description: 'Copy text', shortcut: 'Ctrl+C', action: vi.fn() },
+      {
+        id: 'paste',
+        label: 'Paste',
+        description: 'Paste text',
+        shortcut: 'Ctrl+V',
+        action: vi.fn(),
+      },
+    ]);
+    component.palette.open();
+    fixture.detectChanges();
+    const [selected, other] = getOptions();
+    const desc = (option: HTMLElement) => option.querySelector('.text-sm')!;
+
+    expect(selected.getAttribute('aria-selected')).toBe('true');
+    expect(desc(selected).classList).not.toContain('opacity-60');
+    expect(desc(selected).classList).not.toContain('text-blue-200');
+    expect(desc(other).classList).toContain('opacity-60');
+    const kbd = selected.querySelector('kbd')!;
+    expect(kbd.classList).toContain('bg-blue-700');
+    expect(kbd.classList).not.toContain('bg-blue-400');
+  });
 });

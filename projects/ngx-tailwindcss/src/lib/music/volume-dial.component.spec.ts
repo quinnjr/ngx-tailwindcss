@@ -224,6 +224,21 @@ describe('TwVolumeDialComponent', () => {
   });
 
   describe('regressions', () => {
+    it('should ignore a late NgModel writeValue after being destroyed', () => {
+      const dial = fixture.debugElement.query(By.directive(TwVolumeDialComponent))
+        .componentInstance as TwVolumeDialComponent;
+      const emitted: number[] = [];
+      dial.value.subscribe(v => emitted.push(v));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      fixture.destroy();
+      dial.writeValue(42);
+
+      expect(emitted).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
     it('should not leak floating-point noise with fractional steps', () => {
       component.value.set(0.2);
       component.step.set(0.1);

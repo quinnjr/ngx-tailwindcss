@@ -348,6 +348,12 @@ export class TwNoteDisplayComponent {
     };
   });
 
+  // Fade of older history entries. `1 - i * 0.1` dropped the text below 4.5:1 from the
+  // fourth entry and hid entries entirely (opacity <= 0) beyond the tenth
+  protected historyOpacity(index: number): number {
+    return Math.max(0.85, 1 - index * 0.05);
+  }
+
   protected readonly centsClasses = computed(() => {
     const status = this.statusTextClasses();
     if (this.isInTune()) return status.inTune;

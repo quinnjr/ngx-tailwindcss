@@ -156,3 +156,22 @@ describe('TwBpmDisplayComponent text colours', () => {
     expect(span('BPM').className).not.toContain('/60');
   });
 });
+
+describe('TwBpmDisplayComponent sync status icon', () => {
+  it('should draw the status glyph at 3:1 on its badge', async () => {
+    await TestBed.configureTestingModule({ imports: [TwBpmDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwBpmDisplayComponent);
+    fixture.componentRef.setInput('showSync', true);
+    fixture.detectChanges();
+    const badge = () => (fixture.nativeElement as HTMLElement).querySelector('.w-5.h-5')!;
+
+    // slate-400 on slate-600 was ~2.9:1
+    expect(badge().className).toContain('text-slate-300');
+
+    // white on green-500 was ~2.3:1
+    fixture.componentRef.setInput('syncStatus', 'synced');
+    fixture.detectChanges();
+    expect(badge().className).toContain('bg-green-600');
+    expect(badge().className).not.toContain('bg-green-500');
+  });
+});

@@ -109,4 +109,19 @@ describe('TwChordDiagramComponent', () => {
     expect(labelsLeftToRight()).toHaveLength(6);
     expect((fixture.nativeElement as HTMLElement).querySelector('text.opacity-60')).toBeNull();
   });
+
+  it('draws the open-string ring >= 3:1 on the white diagram (green-500 was ~2.3:1)', () => {
+    fixture.componentRef.setInput('chord', 'C');
+    for (const variant of ['default', 'minimal']) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      const rings = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('circle[fill="none"]'),
+      ];
+      expect(rings.length).toBeGreaterThan(0);
+      for (const ring of rings) {
+        expect(ring.getAttribute('stroke')?.toUpperCase()).toBe('#16A34A');
+      }
+    }
+  });
 });

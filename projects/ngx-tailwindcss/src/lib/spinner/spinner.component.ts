@@ -11,10 +11,10 @@ const BORDER_COLORS: Record<SpinnerColor, string> = {
   primary: 'border-blue-600',
   secondary: 'border-slate-600',
   success: 'border-emerald-600',
-  warning: 'border-amber-500',
+  warning: 'border-amber-600',
   danger: 'border-rose-600',
   info: 'border-cyan-600',
-  neutral: 'border-slate-400',
+  neutral: 'border-slate-500',
 };
 
 // Background color classes for dots/pulse/bars variants
@@ -22,10 +22,10 @@ const BG_COLORS: Record<SpinnerColor, string> = {
   primary: 'bg-blue-600',
   secondary: 'bg-slate-600',
   success: 'bg-emerald-600',
-  warning: 'bg-amber-500',
+  warning: 'bg-amber-600',
   danger: 'bg-rose-600',
   info: 'bg-cyan-600',
-  neutral: 'bg-slate-400',
+  neutral: 'bg-slate-500',
 };
 
 const BORDER_SIZE_CLASSES: Record<SpinnerSize, string> = {

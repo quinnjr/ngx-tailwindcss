@@ -208,7 +208,7 @@ describe('TwSliderComponent', () => {
     it('should apply warning variant', () => {
       component.variant.set('warning');
       fixture.detectChanges();
-      const fill = sliderEl.querySelector('[class*="bg-amber-500"]');
+      const fill = sliderEl.querySelector('[class*="bg-amber-600"]');
       expect(fill).toBeTruthy();
     });
 

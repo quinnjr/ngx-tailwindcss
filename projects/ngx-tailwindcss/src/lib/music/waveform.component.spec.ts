@@ -127,4 +127,16 @@ describe('TwWaveformComponent', () => {
     expect(labels.classList).toContain('text-slate-300');
     expect(labels.classList).not.toContain('text-slate-500');
   });
+
+  it('should render the time display readably over the always-dark canvas', () => {
+    fixture.componentRef.setInput('duration', 60);
+    fixture.componentRef.setInput('showTime', true);
+    fixture.detectChanges();
+    const time = [...fixture.nativeElement.querySelectorAll('div')].find(
+      (d: HTMLElement) => d.classList.contains('text-xs') && d.classList.contains('font-mono')
+    ) as HTMLElement;
+    // slate-500 on the #1e293b canvas was ~2.9:1 on a light page
+    expect(time.classList).toContain('text-slate-300');
+    expect(time.classList).not.toContain('text-slate-500');
+  });
 });

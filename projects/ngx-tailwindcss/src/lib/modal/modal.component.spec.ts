@@ -144,6 +144,17 @@ describe('TwModalComponent', () => {
       expect(closeBtn).toBeTruthy();
     });
 
+    it('should render the icon-only close button at >=3:1 contrast', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const cls = fixture.debugElement.query(By.css('[aria-label="Close modal"]')).nativeElement
+        .className as string;
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+    });
+
     it('should hide close button when showCloseButton is false', () => {
       component.isOpen.set(true);
       component.showCloseButton.set(false);

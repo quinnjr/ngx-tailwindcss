@@ -63,11 +63,12 @@ class TestHostComponent {
 })
 class IconTimelineHostComponent {
   layout = signal<TimelineLayout>('vertical');
+  color?: TimelineEvent['color'];
   private cached?: TimelineEvent[];
   events(icon: TemplateRef<unknown>): TimelineEvent[] {
     this.cached ??= [
-      { id: 'a', title: 'A', icon },
-      { id: 'b', title: 'B', icon },
+      { id: 'a', title: 'A', icon, color: this.color },
+      { id: 'b', title: 'B', icon, color: this.color },
     ];
     return this.cached;
   }
@@ -273,6 +274,26 @@ describe('TwTimelineComponent', () => {
       cls = el.queryAll(By.css('.bg-slate-300'))[0].nativeElement.className as string;
       expect(cls).toContain('top-[19px]');
       expect(cls).toContain('left-[20px]');
+    });
+  });
+
+  describe('icon marker colour', () => {
+    it('should draw the icon in dark text on a warning marker (white on amber is ~2.2:1)', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.componentInstance.color = 'warning';
+      iconFixture.detectChanges();
+      const marker = iconFixture.debugElement.query(By.css('.bg-amber-500'))
+        .nativeElement as HTMLElement;
+      expect(marker.className).toContain('text-amber-950');
+      expect(marker.className).not.toContain('text-white');
+    });
+
+    it('should keep white icons on the other markers', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.detectChanges();
+      const marker = iconFixture.debugElement.query(By.css('.bg-blue-600'))
+        .nativeElement as HTMLElement;
+      expect(marker.className).toContain('text-white');
     });
   });
 

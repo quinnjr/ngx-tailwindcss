@@ -180,4 +180,20 @@ describe('TwCompressorMeterComponent', () => {
     fixture.detectChanges();
     expect(grValue.classList).toContain('text-orange-400');
   });
+
+  it('should render the vintage attack/release labels at readable contrast', () => {
+    fixture.componentRef.setInput('variant', 'vintage');
+    fixture.componentRef.setInput('attackReleaseDisplay', 'none');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const labels = [...el.querySelectorAll<HTMLElement>('span.text-\\[9px\\]')].filter(s =>
+      ['Attack', 'Release'].includes(s.textContent?.trim() ?? '')
+    );
+    expect(labels).toHaveLength(2);
+    // amber-600 at 80% on the slate-900 panel was ~4:1
+    for (const label of labels) {
+      expect(label.classList).toContain('text-amber-500');
+      expect(label.classList).not.toContain('text-amber-600/80');
+    }
+  });
 });

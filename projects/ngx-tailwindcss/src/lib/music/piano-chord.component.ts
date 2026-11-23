@@ -360,9 +360,11 @@ export class TwPianoChordComponent {
           blackKey: '#1E293B',
           blackKeyActive: '#3B82F6',
           border: '#64748B',
-          fingerCircle: '#EF4444',
+          // White finger numbers need >= 4.5:1 on the circles: red-500 was ~3.8:1 and
+          // amber-500 ~2.1:1
+          fingerCircle: '#DC2626',
           fingerText: '#FFFFFF',
-          rootCircle: '#F59E0B',
+          rootCircle: '#B45309',
           text: '#F8FAFC',
           noteLabel: '#64748B',
         };
@@ -391,9 +393,10 @@ export class TwPianoChordComponent {
           blackKey: '#1F2937',
           blackKeyActive: '#22C55E',
           border: '#FCD34D',
-          fingerCircle: '#8B5CF6',
+          // White finger numbers: violet-500 (~4.2:1) and pink-500 (~3.5:1) were too light
+          fingerCircle: '#7C3AED',
           fingerText: '#FFFFFF',
-          rootCircle: '#EC4899',
+          rootCircle: '#DB2777',
           text: '#1F2937',
           noteLabel: '#78716C',
         };

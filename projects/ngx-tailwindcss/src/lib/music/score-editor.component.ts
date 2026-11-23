@@ -387,15 +387,17 @@ export class TwScoreEditorComponent implements OnInit {
   }
 
   private getPartColor(index: number): string {
+    // Also the staff label text colour: the 600 shades were ~3.6-4.4:1 on the light and
+    // selected (blue-tinted) staff rows
     const colors = [
       '#1E293B',
-      '#2563EB',
-      '#059669',
-      '#DC2626',
-      '#7C3AED',
-      '#EA580C',
-      '#0891B2',
-      '#4F46E5',
+      '#1D4ED8',
+      '#047857',
+      '#B91C1C',
+      '#6D28D9',
+      '#9A3412',
+      '#0E7490',
+      '#4338CA',
     ];
     return colors[index % colors.length];
   }

@@ -106,7 +106,11 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   private readonly mobileSupport = inject(MobileSupportService);
   private readonly dialSvg = viewChild<ElementRef<SVGElement>>('dialSvg');
 
+  // NgModel writes its value on a microtask, which can land after the dial is destroyed
+  private destroyed = false;
+
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.dragController?.abort();
     this.dragController = null;
   }
@@ -577,6 +581,8 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
 
   // ControlValueAccessor implementation
   writeValue(value: number): void {
+    // Setting the model emits valueChange, which must not happen once destroyed (NG0953)
+    if (this.destroyed) return;
     this.value.set(value ?? this.min());
   }
 

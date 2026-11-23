@@ -220,7 +220,7 @@ describe('TwRadioButtonComponent', () => {
       component.variant.set('warning');
       fixture.detectChanges();
       const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
-      expect(radioInput.nativeElement.className).toContain('text-amber-500');
+      expect(radioInput.nativeElement.className).toContain('text-amber-600');
     });
 
     it('should apply danger variant', () => {

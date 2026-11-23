@@ -46,8 +46,11 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
-        [class.text-blue-500]="autoScroll()"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+        [class.text-blue-600]="autoScroll()"
+        [class.dark:text-blue-400]="autoScroll()"
+        [class.text-gray-500]="!autoScroll()"
+        [class.dark:text-gray-400]="!autoScroll()"
         [attr.aria-label]="autoScroll() ? 'Disable auto-scroll' : 'Enable auto-scroll'"
         (click)="autoScroll.set(!autoScroll())"
       >

@@ -231,28 +231,28 @@ describe('TwToastComponent', () => {
 
   describe('variants', () => {
     it('should apply info variant icon color', () => {
-      const icon = toastEl.querySelector('[class*="text-blue-500"]');
+      const icon = toastEl.querySelector('[class*="text-blue-600"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply success variant icon color', () => {
       component.variant.set('success');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-emerald-500"]');
+      const icon = toastEl.querySelector('[class*="text-emerald-700"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply warning variant icon color', () => {
       component.variant.set('warning');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-amber-500"]');
+      const icon = toastEl.querySelector('[class*="text-amber-700"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply danger variant icon color', () => {
       component.variant.set('danger');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-rose-500"]');
+      const icon = toastEl.querySelector('[class*="text-rose-600"]');
       expect(icon).toBeTruthy();
     });
   });
@@ -342,6 +342,23 @@ describe('TwToastComponent', () => {
       component.variant.set('warning');
       fixture.detectChanges();
       expect(toastEl.querySelector('[role="alert"]')).toBeTruthy();
+    });
+
+    it('should not use sub-3:1 status icon colours (500 shades on white)', () => {
+      for (const variant of ['info', 'success', 'warning', 'danger'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        const icon = toastEl.querySelector('svg')!.parentElement!;
+        expect(icon.className).not.toMatch(/(^|\s)text-(emerald|amber)-500/);
+        expect(icon.className).toMatch(/dark:text-\w+-400/);
+      }
+    });
+
+    it('should render the icon-only dismiss button at >=3:1 contrast', () => {
+      const dismissBtn = toastEl.querySelector('button[aria-label="Dismiss notification"]')!;
+      expect(dismissBtn.className).toContain('text-slate-500');
+      expect(dismissBtn.className).toContain('dark:text-slate-400');
+      expect(dismissBtn.className).not.toMatch(/(^|\s)text-slate-400/);
     });
 
     it('should label the dismiss button', () => {

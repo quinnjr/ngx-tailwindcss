@@ -205,6 +205,14 @@ describe('TwMenuComponent', () => {
       fixture.detectChanges();
     });
 
+    it('should render the submenu chevron at >=3:1 contrast', () => {
+      const chevron = menuItems()[0].querySelector('svg') as SVGElement;
+      const cls = chevron.getAttribute('class') ?? '';
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+    });
+
     it('should open submenu on click (Enter equivalence)', () => {
       menuItems()[0].click();
       fixture.detectChanges();

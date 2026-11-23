@@ -125,4 +125,29 @@ describe('TwLeadSheetComponent', () => {
     fixture.detectChanges();
     expect(span('%').classList).toContain('text-amber-900');
   });
+
+  it('draws rhythm slashes and rests >= 4.5:1 instead of faint greys', () => {
+    fixture.componentRef.setInput('data', {
+      sections: [
+        {
+          measures: [
+            { chords: [{ chord: 'C' }], slashPattern: { beats: [1, 2, 3, 4], rests: [4] } },
+          ],
+        },
+      ],
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const rest = () =>
+      [...host.querySelectorAll<HTMLElement>('span')].find(el => el.textContent?.trim() === '𝄽')!;
+    // slate-400 on white was ~2.6:1, and the rest was faded a further 50%
+    expect(rest().parentElement!.classList).toContain('text-slate-600');
+    expect(rest().parentElement!.classList).toContain('dark:text-slate-400');
+    expect(rest().classList).not.toContain('opacity-50');
+
+    // slate-600 on slate-950 was ~2.7:1
+    fixture.componentRef.setInput('variant', 'dark');
+    fixture.detectChanges();
+    expect(rest().parentElement!.classList).toContain('text-slate-400');
+  });
 });

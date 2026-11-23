@@ -131,6 +131,27 @@ describe('TwAlertComponent', () => {
       fixture.detectChanges();
       expect(alertEl.className).toContain('bg-emerald-700');
     });
+
+    it('should ring the solid dismiss button in the text colour (white is ~2.2:1 on amber)', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('warning');
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const btn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      expect(btn.className).toContain('focus-visible:ring-current');
+      expect(btn.className).not.toContain('ring-white');
+    });
+
+    it('should lighten the neutral icon in dark mode (slate-600 on slate-800 is ~1.9:1)', () => {
+      component.variant.set('neutral');
+      for (const style of ['soft', 'outlined', 'accent'] as const) {
+        component.alertStyle.set(style);
+        fixture.detectChanges();
+        expect(alertEl.querySelector('[aria-hidden="true"]')?.className).toContain(
+          'dark:text-slate-400'
+        );
+      }
+    });
   });
 
   describe('icon', () => {

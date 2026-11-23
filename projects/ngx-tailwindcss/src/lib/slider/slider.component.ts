@@ -21,7 +21,7 @@ const SLIDER_VARIANTS: Record<SliderVariant, { fill: string; thumb: string }> = 
   primary: { fill: 'bg-blue-600', thumb: 'border-blue-600' },
   secondary: { fill: 'bg-slate-600', thumb: 'border-slate-600' },
   success: { fill: 'bg-emerald-600', thumb: 'border-emerald-600' },
-  warning: { fill: 'bg-amber-500', thumb: 'border-amber-500' },
+  warning: { fill: 'bg-amber-600', thumb: 'border-amber-600' },
   danger: { fill: 'bg-rose-600', thumb: 'border-rose-600' },
 };
 

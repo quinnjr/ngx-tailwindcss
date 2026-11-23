@@ -132,8 +132,9 @@
     </div>
   }
 
-  <!-- EQ Container -->
-  <div class="relative">
+  <!-- EQ Container: ml-8 reserves the gutter the gain scale (-left-8) sits in,
+       keeping it inside the panel rather than overflowing its p-4 padding -->
+  <div class="relative ml-8">
     <!-- Curve Overlay -->
     @if (showCurve()) {
       <svg
@@ -302,8 +303,8 @@
       [class]="colors().label"
       [style.height.px]="sliderHeight()"
     >
-      @for (label of gainScaleLabels(); track $index; let odd = $odd) {
-        <span [class.opacity-50]="odd">{{ label }}</span>
+      @for (label of gainScaleLabels(); track $index) {
+        <span>{{ label }}</span>
       }
     </div>
   </div>
@@ -315,13 +316,10 @@
         <div class="w-3 h-0.5 rounded" [style.background]="colors().curve"></div>
         <span>Response Curve</span>
       </div>
+      <!-- Boosts and cuts share the fill colour (above / below the 0 dB line) -->
       <div class="flex items-center gap-1">
         <div class="w-2 h-2 rounded-full" [class]="colors().fill"></div>
-        <span>Boost</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <div class="w-2 h-2 rounded-full" [class]="colors().slider"></div>
-        <span>Cut</span>
+        <span>Boost / Cut</span>
       </div>
     </div>
   }

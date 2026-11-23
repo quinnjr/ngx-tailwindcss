@@ -163,4 +163,24 @@ describe('TwGraphicEQComponent', () => {
     expect(search.classList).toContain('outline-none');
     expect(search.classList).toContain('focus-visible:ring-2');
   });
+
+  it('should keep the gain scale inside the panel, at full contrast', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const scale = el.querySelector<HTMLElement>('.-left-8')!;
+    // -left-8 (2rem) overflowed the panel's p-4 (1rem) without a matching gutter
+    expect(scale.parentElement!.classList).toContain('ml-8');
+    // opacity-50 on every other label was ~2.6:1
+    expect(scale.querySelectorAll('.opacity-50')).toHaveLength(0);
+  });
+
+  it('should not label cuts with the thumb colour in the legend', () => {
+    // Cuts are drawn with the fill colour (below the 0 dB line), like boosts
+    fixture.componentRef.setInput('showCurve', true);
+    fixture.detectChanges();
+    const spans = [...(fixture.nativeElement as HTMLElement).querySelectorAll('span')].map(s =>
+      s.textContent?.trim()
+    );
+    expect(spans).toContain('Boost / Cut');
+    expect(spans).not.toContain('Cut');
+  });
 });

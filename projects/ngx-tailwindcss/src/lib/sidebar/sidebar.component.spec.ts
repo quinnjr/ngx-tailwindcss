@@ -96,6 +96,13 @@ describe('TwSidebarComponent', () => {
     expect(title.className).toContain('dark:text-slate-100');
   });
 
+  it('should render the icon-only close button at >=3:1 contrast', () => {
+    const btn = panelEl().querySelector('button[aria-label="Close sidebar"]')!;
+    expect(btn.className).toContain('text-slate-500');
+    expect(btn.className).toContain('dark:text-slate-400');
+    expect(btn.className).not.toMatch(/(^|\s)text-slate-400/);
+  });
+
   it('should start hidden with the panel off-screen and inert', () => {
     expect(panelEl().className).toContain('-translate-x-full');
     expect(panelEl().hasAttribute('inert')).toBe(true);

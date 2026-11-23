@@ -13,6 +13,9 @@ import { TwStatusBarComponent } from './status-bar.component';
 import { TwFileTreeComponent } from './file-tree.component';
 import { TwSearchBarComponent } from './search-bar.component';
 import { TwLogViewerComponent } from './log-viewer.component';
+import { TwUpdateDialogComponent } from './update-dialog.component';
+import { TwPropertyInspectorComponent } from './property-inspector.component';
+import { TwBreadcrumbsNavComponent } from './breadcrumbs.component';
 import {
   SettingItem,
   TwSettingsPanelComponent,
@@ -433,5 +436,118 @@ describe('native text contrast', () => {
     expect(debug.classList).toContain('text-gray-600');
     expect(debug.classList).toContain('dark:text-gray-300');
     expect(debug.classList).not.toContain('text-gray-400');
+  });
+});
+
+describe('native toggle state and control contrast', () => {
+  it('log viewer auto-scroll button shows its on/off state in both themes', () => {
+    const fixture = TestBed.createComponent(TwLogViewerComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const button = () => el.querySelector<HTMLButtonElement>('button[aria-label$="auto-scroll"]')!;
+    const on = button().getAttribute('aria-label') === 'Disable auto-scroll';
+    const check = (active: boolean) => {
+      const cls = button().classList;
+      expect(cls.contains('text-blue-600')).toBe(active);
+      expect(cls.contains('dark:text-blue-400')).toBe(active);
+      // Static gray classes would always override the active colour (Tailwind order).
+      expect(cls.contains('text-gray-500')).toBe(!active);
+      expect(cls.contains('dark:text-gray-400')).toBe(!active);
+    };
+    check(on);
+    button().click();
+    fixture.detectChanges();
+    check(!on);
+  });
+
+  it('code viewer word-wrap toggle shows and exposes its pressed state', () => {
+    const fixture = TestBed.createComponent(TwCodeViewerComponent);
+    fixture.componentRef.setInput('code', 'a');
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[title="Toggle word wrap"]'
+    )!;
+    const initial = button.getAttribute('aria-pressed') === 'true';
+    expect(button.classList.contains('text-slate-400')).toBe(!initial);
+    button.click();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-pressed')).toBe(String(!initial));
+    expect(button.classList.contains('text-blue-400')).toBe(!initial);
+    expect(button.classList.contains('text-slate-400')).toBe(initial);
+  });
+
+  it('update dialog install button uses an AA-contrast green', () => {
+    const fixture = TestBed.createComponent(TwUpdateDialogComponent);
+    const info = { currentVersion: '1.0.0', newVersion: '1.1.0' };
+    fixture.componentRef.setInput('updateInfo', info);
+    const dialog = fixture.componentInstance;
+    dialog.open(info);
+    dialog.startDownload();
+    dialog.setDownloadProgress(100);
+    fixture.detectChanges();
+    const install = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(b =>
+      b.textContent?.includes('Install')
+    )!;
+    expect(install.classList).toContain('bg-green-700');
+    expect(install.classList).not.toContain('bg-green-600');
+  });
+
+  it('property inspector boolean values and refresh icon meet contrast', () => {
+    const fixture = TestBed.createComponent(TwPropertyInspectorComponent);
+    fixture.componentRef.setInput('properties', [
+      { key: 'on', value: true, type: 'boolean' },
+      { key: 'off', value: false, type: 'boolean' },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const values = [...el.querySelectorAll<HTMLElement>('span.font-mono')];
+    const on = values.find(v => v.textContent?.trim() === 'true')!;
+    const off = values.find(v => v.textContent?.trim() === 'false')!;
+    expect(on.classList).toContain('text-green-700');
+    expect(on.classList).toContain('dark:text-green-400');
+    expect(on.classList).not.toContain('text-green-600');
+    expect(off.classList).toContain('dark:text-red-400');
+    const refresh = el.querySelector<HTMLButtonElement>('button[title="Refresh"]')!;
+    expect(refresh.classList).toContain('text-slate-500');
+    expect(refresh.classList).not.toContain('text-slate-400');
+  });
+
+  it('breadcrumb and search clear icon buttons meet 3:1 in light mode', () => {
+    const crumbs = TestBed.createComponent(TwBreadcrumbsNavComponent);
+    crumbs.componentRef.setInput('editable', true);
+    crumbs.componentRef.setInput('showCopyButton', true);
+    crumbs.detectChanges();
+    for (const label of ['Edit path', 'Copy path']) {
+      const svg = (crumbs.nativeElement as HTMLElement).querySelector(
+        `button[aria-label="${label}"] svg`
+      )!;
+      expect(svg.classList).toContain('text-gray-500');
+      expect(svg.classList).not.toContain('text-gray-400');
+    }
+
+    const search = TestBed.createComponent(TwSearchBarComponent);
+    search.detectChanges();
+    const input = (search.nativeElement as HTMLElement).querySelector('input')!;
+    input.value = 'x';
+    input.dispatchEvent(new Event('input'));
+    search.detectChanges();
+    const clear = (search.nativeElement as HTMLElement).querySelector(
+      'button[aria-label="Clear search"] svg'
+    )!;
+    expect(clear.classList).toContain('text-gray-500');
+    expect(clear.classList).not.toContain('text-gray-400');
+  });
+
+  it('shortcuts editor reset icon button meets 3:1 in light mode', () => {
+    const fixture = TestBed.createComponent(TwShortcutsEditorComponent);
+    fixture.componentRef.setInput('shortcuts', [
+      { id: 's', command: 'Save', keys: ['Ctrl', 'S'], defaultKeys: ['Ctrl', 'O'], isCustom: true },
+    ]);
+    fixture.detectChanges();
+    const reset = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[title="Reset to default"]'
+    )!;
+    expect(reset.classList).toContain('text-slate-500');
+    expect(reset.classList).not.toContain('text-slate-400');
   });
 });

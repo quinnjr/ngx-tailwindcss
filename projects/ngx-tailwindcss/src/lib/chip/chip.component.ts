@@ -30,13 +30,13 @@ const CHIP_VARIANTS: Record<ChipVariant, Record<ChipStyle, string>> = {
     outline: 'border border-slate-600 dark:border-slate-400 text-slate-600 dark:text-slate-400',
   },
   success: {
-    solid: 'bg-emerald-600 text-white',
+    solid: 'bg-emerald-700 text-white',
     soft: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
     outline:
       'border border-emerald-600 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400',
   },
   warning: {
-    solid: 'bg-amber-500 text-slate-900',
+    solid: 'bg-amber-500 text-amber-950',
     soft: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
     outline: 'border border-amber-500 dark:border-amber-400 text-amber-700 dark:text-amber-400',
   },
@@ -46,7 +46,7 @@ const CHIP_VARIANTS: Record<ChipVariant, Record<ChipStyle, string>> = {
     outline: 'border border-rose-600 dark:border-rose-400 text-rose-600 dark:text-rose-400',
   },
   info: {
-    solid: 'bg-cyan-600 text-white',
+    solid: 'bg-cyan-700 text-white',
     soft: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300',
     outline: 'border border-cyan-600 dark:border-cyan-400 text-cyan-700 dark:text-cyan-400',
   },

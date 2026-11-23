@@ -94,9 +94,9 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
   },
   neutral: {
     solid: 'text-white',
-    soft: 'text-slate-600',
-    outlined: 'text-slate-600',
-    accent: 'text-slate-600',
+    soft: 'text-slate-600 dark:text-slate-400',
+    outlined: 'text-slate-600 dark:text-slate-400',
+    accent: 'text-slate-600 dark:text-slate-400',
   },
 };
 
@@ -208,7 +208,7 @@ export class TwAlertComponent {
       'inline-flex items-center justify-center rounded-md p-1 -m-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
     const hoverClasses: Record<AlertStyle, string> = {
-      solid: 'hover:bg-white/20 focus-visible:ring-white',
+      solid: 'hover:bg-white/20 focus-visible:ring-current',
       soft: 'hover:bg-black/5 focus-visible:ring-current',
       outlined: 'hover:bg-black/5 focus-visible:ring-current',
       accent: 'hover:bg-black/5 focus-visible:ring-current',

@@ -43,12 +43,12 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   secondary:
     'bg-slate-600 hover:bg-slate-700 active:bg-slate-800 text-white shadow-sm hover:shadow focus-visible:ring-slate-500',
   success:
-    'bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white shadow-sm hover:shadow focus-visible:ring-emerald-500',
+    'bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white shadow-sm hover:shadow focus-visible:ring-emerald-700',
   warning:
-    'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-amber-950 shadow-sm hover:shadow focus-visible:ring-amber-500',
+    'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-amber-950 shadow-sm hover:shadow focus-visible:ring-amber-600',
   danger:
     'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-sm hover:shadow focus-visible:ring-rose-500',
-  info: 'bg-cyan-700 hover:bg-cyan-800 active:bg-cyan-900 text-white shadow-sm hover:shadow focus-visible:ring-cyan-500',
+  info: 'bg-cyan-700 hover:bg-cyan-800 active:bg-cyan-900 text-white shadow-sm hover:shadow focus-visible:ring-cyan-700',
   ghost:
     'bg-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 text-slate-700 dark:text-zinc-300 focus-visible:ring-slate-500',
   outline:

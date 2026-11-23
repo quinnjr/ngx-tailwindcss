@@ -455,4 +455,25 @@ describe('TwScoreEditorComponent', () => {
     expect(fill(3)).toBe('#047857');
     expect([1, 2, 3, 4].map(fill)).not.toContain('#059669');
   });
+
+  it('uses part colours that keep the staff labels >= 4.5:1 on light and selected rows', () => {
+    createWith(score([placed('n1')]));
+    for (let i = 0; i < 7; i++) {
+      (fixture.componentInstance as unknown as { addPart(p?: string): void }).addPart();
+    }
+    fixture.detectChanges();
+    const labels = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.staff-label'),
+    ];
+    expect(labels.length).toBeGreaterThanOrEqual(8);
+    const toHex = (rgb: string) =>
+      `#${(rgb.match(/\d+/g) ?? []).map(n => Number(n).toString(16).padStart(2, '0')).join('')}`;
+    const colours = labels.map(l =>
+      l.style.color.startsWith('rgb') ? toHex(l.style.color) : l.style.color.toLowerCase()
+    );
+    // The 600 shades (emerald, orange, cyan, ...) were ~3.6-4.4:1
+    for (const weak of ['#059669', '#ea580c', '#0891b2', '#2563eb', '#dc2626']) {
+      expect(colours).not.toContain(weak);
+    }
+  });
 });

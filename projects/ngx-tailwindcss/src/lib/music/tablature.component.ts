@@ -168,7 +168,8 @@ export class TwTablatureComponent {
           background: '#1E293B',
           line: '#475569',
           text: '#F1F5F9',
-          note: '#3B82F6',
+          // Fret numbers: blue-500 was ~4.0:1 on the slate-800 background
+          note: '#60A5FA',
           technique: '#F59E0B',
           barLine: '#64748B',
         };
@@ -179,7 +180,8 @@ export class TwTablatureComponent {
           line: '#CBD5E1',
           text: '#475569',
           note: '#334155',
-          technique: '#6366F1',
+          // indigo-500 was ~4.5:1 (just under) on white at 10px
+          technique: '#4F46E5',
           barLine: '#94A3B8',
         };
       }

@@ -20,7 +20,7 @@ const SWITCH_VARIANTS: Record<SwitchVariant, { on: string; off: string }> = {
   primary: { on: 'bg-blue-600', off: 'bg-slate-300 dark:bg-slate-600' },
   secondary: { on: 'bg-slate-600', off: 'bg-slate-300 dark:bg-slate-600' },
   success: { on: 'bg-emerald-600', off: 'bg-slate-300 dark:bg-slate-600' },
-  warning: { on: 'bg-amber-500', off: 'bg-slate-300 dark:bg-slate-600' },
+  warning: { on: 'bg-amber-600', off: 'bg-slate-300 dark:bg-slate-600' },
   danger: { on: 'bg-rose-600', off: 'bg-slate-300 dark:bg-slate-600' },
 };
 

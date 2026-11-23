@@ -61,7 +61,9 @@
       <button
         (click)="toggleWordWrap()"
         [class.text-blue-400]="wordWrap()"
-        class="p-1 text-slate-400 hover:text-slate-200"
+        [class.text-slate-400]="!wordWrap()"
+        [attr.aria-pressed]="wordWrap()"
+        class="p-1 hover:text-slate-200"
         title="Toggle word wrap"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -39,11 +39,15 @@ describe('TwConfig', () => {
     });
 
     it('should have success theme', () => {
-      expect(DEFAULT_TW_CONFIG.theme?.success).toContain('bg-emerald-600');
+      expect(DEFAULT_TW_CONFIG.theme?.success).toContain('bg-emerald-700');
+      expect(DEFAULT_TW_CONFIG.theme?.success).toContain('text-white');
     });
 
     it('should have warning theme', () => {
       expect(DEFAULT_TW_CONFIG.theme?.warning).toContain('bg-amber-500');
+      // White on amber-500 fails AA (~2.1:1); dark text is required
+      expect(DEFAULT_TW_CONFIG.theme?.warning).toContain('text-amber-950');
+      expect(DEFAULT_TW_CONFIG.theme?.warning).not.toContain('text-white');
     });
 
     it('should have danger theme', () => {
@@ -51,7 +55,8 @@ describe('TwConfig', () => {
     });
 
     it('should have info theme', () => {
-      expect(DEFAULT_TW_CONFIG.theme?.info).toContain('bg-cyan-600');
+      expect(DEFAULT_TW_CONFIG.theme?.info).toContain('bg-cyan-700');
+      expect(DEFAULT_TW_CONFIG.theme?.info).toContain('text-white');
     });
 
     it('should have neutral theme', () => {

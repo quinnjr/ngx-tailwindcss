@@ -227,7 +227,8 @@ export class TwChordDiagramComponent {
           fingerText: '#FFFFFF',
           text: '#334155',
           muted: '#EF4444',
-          open: '#22C55E',
+          // Open-string ring: green-500 was ~2.3:1 on white, green-600 keeps >= 3:1
+          open: '#16A34A',
         };
       }
       case 'detailed': {
@@ -253,7 +254,8 @@ export class TwChordDiagramComponent {
           fingerText: '#FFFFFF',
           text: '#1E293B',
           muted: '#EF4444',
-          open: '#22C55E',
+          // Open-string ring: green-500 was ~2.3:1 on white, green-600 keeps >= 3:1
+          open: '#16A34A',
         };
       }
     }

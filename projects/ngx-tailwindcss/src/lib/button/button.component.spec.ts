@@ -119,6 +119,19 @@ describe('TwButtonComponent', () => {
       // blue-600 on a dark background is ~3.6:1
       expect(buttonNative.className).toContain('dark:text-blue-400');
     });
+
+    it('should draw a >= 3:1 focus ring on warning, success and info buttons', () => {
+      // the -500 rings are ~2.2-2.5:1 against the white offset and page
+      for (const [variant, ring] of [
+        ['warning', 'focus-visible:ring-amber-600'],
+        ['success', 'focus-visible:ring-emerald-700'],
+        ['info', 'focus-visible:ring-cyan-700'],
+      ] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(buttonNative.className).toContain(ring);
+      }
+    });
   });
 
   describe('sizes', () => {

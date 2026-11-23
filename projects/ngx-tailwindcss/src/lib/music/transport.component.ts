@@ -149,7 +149,8 @@ export class TwTransportComponent {
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'text-blue-600 dark:text-blue-400 focus:ring-blue-400'
-            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:ring-slate-400';
+            : // slate-400 was ~2.6:1 on a light page; inactive icons still need 3:1
+              'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 focus:ring-slate-400';
         } else {
           variantClasses =
             'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 focus:ring-slate-400';
@@ -208,7 +209,9 @@ export class TwTransportComponent {
         break;
       }
       case 'record': {
-        colorClass = 'text-slate-500 dark:text-slate-400';
+        // Classic buttons are a slate-300/400 gradient, where slate-500 was ~2.5:1:
+        // there the icon keeps the button's own text colour
+        colorClass = this.variant() === 'classic' ? '' : 'text-slate-500 dark:text-slate-400';
 
         break;
       }

@@ -648,7 +648,14 @@ export class NativePlatformService {
 
     if (platform === 'tauri' && this.tauriPath) {
       name = await this.tauriPath.basename(path);
-      extension = await this.tauriPath.extname(path);
+      try {
+        extension = await this.tauriPath.extname(path);
+      } catch {
+        // Tauri's extname rejects ("Couldn't get the extension of the file" /
+        // NoExtension) for any path without one — e.g. every directory picked
+        // with `openFile({ directory: true })` — instead of returning ''
+        extension = '';
+      }
     } else {
       const parts = path.split(/[/\\]/);
       name = parts.at(-1) ?? path;

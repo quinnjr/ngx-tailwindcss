@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `containerRef` (splitter) and `scrollContainerRef` (scroll-area) now
   reference the host element and are available from construction. CSS that
   targeted the removed wrapper must target the host instead
+- Status colours were changed for WCAG AA text contrast, so `success`, `info`
+  and `warning` look different: solid `warning` buttons, badges, alerts and
+  chips and the `tw-progress` inside value use dark text on amber instead of
+  white, and `warning` buttons lighten on hover; solid `success` and `info`
+  buttons, badges, alerts and progress bars use the darker 700 shade
+  (`emerald-700`, `cyan-700`) instead of 600; outline `success`/`warning`/`info`
+  badge and chip text is one shade darker. Override with `class` if you relied
+  on the old colours
 
 ### 🐛 Fixed
 
@@ -166,12 +174,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mouse event); `twTooltip` honours an `opacity-*` class in `tooltipClass`
 - Touch drag helpers read the lifted finger on `touchend`/`touchcancel`
   instead of throwing
-- Text contrast (WCAG AA): solid `warning` buttons, badges and alerts use dark
-  text on amber (white was ~2.2:1); solid `success`/`info` buttons, badges,
-  alerts and progress bars use the 700 shade; outline badge text, the
-  `tw-avatar` count badge, the `tw-progress` inside value on `warning`, the
-  `variant="link"` button in dark mode and `tw-card-subtitle` on dark filled
-  cards are readable
+- Text contrast (WCAG AA): outline badge text, the `tw-avatar` count badge,
+  the `tw-progress` inside value on `warning`, the `variant="link"` button in
+  dark mode and `tw-card-subtitle` on dark filled cards are readable; `tw-menu`
+  shortcut labels, `tw-slider` ticks and min/max labels, the `tw-textarea`
+  character counter and the native desktop components (file tree, search bar,
+  log viewer, command palette, settings, onboarding, ...) meet 4.5:1
+- Graphics contrast (3:1): the focus ring of `warning`/`success`/`info`
+  buttons, the solid `warning` alert's dismiss focus ring, `neutral` alert
+  icons in dark mode, `warning`/`neutral` spinners and the icon on `warning`
+  `tw-timeline` icon markers
+- Visible keyboard focus on the `tw-lyrics` textarea, the stereo-width pan
+  control and the graphic EQ preset search; log viewer level filters expose
+  `aria-pressed`
+- `tw-select variant="filled"` is applied (the input had no effect)
+- Channel strips render their nested controls in dark mode, so their labels
+  stay readable on the strip's fixed dark surface
 - `tw-timeline` connectors run through the centre of icon markers instead of
   their left edge (vertical) or top (horizontal)
 - Native services, music components and audio services: many correctness and

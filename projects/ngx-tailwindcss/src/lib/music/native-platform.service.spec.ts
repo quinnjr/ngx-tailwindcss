@@ -29,6 +29,41 @@ describe('NativePlatformService', () => {
     });
   });
 
+  describe('Tauri', () => {
+    afterEach(() => {
+      delete (window as unknown as Record<string, unknown>)['__TAURI__'];
+    });
+
+    it('should open extension-less paths (e.g. directories) instead of rejecting', async () => {
+      (window as unknown as Record<string, unknown>)['__TAURI__'] = {
+        dialog: { open: vi.fn().mockResolvedValue('/home/user/Scores') },
+        path: {
+          basename: vi.fn((p: string) => Promise.resolve(p.split('/').pop())),
+          // Tauri rejects when the path has no extension
+          extname: vi.fn((p: string) => {
+            const match = /\.([^./]+)$/.exec(p);
+            return match
+              ? Promise.resolve(match[1])
+              : Promise.reject(new Error("Couldn't get the extension of the file"));
+          }),
+        },
+      };
+      const service = TestBed.inject(NativePlatformService);
+      expect(service.isTauri()).toBe(true);
+
+      await expect(service.openFile({ directory: true })).resolves.toEqual({
+        path: '/home/user/Scores',
+        name: 'Scores',
+        extension: '',
+      });
+      await expect(service.getFileInfo('/home/user/song.mid')).resolves.toEqual({
+        path: '/home/user/song.mid',
+        name: 'song.mid',
+        extension: 'mid',
+      });
+    });
+  });
+
   describe('openExternal (browser)', () => {
     it('should open http(s) URLs in a new window without an opener', async () => {
       const open = vi.spyOn(window, 'open').mockImplementation(() => null);

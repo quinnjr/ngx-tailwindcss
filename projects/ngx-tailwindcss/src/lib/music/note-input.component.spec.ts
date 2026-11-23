@@ -264,4 +264,13 @@ describe('TwNoteInputComponent clefs and layout', () => {
     expect(voiceBtn(3).style.backgroundColor).toBe('');
     expect(voiceBtn(1).classList).toContain('dark:text-slate-200');
   });
+
+  it('labels the Delete button >= 4.5:1 on its red-100 fill (red-600 was ~4.0:1)', () => {
+    fixture.detectChanges();
+    const del = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[title^="Delete"]'
+    )!;
+    expect(del.classList).toContain('text-red-700');
+    expect(del.classList).not.toContain('text-red-600');
+  });
 });

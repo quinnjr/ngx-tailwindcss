@@ -18,9 +18,9 @@ export type RatingVariant = 'primary' | 'warning' | 'danger';
 export type RatingSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const RATING_VARIANTS: Record<RatingVariant, { filled: string; empty: string }> = {
-  primary: { filled: 'text-blue-500', empty: 'text-slate-300 dark:text-slate-600' },
-  warning: { filled: 'text-amber-400', empty: 'text-slate-300 dark:text-slate-600' },
-  danger: { filled: 'text-rose-500', empty: 'text-slate-300 dark:text-slate-600' },
+  primary: { filled: 'text-blue-500', empty: 'text-slate-500' },
+  warning: { filled: 'text-amber-600 dark:text-amber-400', empty: 'text-slate-500' },
+  danger: { filled: 'text-rose-500', empty: 'text-slate-500' },
 };
 
 const RATING_SIZES: Record<RatingSize, string> = {

@@ -21,7 +21,7 @@ const CHECKBOX_VARIANTS: Record<CheckboxVariant, string> = {
   primary: 'text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
   secondary: 'text-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
   success: 'text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
-  warning: 'text-amber-500 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
+  warning: 'text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
   danger: 'text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
 };
 

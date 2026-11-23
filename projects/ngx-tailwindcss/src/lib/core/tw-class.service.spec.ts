@@ -647,6 +647,13 @@ describe('TwClassService', () => {
         const result = service.getVariantClasses('primary');
         expect(result).toContain('bg-blue-600');
       });
+
+      it('should return AA-contrast status defaults matching the components', () => {
+        expect(service.getVariantClasses('success')).toContain('bg-emerald-700');
+        expect(service.getVariantClasses('info')).toContain('bg-cyan-700');
+        expect(service.getVariantClasses('warning')).toContain('text-amber-950');
+        expect(service.getVariantClasses('warning')).not.toContain('text-white');
+      });
     });
   });
 

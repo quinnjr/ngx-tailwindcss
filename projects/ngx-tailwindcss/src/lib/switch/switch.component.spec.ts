@@ -105,7 +105,7 @@ describe('TwSwitchComponent', () => {
       component.switch.toggle();
       fixture.detectChanges();
       const track = switchEl.querySelector('button');
-      expect(track?.className).toContain('bg-amber-500');
+      expect(track?.className).toContain('bg-amber-600');
     });
 
     it('should apply danger variant colors when on', () => {

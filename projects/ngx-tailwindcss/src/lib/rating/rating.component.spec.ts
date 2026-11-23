@@ -261,7 +261,19 @@ describe('TwRatingComponent', () => {
       component.rating.writeValue(3);
       fixture.detectChanges();
       const starIcons = ratingEl.queryAll(By.css('svg'));
-      expect(starIcons[0].nativeElement.parentElement.className).toContain('text-amber-400');
+      expect(starIcons[0].nativeElement.parentElement.className).toContain('text-amber-600');
+    });
+
+    it('should render filled and empty stars with >=3:1 contrast colours in light mode', () => {
+      component.rating.writeValue(2);
+      fixture.detectChanges();
+      const buttons = ratingEl.queryAll(By.css('button[role="radio"]'));
+      const filled = (buttons[0].nativeElement as HTMLElement).className;
+      const empty = (buttons[4].nativeElement as HTMLElement).className;
+      expect(filled).toContain('text-amber-600');
+      expect(filled).not.toMatch(/(^|\s)text-amber-400/);
+      expect(empty).toContain('text-slate-500');
+      expect(empty).not.toContain('text-slate-300');
     });
 
     it('should apply primary variant', () => {
@@ -455,6 +467,14 @@ describe('TwRatingComponent (regressions)', () => {
     const ratings = fixture.nativeElement.querySelectorAll('tw-rating');
     expect(ratings[0].querySelector('[aria-label="Clear rating"]')).toBeTruthy();
     expect(ratings[1].querySelector('[aria-label="Clear rating"]')).toBeNull();
+  });
+
+  it('should give the clear button an icon colour with >=3:1 contrast in light mode', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const clear = fixture.nativeElement.querySelector('[aria-label="Clear rating"]') as HTMLElement;
+    expect(clear.className).toContain('text-slate-500');
+    expect(clear.className).not.toMatch(/(^|\s)text-slate-400/);
   });
 
   it('should move focus to the newly active star on arrow keys', () => {

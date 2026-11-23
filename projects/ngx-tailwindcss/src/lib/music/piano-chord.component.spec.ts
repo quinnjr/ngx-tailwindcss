@@ -111,4 +111,20 @@ describe('TwPianoChordComponent', () => {
       expect(label.getAttribute('fill')?.toUpperCase()).toBe('#64748B');
     }
   });
+
+  it('keeps the white finger numbers >= 4.5:1 on the dark and colorful finger circles', () => {
+    fixture.componentRef.setInput('chord', 'C');
+    const fills = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('svg circle')].map(c =>
+        c.getAttribute('fill')?.toUpperCase()
+      );
+    // Dark: red-500 (~3.8:1) and amber-500 (~2.1:1) circles behind white text
+    fixture.componentRef.setInput('variant', 'dark');
+    fixture.detectChanges();
+    expect(fills()).toEqual(['#B45309', '#DC2626', '#DC2626']);
+    // Colorful: pink-500 (~3.5:1) and violet-500 (~4.2:1)
+    fixture.componentRef.setInput('variant', 'colorful');
+    fixture.detectChanges();
+    expect(fills()).toEqual(['#DB2777', '#7C3AED', '#7C3AED']);
+  });
 });

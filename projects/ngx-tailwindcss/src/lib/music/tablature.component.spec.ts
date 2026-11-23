@@ -103,4 +103,23 @@ describe('TwTablatureComponent', () => {
     expect(text('No tablature data').classList).toContain('opacity-80');
     expect(faded()).toHaveLength(0);
   });
+
+  it('colours fret numbers and technique marks >= 4.5:1 for the dark and minimal variants', () => {
+    fixture.componentRef.setInput('measures', [
+      { notes: [[{ string: 1, fret: 3, technique: 'hammer' }]] },
+    ]);
+    const host = fixture.nativeElement as HTMLElement;
+    const text = (t: string) =>
+      [...host.querySelectorAll('text')].find(el => el.textContent?.trim() === t)!;
+
+    // blue-500 fret numbers were ~4.0:1 on slate-800
+    fixture.componentRef.setInput('variant', 'dark');
+    fixture.detectChanges();
+    expect(text('3').getAttribute('fill')).toBe('#60A5FA');
+
+    // indigo-500 technique marks were just under 4.5:1 on white
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(text('h').getAttribute('fill')).toBe('#4F46E5');
+  });
 });

@@ -171,11 +171,11 @@ export class TwToastComponent {
     const variant = this._variant();
 
     const variantClasses: Record<ToastVariant, string> = {
-      info: 'text-blue-500',
-      success: 'text-emerald-500',
-      warning: 'text-amber-500',
-      danger: 'text-rose-500',
-      neutral: 'text-slate-500',
+      info: 'text-blue-600 dark:text-blue-400',
+      success: 'text-emerald-700 dark:text-emerald-400',
+      warning: 'text-amber-700 dark:text-amber-400',
+      danger: 'text-rose-600 dark:text-rose-400',
+      neutral: 'text-slate-500 dark:text-slate-400',
     };
 
     return ['flex-shrink-0', variantClasses[variant]].join(' ');

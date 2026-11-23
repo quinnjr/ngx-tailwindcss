@@ -262,12 +262,13 @@ export class TwLeadSheetComponent {
   protected readonly slashClasses = computed(() => {
     const variant = this.variant();
 
+    // Slashes, accents and rests carry the rhythm: the previous shades were ~1.5-3:1
     const classes: Record<LeadSheetVariant, string> = {
-      default: 'text-slate-400 dark:text-slate-500',
-      minimal: 'text-slate-300 dark:text-slate-600',
-      printed: 'text-slate-500',
-      dark: 'text-slate-600',
-      fakebook: 'text-amber-600',
+      default: 'text-slate-600 dark:text-slate-400',
+      minimal: 'text-slate-600 dark:text-slate-400',
+      printed: 'text-slate-600',
+      dark: 'text-slate-400',
+      fakebook: 'text-amber-800',
     };
 
     return classes[variant];

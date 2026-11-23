@@ -45,10 +45,31 @@ describe('TwPianoComponent', () => {
       'button[aria-label="D4"]'
     )!;
 
-    piano.pressKey('D', 4);
+    button.dispatchEvent(new Event('touchstart', { cancelable: true }));
     button.dispatchEvent(new Event('touchcancel'));
 
     expect(offs.map(e => e.midi)).toEqual([62]);
+  });
+
+  it('does not release MIDI- or API-held keys when the pointer merely leaves them', () => {
+    const internals = piano as unknown as { handleMidiMessage: (e: { data: Uint8Array }) => void };
+    const offs: NoteEvent[] = [];
+    piano.noteOff.subscribe(e => offs.push(e));
+    const host = fixture.nativeElement as HTMLElement;
+
+    internals.handleMidiMessage({ data: new Uint8Array([0x90, 60, 100]) });
+    piano.pressKey('E', 4);
+    host.querySelector('button[aria-label="C4"]')!.dispatchEvent(new MouseEvent('mouseleave'));
+    host.querySelector('button[aria-label="E4"]')!.dispatchEvent(new MouseEvent('mouseleave'));
+
+    expect(offs).toEqual([]);
+    expect(piano.getActiveNotes()).toHaveLength(2);
+
+    // A mouse-held key is still released by leaving it
+    const g4 = host.querySelector('button[aria-label="G4"]')!;
+    g4.dispatchEvent(new MouseEvent('mousedown'));
+    g4.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(offs.map(e => e.midi)).toEqual([67]);
   });
 
   it('positions each black key so it straddles the boundary between its white keys', () => {

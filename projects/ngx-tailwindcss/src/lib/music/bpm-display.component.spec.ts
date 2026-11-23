@@ -267,4 +267,31 @@ describe('TwBpmDisplayComponent disabled', () => {
     expect(changes).toEqual([]);
     expect(el.textContent).toContain('120');
   });
+
+  it('should close the tempo editor without committing when made read-only mid-edit', async () => {
+    await TestBed.configureTestingModule({ imports: [TwBpmDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwBpmDisplayComponent);
+    fixture.componentRef.setInput('bpm', 120);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const changes: number[] = [];
+    fixture.componentInstance.bpmChange.subscribe(v => changes.push(v));
+
+    el.querySelector<HTMLElement>('[role="button"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const editor = el.querySelector<HTMLInputElement>('input[type="number"]')!;
+    editor.value = '150';
+    editor.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+
+    expect(el.querySelector('input[type="number"]')).toBeNull();
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    editor.dispatchEvent(new Event('blur'));
+    expect(changes).toEqual([]);
+    expect(el.textContent).toContain('120');
+  });
 });

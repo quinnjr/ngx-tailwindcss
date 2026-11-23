@@ -242,6 +242,78 @@ describe('TwLooperComponent', () => {
     expect(internals.state()).toBe('idle');
   });
 
+  it('should release its own microphone when disabled and re-acquire it once re-enabled', async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] };
+    const recorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
+    internals.audioContext = { currentTime: 0, close: () => Promise.resolve() };
+    internals.mediaStream = stream;
+    internals.ownsMediaStream = true;
+    internals.mediaRecorder = recorder;
+    internals.state.set('recording');
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(recorder.stop).toHaveBeenCalled();
+    expect(track.stop).toHaveBeenCalled();
+    expect(internals.mediaStream).toBeNull();
+    expect(internals.state()).toBe('stopped');
+
+    // Re-enabling does not resume, but the next take asks for the mic again
+    fixture.componentRef.setInput('disabled', false);
+    fixture.detectChanges();
+    expect(internals.state()).toBe('stopped');
+    const fresh = { getTracks: () => [] };
+    const getUserMedia = vi.fn().mockResolvedValue(fresh);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    try {
+      await internals.initAudio();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(getUserMedia).toHaveBeenCalled();
+    expect(internals.mediaStream).toBe(fresh);
+  });
+
+  it('should not stop an external audioSource stream when disabled', () => {
+    const track = { stop: vi.fn() };
+    internals.mediaStream = { getTracks: () => [track] };
+    internals.ownsMediaStream = false;
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it('should release a microphone granted after the looper was disabled', async () => {
+    const track = { stop: vi.fn() };
+    let grant!: (s: unknown) => void;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise(resolve => {
+          grant = resolve;
+        })
+    );
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    internals.audioContext = { currentTime: 0, close: () => Promise.resolve() };
+    try {
+      const take = internals.record();
+      await Promise.resolve();
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+      grant({ getTracks: () => [track] });
+      await take;
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(track.stop).toHaveBeenCalled();
+    expect(internals.mediaStream).toBeNull();
+    expect(internals.state()).toBe('idle');
+  });
+
   it('should finish the take (and not auto-play) when stopped while recording', () => {
     const recorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
     internals.mediaRecorder = recorder;

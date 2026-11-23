@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -10,6 +11,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -71,6 +73,18 @@ export class TwShortcutsEditorComponent {
   constructor() {
     // While recording, Escape cancels the recording only, not an enclosing dialog
     trackNativeEscapeLayer(this, () => this.editingId() !== null);
+
+    // A recording whose row is filtered out (category/search changed with the
+    // mouse) or removed would keep swallowing every key invisibly and silently
+    // rebind a hidden shortcut; cancel it instead.
+    effect(() => {
+      const id = this.editingId();
+      if (id !== null && !this.filteredShortcuts().some(s => s.id === id)) {
+        untracked(() => {
+          this.cancelEdit();
+        });
+      }
+    });
 
     inject(DestroyRef).onDestroy(() => {
       this.clearSaveTimer();

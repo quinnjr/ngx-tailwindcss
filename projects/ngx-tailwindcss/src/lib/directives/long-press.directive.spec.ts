@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwLongPressDirective } from './long-press.directive';
 
@@ -7,6 +7,7 @@ import { TwLongPressDirective } from './long-press.directive';
   template: `<button
     twLongPress
     [longPressDuration]="500"
+    [longPressDisabled]="disabled()"
     (longPress)="longPresses = longPresses + 1"
     (pressEnd)="pressEnds = pressEnds + 1"
   >
@@ -16,6 +17,7 @@ import { TwLongPressDirective } from './long-press.directive';
   imports: [TwLongPressDirective],
 })
 class TestHostComponent {
+  readonly disabled = signal(false);
   longPresses = 0;
   pressEnds = 0;
 }
@@ -28,10 +30,11 @@ function pointer(type: string, init: { clientX?: number; clientY?: number } = {}
 describe('TwLongPressDirective', () => {
   let host: TestHostComponent;
   let button: HTMLButtonElement;
+  let fixture: ComponentFixture<TestHostComponent>;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture = TestBed.createComponent(TestHostComponent);
     fixture.detectChanges();
     host = fixture.componentInstance;
     button = fixture.nativeElement.querySelector('button');
@@ -62,6 +65,14 @@ describe('TwLongPressDirective', () => {
   it('cancels the long press on pointercancel (e.g. touch scrolling)', () => {
     button.dispatchEvent(pointer('pointerdown'));
     button.dispatchEvent(pointer('pointercancel'));
+    vi.advanceTimersByTime(1000);
+    expect(host.longPresses).toBe(0);
+  });
+
+  it('does not emit longPress when disabled while the press is held', () => {
+    button.dispatchEvent(pointer('pointerdown'));
+    host.disabled.set(true);
+    fixture.detectChanges();
     vi.advanceTimersByTime(1000);
     expect(host.longPresses).toBe(0);
   });

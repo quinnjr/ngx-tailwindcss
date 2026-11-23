@@ -83,7 +83,7 @@
         (keydown.enter)="submitCommand()"
         (keydown.arrowup)="navigateHistory(1, $event)"
         (keydown.arrowdown)="navigateHistory(-1, $event)"
-        [disabled]="isProcessing()"
+        [readonly]="isProcessing()"
         #commandInput
       />
     </div>

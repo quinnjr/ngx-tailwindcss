@@ -10,6 +10,7 @@ import { TwUpdateDialogComponent, UpdateDialogInfo } from './update-dialog.compo
 import { TwResizablePanelsComponent } from './resizable-panels.component';
 import { TwFileTreeComponent } from './file-tree.component';
 import { TwLogViewerComponent } from './log-viewer.component';
+import { TwTerminalComponent } from './terminal.component';
 import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
 import { TwAboutDialogComponent } from './about-dialog.component';
 import { TwPreferencesDialogComponent } from './preferences-dialog.component';
@@ -1763,5 +1764,78 @@ describe('focus is kept when a control swaps itself out (round 28)', () => {
     outside.remove();
     el.remove();
     f.destroy();
+  });
+});
+
+describe('controls that stop accepting input mid-activity (round 35)', () => {
+  it('cancels shortcut recording when its row is filtered out', () => {
+    vi.useFakeTimers();
+    try {
+      const fixture = TestBed.createComponent(TwShortcutsEditorComponent);
+      const save: ShortcutBinding = {
+        id: 'save',
+        command: 'Save',
+        category: 'File',
+        keys: ['Ctrl', 'S'],
+        defaultKeys: ['Ctrl', 'S'],
+      };
+      const copy: ShortcutBinding = {
+        id: 'copy',
+        command: 'Copy',
+        category: 'Edit',
+        keys: ['Ctrl', 'C'],
+        defaultKeys: ['Ctrl', 'C'],
+      };
+      fixture.componentRef.setInput('shortcuts', [save, copy]);
+      fixture.detectChanges();
+      const editor = fixture.componentInstance;
+      const changes: unknown[] = [];
+      editor.shortcutChanged.subscribe(e => changes.push(e));
+
+      editor.startEdit(save);
+      fixture.detectChanges();
+      editor.selectedCategory.set('Edit');
+      fixture.detectChanges();
+      expect(editor.editingId()).toBeNull();
+
+      const key = new KeyboardEvent('keydown', { key: 'k', cancelable: true });
+      editor.handleKeydown(key);
+      vi.advanceTimersByTime(1000);
+      expect(key.defaultPrevented).toBe(false);
+      expect(changes).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the terminal input focusable (read-only, not disabled) while processing', () => {
+    const fixture = TestBed.createComponent(TwTerminalComponent);
+    fixture.detectChanges();
+    document.body.append(fixture.nativeElement);
+    try {
+      const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+      const commands: string[] = [];
+      fixture.componentInstance.command.subscribe(c => commands.push(c));
+      input.focus();
+      fixture.componentInstance.setProcessing(true);
+      fixture.detectChanges();
+      expect(input.disabled).toBe(false);
+      expect(input.readOnly).toBe(true);
+      expect(document.activeElement).toBe(input);
+
+      (
+        fixture.componentInstance as unknown as { currentInput: { set(v: string): void } }
+      ).currentInput.set('ls');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(commands).toEqual([]);
+
+      fixture.componentInstance.setProcessing(false);
+      fixture.detectChanges();
+      expect(input.readOnly).toBe(false);
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(commands).toEqual(['ls']);
+    } finally {
+      fixture.nativeElement.remove();
+    }
   });
 });

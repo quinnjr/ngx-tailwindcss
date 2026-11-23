@@ -497,6 +497,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tw-progress` fill against its dark-mode track (`secondary` was 1.4:1); the
   `tw-avatar` `online`, `offline` and `away` status dots against their white
   border; the `secondary` `tw-spinner` in dark mode
+- Disabled or read-only while in use: a disabled `tw-piano` releases its held
+  keys; `tw-note-input` cancels an in-progress drag when `editable` turns off;
+  the `tw-score-editor` dialog actions are disabled when it is not editable; a
+  disabled `tw-looper` stops recording and playback; a disabled
+  `tw-bpm-display` closes its tempo editor without saving; a disabled
+  `tw-slider` ends an in-progress drag; a disabled or read-only `tw-rating`
+  drops its hover preview; a disabled `tw-splitter` ends an in-progress drag;
+  a disabled `tw-dropdown` closes
+- `tw-tabs` keeps a keyboard tab stop (the first enabled tab) when the selected
+  tab is disabled
+- Native: closing a `tw-tab-bar` tab no longer pulls focus back when the app
+  has already moved it, and closing the last tab leaves focus on the tab bar
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: the README and docs quick start tell you to register an

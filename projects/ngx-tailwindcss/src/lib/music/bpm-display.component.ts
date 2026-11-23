@@ -130,10 +130,10 @@ export class TwBpmDisplayComponent implements OnDestroy {
       });
     });
 
-    // Disabling while the tempo editor is open discards the edit: the input would otherwise
-    // stay live and commit a new tempo on Enter/blur
+    // Disabling (or making read-only) while the tempo editor is open discards the edit: the
+    // input would otherwise stay live and commit a new tempo on Enter/blur
     effect(() => {
-      if (this.disabled() && untracked(() => this.isEditing())) {
+      if ((this.disabled() || !this.editable()) && untracked(() => this.isEditing())) {
         untracked(() => {
           this.isEditing.set(false);
           this.editValue.set(this.internalBpm().toString());
@@ -254,7 +254,7 @@ export class TwBpmDisplayComponent implements OnDestroy {
   protected finishEditing(): void {
     // Enter/Escape already ended editing; the blur from removing the input must not re-commit
     if (!this.isEditing()) return;
-    if (this.disabled()) {
+    if (this.disabled() || !this.editable()) {
       this.isEditing.set(false);
       return;
     }

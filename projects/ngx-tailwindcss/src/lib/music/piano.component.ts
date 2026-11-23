@@ -459,13 +459,24 @@ export class TwPianoComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Mouse/touch/keyboard release of a key. Only releases keys held via the UI: merely moving
+   * the pointer off (mouseleave) a key held by MIDI or pressKey() must not cut that note off.
+   */
+  onPointerRelease(key: PianoKey): void {
+    const source = this.activeKeys().get(this.getKeyId(key))?.source;
+    if (source === 'mouse' || source === 'touch') {
+      this.onKeyUp(key);
+    }
+  }
+
   onTouchStart(event: TouchEvent, key: PianoKey): void {
     event.preventDefault();
     this.onKeyDown(key, 'touch');
   }
 
   onTouchEnd(key: PianoKey): void {
-    this.onKeyUp(key);
+    this.onPointerRelease(key);
   }
 
   // Keyboard interaction (Enter/Space mirror mousedown/mouseup)
@@ -477,7 +488,7 @@ export class TwPianoComponent implements OnDestroy {
 
   onKeyboardUp(event: Event, key: PianoKey): void {
     event.preventDefault();
-    this.onKeyUp(key);
+    this.onPointerRelease(key);
   }
 
   // MIDI handling

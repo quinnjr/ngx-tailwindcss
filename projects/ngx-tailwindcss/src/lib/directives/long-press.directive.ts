@@ -95,6 +95,8 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
     });
 
     this.timeout = setTimeout(() => {
+      // The directive may have been disabled while the press was held
+      if (this.longPressDisabled) return;
       this.longPressFired = true;
       this.ngZone.run(() => {
         this.longPress.emit({

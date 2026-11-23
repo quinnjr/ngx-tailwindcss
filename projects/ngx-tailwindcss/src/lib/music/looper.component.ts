@@ -170,6 +170,9 @@ export class TwLooperComponent implements OnDestroy {
         if (s === 'recording' || s === 'playing' || s === 'overdubbing') {
           this.stop();
         }
+        // Release the microphone we opened: a disabled looper cannot record, so the
+        // mic (and the browser's recording indicator) must not stay live
+        this.releaseMicrophone();
       });
     });
 
@@ -191,13 +194,16 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   private async initAudio(): Promise<void> {
-    if (this.audioContext) return;
-
-    this.audioContext = new AudioContext();
-    this.masterGainNode = this.audioContext.createGain();
-    this.masterGainNode.connect(this.audioContext.destination);
-    this.analyserNode = this.audioContext.createAnalyser();
-    this.analyserNode.fftSize = 2048;
+    if (!this.audioContext) {
+      this.audioContext = new AudioContext();
+      this.masterGainNode = this.audioContext.createGain();
+      this.masterGainNode.connect(this.audioContext.destination);
+      this.analyserNode = this.audioContext.createAnalyser();
+      this.analyserNode.fftSize = 2048;
+    }
+    // Already have a stream; otherwise (first take, mic released on disable, or an
+    // earlier failed/denied request) acquire one
+    if (this.mediaStream) return;
 
     // Record from the external source's stream when one is provided
     const externalSource = this.audioSource();
@@ -212,8 +218,8 @@ export class TwLooperComponent implements OnDestroy {
     if (!this.mediaStream) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Destroyed while the permission prompt was pending: release the mic
-        if (this.destroyed) {
+        // Destroyed or disabled while the permission prompt was pending: release the mic
+        if (this.destroyed || this.disabled()) {
           stream.getTracks().forEach(track => {
             track.stop();
           });
@@ -245,6 +251,15 @@ export class TwLooperComponent implements OnDestroy {
     }
     this.mediaRecorder = null;
 
+    this.releaseMicrophone();
+
+    if (this.audioContext) {
+      void this.audioContext.close();
+      this.audioContext = null;
+    }
+  }
+
+  private releaseMicrophone(): void {
     // Only stop tracks we acquired; an external audioSource stream belongs to the caller
     if (this.mediaStream && this.ownsMediaStream) {
       this.mediaStream.getTracks().forEach(track => {
@@ -252,11 +267,7 @@ export class TwLooperComponent implements OnDestroy {
       });
     }
     this.mediaStream = null;
-
-    if (this.audioContext) {
-      void this.audioContext.close();
-      this.audioContext = null;
-    }
+    this.ownsMediaStream = false;
   }
 
   // Main control methods

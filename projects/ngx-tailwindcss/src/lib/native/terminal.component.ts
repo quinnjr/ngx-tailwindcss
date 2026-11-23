@@ -167,6 +167,9 @@ export class TwTerminalComponent implements AfterViewChecked {
   }
 
   protected submitCommand(): void {
+    // While processing the input is read-only (not disabled, which would drop
+    // keyboard focus every command); it must not submit or change either
+    if (this.isProcessing()) return;
     const cmd = this.currentInput().trim();
     if (!cmd) return;
 
@@ -186,7 +189,7 @@ export class TwTerminalComponent implements AfterViewChecked {
    */
   protected navigateHistory(direction: number, event?: Event): void {
     const history = this.commandHistory();
-    if (history.length === 0) return;
+    if (history.length === 0 || this.isProcessing()) return;
     // Keep the caret from jumping to the start of the input on ArrowUp
     event?.preventDefault();
 

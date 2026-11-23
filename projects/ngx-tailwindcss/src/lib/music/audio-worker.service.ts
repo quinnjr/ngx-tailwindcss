@@ -132,7 +132,13 @@ export class AudioWorkerService implements OnDestroy {
    * Configure the worker service
    */
   configure(config: AudioWorkerConfig): void {
-    this.config = { ...this.config, ...config };
+    // Skip keys explicitly set to undefined (e.g. forwarded optional settings):
+    // spreading them would clobber the current values, turning timeout into an
+    // immediate 0 ms timeout and enabled into a falsy value that kills the worker
+    const definedConfig = Object.fromEntries(
+      Object.entries(config).filter(([, value]) => value !== undefined)
+    ) as AudioWorkerConfig;
+    this.config = { ...this.config, ...definedConfig };
 
     if (!this.config.enabled && this.worker) {
       this.terminate();

@@ -87,6 +87,14 @@ describe('TwTreeComponent', () => {
     expect(treeEl.nativeElement.textContent).toContain('Downloads');
   });
 
+  it('should pair hard-coded text colours with dark-mode variants', () => {
+    const row = treeEl.query(By.css('[data-tw-tree-row]')).nativeElement as HTMLElement;
+    const label = row.querySelector<HTMLElement>('span.select-none')!;
+    expect(row.className).toContain('dark:hover:bg-slate-700');
+    expect(label.className).toContain('text-slate-700');
+    expect(label.className).toContain('dark:text-slate-300');
+  });
+
   describe('expand/collapse', () => {
     it('should expand node on click', () => {
       const nodeElements = treeEl.queryAll(By.css('.cursor-pointer'));

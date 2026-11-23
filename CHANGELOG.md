@@ -108,9 +108,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-code-viewer` match navigation highlights and scrolls to the current match
 - Audio analyser: setting a decibel range no longer throws `IndexSizeError`
   when the new range lies outside the current one
+- Class merging covers more Tailwind 4 utility groups: text shadow, font
+  stretch, font feature settings, gradient stop positions, space reverse,
+  transition behavior, per-axis border spacing, logical `bs`/`be`/`s`/`e`
+  sides and `(...)` shorthand arbitrary values now merge correctly
+- Dark mode: `tw-slider` value, confirm dialog message and cancel button,
+  `tw-sidebar` title, `tw-steps` labels and descriptions, `tw-pagination`
+  page text and the `tw-divider` label are readable
+- `tw-terminal` `variant="light"` uses dark line colours that are readable on
+  its white background
+- Audio analyser config keys explicitly set to `undefined` fall back to the
+  defaults instead of throwing
+- `tw-chord-diagram` draws the barre across the strings it covers on
+  right-handed diagrams instead of off the right edge
+- Read-only `tw-score-editor` disables undo/redo, transpose and part editing
+  controls
+- `tw-pan-control` knob value arc no longer lights the dial gap at low values
+- `tw-pitch-display` removes its drag listeners through the injected
+  `DOCUMENT` (SSR safe)
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
-- Documentation: corrected package name and documented APIs
+- Documentation: corrected package name and documented APIs; demo labels,
+  headings and inline code on the docs site are readable in dark mode
 
 ## [1.1.1] - 2026-11-23
 

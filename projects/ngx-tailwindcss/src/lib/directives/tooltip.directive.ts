@@ -71,15 +71,16 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
   private isVisible = false;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.tooltipElement) return;
-
-    // Disabling the tooltip or clearing its text while it is open closes it
+    // Disabling the tooltip or clearing its text closes it, including one whose
+    // show delay is still pending
     if (this.tooltipDisabled || !this.content) {
       this.clearTimeouts();
       this.destroyTooltip();
       this.isVisible = false;
       return;
     }
+
+    if (!this.tooltipElement) return;
 
     if (changes['content']) {
       // Setting textContent would also drop the arrow element, so only replace the text node

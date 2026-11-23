@@ -195,10 +195,10 @@ export class TwTimeDisplayComponent {
 
   protected readonly defaultClasses = computed(() => {
     const size = this.sizeConfig();
-    return this.twClass.merge(
-      'font-mono font-medium text-slate-700 dark:text-slate-300 tabular-nums',
-      size.text
-    );
+    // Minimal inherits the surrounding text colour, so it stays readable inside dark or
+    // light containers (e.g. the audio player themes) regardless of the page colour scheme
+    const color = this.variant() === 'minimal' ? '' : 'text-slate-700 dark:text-slate-300';
+    return this.twClass.merge('font-mono font-medium tabular-nums', color, size.text);
   });
 
   // Utility

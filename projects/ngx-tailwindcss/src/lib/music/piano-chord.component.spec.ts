@@ -83,4 +83,17 @@ describe('TwPianoChordComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Eb4');
     expect(cmp.isNoteActive('D#', 4)).toBe(true);
   });
+  it('does not draw finger markers for chord notes outside the visible octaves', () => {
+    // G major: G4, B4, D5 — only octave 4 is shown, so D5 has no key on the keyboard
+    fixture.componentRef.setInput('chord', 'G');
+    fixture.componentRef.setInput('octaveCount', 1);
+    fixture.detectChanges();
+    const svg = (fixture.nativeElement as HTMLElement).querySelector('svg')!;
+    const width = Number(svg.getAttribute('width'));
+    const circles = [...svg.querySelectorAll('circle')];
+    expect(circles).toHaveLength(2);
+    for (const circle of circles) {
+      expect(Number(circle.getAttribute('cx'))).toBeLessThan(width);
+    }
+  });
 });

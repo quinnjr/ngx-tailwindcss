@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   parseABCNotation,
   parseMusicXML,
@@ -211,6 +211,38 @@ describe('TwSheetMusicComponent', () => {
     fixture.detectChanges();
     expect(pageLabel()).toBe('Line 1 of 1');
     expect(host.querySelectorAll('tw-staff')).toHaveLength(1);
+  });
+
+  it('keeps the page navigation readable in dark mode on the transparent minimal variant', () => {
+    fixture.componentRef.setInput('layout', 'pages');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const label = [...host.querySelectorAll('span')].find(s =>
+      s.textContent?.trim().startsWith('Line')
+    )!;
+    expect(label.className).toContain('dark:text-slate-400');
+    const buttons = [...host.querySelectorAll('button')].filter(b =>
+      /Prev|Next/.test(b.textContent ?? '')
+    );
+    expect(buttons).toHaveLength(2);
+    // Light buttons carry their own dark text rather than inheriting a dark-mode light colour
+    for (const button of buttons) expect(button.classList).toContain('text-slate-800');
+  });
+
+  it('emits parseError once per unparseable input', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errors: string[] = [];
+    fixture.componentInstance.parseError.subscribe(e => errors.push(e));
+    fixture.componentRef.setInput('musicXml', '<not-a-score/>');
+    fixture.detectChanges();
+    fixture.detectChanges();
+    expect(errors).toEqual(['Failed to parse MusicXML']);
+
+    fixture.componentRef.setInput('musicXml', '<still-not-a-score/>');
+    fixture.detectChanges();
+    expect(errors).toEqual(['Failed to parse MusicXML', 'Failed to parse MusicXML']);
+    errorSpy.mockRestore();
   });
 });
 

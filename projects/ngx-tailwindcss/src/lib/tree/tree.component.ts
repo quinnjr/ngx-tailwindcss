@@ -132,14 +132,16 @@ export class TwTreeComponent {
         indeterminate: total > 0 && selectedCount > 0 && selectedCount < total,
         nodeClass: this.twClass.merge(
           'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
-          'hover:bg-slate-100',
-          selected ? 'bg-blue-50' : '',
+          'hover:bg-slate-100 dark:hover:bg-slate-700',
+          selected ? 'bg-blue-50 dark:bg-blue-900/30' : '',
           node.disabled ? 'opacity-50 cursor-not-allowed' : '',
           node.styleClass || ''
         ),
         labelClass: this.twClass.merge(
           'text-sm select-none',
-          node.disabled ? 'text-slate-400' : 'text-slate-700'
+          node.disabled
+            ? 'text-slate-400 dark:text-slate-500'
+            : 'text-slate-700 dark:text-slate-300'
         ),
       });
       return { total, selectedCount };

@@ -466,6 +466,18 @@ export class TwPianoChordComponent {
     return keys;
   });
 
+  /** Chord notes that fall on a key inside the visible octave range (others have no key to mark) */
+  protected readonly visibleNotes = computed((): PianoChordNote[] => {
+    const chord = this.chordData();
+    if (!chord) return [];
+    const first = this.startOctave();
+    const last = first + this.octaveCount() - 1;
+    return chord.notes.filter(n => {
+      const { octave } = toKey(n.note, n.octave);
+      return octave >= first && octave <= last;
+    });
+  });
+
   protected isNoteActive(note: string, octave: number): boolean {
     const chord = this.chordData();
     if (!chord) return false;

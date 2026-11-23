@@ -12,7 +12,7 @@
         [(ngModel)]="selectedFruits"
         placeholder="Select fruits">
       </tw-multiselect>
-      <p class="mt-2 text-sm text-slate-600">
+      <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
         Selected: {{ selectedFruits().length > 0 ? selectedFruits().join(', ') : 'None' }}
       </p>
     </div>
@@ -26,7 +26,7 @@
         [(ngModel)]="selectedCountries"
         placeholder="Select countries">
       </tw-multiselect>
-      <p class="mt-2 text-sm text-slate-600">
+      <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
         Selected: {{ selectedCountries().length > 0 ? selectedCountries().join(', ') : 'None' }}
       </p>
     </div>
@@ -41,7 +41,7 @@
         [filter]="true"
         placeholder="Search technologies...">
       </tw-multiselect>
-      <p class="mt-2 text-sm text-slate-600">
+      <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
         Selected: {{ selectedTechnologies().length > 0 ? selectedTechnologies().join(', ') : 'None' }}
       </p>
     </div>
@@ -56,7 +56,7 @@
         [maxSelections]="3"
         placeholder="Select up to 3 colors">
       </tw-multiselect>
-      <p class="mt-2 text-sm text-slate-600">
+      <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
         Selected {{ selectedColors().length }}/3: {{ selectedColors().length > 0 ? selectedColors().join(', ') : 'None' }}
       </p>
     </div>
@@ -66,15 +66,15 @@
   <app-demo-section title="Sizes" [code]="sizesCode">
     <div class="flex flex-wrap items-start gap-4 max-w-3xl">
       <div class="w-40">
-        <label class="block text-sm font-medium text-slate-700 mb-1">Small</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Small</label>
         <tw-multiselect size="sm" [options]="fruits" placeholder="Small"></tw-multiselect>
       </div>
       <div class="w-48">
-        <label class="block text-sm font-medium text-slate-700 mb-1">Medium</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Medium</label>
         <tw-multiselect size="md" [options]="fruits" placeholder="Medium"></tw-multiselect>
       </div>
       <div class="w-56">
-        <label class="block text-sm font-medium text-slate-700 mb-1">Large</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Large</label>
         <tw-multiselect size="lg" [options]="fruits" placeholder="Large"></tw-multiselect>
       </div>
     </div>
@@ -84,11 +84,11 @@
   <app-demo-section title="Variants" [code]="variantsCode">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Default</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Default</label>
         <tw-multiselect variant="default" [options]="fruits" placeholder="Select fruits"></tw-multiselect>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Filled</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Filled</label>
         <tw-multiselect variant="filled" [options]="fruits" placeholder="Select fruits"></tw-multiselect>
       </div>
     </div>
@@ -98,11 +98,11 @@
   <app-demo-section title="States" [code]="statesCode">
     <div class="flex flex-wrap gap-4 max-w-2xl">
       <div class="w-48">
-        <label class="block text-sm font-medium text-slate-700 mb-1">Disabled</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Disabled</label>
         <tw-multiselect [disabled]="true" [options]="fruits" placeholder="Disabled"></tw-multiselect>
       </div>
       <div class="w-56">
-        <label class="block text-sm font-medium text-slate-700 mb-1">With Disabled Options</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">With Disabled Options</label>
         <tw-multiselect [options]="disabledOptions" placeholder="Some options disabled"></tw-multiselect>
       </div>
     </div>
@@ -112,7 +112,7 @@
   <app-demo-section title="Features" [code]="featuresCode">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">With Select All</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">With Select All</label>
         <tw-multiselect
           [options]="fruits"
           [showSelectAll]="true"
@@ -120,7 +120,7 @@
         </tw-multiselect>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Without Checkboxes</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Without Checkboxes</label>
         <tw-multiselect
           [options]="fruits"
           [showCheckbox]="false"
@@ -128,7 +128,7 @@
         </tw-multiselect>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Without Select All</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Without Select All</label>
         <tw-multiselect
           [options]="fruits"
           [showSelectAll]="false"
@@ -136,7 +136,7 @@
         </tw-multiselect>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">With Label</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">With Label</label>
         <tw-multiselect
           [options]="fruits"
           label="Favorite Fruits"

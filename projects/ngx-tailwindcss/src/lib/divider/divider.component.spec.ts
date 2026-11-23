@@ -153,6 +153,10 @@ describe('TwDividerComponent', () => {
       expect(separator?.getAttribute('aria-orientation')).toBe('horizontal');
     });
 
+    it('should keep the label readable in dark mode', () => {
+      expect(dividerEl.querySelector('span')?.className).toContain('dark:text-slate-400');
+    });
+
     describe('label position', () => {
       it('should have equal lines when center position', () => {
         const lines = dividerEl.querySelectorAll('[class*="flex-1"]');

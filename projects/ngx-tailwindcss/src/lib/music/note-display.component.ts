@@ -234,6 +234,18 @@ export class TwNoteDisplayComponent {
     return 50 + note.cents;
   });
 
+  /**
+   * Whether LED segment `i` (-5..5, 10 cents per segment) is lit. The centre segment means
+   * "in tune"; side segments only light when out of tune (beyond `centsTolerance`), with the
+   * first one lit for any flat/sharp reading so the bar always agrees with the in-tune check.
+   */
+  protected isLedLit(i: number): boolean {
+    if (i === 0) return this.isInTune();
+    const cents = this.currentNote()?.cents ?? 0;
+    if (i > 0) return this.isSharp() && (i === 1 || cents >= i * 10);
+    return this.isFlat() && (i === -1 || cents <= i * 10);
+  }
+
   protected readonly containerClasses = computed(() => {
     const variant = this.variant();
     const size = this.size();

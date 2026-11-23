@@ -149,7 +149,7 @@ export class TwDividerComponent {
   });
 
   protected labelClasses = computed(
-    () => 'px-4 text-sm text-slate-500 whitespace-nowrap select-none'
+    () => 'px-4 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap select-none'
   );
 
   protected verticalClasses = computed(() => {

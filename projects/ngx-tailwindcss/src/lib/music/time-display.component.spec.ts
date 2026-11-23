@@ -81,4 +81,15 @@ describe('TwTimeDisplayComponent', () => {
       '01:05.250'
     );
   });
+  it('should inherit the surrounding text colour in the minimal variant', () => {
+    const textDiv = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('[role="img"] > div')!;
+    expect(textDiv().className).toContain('text-slate-700');
+
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+
+    // An own colour would override e.g. the dark audio player's light text
+    expect(textDiv().className).not.toMatch(/(^|\s)(dark:)?text-slate-\d/);
+  });
 });

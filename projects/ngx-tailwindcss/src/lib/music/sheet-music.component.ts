@@ -8,6 +8,7 @@ import {
   numberAttribute,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -784,34 +785,40 @@ export class TwSheetMusicComponent {
   });
   protected readonly currentZoom = signal(1);
 
-  // Parse imported notation
-  protected readonly parsedMusic = computed(() => {
+  // Parse imported notation (pure: the error is emitted from an effect, since outputs must not
+  // be emitted from inside a computed)
+  private readonly parseResult = computed((): { music: SheetMusicData | null; error?: string } => {
     const xmlInput = this.musicXml();
     const abcInput = this.abcNotation();
 
     if (xmlInput) {
-      const result = parseMusicXML(xmlInput);
-      if (!result) {
-        this.parseError.emit('Failed to parse MusicXML');
-      }
-      return result;
+      const music = parseMusicXML(xmlInput);
+      return music ? { music } : { music: null, error: 'Failed to parse MusicXML' };
     }
 
     if (abcInput) {
-      const result = parseABCNotation(abcInput);
-      if (!result) {
-        this.parseError.emit('Failed to parse ABC notation');
-      }
-      return result;
+      const music = parseABCNotation(abcInput);
+      return music ? { music } : { music: null, error: 'Failed to parse ABC notation' };
     }
 
-    return null;
+    return { music: null };
   });
+
+  protected readonly parsedMusic = computed(() => this.parseResult().music);
 
   constructor() {
     // Sync zoom input to signal
     effect(() => {
       this.currentZoom.set(this.zoom());
+    });
+
+    effect(() => {
+      const { error } = this.parseResult();
+      if (error) {
+        untracked(() => {
+          this.parseError.emit(error);
+        });
+      }
     });
   }
 
@@ -945,6 +952,14 @@ export class TwSheetMusicComponent {
     const color = variant === 'minimal' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-600';
     return [base, size, color].join(' ');
   });
+
+  // 'minimal' has a transparent background, so its text must follow the page's dark mode;
+  // the other variants keep a light background in dark mode
+  protected readonly pageLabelClasses = computed(() =>
+    this.variant() === 'minimal'
+      ? 'text-sm text-slate-600 dark:text-slate-400'
+      : 'text-sm text-slate-600'
+  );
 
   protected readonly staffVariant = computed(() => {
     const variant = this.variant();

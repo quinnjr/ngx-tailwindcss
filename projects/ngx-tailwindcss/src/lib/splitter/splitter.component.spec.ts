@@ -58,6 +58,12 @@ describe('TwSplitterComponent', () => {
     expect(component.splitter).toBeTruthy();
   });
 
+  it('should pair gutter colours with dark-mode variants', () => {
+    const el = gutter().nativeElement as HTMLElement;
+    expect(el.className).toContain('bg-slate-200');
+    expect(el.className).toContain('dark:bg-slate-700');
+  });
+
   describe('pane projection', () => {
     it('should project both panes into their slots', () => {
       const start = splitterEl.query(By.css('[data-testid="pane-start"]'));

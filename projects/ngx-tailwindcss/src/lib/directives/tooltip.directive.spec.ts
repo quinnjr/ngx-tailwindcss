@@ -209,4 +209,19 @@ describe('TwTooltipDirective', () => {
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
     expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
   });
+
+  it('should not show a pending tooltip after it becomes disabled during the show delay', async () => {
+    component.showDelay.set(20);
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    component.tooltipDisabled.set(true);
+    fixture.detectChanges();
+
+    await new Promise(resolve => {
+      setTimeout(resolve, 40);
+    });
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
 });

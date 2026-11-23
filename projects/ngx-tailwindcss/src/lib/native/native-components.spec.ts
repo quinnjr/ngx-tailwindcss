@@ -112,6 +112,37 @@ describe('TwTerminalComponent', () => {
     expect(rows[0].classList).not.toContain('text-gray-100');
     expect(rows[1].classList).not.toContain('text-gray-300');
   });
+
+  it('uses readable prompt and timestamp colours for each variant', () => {
+    const fixture = TestBed.createComponent(TwTerminalComponent);
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.componentRef.setInput('showTimestamps', true);
+    fixture.componentRef.setInput('lines', [
+      { id: '1', content: 'ls', type: 'input', timestamp: new Date() },
+    ]);
+    fixture.detectChanges();
+
+    const output = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.overflow-y-auto'
+    )!;
+    const spans = () => [...output.querySelectorAll<HTMLElement>('span')];
+    const find = (text: string) => spans().find(s => s.textContent?.includes(text))!;
+
+    expect(find('[').classList).toContain('text-gray-500');
+    expect(spans().filter(s => s.textContent === '$ ')).toHaveLength(2);
+    for (const prompt of spans().filter(s => s.textContent === '$ ')) {
+      expect(prompt.classList).toContain('text-green-700');
+      expect(prompt.classList).not.toContain('text-green-400');
+    }
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(find('[').classList).toContain('text-gray-400');
+    expect(find('[').classList).not.toContain('text-gray-600');
+    for (const prompt of spans().filter(s => s.textContent === '$ ')) {
+      expect(prompt.classList).toContain('text-green-400');
+    }
+  });
 });
 
 describe('TwSidebarNavComponent', () => {

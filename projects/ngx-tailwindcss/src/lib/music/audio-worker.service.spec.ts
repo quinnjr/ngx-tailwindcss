@@ -37,6 +37,13 @@ describe('AudioWorkerService', () => {
     expect(service.pendingCount()).toBe(2);
   });
 
+  it('should ignore configure keys explicitly set to undefined', () => {
+    service.configure({ enabled: undefined, timeout: undefined, maxPendingRequests: undefined });
+    expect(service.isAvailable()).toBe(true);
+    const config = (service as unknown as { config: Record<string, unknown> }).config;
+    expect(config).toEqual({ enabled: true, timeout: 5000, maxPendingRequests: 100 });
+  });
+
   it('should reject pending requests and become unavailable when the worker errors', async () => {
     const worker = (service as unknown as { worker: MockWorker }).worker;
     const errorListener = worker.addEventListener.mock.calls.find(

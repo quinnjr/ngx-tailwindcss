@@ -816,14 +816,19 @@ export class TwLooperComponent implements OnDestroy {
     const firstLayerWithBuffer = layers.find(l => l.audioBuffer && !l.muted);
     if (firstLayerWithBuffer?.audioBuffer) {
       const data = firstLayerWithBuffer.audioBuffer.getChannelData(0);
-      const step = Math.ceil(data.length / width);
-
       for (let i = 0; i < width; i++) {
+        // Spread the samples evenly over the columns: a fixed ceil()'d step runs
+        // past the end of the buffer, leaving trailing columns with no samples
+        // (min 1 / max -1), which drew full-height spikes at the right edge
+        const start = Math.floor((i * data.length) / width);
+        const end = Math.max(start + 1, Math.floor(((i + 1) * data.length) / width));
+        if (start >= data.length) break;
+
         let min = 1;
         let max = -1;
 
-        for (let j = 0; j < step; j++) {
-          const datum = data[i * step + j];
+        for (let j = start; j < end && j < data.length; j++) {
+          const datum = data[j];
           if (datum < min) min = datum;
           if (datum > max) max = datum;
         }

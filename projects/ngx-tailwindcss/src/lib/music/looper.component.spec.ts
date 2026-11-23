@@ -214,4 +214,34 @@ describe('TwLooperComponent', () => {
     expect(points[1][1]).toBe(0);
     expect(points[2][1]).toBe(0);
   });
+  it('should not draw full-height spikes past the end of a short loop buffer', () => {
+    const ys: number[] = [];
+    const ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) => (prop === 'lineTo' ? (_x: number, y: number) => ys.push(y) : () => {}),
+        set: () => true,
+      }
+    );
+    const canvas = internals.waveformCanvas().nativeElement as HTMLCanvasElement;
+    vi.spyOn(canvas, 'getContext').mockReturnValue(ctx as any);
+    // md canvas is 300 px wide; 301 samples made the old ceil()'d step (2)
+    // run out of samples after column 150
+    const data = new Float32Array(301).fill(0);
+    internals.layers.set([
+      {
+        id: 1,
+        audioBuffer: { duration: 1, getChannelData: () => data },
+        volume: 1,
+        muted: false,
+        name: 'L1',
+      },
+    ]);
+
+    internals.drawWaveform();
+
+    // Silence plots on the centre line (height 80) in every column
+    expect(ys.length).toBeGreaterThan(0);
+    expect(ys.every(y => y === 40)).toBe(true);
+  });
 });

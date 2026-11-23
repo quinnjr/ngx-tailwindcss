@@ -46,16 +46,10 @@
               class="h-2 rounded-sm transition-all duration-75"
               [class.w-1]="size() !== 'lg' && size() !== 'xl'"
               [class.w-1.5]="size() === 'lg' || size() === 'xl'"
-              [class.bg-blue-500]="i < 0 && centsPosition() <= 50 + i * 10"
-              [class.bg-green-500]="i === 0 && isInTune()"
-              [class.bg-amber-500]="i > 0 && centsPosition() >= 50 + i * 10"
-              [class.bg-slate-700]="
-                !(
-                  (i < 0 && centsPosition() <= 50 + i * 10) ||
-                  (i === 0 && isInTune()) ||
-                  (i > 0 && centsPosition() >= 50 + i * 10)
-                )
-              "
+              [class.bg-blue-500]="i < 0 && isLedLit(i)"
+              [class.bg-green-500]="i === 0 && isLedLit(i)"
+              [class.bg-amber-500]="i > 0 && isLedLit(i)"
+              [class.bg-slate-700]="!isLedLit(i)"
               [class.h-3]="i === 0"
             ></div>
           }

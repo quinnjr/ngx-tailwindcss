@@ -6,7 +6,7 @@
 <div class="space-y-12">
   <!-- Core Directives Section -->
   <div>
-    <h2 class="text-2xl font-bold text-slate-900 mb-6 pb-2 border-b border-slate-200">Core Directives</h2>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 pb-2 border-b border-slate-200">Core Directives</h2>
 
     <!-- Ripple -->
     <app-demo-section
@@ -163,7 +163,7 @@
 
   <!-- DX Enhancement Directives Section -->
   <div>
-    <h2 class="text-2xl font-bold text-slate-900 mb-6 pb-2 border-b border-slate-200">DX Enhancement Directives</h2>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 pb-2 border-b border-slate-200">DX Enhancement Directives</h2>
 
     <!-- Auto Focus -->
     <app-demo-section
@@ -171,7 +171,7 @@
       description="Automatically focus an element when it's rendered."
       [code]="autoFocusCode">
       <div class="space-y-4">
-        <p class="text-sm text-slate-600">The input below receives focus automatically:</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">The input below receives focus automatically:</p>
         <input
           twAutoFocus
           type="text"
@@ -193,7 +193,7 @@
           class="px-6 py-3 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors">
           Hold for 800ms (Count: {{ longPressCount() }})
         </button>
-        <span class="text-sm text-slate-600">Hold the button for 800ms to trigger</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400">Hold the button for 800ms to trigger</span>
       </div>
     </app-demo-section>
 
@@ -210,7 +210,7 @@
           class="px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors">
           Click rapidly (debounced 500ms)
         </button>
-        <span class="text-sm text-slate-600">Actual clicks registered: {{ debounceCount() }}</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400">Actual clicks registered: {{ debounceCount() }}</span>
       </div>
     </app-demo-section>
 
@@ -244,7 +244,7 @@
           twKeyboardShortcut="ctrl+k"
           (shortcutPressed)="onKeyboardShortcut($event)"
           class="p-6 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 text-center">
-          <p class="text-slate-600 mb-2">Press <kbd class="px-2 py-1 bg-white rounded border border-slate-300 text-sm font-mono">Ctrl+K</kbd> anywhere on this page</p>
+          <p class="text-slate-600 mb-2">Press <kbd class="px-2 py-1 bg-white dark:bg-slate-700 rounded border border-slate-300 text-sm font-mono">Ctrl+K</kbd> anywhere on this page</p>
           @if (keyPressed()) {
             <p class="text-lg font-bold text-blue-600">Pressed: {{ keyPressed() }}</p>
           }
@@ -296,7 +296,7 @@
       description="Detect when an element enters or leaves the viewport."
       [code]="inViewCode">
       <div class="space-y-4">
-        <p class="text-sm text-slate-600">Scroll down to see the element enter the viewport:</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Scroll down to see the element enter the viewport:</p>
         <div class="h-32 overflow-y-auto border border-slate-200 rounded-lg p-4">
           <div class="h-24"></div>
           <div
@@ -345,7 +345,7 @@
       description="Prevent scroll events from propagating to parent containers."
       [code]="trapScrollCode">
       <div class="space-y-4">
-        <p class="text-sm text-slate-600">Scroll inside the box - the page won't scroll when you reach the end:</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Scroll inside the box - the page won't scroll when you reach the end:</p>
         <div
           twTrapScroll
           class="h-40 overflow-auto bg-slate-100 rounded-lg p-4 border border-slate-200">
@@ -411,7 +411,7 @@
       description="Lazy load images when they approach the viewport."
       [code]="lazyImageCode">
       <div class="space-y-4">
-        <p class="text-sm text-slate-600">Images below are lazy loaded when scrolled into view:</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Images below are lazy loaded when scrolled into view:</p>
         <div class="h-48 overflow-y-auto border border-slate-200 rounded-lg p-4 space-y-4">
           <div class="h-32 flex items-center justify-center text-slate-400">
             ↓ Scroll down to load images ↓
@@ -441,7 +441,7 @@
 
   <!-- Combined Example Section -->
   <div>
-    <h2 class="text-2xl font-bold text-slate-900 mb-6 pb-2 border-b border-slate-200">Combined Examples</h2>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 pb-2 border-b border-slate-200">Combined Examples</h2>
 
     <app-demo-section
       title="Multiple Directives"

@@ -149,19 +149,21 @@ export class TwSplitterComponent implements OnDestroy {
 
     return this.twClass.merge(
       'flex items-center justify-center flex-shrink-0 transition-colors',
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       orientationClasses,
-      this.showGutter() ? 'bg-slate-200 hover:bg-slate-300' : 'bg-transparent hover:bg-slate-200',
-      this.isDragging() ? 'bg-blue-400' : '',
+      this.showGutter()
+        ? 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'
+        : 'bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700',
+      this.isDragging() ? 'bg-blue-400 dark:bg-blue-500' : '',
       this.disabled() ? 'cursor-default pointer-events-none opacity-50' : ''
     );
   });
 
   protected readonly gutterHandleClasses = computed(() => {
     return this.twClass.merge(
-      'rounded-full bg-slate-400 transition-all',
+      'rounded-full bg-slate-400 dark:bg-slate-500 transition-all',
       this.direction() === 'horizontal' ? 'w-1 h-8' : 'h-1 w-8',
-      this.isDragging() ? 'bg-blue-600 scale-125' : ''
+      this.isDragging() ? 'bg-blue-600 dark:bg-blue-400 scale-125' : ''
     );
   });
 

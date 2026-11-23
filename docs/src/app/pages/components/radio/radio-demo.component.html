@@ -11,7 +11,7 @@
       <tw-radio-button value="option2" label="Option 2"></tw-radio-button>
       <tw-radio-button value="option3" label="Option 3"></tw-radio-button>
     </tw-radio-group>
-    <p class="mt-4 text-sm text-slate-600">Selected: {{ selectedOption }}</p>
+    <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">Selected: {{ selectedOption }}</p>
   </app-demo-section>
 
   <!-- Variants -->
@@ -54,7 +54,7 @@
   <app-demo-section title="Orientation" [code]="orientationCode">
     <div class="space-y-6">
       <div>
-        <p class="text-sm font-medium text-slate-700 mb-2">Vertical (default)</p>
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Vertical (default)</p>
         <tw-radio-group orientation="vertical" [(ngModel)]="orientationVertical">
           <tw-radio-button value="1" label="First option"></tw-radio-button>
           <tw-radio-button value="2" label="Second option"></tw-radio-button>
@@ -62,7 +62,7 @@
         </tw-radio-group>
       </div>
       <div>
-        <p class="text-sm font-medium text-slate-700 mb-2">Horizontal</p>
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Horizontal</p>
         <tw-radio-group orientation="horizontal" [(ngModel)]="orientationHorizontal">
           <tw-radio-button value="1" label="First"></tw-radio-button>
           <tw-radio-button value="2" label="Second"></tw-radio-button>

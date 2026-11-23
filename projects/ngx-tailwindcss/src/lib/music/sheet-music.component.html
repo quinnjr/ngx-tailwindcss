@@ -220,18 +220,18 @@
             <div class="flex items-center justify-center gap-4 mt-4">
               <button
                 type="button"
-                class="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() === 0"
                 (click)="prevPage()"
               >
                 ← Prev
               </button>
-              <span class="text-sm text-slate-600">
+              <span [class]="pageLabelClasses()">
                 Line {{ currentPage() + 1 }} of {{ totalLines() }}
               </span>
               <button
                 type="button"
-                class="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() >= totalLines() - 1"
                 (click)="nextPage()"
               >

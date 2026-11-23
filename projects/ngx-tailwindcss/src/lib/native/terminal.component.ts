@@ -109,6 +109,24 @@ export class TwTerminalComponent implements AfterViewChecked {
     return `${base} ${variantClasses[variant]}`;
   });
 
+  // Prompt, status and timestamp colours inside the output area, which is
+  // white in the light variant and near-black otherwise
+  protected readonly outputAccents = computed(() =>
+    this.variant() === 'light'
+      ? {
+          prompt: 'text-green-700',
+          processing: 'text-yellow-800',
+          timestamp: 'text-gray-500',
+          cursor: 'bg-gray-700',
+        }
+      : {
+          prompt: 'text-green-400',
+          processing: 'text-yellow-400',
+          timestamp: 'text-gray-400',
+          cursor: 'bg-gray-300',
+        }
+  );
+
   protected getLineClasses(line: TerminalLine): string {
     // The light variant renders on a white background, so it needs dark text
     const typeClasses: Record<TerminalLine['type'], string> =

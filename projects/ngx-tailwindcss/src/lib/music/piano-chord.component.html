@@ -66,36 +66,32 @@
     }
 
     <!-- Finger position indicators -->
-    @if (chordData()) {
-      @for (note of chordData()!.notes; track note.note + note.octave) {
-        <g>
-          <!-- Finger circle -->
-          <circle
-            [attr.cx]="getFingerX(note.note, note.octave)"
-            [attr.cy]="getFingerY(isBlackKey(note.note))"
-            [attr.r]="dimensions().fingerRadius"
-            [attr.fill]="
-              highlightRoot() && note.isRoot ? colors().rootCircle : colors().fingerCircle
-            "
-            class="transition-colors duration-150"
-          />
+    @for (note of visibleNotes(); track note.note + note.octave) {
+      <g>
+        <!-- Finger circle -->
+        <circle
+          [attr.cx]="getFingerX(note.note, note.octave)"
+          [attr.cy]="getFingerY(isBlackKey(note.note))"
+          [attr.r]="dimensions().fingerRadius"
+          [attr.fill]="highlightRoot() && note.isRoot ? colors().rootCircle : colors().fingerCircle"
+          class="transition-colors duration-150"
+        />
 
-          <!-- Finger number -->
-          @if (showFingerNumbers() && note.finger) {
-            <text
-              [attr.x]="getFingerX(note.note, note.octave)"
-              [attr.y]="getFingerY(isBlackKey(note.note)) + dimensions().fingerRadius * 0.35"
-              text-anchor="middle"
-              [attr.fill]="colors().fingerText"
-              [attr.font-size]="dimensions().fingerRadius * 1.2"
-              font-family="sans-serif"
-              font-weight="bold"
-            >
-              {{ note.finger }}
-            </text>
-          }
-        </g>
-      }
+        <!-- Finger number -->
+        @if (showFingerNumbers() && note.finger) {
+          <text
+            [attr.x]="getFingerX(note.note, note.octave)"
+            [attr.y]="getFingerY(isBlackKey(note.note)) + dimensions().fingerRadius * 0.35"
+            text-anchor="middle"
+            [attr.fill]="colors().fingerText"
+            [attr.font-size]="dimensions().fingerRadius * 1.2"
+            font-family="sans-serif"
+            font-weight="bold"
+          >
+            {{ note.finger }}
+          </text>
+        }
+      </g>
     }
   </svg>
 

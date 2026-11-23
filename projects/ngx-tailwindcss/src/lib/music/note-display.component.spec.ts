@@ -60,4 +60,35 @@ describe('TwNoteDisplayComponent', () => {
     fixture.detectChanges();
     expect(changes.at(-1)?.frequency).toBeCloseTo(466.16, 1);
   });
+  it('lights the LED bar consistently with the in-tune tolerance', () => {
+    const segments = (): HTMLElement[] => [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('div.h-2.rounded-sm'),
+    ];
+    const lit = (): number[] =>
+      segments()
+        .map((el, idx) => (el.classList.contains('bg-slate-700') ? null : idx - 5))
+        .filter((v): v is number => v !== null);
+    const show = (cents: number): void => {
+      fixture.componentRef.setInput('note', {
+        note: 'A',
+        octave: 4,
+        frequency: 440,
+        cents,
+        timestamp: 0,
+      });
+      fixture.detectChanges();
+    };
+
+    // Exactly at the tolerance (10 cents): in tune, so only the green centre segment
+    show(10);
+    expect(segments()).toHaveLength(11);
+    expect(lit()).toEqual([0]);
+    show(-10);
+    expect(lit()).toEqual([0]);
+    // Just beyond it: out of tune, the centre goes dark and the first side segment lights
+    show(11);
+    expect(lit()).toEqual([1]);
+    show(-23);
+    expect(lit()).toEqual([-2, -1]);
+  });
 });

@@ -124,7 +124,7 @@
             <tw-dropdown-menu>
               <div class="px-4 py-3 border-b border-slate-100">
                 <div class="flex items-center justify-between">
-                  <span class="font-semibold text-slate-900">Notifications</span>
+                  <span class="font-semibold text-slate-900 dark:text-slate-100">Notifications</span>
                   <span class="text-xs text-violet-600 font-medium">2 new</span>
                 </div>
               </div>
@@ -132,7 +132,7 @@
                 <button twDropdownItem class="flex items-start gap-3 py-3 px-4 hover:bg-slate-50">
                   <div [class]="notification.unread ? 'w-2 h-2 mt-2 rounded-full bg-violet-500 flex-shrink-0' : 'w-2 h-2 mt-2 rounded-full bg-transparent flex-shrink-0'"></div>
                   <div class="flex-1 min-w-0">
-                    <p [class]="notification.unread ? 'text-sm font-medium text-slate-900' : 'text-sm text-slate-600'">{{ notification.title }}</p>
+                    <p [class]="notification.unread ? 'text-sm font-medium text-slate-900 dark:text-slate-100' : 'text-sm text-slate-600 dark:text-slate-400'">{{ notification.title }}</p>
                     <p class="text-xs text-slate-500 truncate">{{ notification.message }}</p>
                     <p class="text-xs text-slate-400 mt-1">{{ notification.time }}</p>
                   </div>

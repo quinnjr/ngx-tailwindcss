@@ -260,6 +260,55 @@ describe('TwPitchDisplayComponent', () => {
     expect(internals.centsValueClasses()).toContain('text-cyan-500');
     expect(internals.centsValueClasses()).not.toContain('/70');
   });
+
+  it('should visibly show the disabled state on every control', () => {
+    fixture.componentRef.setInput('showKeyLock', true);
+    fixture.componentRef.setInput('showPresets', true);
+    fixture.componentRef.setInput('showPitchWheel', true);
+    fixture.componentRef.setInput('pitchBendStyle', 'horizontal');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const buttons = [...el.querySelectorAll<HTMLButtonElement>('button')];
+    expect(buttons.length).toBeGreaterThan(5);
+    for (const button of buttons) {
+      expect(button.disabled).toBe(true);
+      expect(button.classList).toContain('disabled:opacity-50');
+    }
+    expect(el.querySelector('input[type="range"]')!.classList).toContain('disabled:opacity-50');
+    expect(el.querySelector('[role="slider"]')!.classList).toContain('opacity-50');
+  });
+
+  it('should keep the vertical wheel +/− labels outside its clipping box', () => {
+    fixture.componentRef.setInput('showPitchWheel', true);
+    fixture.componentRef.setInput('pitchBendStyle', 'vertical');
+    fixture.detectChanges();
+    const wheel = fixture.nativeElement.querySelector('[role="slider"]') as HTMLElement;
+    const labels = [...wheel.parentElement!.children].filter(c =>
+      ['+', '−'].includes(c.textContent?.trim() ?? '')
+    );
+    expect(wheel.classList).toContain('overflow-hidden');
+    expect(labels).toHaveLength(2);
+    expect(labels.every(l => !wheel.contains(l))).toBe(true);
+  });
+
+  it('should keep the pitch wheel thumbs centred at rest and inside the track at full bend', () => {
+    fixture.componentRef.setInput('showPitchWheel', true);
+    fixture.componentRef.setInput('pitchBendStyle', 'horizontal');
+    fixture.detectChanges();
+    const thumb = () => fixture.nativeElement.querySelector('.w-4.bg-gradient-to-r') as HTMLElement;
+    expect(thumb().getAttribute('style')).toContain('calc(4px + 0.5 * (100% - 24px))');
+    component.setPitchBend(1);
+    fixture.detectChanges();
+    expect(thumb().getAttribute('style')).toContain('calc(4px + 1 * (100% - 24px))');
+
+    fixture.componentRef.setInput('pitchBendStyle', 'vertical');
+    component.setPitchBend(0);
+    fixture.detectChanges();
+    const vThumb = fixture.nativeElement.querySelector('.h-6.bg-gradient-to-b') as HTMLElement;
+    expect(vThumb.getAttribute('style')).toContain('calc(4px + 0.5 * (100% - 32px))');
+  });
 });
 
 describe('TwPitchDisplayComponent drag listener cleanup', () => {

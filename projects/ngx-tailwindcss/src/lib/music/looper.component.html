@@ -76,7 +76,7 @@
       <!-- Record Button -->
       <button
         type="button"
-        class="rounded-full flex items-center justify-center transition-all"
+        class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-red-600]="state() === 'recording'"
         [class.hover:bg-red-500]="state() === 'recording'"
@@ -102,7 +102,7 @@
       <!-- Play/Stop Button -->
       <button
         type="button"
-        class="rounded-full flex items-center justify-center transition-all"
+        class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-green-600]="state() === 'playing'"
         [class.hover:bg-green-700]="state() === 'playing'"
@@ -128,7 +128,7 @@
       <!-- Overdub Button -->
       <button
         type="button"
-        class="rounded-full flex items-center justify-center transition-all"
+        class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-amber-600]="state() === 'overdubbing'"
         [class.hover:bg-amber-700]="state() === 'overdubbing'"
@@ -157,7 +157,7 @@
       <!-- Clear Button -->
       <button
         type="button"
-        class="rounded-full flex items-center justify-center transition-all bg-slate-700 hover:bg-red-600"
+        class="rounded-full flex items-center justify-center transition-all bg-slate-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [disabled]="disabled() || layers().length === 0"
         [class.opacity-50]="layers().length === 0"

@@ -1352,3 +1352,77 @@ describe('shortcut recording inside a dialog (round 26)', () => {
     prefs.destroy();
   });
 });
+
+describe('focus is kept when a popup item removes itself (round 27)', () => {
+  it('choosing a toolbar dropdown item returns focus to its trigger', () => {
+    const toolbar = TestBed.createComponent(TwToolbarComponent);
+    toolbar.componentRef.setInput('items', [
+      {
+        id: 'd',
+        type: 'dropdown',
+        label: 'More',
+        items: [{ id: 'x', type: 'button', label: 'X' }],
+      },
+    ]);
+    document.body.append(toolbar.nativeElement);
+    toolbar.detectChanges();
+    const el = toolbar.nativeElement as HTMLElement;
+    const trigger = el.querySelector('button')!;
+    trigger.click();
+    toolbar.detectChanges();
+    const item = el.querySelector<HTMLButtonElement>('[data-toolbar-dropdown] button')!;
+    item.focus();
+
+    item.click();
+    toolbar.detectChanges();
+    expect(el.querySelector('[data-toolbar-dropdown]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    el.remove();
+    toolbar.destroy();
+  });
+
+  it('choosing a tab-bar overflow item returns focus to the overflow button', () => {
+    const f = TestBed.createComponent(TwTabBarComponent);
+    document.body.append(f.nativeElement);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const button = el.querySelector<HTMLElement>('[data-tab-overflow] > button')!;
+    button.click();
+    f.detectChanges();
+    const item = [...el.querySelectorAll<HTMLElement>('[data-tab-overflow] button')].find(b =>
+      b.textContent?.includes('Close All Tabs')
+    )!;
+    item.focus();
+
+    item.click();
+    f.detectChanges();
+    expect(el.textContent).not.toContain('Close All Tabs');
+    expect(document.activeElement).toBe(button);
+    el.remove();
+    f.destroy();
+  });
+
+  it('shortcut recording keeps focus in the editor and restores it to the edit button', () => {
+    const f = TestBed.createComponent(TwShortcutsEditorComponent);
+    const save: ShortcutBinding = {
+      id: 'save',
+      command: 'Save',
+      keys: ['Ctrl', 'S'],
+      defaultKeys: ['Ctrl', 'S'],
+    };
+    f.componentRef.setInput('shortcuts', [save]);
+    document.body.append(f.nativeElement);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    el.querySelector<HTMLElement>('[data-shortcut-edit="save"]')!.click();
+    TestBed.tick();
+    expect(document.activeElement).toBe(el.querySelector('[data-shortcut-recording]'));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    TestBed.tick();
+    expect(f.componentInstance.editingId()).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('[data-shortcut-edit="save"]'));
+    el.remove();
+    f.destroy();
+  });
+});

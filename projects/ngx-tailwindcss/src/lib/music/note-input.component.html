@@ -147,7 +147,11 @@
               [attr.aria-pressed]="currentVoice() === voice"
               [attr.aria-label]="'Voice ' + voice"
               (click)="setVoice($any(voice))"
-              [title]="'Voice ' + voice + ' (Shift+' + voice + ')'"
+              [title]="
+                voice === 3
+                  ? 'Voice 3 (V cycles voices; Shift+3 where it does not type #)'
+                  : 'Voice ' + voice + ' (Shift+' + voice + '; V cycles voices)'
+              "
             >
               {{ voice }}
             </button>

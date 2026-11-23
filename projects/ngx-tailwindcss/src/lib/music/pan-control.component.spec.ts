@@ -136,6 +136,20 @@ describe('TwPanControlComponent', () => {
     expect(litSpans(100)).toEqual([[0, 217]]);
   });
 
+  it('should visibly show the knob variant as disabled', () => {
+    fixture.componentRef.setInput('variant', 'knob');
+    fixture.detectChanges();
+    const knob = () => hostEl.querySelector('svg')!.parentElement!;
+    expect(knob().classList).toContain('cursor-pointer');
+    expect(knob().classList).not.toContain('opacity-50');
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(knob().classList).toContain('opacity-50');
+    expect(knob().classList).toContain('cursor-not-allowed');
+    expect(knob().classList).not.toContain('cursor-pointer');
+  });
+
   it('should draw the knob L/R labels on the dark knob body, clear of the arc and indicator', () => {
     fixture.componentRef.setInput('variant', 'knob');
     fixture.detectChanges();

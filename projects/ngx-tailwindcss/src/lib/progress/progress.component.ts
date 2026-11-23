@@ -112,10 +112,20 @@ export class TwProgressComponent {
   @Input({ transform: booleanAttribute }) set indeterminate(val: boolean) {
     this._indeterminate.set(val);
   }
+  /** Accessible name for the progressbar without rendering a visible caption (overrides `label` as the name) */
+  @Input() set ariaLabel(val: string | null | undefined) {
+    this._ariaLabel.set(val ?? '');
+  }
+  /** Id(s) of element(s) that name the progressbar, e.g. visible text placed next to it */
+  @Input() set ariaLabelledBy(val: string | null | undefined) {
+    this._ariaLabelledBy.set(val ?? '');
+  }
 
   protected _value = signal(0);
   protected _max = signal(100);
   protected _size = signal<ProgressSize>('md');
+  protected _ariaLabel = signal('');
+  protected _ariaLabelledBy = signal('');
   protected _variant = signal<ProgressVariant>('primary');
   protected _label = signal('');
   protected _showValue = signal(false);
@@ -130,6 +140,8 @@ export class TwProgressComponent {
   );
   protected maxNum = computed(() => this._max());
   protected labelText = computed(() => this._label());
+  protected accessibleLabel = computed(() => this._ariaLabel() || this._label() || null);
+  protected labelledBy = computed(() => this._ariaLabelledBy() || null);
   protected showValueFlag = computed(() => this._showValue());
   protected labelPositionVal = computed(() => this._labelPosition());
   protected indeterminateFlag = computed(() => this._indeterminate());

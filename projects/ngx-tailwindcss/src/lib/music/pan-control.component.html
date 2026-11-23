@@ -139,11 +139,7 @@
 
   <!-- Knob Variant -->
   @if (variant() === 'knob') {
-    <div
-      [class]="knobContainerClasses()"
-      (mousedown)="onKnobDrag($event)"
-      class="cursor-pointer select-none"
-    >
+    <div [class]="knobContainerClasses()" (mousedown)="onKnobDrag($event)">
       <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
         <!-- Outer Ring (beveled effect) -->
         <defs>

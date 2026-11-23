@@ -4,7 +4,8 @@
   [attr.aria-valuenow]="indeterminateFlag() ? undefined : valueNum()"
   [attr.aria-valuemin]="0"
   [attr.aria-valuemax]="maxNum()"
-  [attr.aria-label]="labelText() || null"
+  [attr.aria-label]="accessibleLabel()"
+  [attr.aria-labelledby]="labelledBy()"
 >
   @if ((labelText() || showValueFlag()) && labelPositionVal() === 'top') {
     <div class="flex justify-between items-center mb-1">

@@ -299,6 +299,47 @@ describe('TwProgressComponent', () => {
   });
 });
 
+describe('TwProgressComponent ariaLabel / ariaLabelledBy', () => {
+  @Component({
+    template: `
+      <span id="cap">Upload</span>
+      <tw-progress
+        [value]="40"
+        [ariaLabel]="ariaLabel()"
+        [ariaLabelledBy]="labelledBy()"
+      ></tw-progress>
+    `,
+    standalone: true,
+    imports: [TwProgressComponent],
+  })
+  class AriaHostComponent {
+    ariaLabel = signal<string | null>('File upload');
+    labelledBy = signal<string | null>(null);
+  }
+
+  it('names the progressbar via ariaLabel without rendering a visible caption', async () => {
+    await TestBed.configureTestingModule({ imports: [AriaHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(AriaHostComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const bar = el.querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-label')).toBe('File upload');
+    expect(bar.getAttribute('aria-labelledby')).toBeNull();
+    expect(bar.textContent?.trim()).toBe('');
+  });
+
+  it('applies ariaLabelledBy to the progressbar element', async () => {
+    await TestBed.configureTestingModule({ imports: [AriaHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(AriaHostComponent);
+    fixture.componentInstance.ariaLabel.set(null);
+    fixture.componentInstance.labelledBy.set('cap');
+    fixture.detectChanges();
+    const bar = (fixture.nativeElement as HTMLElement).querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-labelledby')).toBe('cap');
+    expect(bar.getAttribute('aria-label')).toBeNull();
+  });
+});
+
 describe('TwProgressCircularComponent', () => {
   let fixture: ComponentFixture<CircularTestComponent>;
   let component: CircularTestComponent;

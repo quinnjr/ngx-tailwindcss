@@ -64,6 +64,8 @@
           <!-- Current Binding -->
           @if (editingId() === shortcut.id) {
             <div
+              tabindex="-1"
+              data-shortcut-recording
               class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-2 border-blue-500"
             >
               <span class="text-sm text-slate-600 dark:text-slate-400">Press keys...</span>
@@ -86,6 +88,7 @@
             </div>
           } @else {
             <button
+              [attr.data-shortcut-edit]="shortcut.id"
               (click)="startEdit(shortcut)"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
             >

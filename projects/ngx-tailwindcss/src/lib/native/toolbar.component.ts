@@ -136,11 +136,19 @@ export class TwToolbarComponent {
   protected onItemClick(item: ToolbarItem): void {
     if (item.disabled) return;
 
+    // Closing the dropdown removes the focused item; hand focus back to its
+    // trigger before the action, so an action that moves focus still wins
+    const host = this.elementRef.nativeElement;
+    const dropdown = host.querySelector('[data-toolbar-dropdown]');
+    const trigger = dropdown?.parentElement?.querySelector<HTMLElement>(':scope > button');
+    const hadFocus = dropdown?.contains(host.ownerDocument.activeElement) ?? false;
+    this.openDropdownId.set(null);
+    if (hadFocus) trigger?.focus();
+
     if (item.action) {
       item.action();
     }
 
     this.itemClick.emit(item);
-    this.openDropdownId.set(null);
   }
 }

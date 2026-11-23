@@ -469,9 +469,12 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
       if (this.showLabels()) {
         this.ctx.fillStyle = textColor;
         this.ctx.font = '10px system-ui';
-        this.ctx.textAlign = 'center';
+        // Labels at the very edges (20k at the default maxFreq) are anchored
+        // inside the canvas: centred there, half of the text was clipped off
+        const edge = 12;
+        this.ctx.textAlign = x >= width - edge ? 'right' : x <= edge ? 'left' : 'center';
         const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
-        this.ctx.fillText(label, x, height - 4);
+        this.ctx.fillText(label, Math.min(width - 2, Math.max(2, x)), height - 4);
       }
     }
 
@@ -488,7 +491,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         this.ctx.fillStyle = textColor;
         this.ctx.font = '10px system-ui';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(`${gain > 0 ? '+' : ''}${gain}`, 4, y - 2);
+        // A line at the very top (gain === maxGain) would put its label above the canvas
+        const labelY = y - 2 < 10 ? y + 10 : y - 2;
+        this.ctx.fillText(`${gain > 0 ? '+' : ''}${gain}`, 4, labelY);
       }
     }
 
@@ -622,14 +627,20 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
       if (isHovered || isSelected) {
         this.ctx.fillStyle = this.colors().nodeText;
         this.ctx.font = '11px system-ui';
-        this.ctx.textAlign = 'center';
+        // Keep the readout inside the canvas: below the node when it is near
+        // the top (boosted), and edge-anchored near the left/right edges
+        const width = this.width();
+        const below = y - radius - 26 < 0;
+        const edge = 30;
+        this.ctx.textAlign = x >= width - edge ? 'right' : x <= edge ? 'left' : 'center';
+        const labelX = Math.min(width - 2, Math.max(2, x));
         const freqLabel =
           band.frequency >= 1000
             ? `${(band.frequency / 1000).toFixed(1)}kHz`
             : `${Math.round(band.frequency)}Hz`;
         const gainLabel = `${band.gain > 0 ? '+' : ''}${band.gain.toFixed(1)}dB`;
-        this.ctx.fillText(freqLabel, x, y - radius - 14);
-        this.ctx.fillText(gainLabel, x, y - radius - 2);
+        this.ctx.fillText(freqLabel, labelX, below ? y + radius + 12 : y - radius - 14);
+        this.ctx.fillText(gainLabel, labelX, below ? y + radius + 24 : y - radius - 2);
       }
     }
   }

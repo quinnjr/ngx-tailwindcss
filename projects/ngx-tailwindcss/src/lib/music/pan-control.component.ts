@@ -146,7 +146,9 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
       md: 'w-14 h-14',
       lg: 'w-18 h-18',
     };
-    return this.twClass.merge('relative', sizeClasses[this.size()]);
+    // Disabled must show: the knob otherwise looked (and pointed) exactly as when enabled
+    const state = this.isDisabled() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+    return this.twClass.merge('relative select-none', sizeClasses[this.size()], state);
   });
 
   // Thumb position (0-100%)

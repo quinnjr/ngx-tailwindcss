@@ -542,7 +542,11 @@ export class TwNoteInputComponent implements OnDestroy {
     if (!this.enableKeyboardShortcuts() || !this.editable()) return;
 
     const key = event.key.toLowerCase();
-    const isModifier = event.ctrlKey || event.metaKey;
+    // AltGr is reported as Ctrl+Alt on Windows: '#' is AltGr+3 on French/Spanish/Belgian
+    // layouts and must still reach the accidental shortcuts below
+    const isAltGr =
+      event.getModifierState?.('AltGraph') || (event.ctrlKey && event.altKey && !event.metaKey);
+    const isModifier = (event.ctrlKey || event.metaKey) && !isAltGr;
 
     // Modifier combos first, so Ctrl+C / Ctrl+A / Ctrl+V are not swallowed by the
     // note-name (c, a) or voice (v) shortcuts below
@@ -589,6 +593,13 @@ export class TwNoteInputComponent implements OnDestroy {
       if (voice <= this.maxVoices()) {
         this.currentVoice.set(voice);
       }
+      return;
+    }
+
+    // V cycles voices: works on every layout, including US where Shift+3 types '#' (sharp)
+    if (key === 'v' && !event.altKey) {
+      event.preventDefault();
+      this.currentVoice.update(v => ((v % this.maxVoices()) + 1) as Voice);
       return;
     }
 

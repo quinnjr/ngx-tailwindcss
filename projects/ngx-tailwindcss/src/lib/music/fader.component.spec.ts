@@ -238,7 +238,7 @@ describe('TwFaderComponent', () => {
       const own = { identifier: 2, clientX: 5, clientY: 10 };
       hostEl.dispatchEvent(touchEvent('touchstart', [other, own], [own]));
       fixture.detectChanges();
-      expect(value()).toBe(4.8);
+      expect(value()).toBe(8.2);
 
       doc['touchmove'](touchEvent('touchmove', [other, { ...own, clientY: 50 }]));
       fixture.detectChanges();
@@ -246,14 +246,14 @@ describe('TwFaderComponent', () => {
 
       // The other finger lifting must not end this drag
       doc['touchend'](touchEvent('touchend', [own], [other]));
-      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientY: 20 }]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientY: 30 }]));
       fixture.detectChanges();
-      expect(value()).toBe(-2.4);
+      expect(value()).toBe(-7.9);
 
       doc['touchend'](touchEvent('touchend', [], [own]));
       doc['touchmove'](touchEvent('touchmove', [{ ...own, clientY: 90 }]));
       fixture.detectChanges();
-      expect(value()).toBe(-2.4);
+      expect(value()).toBe(-7.9);
     });
   });
 
@@ -286,6 +286,53 @@ describe('TwFaderComponent', () => {
 
       press(150); // on the track
       expect(value()).toBe(-24);
+    });
+  });
+
+  describe('scale alignment', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should put the scale marks and zero line where the cap centre sits for that value', () => {
+      // Default md fader: 150px track, 16px cap, -60..+12 dB
+      fixture.componentInstance.writeValue(0);
+      fixture.detectChanges();
+      const cap = hostEl.querySelector<HTMLElement>('[title^="Double-click"]')!;
+      const capCentre = Number.parseFloat(cap.style.bottom) + 8;
+      const markBottom = (label: string): number => {
+        const span = [...hostEl.querySelectorAll('span')].find(
+          s => s.textContent?.trim() === label && s.parentElement?.style.bottom
+        )!;
+        return (Number.parseFloat(span.parentElement!.style.bottom) / 100) * 150;
+      };
+
+      // Spread over the whole track, "0" sat 5px above the cap centre (cap read ~-2.5 dB)
+      expect(markBottom('0')).toBeCloseTo(capCentre, 3);
+      const zeroLine = hostEl.querySelector<HTMLElement>('[class~="bg-white/60"]')!;
+      expect((Number.parseFloat(zeroLine.style.bottom) / 100) * 150).toBeCloseTo(capCentre, 3);
+
+      fixture.componentInstance.writeValue(-48);
+      fixture.detectChanges();
+      expect(markBottom('-48')).toBeCloseTo(Number.parseFloat(cap.style.bottom) + 8, 3);
+    });
+
+    it('should set the value whose cap centre lands under the pointer', () => {
+      captureDocumentListeners();
+      const track = hostEl.querySelector('[title^="Double-click"]')!
+        .previousElementSibling as HTMLElement;
+      track.getBoundingClientRect = (): DOMRect => rect(10, 150);
+      // The -48 mark: cap centre 8 + (12 / 72) * 134 = 30.33px above the track bottom
+      hostEl.dispatchEvent(
+        new MouseEvent('mousedown', {
+          clientX: 5,
+          clientY: 150 - (8 + (12 / 72) * 134),
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      fixture.detectChanges();
+      expect(Number(hostEl.getAttribute('aria-valuenow'))).toBe(-48);
     });
   });
 

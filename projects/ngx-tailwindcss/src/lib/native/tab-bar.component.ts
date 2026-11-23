@@ -91,12 +91,7 @@ export class TwTabBarComponent {
   @HostListener('document:keydown.escape', ['$event'])
   protected onEscape(event: Event): void {
     if (!this.overflowMenuOpen() || !claimNativeEscape(this, event)) return;
-    const wrapper = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
-    const button = wrapper?.querySelector<HTMLElement>(':scope > button');
-    const active = this.elementRef.nativeElement.ownerDocument.activeElement;
-    const hadFocus = !!wrapper?.contains(active) && active !== button;
-    this.overflowMenuOpen.set(false);
-    if (hadFocus) button?.focus();
+    this.closeOverflowMenu();
   }
 
   /**
@@ -230,13 +225,23 @@ export class TwTabBarComponent {
     this.draggedTabIndex = null;
   }
 
-  protected closeAllTabs(): void {
+  /** Close the overflow menu, returning focus to its button if it was in the menu. */
+  private closeOverflowMenu(): void {
+    const wrapper = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
+    const button = wrapper?.querySelector<HTMLElement>(':scope > button');
+    const active = this.elementRef.nativeElement.ownerDocument.activeElement;
+    const hadFocus = !!wrapper?.contains(active) && active !== button;
     this.overflowMenuOpen.set(false);
+    if (hadFocus) button?.focus();
+  }
+
+  protected closeAllTabs(): void {
+    this.closeOverflowMenu();
     this.closeAll.emit();
   }
 
   protected closeOtherTabs(): void {
-    this.overflowMenuOpen.set(false);
+    this.closeOverflowMenu();
     const activeId = this.activeTabId();
     if (activeId) {
       this.closeOthers.emit(activeId);

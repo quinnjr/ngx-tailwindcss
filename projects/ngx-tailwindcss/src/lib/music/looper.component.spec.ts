@@ -383,4 +383,19 @@ describe('TwLooperComponent', () => {
     expect(internals.layers().length).toBe(1);
     internals.layers.set([]);
   });
+
+  it('should visibly dim the transport buttons when disabled', () => {
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    for (const label of ['Record', 'Play', 'Overdub', 'Clear All']) {
+      const button = el.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+      expect(button.disabled).toBe(true);
+      expect(button.classList).toContain('disabled:opacity-50');
+      // Size classes from the [class] binding are kept alongside
+      expect(button.classList).toContain('rounded-full');
+    }
+    internals.layers.set([]);
+  });
 });

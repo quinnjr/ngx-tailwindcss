@@ -381,6 +381,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Music: the browser `openFile` result exposes the picked `File`
   (`FileInfo.file`); `tw-mixer` section headers are disabled when the mixer is
   disabled
+- Class merging: legacy `decoration-clone`/`decoration-slice` conflict with
+  `box-decoration-*`; arbitrary `drop-shadow` colours
+  (e.g. `drop-shadow-[#f00]`) no longer replace the drop-shadow size
+- Native: menus, dropdowns, overflow menus, search suggestions and shortcut
+  recording inside a dialog close first on Escape instead of closing the dialog
+- `tw-select` shows a focus ring on the keyboard-active option when it is also
+  the selected one
+- Disabled `tw-menu` items no longer open their submenu on hover
+- `tw-progress` gains `ariaLabel`/`ariaLabelledBy` inputs that name the
+  progressbar without rendering a visible `label` caption
+- Music: `tw-piano` clears its MIDI status when the device is unplugged;
+  `tw-note-input` `#` toggles a sharp on US keyboard layouts; the
+  `tw-pitch-display` snapped bend control is keyboard-operable; `tw-waveform`
+  draws the played colour and overlay correctly when the playhead is past the
+  visible view and shows the hover time label; `tw-compressor-meter` places
+  its 0 dB scale label correctly; `tw-channel-strip`, `tw-metronome`,
+  `tw-bpm-display` and the `tw-mixer` scroll buttons show disabled styling
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

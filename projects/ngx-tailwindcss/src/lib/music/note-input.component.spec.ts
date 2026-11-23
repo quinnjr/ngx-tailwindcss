@@ -127,6 +127,41 @@ describe('TwNoteInputComponent', () => {
     expect(internals.currentVoice()).toBe(1);
   });
 
+  it('keeps Shift+1/2/4 and non-# Shift+3 as voice shortcuts', () => {
+    keydown({ key: '$', code: 'Digit4', shiftKey: true });
+    expect(internals.currentVoice()).toBe(4);
+    keydown({ key: '!', code: 'Digit1', shiftKey: true });
+    expect(internals.currentVoice()).toBe(1);
+    // UK layout: Shift+3 types '£'
+    keydown({ key: '£', code: 'Digit3', shiftKey: true });
+    expect(internals.currentVoice()).toBe(3);
+    expect(internals.currentAccidental()).toBeNull();
+  });
+
+  it('V cycles voices (a voice-3 shortcut that works on US layouts) and the tooltips say so', () => {
+    keydown({ key: 'v', code: 'KeyV' });
+    keydown({ key: 'v', code: 'KeyV' });
+    expect(internals.currentVoice()).toBe(3);
+    keydown({ key: 'v', code: 'KeyV' });
+    keydown({ key: 'v', code: 'KeyV' });
+    expect(internals.currentVoice()).toBe(1);
+
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const title = (voice: number) =>
+      host.querySelector<HTMLButtonElement>(`button[title^="Voice ${voice} "]`)!.title;
+    expect(title(3)).toContain('V cycles voices');
+    expect(title(3)).not.toMatch(/\(Shift\+3\)/);
+    expect(title(2)).toContain('Shift+2');
+  });
+
+  it("toggles sharp on '#' typed with AltGr (reported as Ctrl+Alt on Windows)", () => {
+    const event = keydown({ key: '#', code: 'Digit3', ctrlKey: true, altKey: true });
+    expect(event.defaultPrevented).toBe(true);
+    expect(internals.currentAccidental()).toBe('sharp');
+    expect(internals.currentVoice()).toBe(1);
+  });
+
   it('places MIDI notes with their own accidental and does not leak it to later notes', () => {
     // C#4 then D4
     internals.handleMidiMessage({ data: new Uint8Array([0x90, 61, 100]) });

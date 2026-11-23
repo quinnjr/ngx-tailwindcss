@@ -251,6 +251,24 @@ describe('TwTreeComponent', () => {
       }
     });
 
+    it('should not expand a disabled parent from its chevron or the arrow keys', () => {
+      component.nodes.set([
+        { key: 'd', label: 'Locked', disabled: true, children: [{ key: 'd-1', label: 'Child' }] },
+      ]);
+      fixture.detectChanges();
+      const item = () => treeEl.query(By.css('[role="treeitem"]')).nativeElement as HTMLElement;
+
+      item().querySelector('button')!.click();
+      fixture.detectChanges();
+      expect(item().getAttribute('aria-expanded')).toBe('false');
+
+      item().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+      expect(item().getAttribute('aria-expanded')).toBe('false');
+      expect(treeEl.queryAll(By.css('[role="treeitem"]')).length).toBe(1);
+      expect(component.onNodeExpandSpy).not.toHaveBeenCalled();
+    });
+
     it('should disable the checkbox of a disabled node so it cannot visibly toggle', () => {
       component.selectionMode.set('checkbox');
       fixture.detectChanges();

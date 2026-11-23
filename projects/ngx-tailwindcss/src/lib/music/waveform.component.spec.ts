@@ -137,6 +137,25 @@ describe('TwWaveformComponent', () => {
     expect(label.classList).not.toContain('-top-6');
   });
 
+  it('should keep the hover time label inside the view at the edges and below the zoom controls', () => {
+    fixture.componentRef.setInput('duration', 60);
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.detectChanges();
+    const label = () => fixture.nativeElement.querySelector('.whitespace-nowrap') as HTMLElement;
+
+    // At the left edge the label hangs right of the cursor, at the right edge left of it
+    internals.hoverPosition.set(0);
+    fixture.detectChanges();
+    expect(label().style.transform).toMatch(/^translateX\((-)?0%\)$/);
+    internals.hoverPosition.set(1);
+    fixture.detectChanges();
+    expect(label().style.transform).toBe('translateX(-100%)');
+
+    // Zoom controls sit at the top-right: the label drops below them
+    expect(label().classList).toContain('top-11');
+    expect(label().classList).not.toContain('top-1');
+  });
+
   it('should position the zoom scrollbar thumb at the visible window', () => {
     fixture.componentRef.setInput('zoomable', true);
     fixture.detectChanges();

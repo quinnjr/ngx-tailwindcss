@@ -378,9 +378,12 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     const timeMs = (sampleCount / sampleRate / this.timeScale()) * 1000;
     this.ctx.fillText(`${timeMs.toFixed(1)}ms`, this.width() - 4, this.height() - 4);
 
-    // Amplitude labels
+    // Amplitude labels: the trace is multiplied by gain, so the top/bottom
+    // edges are a sample amplitude of ±1/gain (gain 2 → ±0.5), not ±1
+    const gain = this.gain();
+    const edge = gain > 0 ? Math.round((1 / gain) * 100) / 100 : 1;
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('+1', 4, 12);
-    this.ctx.fillText('-1', 4, this.height() - 12);
+    this.ctx.fillText(`+${edge}`, 4, 12);
+    this.ctx.fillText(`-${edge}`, 4, this.height() - 12);
   }
 }

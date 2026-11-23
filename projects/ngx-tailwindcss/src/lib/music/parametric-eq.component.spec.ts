@@ -228,4 +228,44 @@ describe('TwParametricEQComponent', () => {
     expect(node()[1]).toBe('rgba(255,255,255,0.5)');
     internals.ctx = null;
   });
+
+  it('should keep axis and node labels inside the canvas at its edges', () => {
+    const texts: Array<{ text: string; x: number; y: number; align: unknown }> = [];
+    const state: Record<string | symbol, unknown> = {};
+    internals.ctx = new Proxy(state, {
+      get: (target, prop) =>
+        prop === 'fillText'
+          ? (text: string, x: number, y: number) =>
+              texts.push({ text, x, y, align: target['textAlign'] })
+          : prop in target
+            ? target[prop]
+            : () => {},
+      set: (target, prop, value) => {
+        target[prop] = value;
+        return true;
+      },
+    });
+
+    internals.drawGrid('#000', '#fff');
+    // 20k sits on the right edge (x = 600): right-aligned inside, not centred half off
+    const k20 = texts.find(t => t.text === '20k')!;
+    expect(k20.align).toBe('right');
+    expect(k20.x).toBeLessThanOrEqual(600);
+    expect(texts.find(t => t.text === '1k')!.align).toBe('center');
+
+    // A fully boosted node at the top-right: readout below it and right-aligned
+    texts.length = 0;
+    const band = { ...internals.bands()[0], frequency: 20_000, gain: 24 };
+    fixture.componentRef.setInput('bands', [band]);
+    internals.selectedBandId.set(band.id);
+    internals.drawBandNodes();
+    const readout = texts.filter(t => /Hz|dB/.test(t.text));
+    expect(readout).toHaveLength(2);
+    for (const t of readout) {
+      expect(t.y).toBeGreaterThan(0);
+      expect(t.align).toBe('right');
+      expect(t.x).toBeLessThanOrEqual(600);
+    }
+    internals.ctx = null;
+  });
 });

@@ -322,11 +322,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly fillStyle = computed(() => {
-    const value = this.internalValue();
-    const min = this.min();
-    const max = this.max();
     const orientation = this.orientation();
-    const percentage = ((value - min) / (max - min)) * 100;
+    const percentage = this.trackPercent(this.internalValue());
 
     if (orientation === 'vertical') {
       return { height: `${percentage}%`, bottom: 0 };
@@ -349,6 +346,25 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     }
     return { left: `${position}px` };
   });
+
+  /** Fraction of the track at each end that the cap centre never reaches (half a cap) */
+  private capInset(): number {
+    const { trackLength, capHeight } = this.dimensions();
+    return trackLength > capHeight ? capHeight / 2 / trackLength : 0;
+  }
+
+  /**
+   * Position (% of the track from its start) of the cap centre for a value. The cap only
+   * travels trackLength - capHeight, so the scale, zero/-10 lines and fill follow that
+   * travel: spread over the whole track, the cap's centre line at 0 dB pointed near -3 dB.
+   */
+  protected trackPercent(value: number): number {
+    const min = this.min();
+    const max = this.max();
+    const fraction = max > min ? (value - min) / (max - min) : 0;
+    const inset = this.capInset();
+    return (inset + Math.max(0, Math.min(1, fraction)) * (1 - 2 * inset)) * 100;
+  }
 
   protected readonly capClasses = computed(() => {
     const { capWidth, capHeight } = this.dimensions();
@@ -376,7 +392,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     const filteredMarks = commonMarks.filter(m => m >= min && m <= max);
 
     for (const mark of filteredMarks) {
-      const position = ((mark - min) / (max - min)) * 100;
+      const position = this.trackPercent(mark);
       marks.push({
         value: mark,
         label: mark === 0 ? '0' : mark > 0 ? `+${mark}` : `${mark}`,
@@ -601,6 +617,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
       percentage = (clientX - rect.left) / rect.width;
     }
 
+    // The cap centre (and the scale) spans the track minus half a cap at each end
+    const inset = this.capInset();
+    percentage = (percentage - inset) / (1 - 2 * inset);
     percentage = Math.max(0, Math.min(1, percentage));
     let value = min + percentage * (max - min);
 

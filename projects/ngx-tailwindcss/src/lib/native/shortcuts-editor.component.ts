@@ -1,9 +1,12 @@
 import {
+  afterNextRender,
   Component,
   computed,
   DestroyRef,
+  ElementRef,
   HostListener,
   inject,
+  Injector,
   input,
   output,
   signal,
@@ -45,6 +48,25 @@ export class TwShortcutsEditorComponent {
   public readonly conflictWarning = signal<string | null>(null);
 
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
+  /**
+   * Starting or ending a recording swaps the focused control out of the DOM;
+   * once rendered, move focus to its replacement (if focus was not moved
+   * elsewhere) so keyboard users keep their place.
+   */
+  private refocus(find: (host: HTMLElement) => HTMLElement | null | undefined): void {
+    afterNextRender(
+      () => {
+        const host = this.elementRef.nativeElement;
+        const active = host.ownerDocument.activeElement;
+        if (active && active !== host.ownerDocument.body) return;
+        find(host)?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
 
   constructor() {
     // While recording, Escape cancels the recording only, not an enclosing dialog
@@ -143,10 +165,19 @@ export class TwShortcutsEditorComponent {
     this.editingId.set(shortcut.id);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);
+    this.refocus(host => host.querySelector<HTMLElement>('[data-shortcut-recording]'));
   }
 
   public cancelEdit(): void {
     this.clearSaveTimer();
+    const id = this.editingId();
+    if (id !== null) {
+      this.refocus(host =>
+        [...host.querySelectorAll<HTMLElement>('[data-shortcut-edit]')].find(
+          el => el.dataset['shortcutEdit'] === id
+        )
+      );
+    }
     this.editingId.set(null);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);

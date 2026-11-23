@@ -70,7 +70,10 @@
   }
 
   <!-- Hover time indicator (hidden in mini mode). The label sits inside the top
-       edge: placed above it, the overflow-hidden container clipped it away. -->
+       edge: placed above it, the overflow-hidden container clipped it away.
+       It shifts from left- to right-aligned across the view (translateX 0 to
+       -100%) so it is never cut off at the edges, and drops below the zoom
+       controls (which would otherwise cover it at the right) when shown. -->
   @if (showHoverTime() && hoverPosition() !== null && !isMini()) {
     @let hoverInView =
       (hoverPosition()! - visibleRange().start) / (visibleRange().end - visibleRange().start);
@@ -80,7 +83,10 @@
         [style.left.%]="hoverInView * 100"
       >
         <div
-          class="absolute top-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          class="absolute left-0 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          [class.top-1]="!(zoomable() && showZoomControls())"
+          [class.top-11]="zoomable() && showZoomControls()"
+          [style.transform]="'translateX(' + hoverInView * -100 + '%)'"
         >
           {{ formatTime(hoverPosition()! * duration()) }}
         </div>

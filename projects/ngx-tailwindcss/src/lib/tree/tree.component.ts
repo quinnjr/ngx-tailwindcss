@@ -273,6 +273,13 @@ export class TwTreeComponent {
     }
   }
 
+  /** Expand/collapse chevron: a disabled node does not toggle (matching a click on its row) */
+  protected onToggleClick(node: TreeNode, event: Event): void {
+    event.stopPropagation();
+    if (!node.disabled) this.toggleNode(node);
+    this.focusOwningItem(event);
+  }
+
   /**
    * A click on the row's (tabindex=-1) toggle or checkbox focuses that control, which
    * has no focus indicator and ignores the tree's arrow keys: hand focus to its treeitem.
@@ -310,7 +317,8 @@ export class TwTreeComponent {
       case 'ArrowRight': {
         event.preventDefault();
         if (node.children?.length && !node.expanded) {
-          this.toggleNode(node);
+          // A disabled node does not expand (matching a click on its row)
+          if (!node.disabled) this.toggleNode(node);
         } else if (node.children?.length) {
           // Already expanded: move to the first child
           const visible = this.getVisibleNodes();
@@ -320,7 +328,7 @@ export class TwTreeComponent {
       }
       case 'ArrowLeft': {
         event.preventDefault();
-        if (node.children?.length && node.expanded) {
+        if (node.children?.length && node.expanded && !node.disabled) {
           this.toggleNode(node);
         } else {
           // Collapsed or leaf: move to the parent node

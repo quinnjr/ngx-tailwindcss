@@ -130,6 +130,14 @@ describe('TwOscilloscopeComponent', () => {
     fixture.detectChanges();
     expect(texts.find(t => t.text === 'No Signal')?.fillStyle).toBe('#22D3EE');
 
+    // The amplitude scale follows the gain: at gain 2 the edges are ±0.5
+    texts.length = 0;
+    fixture.componentRef.setInput('gain', 2);
+    fixture.detectChanges();
+    (fixture.componentInstance as any).drawLabels();
+    expect(texts.map(t => t.text)).toEqual(expect.arrayContaining(['+0.5', '-0.5']));
+    expect(texts.some(t => t.text === '+1')).toBe(false);
+
     fixture.destroy();
   });
 });

@@ -500,6 +500,26 @@ export default tseslint.config(
     },
   },
 
+  // Tree-shaking guard for library source: a top-level array built with spread
+  // (`[...A, ...B]`) is treated as side-effectful by bundlers, so it and everything
+  // it references is kept in every consumer bundle. Wrap it in a pure IIFE:
+  // `export const X = /* @__PURE__ */ (() => [...A, ...B] as const)();`
+  {
+    files: ['projects/ngx-tailwindcss/src/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrayExpression > SpreadElement, Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > TSAsExpression > ArrayExpression > SpreadElement, Program > VariableDeclaration > VariableDeclarator > ArrayExpression > SpreadElement, Program > VariableDeclaration > VariableDeclarator > TSAsExpression > ArrayExpression > SpreadElement',
+          message:
+            'Top-level array spread breaks tree-shaking. Wrap the array in `/* @__PURE__ */ (() => [...] as const)()`.',
+        },
+      ],
+    },
+  },
+
   // Spec files - relaxed rules
   {
     files: ['**/*.spec.ts', '**/*.test.ts'],

@@ -181,9 +181,12 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
    * Whether this control has a MIDI mapping
    * (computed so the host class bindings only re-evaluate on signal changes)
    */
-  readonly isMapped = computed(
-    () => this.midiService.getCCMapping(this.twMidiLearn()) !== undefined
-  );
+  readonly isMapped = computed(() => {
+    // A mapping pre-registered by startLearn() carries the ccNumber -1
+    // sentinel until a CC is actually learned; that is not "mapped" yet
+    const mapping = this.midiService.getCCMapping(this.twMidiLearn());
+    return mapping !== undefined && mapping.ccNumber >= 0;
+  });
 
   /**
    * Get the current mapping

@@ -458,3 +458,33 @@ describe('Input directives', () => {
     });
   });
 });
+
+@Component({
+  template: `
+    <tw-input [formControl]="inputControl"></tw-input>
+    <tw-textarea [formControl]="textareaControl"></tw-textarea>
+  `,
+  standalone: true,
+  imports: [TwInputComponent, TwTextareaComponent, ReactiveFormsModule],
+})
+class DisabledReactiveHostComponent {
+  inputControl = new FormControl({ value: '', disabled: true });
+  textareaControl = new FormControl({ value: '', disabled: true });
+}
+
+describe('TwInputComponent / TwTextareaComponent (regressions)', () => {
+  it('should honor FormControls that start disabled', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const inputEl: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const textareaEl: HTMLTextAreaElement = fixture.nativeElement.querySelector('textarea');
+    expect(inputEl.disabled).toBe(true);
+    expect(textareaEl.disabled).toBe(true);
+
+    fixture.componentInstance.inputControl.enable();
+    fixture.componentInstance.textareaControl.enable();
+    fixture.detectChanges();
+    expect(inputEl.disabled).toBe(false);
+    expect(textareaEl.disabled).toBe(false);
+  });
+});

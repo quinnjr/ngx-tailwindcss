@@ -162,7 +162,8 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
 
   private async loadAudioBuffer(): Promise<void> {
     const src = this.audioSrc();
-    if (!src) return;
+    // No Web Audio during SSR / in unsupported environments
+    if (!src || typeof AudioContext === 'undefined') return;
 
     try {
       this.isLoading.set(true);
@@ -201,10 +202,19 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Seek from the waveform, which emits a 0-1 position */
   protected onSeek(position: number): void {
     const audio = this.audioRef?.nativeElement;
     if (audio) {
       audio.currentTime = position * this.duration();
+    }
+  }
+
+  /** Seek from the scrubber, which emits a time in seconds */
+  protected onSeekTime(seconds: number): void {
+    const audio = this.audioRef?.nativeElement;
+    if (audio) {
+      audio.currentTime = Math.max(0, Math.min(this.duration(), seconds));
     }
   }
 

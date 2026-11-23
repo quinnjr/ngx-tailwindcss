@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, OnDestroy, signal } from '@angular/core';
 
 /**
  * Haptic feedback types supported by devices
@@ -61,7 +61,7 @@ export interface SwipeGestureResult {
 @Injectable({
   providedIn: 'root',
 })
-export class MobileSupportService {
+export class MobileSupportService implements OnDestroy {
   private readonly _hapticEnabled = signal(true);
   private readonly _touchGuardEnabled = signal(true);
   private lastActionTime = 0;
@@ -84,16 +84,22 @@ export class MobileSupportService {
   /** Current device orientation */
   readonly orientation = signal<'portrait' | 'landscape'>(this.getOrientation());
 
+  private readonly orientationHandler = (): void => {
+    this.orientation.set(this.getOrientation());
+  };
+
   constructor() {
     // Listen for orientation changes
     if (typeof window !== 'undefined') {
-      window.addEventListener('orientationchange', () => {
-        this.orientation.set(this.getOrientation());
-      });
+      window.addEventListener('orientationchange', this.orientationHandler);
+      window.addEventListener('resize', this.orientationHandler);
+    }
+  }
 
-      window.addEventListener('resize', () => {
-        this.orientation.set(this.getOrientation());
-      });
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('orientationchange', this.orientationHandler);
+      window.removeEventListener('resize', this.orientationHandler);
     }
   }
 
@@ -113,10 +119,12 @@ export class MobileSupportService {
    * @param type The type of haptic feedback
    */
   triggerHaptic(type: HapticFeedbackType = 'light'): void {
-    if (!this._hapticEnabled() || !this.supportsHaptic()) return;
+    // supportsHaptic only reflects the Vibration API; the iOS webkit bridge
+    // below must still be tried when it is absent (iOS Safari has no vibrate)
+    if (!this._hapticEnabled() || typeof window === 'undefined') return;
 
     // Use Vibration API
-    if ('vibrate' in navigator) {
+    if (this.supportsHaptic()) {
       const patterns: Record<HapticFeedbackType, number[]> = {
         light: [10],
         medium: [20],

@@ -4,7 +4,6 @@ import {
   Component,
   computed,
   Directive,
-  effect,
   ElementRef,
   forwardRef,
   HostBinding,
@@ -258,16 +257,12 @@ export class TwInputComponent implements ControlValueAccessor {
   readonly onClear = output();
 
   protected readonly value = signal('');
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
-
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
 
   protected readonly hasError = computed(() => !!this.error());
 
@@ -323,7 +318,7 @@ export class TwInputComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   protected onInput(event: Event): void {
@@ -398,16 +393,12 @@ export class TwTextareaComponent implements ControlValueAccessor {
   readonly autoResize = input(false, { transform: booleanAttribute });
 
   protected readonly value = signal('');
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
-
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
 
   protected readonly hasError = computed(() => !!this.error());
 
@@ -440,7 +431,7 @@ export class TwTextareaComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   protected onInput(event: Event): void {

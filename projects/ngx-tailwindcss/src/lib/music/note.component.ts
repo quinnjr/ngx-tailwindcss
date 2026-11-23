@@ -6,6 +6,7 @@ import {
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import type { ClefType } from './staff.component';
 
 export type NoteDuration = 'whole' | 'half' | 'quarter' | 'eighth' | 'sixteenth' | 'thirtysecond';
 export type NoteAccidental = 'sharp' | 'flat' | 'natural' | 'doubleSharp' | 'doubleFlat' | null;
@@ -82,6 +83,16 @@ const NOTE_POSITIONS: Record<NoteName, number> = {
   B: 6,
 };
 
+// Diatonic steps to add so that the clef's bottom-line note lands on position 0
+// (treble: E4, bass: G2, alto: F3, tenor: D3)
+const CLEF_POSITION_OFFSETS: Record<ClefType, number> = {
+  treble: 0,
+  bass: 12,
+  alto: 6,
+  tenor: 8,
+  percussion: 0,
+};
+
 @Component({
   selector: 'tw-note',
   standalone: true,
@@ -101,6 +112,7 @@ export class TwNoteComponent {
   readonly dotted = input(false);
   readonly doubleDotted = input(false);
   readonly isRest = input(false);
+  readonly clef = input<ClefType>('treble');
 
   // Display options
   readonly stemDirection = input<StemDirection>('auto');
@@ -152,7 +164,7 @@ export class TwNoteComponent {
 
     // Position 0 = E4 (bottom line), positive = up, negative = down
     // Treble staff: E4=0, G4=2, B4=4 (lines), F4=1, A4=3, C5=5, D5=6, E5=7 (top line)
-    const position = basePosition + octaveOffset - 2; // Adjust so E4 = 0
+    const position = basePosition + octaveOffset - 2 + CLEF_POSITION_OFFSETS[this.clef()]; // Adjust so E4 = 0
 
     // Y increases downward, so higher positions = lower Y
     return staffTop + (4 - position / 2) * spacing;
@@ -178,28 +190,17 @@ export class TwNoteComponent {
     const bottomLine = staffTop + spacing * 4;
 
     const lines: number[] = [];
+    // Tolerance for floating point drift when stepping by line spacing
+    const epsilon = spacing / 4;
 
-    // Lines above staff
-    if (y < staffTop - spacing) {
-      for (let lineY = staffTop - spacing; lineY >= y; lineY -= spacing) {
-        lines.push(lineY);
-      }
+    // Lines above staff (A5 and higher in treble clef)
+    for (let lineY = staffTop - spacing; lineY >= y - epsilon; lineY -= spacing) {
+      lines.push(lineY);
     }
 
-    // Lines below staff
-    if (y > bottomLine + spacing) {
-      for (let lineY = bottomLine + spacing; lineY <= y; lineY += spacing) {
-        lines.push(lineY);
-      }
-    }
-
-    // Line at middle C (between staffs)
-    if (
-      y >= bottomLine &&
-      y <= bottomLine + spacing &&
-      Math.abs(y - bottomLine - spacing / 2) < 2
-    ) {
-      lines.push(bottomLine + spacing);
+    // Lines below staff (C4 and lower in treble clef)
+    for (let lineY = bottomLine + spacing; lineY <= y + epsilon; lineY += spacing) {
+      lines.push(lineY);
     }
 
     return lines;

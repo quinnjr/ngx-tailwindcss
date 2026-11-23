@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   HostListener,
   inject,
@@ -99,6 +100,13 @@ export class TwImageComponent {
     effect(() => {
       this.src();
       this.loading.set(true);
+    });
+
+    // Restore body scrolling if the component is destroyed while the preview is open
+    inject(DestroyRef).onDestroy(() => {
+      if (this.previewVisible() && isPlatformBrowser(this.platformId)) {
+        this.document.body.style.overflow = this.previousOverflow;
+      }
     });
   }
 

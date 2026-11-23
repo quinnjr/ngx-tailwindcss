@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NativeAppPlatformService } from './platform.service';
 import { OsPlatform } from './native.types';
 
@@ -89,6 +89,35 @@ describe('NativeAppPlatformService', () => {
       expect(service.isElectron()).toBe(true);
       expect(service.isNative()).toBe(true);
       expect(service.isWeb()).toBe(false);
+    });
+  });
+  describe('isDarkMode', () => {
+    it('re-evaluates when the OS color scheme changes in system mode', () => {
+      let changeListener: ((event: { matches: boolean }) => void) | undefined;
+      const matchMediaSpy = vi.spyOn(window, 'matchMedia').mockImplementation(
+        (query: string) =>
+          ({
+            matches: false,
+            media: query,
+            addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => {
+              changeListener = listener;
+            },
+            removeEventListener: () => {},
+          }) as unknown as MediaQueryList
+      );
+
+      try {
+        const service = new NativeAppPlatformService();
+        expect(service.isDarkMode()).toBe(false);
+
+        changeListener?.({ matches: true });
+        expect(service.isDarkMode()).toBe(true);
+
+        service.setTheme('light');
+        expect(service.isDarkMode()).toBe(false);
+      } finally {
+        matchMediaSpy.mockRestore();
+      }
     });
   });
 });

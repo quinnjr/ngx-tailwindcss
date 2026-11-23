@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MusicAccessibilityService } from './accessibility.service';
 
 /** Access to the service's private announcement internals for queue tests */
@@ -148,6 +148,44 @@ describe('MusicAccessibilityService', () => {
 
     it('should have getVariant method', () => {
       expect(typeof service.getVariant).toBe('function');
+    });
+
+    it('should stay in high contrast while forced-colors is active when prefers-contrast changes', () => {
+      const state: Record<string, boolean> = {
+        '(forced-colors: active)': true,
+        '(prefers-contrast: more)': false,
+      };
+      const listeners = new Map<string, () => void>();
+      const original = window.matchMedia;
+      window.matchMedia = vi.fn((query: string) => ({
+        get matches() {
+          return state[query] ?? false;
+        },
+        media: query,
+        addEventListener: (_: string, fn: () => void) => listeners.set(query, fn),
+        removeEventListener: vi.fn(),
+      })) as unknown as typeof window.matchMedia;
+
+      try {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({ providers: [MusicAccessibilityService] });
+        const svc = TestBed.inject(MusicAccessibilityService);
+        expect(svc.prefersHighContrast()).toBe(true);
+
+        // prefers-contrast toggles on and back off; forced-colors still active
+        state['(prefers-contrast: more)'] = true;
+        listeners.get('(prefers-contrast: more)')!();
+        state['(prefers-contrast: more)'] = false;
+        listeners.get('(prefers-contrast: more)')!();
+        expect(svc.prefersHighContrast()).toBe(true);
+
+        // forced-colors turning off is now observed too
+        state['(forced-colors: active)'] = false;
+        listeners.get('(forced-colors: active)')!();
+        expect(svc.prefersHighContrast()).toBe(false);
+      } finally {
+        window.matchMedia = original;
+      }
     });
   });
 

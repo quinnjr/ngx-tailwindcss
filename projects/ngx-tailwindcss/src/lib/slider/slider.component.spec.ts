@@ -357,3 +357,48 @@ describe('TwSliderComponent with FormControl', () => {
     expect(input.disabled).toBe(true);
   });
 });
+
+@Component({
+  template: `
+    <tw-slider
+      [min]="min"
+      [max]="max"
+      [step]="step"
+      [showTicks]="true"
+      [formControl]="control"
+    ></tw-slider>
+  `,
+  standalone: true,
+  imports: [TwSliderComponent, ReactiveFormsModule],
+})
+class SliderRegressionHostComponent {
+  min = 0;
+  max = 100;
+  step = 1;
+  control = new FormControl(150);
+}
+
+describe('TwSliderComponent (regressions)', () => {
+  it('should clamp the fill and thumb to the track for out-of-range values', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const thumb = fixture.nativeElement.querySelector('.pointer-events-none') as HTMLElement;
+    expect(thumb.style.left).toBe('100%');
+
+    fixture.componentInstance.control.setValue(-20);
+    fixture.detectChanges();
+    expect(thumb.style.left).toBe('0%');
+  });
+
+  it('should render fractional tick values for fractional ranges', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.componentInstance.max = 1;
+    fixture.componentInstance.step = 0.25;
+    fixture.componentInstance.control.setValue(0);
+    fixture.detectChanges();
+    const ticks = [...fixture.nativeElement.querySelectorAll(
+        '.flex.justify-between.px-1 span'
+      ) as NodeListOf<HTMLElement>].map(t => t.textContent?.trim());
+    expect(ticks).toEqual(['0', '0.25', '0.5', '0.75', '1']);
+  });
+});

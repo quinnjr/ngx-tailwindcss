@@ -7,6 +7,7 @@ import {
   inject,
   Input,
   input,
+  model,
   Output,
   output,
 } from '@angular/core';
@@ -153,7 +154,8 @@ export class TwChipComponent {
 export class TwChipsComponent {
   private readonly twClass = inject(TwClassService);
 
-  readonly values = input<any[]>([]);
+  /** Chip values; supports `[(values)]` and also works uncontrolled */
+  readonly values = model<any[]>([]);
   readonly variant = input<ChipVariant>('primary');
   readonly chipStyle = input<ChipStyle>('soft');
   readonly size = input<ChipSize>('md');
@@ -166,7 +168,6 @@ export class TwChipsComponent {
   /** Accessible name for the text input used to add chips */
   readonly ariaLabel = input('Add item');
 
-  readonly valuesChange = output<any[]>();
   readonly onAdd = output<any>();
   readonly onRemove = output<{ value: any; index: number }>();
 
@@ -184,7 +185,7 @@ export class TwChipsComponent {
   });
 
   getDisplayValue(value: any): string {
-    if (typeof value === 'object' && this.field()) {
+    if (value !== null && typeof value === 'object' && this.field()) {
       return value[this.field()];
     }
     return String(value);
@@ -195,7 +196,7 @@ export class TwChipsComponent {
     const removed = currentValues[index];
     const newValues = [...currentValues];
     newValues.splice(index, 1);
-    this.valuesChange.emit(newValues);
+    this.values.set(newValues);
     this.onRemove.emit({ value: removed, index });
   }
 
@@ -206,7 +207,7 @@ export class TwChipsComponent {
 
     if (value) {
       const newValues = [...this.values(), value];
-      this.valuesChange.emit(newValues);
+      this.values.set(newValues);
       this.onAdd.emit(value);
       inputEl.value = '';
     }

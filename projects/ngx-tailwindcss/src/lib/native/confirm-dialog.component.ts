@@ -57,11 +57,16 @@ export class TwNativeConfirmDialogComponent {
     }
   }
 
-  @HostListener('document:keydown.enter')
-  protected onEnter(): void {
-    if (this.open()) {
-      this.onConfirm();
-    }
+  @HostListener('document:keydown.enter', ['$event'])
+  protected onEnter(event: Event): void {
+    if (!this.open()) return;
+
+    // Let focused controls (e.g. the Cancel button) handle Enter themselves;
+    // otherwise Enter on Cancel would also confirm.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('button, a, input, textarea, select')) return;
+
+    this.onConfirm();
   }
 
   // Computed styles

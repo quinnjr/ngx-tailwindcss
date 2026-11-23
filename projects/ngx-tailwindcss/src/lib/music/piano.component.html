@@ -18,7 +18,7 @@
 
   <div class="relative flex" [style.height.px]="height()">
     <!-- White Keys -->
-    @for (key of whiteKeys(); track key.note) {
+    @for (key of whiteKeys(); track key.midi) {
       <button
         type="button"
         [class]="whiteKeyClasses(key)"
@@ -29,6 +29,7 @@
         (mouseleave)="onKeyUp(key)"
         (touchstart)="onTouchStart($event, key)"
         (touchend)="onTouchEnd(key)"
+        (touchcancel)="onTouchEnd(key)"
         (keydown.enter)="onKeyboardDown($event, key)"
         (keydown.space)="onKeyboardDown($event, key)"
         (keyup.enter)="onKeyboardUp($event, key)"
@@ -58,7 +59,7 @@
     }
 
     <!-- Black Keys (positioned absolutely) -->
-    @for (key of blackKeys(); track key.note + key.octave) {
+    @for (key of blackKeys(); track key.midi) {
       <button
         type="button"
         [class]="blackKeyClasses(key)"
@@ -71,6 +72,7 @@
         (mouseleave)="onKeyUp(key)"
         (touchstart)="onTouchStart($event, key)"
         (touchend)="onTouchEnd(key)"
+        (touchcancel)="onTouchEnd(key)"
         (keydown.enter)="onKeyboardDown($event, key)"
         (keydown.space)="onKeyboardDown($event, key)"
         (keyup.enter)="onKeyboardUp($event, key)"

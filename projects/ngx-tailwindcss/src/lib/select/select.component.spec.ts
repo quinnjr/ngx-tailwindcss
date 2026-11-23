@@ -384,3 +384,89 @@ describe('TwSelectComponent with FormControl', () => {
     expect(triggerButton.nativeElement.className).toContain('opacity-50');
   });
 });
+
+@Component({
+  template: `
+    <tw-select [groups]="groups" appendTo="self" (onChange)="selected = $event"></tw-select>
+    <tw-select
+      [options]="options"
+      [filter]="true"
+      appendTo="self"
+      (onChange)="filtered = $event"
+    ></tw-select>
+  `,
+  standalone: true,
+  imports: [TwSelectComponent],
+})
+class KeyboardHostComponent {
+  groups = [
+    {
+      label: 'Fruits',
+      options: [
+        { label: 'Apple', value: 'apple' },
+        { label: 'Banana', value: 'banana' },
+      ],
+    },
+    { label: 'Veg', options: [{ label: 'Carrot', value: 'carrot' }] },
+  ];
+  options: SelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+    { label: 'Cherry', value: 'cherry' },
+  ];
+  selected: SelectOption | null = null;
+  filtered: SelectOption | null = null;
+}
+
+describe('TwSelectComponent keyboard (regressions)', () => {
+  const key = (el: HTMLElement, k: string): void => {
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  };
+
+  it('should navigate and select grouped options with the keyboard', () => {
+    const fixture = TestBed.createComponent(KeyboardHostComponent);
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement.querySelectorAll('tw-select')[0];
+    const trigger = host.querySelector('button')!;
+
+    key(trigger, 'ArrowDown'); // opens with the first option active
+    fixture.detectChanges();
+    key(trigger, 'ArrowDown');
+    key(trigger, 'ArrowDown');
+    fixture.detectChanges();
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+    expect(host.querySelector(`[id="${activeId}"]`)?.textContent).toContain('Carrot');
+
+    key(trigger, 'Enter');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.selected?.value).toBe('carrot');
+  });
+
+  it('should support arrow keys, Enter and Escape from the filter input', () => {
+    const fixture = TestBed.createComponent(KeyboardHostComponent);
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement.querySelectorAll('tw-select')[1];
+    const trigger = host.querySelector('button')!;
+
+    trigger.click();
+    fixture.detectChanges();
+    let filterInput = host.querySelector('input')!;
+    filterInput.value = 'an';
+    filterInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    key(filterInput, 'ArrowDown');
+    fixture.detectChanges();
+    key(filterInput, 'Enter');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.filtered?.value).toBe('banana');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+
+    trigger.click();
+    fixture.detectChanges();
+    filterInput = host.querySelector('input')!;
+    key(filterInput, 'Escape');
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+});

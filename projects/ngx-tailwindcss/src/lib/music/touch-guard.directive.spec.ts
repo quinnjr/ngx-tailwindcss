@@ -122,6 +122,43 @@ describe('TwTouchGuardDirective', () => {
       expect(component.longPresses.length).toBe(0);
       expect(component.clicks.length).toBe(0);
     });
+
+    it('should cancel the long press and touch feedback on touchcancel', () => {
+      vi.useFakeTimers();
+
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      expect(buttonEl.classList.contains('tw-touch-active')).toBe(true);
+      buttonEl.dispatchEvent(makeTouchEvent('touchcancel', 0, 0));
+      vi.advanceTimersByTime(600);
+
+      expect(component.longPresses.length).toBe(0);
+      expect(buttonEl.classList.contains('tw-touch-active')).toBe(false);
+    });
+  });
+
+  describe('drag guarding', () => {
+    it('should not emit drag events when the drag start is blocked by the cooldown', () => {
+      const directive = fixture.debugElement
+        .query(By.directive(TwTouchGuardDirective))
+        .injector.get(TwTouchGuardDirective);
+      const events: string[] = [];
+      directive.guardedDragStart.subscribe(() => events.push('start'));
+      directive.guardedDrag.subscribe(() => events.push('drag'));
+      directive.guardedDragEnd.subscribe(() => events.push('end'));
+
+      // A tap consumes the action and starts the cooldown window
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart'));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend'));
+      expect(component.clicks.length).toBe(1);
+
+      // Immediate drag is within the cooldown and must be ignored entirely
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchmove', 30, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchmove', 40, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend', 40, 0));
+
+      expect(events).toEqual([]);
+    });
   });
 
   describe('requireLongPress (mouse)', () => {

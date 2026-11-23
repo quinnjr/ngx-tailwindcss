@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   ElementRef,
   forwardRef,
   HostListener,
@@ -125,23 +124,20 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   protected filterValue = signal('');
   protected selectedValues = signal<Set<unknown>>(new Set());
   protected dropdownPosition = signal<{ top: number; left: number; width: number } | null>(null);
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   protected activeIndex = signal(-1);
 
   protected readonly listboxId = `tw-multiselect-listbox-${Math.random().toString(36).slice(2, 9)}`;
+  protected readonly triggerId = `${this.listboxId}-trigger`;
 
   private onChangeFn: (value: unknown[]) => void = () => {};
   private onTouchedFn: () => void = () => {};
   private clickListener: ((event: MouseEvent) => void) | null = null;
   private resizeListener: (() => void) | null = null;
   private scrollListener: (() => void) | null = null;
-
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
 
   protected allOptions = computed(() => {
     const groups = this.groups();
@@ -310,7 +306,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   toggleDropdown(): void {

@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LogEntry, LogFilter } from './native.types';
@@ -22,7 +33,7 @@ import { LogEntry, LogFilter } from './native.types';
     class: 'tw-log-viewer block',
   },
 })
-export class TwLogViewerComponent {
+export class TwLogViewerComponent implements AfterViewChecked {
   // Inputs
   public readonly entries = input<LogEntry[]>([]);
   public readonly showSource = input(true);
@@ -47,6 +58,27 @@ export class TwLogViewerComponent {
     { value: 'error' as const, label: 'ERROR' },
     { value: 'fatal' as const, label: 'FATAL' },
   ];
+
+  private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
+  private shouldScroll = false;
+
+  constructor() {
+    // Keep the newest entry in view while auto-scroll is enabled
+    effect(() => {
+      this.filteredEntries();
+      if (this.autoScroll()) {
+        this.shouldScroll = true;
+      }
+    });
+  }
+
+  public ngAfterViewChecked(): void {
+    const el = this.scrollContainer()?.nativeElement;
+    if (this.shouldScroll && el) {
+      el.scrollTop = el.scrollHeight;
+    }
+    this.shouldScroll = false;
+  }
 
   // Computed
   protected readonly filteredEntries = computed(() => {

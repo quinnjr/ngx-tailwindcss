@@ -90,6 +90,8 @@ export class TwRatingComponent implements ControlValueAccessor {
   private onTouchedFn: () => void = () => {};
 
   protected value = signal(0);
+  /** Per-instance prefix so half-star gradient ids are unique in the document */
+  protected readonly gradientIdPrefix = `tw-rating-half-${Math.random().toString(36).slice(2, 9)}`;
   protected hoverValue = signal<number | null>(null);
   protected starsArray = computed(() => Array.from({ length: this.stars() }, () => 0));
   protected containerClasses = computed(() => {
@@ -183,6 +185,11 @@ export class TwRatingComponent implements ControlValueAccessor {
     this.value.set(newValue);
     this.onChangeFn(newValue);
     this.change.emit(newValue);
+
+    // Roving tabindex: move focus to the star that is now tabbable
+    const group = (event.currentTarget as HTMLElement | null)?.parentElement;
+    const stars = group?.querySelectorAll<HTMLElement>('[role="radio"]');
+    stars?.[this.activeStarIndex()]?.focus();
   }
 
   onStarHover(index: number): void {

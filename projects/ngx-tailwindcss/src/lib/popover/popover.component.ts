@@ -98,7 +98,7 @@ export class TwPopoverComponent implements OnDestroy {
   private clickOutsideListener: (() => void) | null = null;
   private scrollListener: (() => void) | null = null;
   private resizeListener: (() => void) | null = null;
-  private keydownListener: (() => void) | null = null;
+  private keydownListener: ((event: KeyboardEvent) => void) | null = null;
   private portalMouseEnterListener: (() => void) | null = null;
   private portalMouseLeaveListener: (() => void) | null = null;
 
@@ -280,12 +280,16 @@ export class TwPopoverComponent implements OnDestroy {
     });
 
     if (this.closeOnEscape) {
-      this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
+      // Capture phase + stop, so only the popover closes and an enclosing modal/sidebar
+      // that listens for Escape on document stays open
+      this.keydownListener = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
           event.preventDefault();
+          event.stopImmediatePropagation();
           this.hide();
         }
-      });
+      };
+      this.document.addEventListener('keydown', this.keydownListener, true);
     }
 
     // Hover listeners for portal
@@ -416,7 +420,7 @@ export class TwPopoverComponent implements OnDestroy {
       this.resizeListener = null;
     }
     if (this.keydownListener) {
-      this.keydownListener();
+      this.document.removeEventListener('keydown', this.keydownListener, true);
       this.keydownListener = null;
     }
     if (this.portalMouseEnterListener) {

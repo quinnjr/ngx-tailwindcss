@@ -13,7 +13,7 @@
         [attr.aria-selected]="isSelected(node)"
       >
         <div
-          #treeNodeRow
+          data-tw-tree-row
           [class]="nodeClasses(node, level)"
           [style.paddingLeft.px]="level * indentSize()"
           [attr.tabindex]="nodeTabIndex(node)"

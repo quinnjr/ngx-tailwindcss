@@ -11,7 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeContextMenuEvent, NativeContextMenuPosition, NativeMenuItem } from './native.types';
 
@@ -35,6 +35,7 @@ import { NativeContextMenuEvent, NativeContextMenuPosition, NativeMenuItem } fro
 })
 export class TwNativeContextMenuComponent implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly document = inject(DOCUMENT);
 
   // Inputs
   public readonly items = input<NativeMenuItem[]>([]);
@@ -64,7 +65,7 @@ export class TwNativeContextMenuComponent implements OnDestroy {
     effect(() => {
       const triggerEl = this.trigger();
       this.detachContextMenuListener();
-      const target = triggerEl ?? document;
+      const target = triggerEl ?? this.document;
       target.addEventListener('contextmenu', this.contextMenuHandler);
       this.listenerTarget = target;
     });
@@ -132,6 +133,13 @@ export class TwNativeContextMenuComponent implements OnDestroy {
 
   protected selectItem(item: NativeMenuItem, event: MouseEvent): void {
     if (item.disabled) return;
+
+    // Clicking a submenu parent opens its submenu rather than selecting it
+    if (item.type === 'submenu' && item.submenu?.length) {
+      event.stopPropagation();
+      this.hoveredItemId.set(item.id);
+      return;
+    }
 
     // Handle checkbox toggle
     if (item.type === 'checkbox') {

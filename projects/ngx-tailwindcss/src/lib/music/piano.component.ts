@@ -2,13 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
+  untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
 export type PianoVariant = 'classic' | 'modern' | 'minimal';
@@ -114,6 +117,20 @@ export class TwPianoComponent implements OnDestroy {
   private readonly midiStateChangeHandler = (): void => {
     this.updateMidiDevices();
   };
+
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  constructor() {
+    // Request MIDI access when enableMidi is turned on (browser only)
+    effect(() => {
+      if (!this.enableMidi() || !this.isBrowser) return;
+      untracked(() => {
+        if (!this.midiAccess) {
+          void this.initMidi();
+        }
+      });
+    });
+  }
 
   ngOnDestroy(): void {
     this.midiAccess?.removeEventListener('statechange', this.midiStateChangeHandler);
@@ -423,7 +440,7 @@ export class TwPianoComponent implements OnDestroy {
   async initMidi(): Promise<void> {
     if (!this.enableMidi()) return;
 
-    if (!navigator.requestMIDIAccess) {
+    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
       this.midiError.emit('Web MIDI API not supported in this browser');
       return;
     }
@@ -612,7 +629,19 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   releaseAllKeys(): void {
+    const active = this.activeKeys();
+    if (active.size === 0) return;
+
+    const allKeys = [...this.whiteKeys(), ...this.blackKeys()];
     this.activeKeys.set(new Map());
+
+    // Emit noteOff for every released key so consumers don't leave notes hanging
+    for (const keyId of active.keys()) {
+      const key = allKeys.find(k => this.getKeyId(k) === keyId);
+      if (key) {
+        this.noteOff.emit({ note: key.note, octave: key.octave, midi: key.midi, velocity: 0 });
+      }
+    }
   }
 
   // Press key by MIDI note number

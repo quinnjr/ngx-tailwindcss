@@ -31,13 +31,13 @@
         <!-- Half star -->
         <svg [class]="iconClasses()" viewBox="0 0 24 24">
           <defs>
-            <linearGradient [id]="'half-' + $index">
+            <linearGradient [id]="gradientIdPrefix + '-' + $index">
               <stop offset="50%" stop-color="currentColor" />
               <stop offset="50%" stop-color="transparent" />
             </linearGradient>
           </defs>
           <path
-            [attr.fill]="'url(#half-' + $index + ')'"
+            [attr.fill]="'url(#' + gradientIdPrefix + '-' + $index + ')'"
             stroke="currentColor"
             stroke-width="1"
             d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
@@ -62,7 +62,7 @@
   @if (showValue()) {
     <span [class]="valueClasses()">{{ value() }}</span>
   }
-  @if (showCancel() && value() > 0 && !readonly()) {
+  @if (showCancel() && value() > 0 && !readonly() && !isDisabled()) {
     <button
       type="button"
       class="ml-2 p-1 text-slate-400 hover:text-slate-600 transition-colors"

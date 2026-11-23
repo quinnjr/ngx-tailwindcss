@@ -12,7 +12,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
 import { NativeAppPlatformService } from './platform.service';
@@ -41,6 +41,7 @@ let nextPaletteId = 0;
 })
 export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly document = inject(DOCUMENT);
 
   // Inputs
   public readonly commands = input<CommandItem[]>([]);
@@ -106,6 +107,11 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
     }));
   });
 
+  // Commands in display (grouped) order; selectedIndex indexes into this list
+  private readonly orderedCommands = computed(() =>
+    this.groupedCommands().flatMap(group => group.commands)
+  );
+
   // Flat start index per category so getGlobalIndex is O(1) per row
   private readonly groupStartIndexes = computed(() => {
     const startIndexes = new Map<string, number>();
@@ -124,11 +130,11 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   };
 
   public ngOnInit(): void {
-    document.addEventListener('keydown', this.keydownHandler);
+    this.document.addEventListener('keydown', this.keydownHandler);
   }
 
   public ngOnDestroy(): void {
-    document.removeEventListener('keydown', this.keydownHandler);
+    this.document.removeEventListener('keydown', this.keydownHandler);
   }
 
   private handleGlobalKeydown(event: KeyboardEvent): void {
@@ -150,7 +156,7 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
-    const commands = this.filteredCommands();
+    const commands = this.orderedCommands();
 
     switch (event.key) {
       case 'ArrowDown': {

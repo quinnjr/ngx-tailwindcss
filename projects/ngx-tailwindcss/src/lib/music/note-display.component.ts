@@ -2,17 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
-  inject,
+  effect,
   input,
   numberAttribute,
-  OnInit,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
 
 export type NoteDisplayVariant = 'default' | 'minimal' | 'led' | 'lcd' | 'meter';
 export type NoteDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
@@ -152,9 +149,7 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
     class: 'inline-block',
   },
 })
-export class TwNoteDisplayComponent implements OnInit {
-  private readonly destroyRef = inject(DestroyRef);
-
+export class TwNoteDisplayComponent {
   // Input modes - either provide frequency OR note object
   readonly frequency = input<number | null>(null);
   readonly note = input<DetectedNote | null>(null);
@@ -185,21 +180,27 @@ export class TwNoteDisplayComponent implements OnInit {
   protected readonly noteHistory = signal<NoteHistoryEntry[]>([]);
   private historyIdCounter = 0;
 
-  ngOnInit(): void {
-    // Update note from frequency input periodically
-    interval(50)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.updateCurrentNote();
+  constructor() {
+    // Re-derive the current note whenever an input changes (no polling, so outputs only
+    // fire on actual changes and no timer keeps SSR / zone stability pending)
+    effect(() => {
+      const freq = this.frequency();
+      const noteInput = this.note();
+      const manualNote = this.noteName();
+      const manualOctave = this.octave();
+      this.referenceA4();
+      untracked(() => {
+        this.updateCurrentNote(freq, noteInput, manualNote, manualOctave);
       });
+    });
   }
 
-  private updateCurrentNote(): void {
-    const freq = this.frequency();
-    const noteInput = this.note();
-    const manualNote = this.noteName();
-    const manualOctave = this.octave();
-
+  private updateCurrentNote(
+    freq: number | null,
+    noteInput: DetectedNote | null,
+    manualNote: string | null,
+    manualOctave: number | null
+  ): void {
     let detected: DetectedNote | null = null;
 
     if (noteInput) {

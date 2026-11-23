@@ -173,7 +173,8 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   /** Change event */
   readonly onChange = output<any>();
 
-  @ContentChildren(TwRadioButtonComponent) radioButtons!: QueryList<TwRadioButtonComponent>;
+  @ContentChildren(TwRadioButtonComponent, { descendants: true })
+  radioButtons!: QueryList<TwRadioButtonComponent>;
 
   protected selectedValue = signal<any>(null);
   private readonly _disabled = signal(false);

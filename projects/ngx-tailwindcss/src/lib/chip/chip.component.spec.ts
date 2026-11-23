@@ -359,3 +359,27 @@ describe('TwChipsComponent', () => {
     });
   });
 });
+
+@Component({
+  template: `<tw-chips (valuesChange)="last = $event"></tw-chips>`,
+  standalone: true,
+  imports: [TwChipsComponent],
+})
+class UncontrolledChipsHostComponent {
+  last: string[] = [];
+}
+
+describe('TwChipsComponent (regressions)', () => {
+  it('should accumulate chips when used without a [values] binding', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    for (const v of ['A', 'B']) {
+      input.value = v;
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      fixture.detectChanges();
+    }
+    expect(fixture.componentInstance.last).toEqual(['A', 'B']);
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(2);
+  });
+});

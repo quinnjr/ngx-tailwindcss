@@ -140,6 +140,19 @@ describe('TwCardComponent', () => {
       expect(component.clickCount).toBe(2);
     });
 
+    it('should ignore Enter/Space bubbling from descendants', () => {
+      component.clickable.set(true);
+      fixture.detectChanges();
+
+      const body = cardEl.querySelector('tw-card-body')!;
+      const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+      body.dispatchEvent(event);
+      fixture.detectChanges();
+
+      expect(component.clickCount).toBe(0);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
     it('should not dispatch click on Enter when not clickable', () => {
       cardEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       fixture.detectChanges();

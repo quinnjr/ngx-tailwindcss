@@ -9,5 +9,5 @@
     "typeRoots": ["./src/lib/native"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
-  "exclude": ["**/*.spec.ts"]
+  "exclude": ["**/*.spec.ts", "**/*.bench.ts"]
 }

@@ -31,6 +31,9 @@ const MODAL_SIZES: Record<ModalSize, string> = {
   full: 'max-w-full mx-4',
 };
 
+/** Currently open modals, in opening order; only the last one reacts to Escape. */
+const openModalStack: TwModalComponent[] = [];
+
 /**
  * Modal/Dialog component with accessibility features
  *
@@ -146,6 +149,7 @@ export class TwModalComponent implements OnDestroy {
   @Output() openChange = new EventEmitter<boolean>();
 
   private previousOverflow = '';
+  private scrollLocked = false;
 
   /** Projected title, used as the default aria-labelledby target */
   protected readonly modalTitle = contentChild<TwModalTitleComponent>(
@@ -159,6 +163,9 @@ export class TwModalComponent implements OnDestroy {
       const isOpen = this._open();
       if (isOpen) {
         this.lockScroll();
+        if (!openModalStack.includes(this)) {
+          openModalStack.push(this);
+        }
         // Emit only on an actual closed -> open transition,
         // not when the component is constructed already open
         if (previousOpen === false) {
@@ -166,6 +173,7 @@ export class TwModalComponent implements OnDestroy {
         }
       } else {
         this.unlockScroll();
+        this.removeFromStack();
       }
       previousOpen = isOpen;
     });
@@ -173,11 +181,14 @@ export class TwModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.unlockScroll();
+    this.removeFromStack();
   }
 
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKey(event: Event): void {
-    if (this._open() && this._closeOnEscape()) {
+    // With stacked modals only the topmost one closes
+    const isTopmost = openModalStack.at(-1) === this;
+    if (this._open() && this._closeOnEscape() && isTopmost) {
       event.preventDefault();
       this.closeModal();
     }
@@ -231,12 +242,24 @@ export class TwModalComponent implements OnDestroy {
   }
 
   private lockScroll(): void {
+    if (this.scrollLocked) return;
     this.previousOverflow = this.document.body.style.overflow;
     this.document.body.style.overflow = 'hidden';
+    this.scrollLocked = true;
   }
 
+  /** Restores body overflow only if this modal locked it (never clobbers other locks). */
   private unlockScroll(): void {
+    if (!this.scrollLocked) return;
     this.document.body.style.overflow = this.previousOverflow;
+    this.scrollLocked = false;
+  }
+
+  private removeFromStack(): void {
+    const index = openModalStack.indexOf(this);
+    if (index !== -1) {
+      openModalStack.splice(index, 1);
+    }
   }
 }
 

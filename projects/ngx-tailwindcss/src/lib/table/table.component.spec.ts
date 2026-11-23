@@ -283,5 +283,30 @@ describe('TwTableComponent', () => {
       component.table.goToPage(2);
       expect(component.onPageChangeSpy).toHaveBeenCalledWith({ page: 2, rows: 2 });
     });
+
+    it('should clamp the current page when the data shrinks', () => {
+      component.table.goToPage(2);
+      fixture.detectChanges();
+      expect(bodyRows()[0].nativeElement.textContent).toContain('Carol');
+
+      component.data.set([{ id: 1, name: 'Alice', age: 30 }]);
+      fixture.detectChanges();
+
+      expect(bodyRows().length).toBe(1);
+      expect(bodyRows()[0].nativeElement.textContent).toContain('Alice');
+      expect(tableEl.nativeElement.textContent).toContain('Showing 1 to 1 of 1 entries');
+    });
+
+    it('should render both ellipses when many pages are present', () => {
+      component.data.set(
+        Array.from({ length: 20 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}`, age: i }))
+      );
+      fixture.detectChanges();
+      component.table.goToPage(5);
+      fixture.detectChanges();
+
+      const pager = tableEl.nativeElement.textContent.replaceAll(/\s+/g, ' ');
+      expect(pager).toContain('Previous 1 ... 4 5 6 ... 10 Next');
+    });
   });
 });

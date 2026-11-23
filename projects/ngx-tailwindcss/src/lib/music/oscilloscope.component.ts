@@ -292,7 +292,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
 
     for (let i = triggerIndex; i < bufferLength && x < canvas.width; i++) {
       const v = (this.dataArray[i] / 128 - 1) * gain;
-      const y = (v * canvas.height) / 2 + canvas.height / 2;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = canvas.height / 2 - (v * canvas.height) / 2;
 
       if (i === triggerIndex) {
         this.ctx.moveTo(x, y);
@@ -346,7 +347,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     this.ctx.textAlign = 'right';
     const sampleRate = this.analyserNode()?.context.sampleRate ?? 44_100;
     const sampleCount = this.dataArray?.length ?? 1024;
-    const timeMs = (sampleCount / sampleRate) * 1000 * this.timeScale();
+    // timeScale > 1 zooms in (fewer samples span the width), so divide
+    const timeMs = (sampleCount / sampleRate / this.timeScale()) * 1000;
     this.ctx.fillText(`${timeMs.toFixed(1)}ms`, canvas.width - 4, canvas.height - 4);
 
     // Amplitude labels

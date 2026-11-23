@@ -370,7 +370,11 @@ export class TwAudioStatsComponent {
     const rawBitrate = (bitDepth * sampleRate * channels) / 1000; // kbps
 
     const codec = info.codec?.toLowerCase() || '';
-    if (codec.includes('flac') || codec.includes('alac') || info.format?.toLowerCase() === 'wav') {
+    // Uncompressed PCM (WAV): the raw data rate
+    if (info.format?.toLowerCase() === 'wav' || codec === 'pcm' || codec === 'wav') {
+      return rawBitrate;
+    }
+    if (codec.includes('flac') || codec.includes('alac')) {
       return rawBitrate * 0.6; // ~60% compression for FLAC
     }
 

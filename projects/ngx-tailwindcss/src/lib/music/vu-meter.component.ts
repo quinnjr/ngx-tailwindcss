@@ -513,7 +513,8 @@ export class TwVuMeterComponent {
 
   private updatePeak(value: number, channel: number): void {
     const peaks = [...this.peakValues()];
-    if (value > peaks[channel]) {
+    // Channels beyond the initial mono slot start out undefined
+    if (value > (peaks[channel] ?? 0)) {
       peaks[channel] = value;
       this.peakValues.set(peaks);
 

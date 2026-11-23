@@ -46,6 +46,7 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
   private startX = 0;
   private startY = 0;
   private longPressFired = false;
+  private pressing = false;
 
   /** Duration in ms to trigger long press (default: 500ms) */
   @Input({ transform: numberAttribute })
@@ -86,6 +87,8 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
     this.startX = event.clientX;
     this.startY = event.clientY;
     this.longPressFired = false;
+    this.pressing = true;
+    this.cancel();
 
     this.ngZone.run(() => {
       this.pressStart.emit();
@@ -105,6 +108,9 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
   };
 
   private readonly onPointerUp = (): void => {
+    // pointerleave also fires on plain hover; only end a press that started
+    if (!this.pressing) return;
+    this.pressing = false;
     this.cancel();
     if (!this.longPressFired) {
       this.ngZone.run(() => {
@@ -144,6 +150,8 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
       element.addEventListener('pointerdown', this.onPointerDown);
       element.addEventListener('pointerup', this.onPointerUp);
       element.addEventListener('pointerleave', this.onPointerUp);
+      // Fired when the browser takes over the gesture (e.g. touch scrolling)
+      element.addEventListener('pointercancel', this.onPointerUp);
       element.addEventListener('pointermove', this.onPointerMove);
       element.addEventListener('contextmenu', this.onContextMenu);
     });
@@ -156,6 +164,7 @@ export class TwLongPressDirective implements OnInit, OnDestroy {
     element.removeEventListener('pointerdown', this.onPointerDown);
     element.removeEventListener('pointerup', this.onPointerUp);
     element.removeEventListener('pointerleave', this.onPointerUp);
+    element.removeEventListener('pointercancel', this.onPointerUp);
     element.removeEventListener('pointermove', this.onPointerMove);
     element.removeEventListener('contextmenu', this.onContextMenu);
   }

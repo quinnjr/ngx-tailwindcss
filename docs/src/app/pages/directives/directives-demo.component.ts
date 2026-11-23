@@ -164,7 +164,7 @@ onClickOutside(): void {
 <input twAutoFocus [autoFocusDelay]="500" type="text">
 
 <!-- Conditional focus -->
-<input twAutoFocus [autoFocusEnabled]="shouldFocus" type="text">`;
+<input [twAutoFocus]="shouldFocus" type="text">`;
 
   longPressCode = `<!-- Basic long press (default 500ms) -->
 <button twLongPress (longPress)="onLongPress()">

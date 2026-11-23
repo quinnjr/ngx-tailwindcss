@@ -2,19 +2,18 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
+  effect,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
-  OnInit,
   output,
+  PLATFORM_ID,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
 
 export type BpmDisplayVariant =
   'default' | 'minimal' | 'led' | 'digital' | 'analog' | 'light' | 'highContrast';
@@ -53,8 +52,8 @@ export const BPM_RANGES = {
     class: 'inline-block',
   },
 })
-export class TwBpmDisplayComponent implements OnInit, OnDestroy {
-  private readonly destroyRef = inject(DestroyRef);
+export class TwBpmDisplayComponent implements OnDestroy {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   // Configuration
   readonly variant = input<BpmDisplayVariant>('default');
@@ -88,65 +87,45 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
   readonly syncChange = output<boolean>();
 
   // Internal state
-  protected readonly internalBpm = signal(120);
-  protected readonly isSynced = signal(false);
+  // Track the inputs, but allow local changes (buttons, tap, slider, sync toggle)
+  protected readonly internalBpm = linkedSignal(() => this.bpm());
+  protected readonly isSynced = linkedSignal(() => this.syncEnabled());
   protected readonly tapTimes = signal<number[]>([]);
   protected readonly isEditing = signal(false);
   protected readonly editValue = signal('120');
   protected readonly beatActive = signal(false);
 
-  private beatInterval: ReturnType<typeof setInterval> | null = null;
   private beatFlashTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  constructor() {
+    // Beat indicator: (re)started whenever the tempo or the toggle changes.
+    // Browser-only so SSR rendering can become stable.
+    effect(onCleanup => {
+      if (!this.isBrowser || !this.showBeatIndicator()) return;
+      const bpm = this.internalBpm();
+      if (!(bpm > 0)) return;
+
+      const beatInterval = setInterval(
+        () => {
+          this.beatActive.set(true);
+          if (this.beatFlashTimeout) clearTimeout(this.beatFlashTimeout);
+          this.beatFlashTimeout = setTimeout(() => {
+            this.beatActive.set(false);
+          }, 100);
+        },
+        (60 / bpm) * 1000
+      );
+      onCleanup(() => {
+        clearInterval(beatInterval);
+      });
+    });
+  }
+
   ngOnDestroy(): void {
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-      this.beatInterval = null;
-    }
     if (this.beatFlashTimeout) {
       clearTimeout(this.beatFlashTimeout);
       this.beatFlashTimeout = null;
     }
-  }
-
-  ngOnInit(): void {
-    // Sync with input
-    this.internalBpm.set(this.bpm());
-    this.isSynced.set(this.syncEnabled());
-
-    interval(100)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        if (!this.isEditing()) {
-          this.internalBpm.set(this.bpm());
-          this.isSynced.set(this.syncEnabled());
-        }
-      });
-
-    // Start beat indicator if enabled
-    if (this.showBeatIndicator()) {
-      this.startBeatIndicator();
-    }
-  }
-
-  private startBeatIndicator(): void {
-    this.updateBeatInterval();
-  }
-
-  private updateBeatInterval(): void {
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-    }
-
-    const bpm = this.internalBpm();
-    const intervalMs = (60 / bpm) * 1000;
-
-    this.beatInterval = setInterval(() => {
-      this.beatActive.set(true);
-      this.beatFlashTimeout = setTimeout(() => {
-        this.beatActive.set(false);
-      }, 100);
-    }, intervalMs);
   }
 
   // BPM controls
@@ -271,10 +250,6 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     const clamped = Math.max(this.minBpm(), Math.min(this.maxBpm(), rounded));
     this.internalBpm.set(clamped);
     this.bpmChange.emit(clamped);
-
-    if (this.showBeatIndicator()) {
-      this.updateBeatInterval();
-    }
   }
 
   // Public methods

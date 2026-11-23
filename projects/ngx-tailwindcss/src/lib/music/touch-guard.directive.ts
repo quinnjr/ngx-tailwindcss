@@ -75,6 +75,7 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
   private touchStartHandler!: (e: TouchEvent) => void;
   private touchMoveHandler!: (e: TouchEvent) => void;
   private touchEndHandler!: (e: TouchEvent) => void;
+  private touchCancelHandler!: (e: TouchEvent) => void;
   private mouseDownHandler!: (e: MouseEvent) => void;
   private mouseMoveHandler!: (e: MouseEvent) => void;
   private mouseUpHandler!: (e: MouseEvent) => void;
@@ -125,13 +126,14 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
 
       // Check if drag threshold is met
       if (!this.isDragging && this.mobileSupport.validateDragDistance(e, this.minDragDistance())) {
-        this.isDragging = true;
-
         // Cooldown only: the tap-oriented minDuration check does not apply to
-        // drag starts. Check once, then consume once the drag is accepted.
+        // drag starts. Only enter the dragging state once the drag is accepted,
+        // so a blocked start cannot produce guardedDrag/guardedDragEnd events
+        // without a matching guardedDragStart.
         if (!this.mobileSupport.shouldAllowAction({ cooldownMs: this.cooldownMs() })) {
           return;
         }
+        this.isDragging = true;
         this.mobileSupport.consumeAction();
 
         this.guardedDragStart.emit(e);
@@ -140,6 +142,22 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
       if (this.isDragging) {
         const delta = this.mobileSupport.getDragDelta(e, this.axisLock());
         this.guardedDrag.emit({ ...delta, event: e });
+      }
+    };
+
+    this.touchCancelHandler = (e: TouchEvent) => {
+      // The browser took over the gesture (e.g. scrolling) or the touch was
+      // interrupted: reset state without emitting a click or long press
+      if (this.showTouchFeedback()) {
+        this.el.nativeElement.classList.remove('tw-touch-active');
+      }
+      if (this.longPressTimer) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+      }
+      if (this.isDragging) {
+        this.guardedDragEnd.emit(e);
+        this.isDragging = false;
       }
     };
 
@@ -254,6 +272,7 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
     // event.preventDefault() to stop the page from scrolling during a drag
     el.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
     el.addEventListener('touchend', this.touchEndHandler, { passive: true });
+    el.addEventListener('touchcancel', this.touchCancelHandler, { passive: true });
     el.addEventListener('mousedown', this.mouseDownHandler);
   }
 
@@ -263,6 +282,7 @@ export class TwTouchGuardDirective implements OnInit, OnDestroy {
     el.removeEventListener('touchstart', this.touchStartHandler);
     el.removeEventListener('touchmove', this.touchMoveHandler);
     el.removeEventListener('touchend', this.touchEndHandler);
+    el.removeEventListener('touchcancel', this.touchCancelHandler);
     el.removeEventListener('mousedown', this.mouseDownHandler);
     document.removeEventListener('mousemove', this.mouseMoveHandler);
     document.removeEventListener('mouseup', this.mouseUpHandler);

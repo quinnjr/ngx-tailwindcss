@@ -333,6 +333,7 @@ export class TwScrubberComponent implements OnDestroy {
     const { signal: abortSignal } = this.dragController;
     document.addEventListener('touchmove', onTouchMove, { passive: false, signal: abortSignal });
     document.addEventListener('touchend', onTouchEnd, { signal: abortSignal });
+    document.addEventListener('touchcancel', onTouchEnd, { signal: abortSignal });
   }
 
   onKeyDown(event: KeyboardEvent): void {

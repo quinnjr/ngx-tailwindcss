@@ -799,7 +799,8 @@ export class MidiService implements OnDestroy {
    */
   sendPitchBend(outputId: string, value: number, channel: number = 0): void {
     // value: -8192 to 8191, centered at 0
-    const normalized = Math.round(value + 8192);
+    // Clamp to the 14-bit range so out-of-range values do not wrap around
+    const normalized = Math.min(16_383, Math.max(0, Math.round(value + 8192)));
     const lsb = normalized & 0x7f;
     const msb = (normalized >> 7) & 0x7f;
     this.sendMessage(outputId, [0xe0 | channel, lsb, msb]);

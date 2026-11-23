@@ -17,7 +17,17 @@
     (touchstart)="onTouchStart($event)"
     (touchmove)="onTouchMove($event)"
     (touchend)="onTouchEnd()"
-    role="img"
+    (keydown)="onCanvasKeydown($event)"
+    [attr.role]="seekable() ? 'slider' : 'img'"
+    [attr.tabindex]="seekable() ? 0 : null"
+    [attr.aria-valuemin]="seekable() ? 0 : null"
+    [attr.aria-valuemax]="seekable() ? 100 : null"
+    [attr.aria-valuenow]="seekable() ? Math.round(progress() * 100) : null"
+    [attr.aria-valuetext]="
+      seekable() && duration() > 0
+        ? formatTime(progress() * duration()) + ' of ' + formatTime(duration())
+        : null
+    "
     [attr.aria-label]="
       'Audio waveform' + (duration() > 0 ? ', duration ' + formatTime(duration()) : '')
     "

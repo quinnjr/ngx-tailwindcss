@@ -113,10 +113,10 @@ export class HomeComponent {
   ];
 
   installCode = `# Install the library
-pnpm add ngx-tailwindcss
+pnpm add @quinnjr/ngx-tailwindcss
 
 # Configure Tailwind to scan the library
 # In your styles.css or styles.scss:
 @import "tailwindcss";
-@source "../node_modules/ngx-tailwindcss/**/*.mjs";`;
+@source "../node_modules/@quinnjr/ngx-tailwindcss/**/*.mjs";`;
 }

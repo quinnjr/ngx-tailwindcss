@@ -76,6 +76,8 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
   private mediaStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
   private dataArray: Float32Array<ArrayBuffer> | null = null;
+  private starting = false;
+  private destroyed = false;
 
   protected readonly isInTune = computed(() => {
     const cents = Math.abs(this.currentCents());
@@ -163,16 +165,27 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopListening();
   }
 
   async startListening(): Promise<void> {
-    if (this.isListening()) return;
+    if (this.isListening() || this.starting || this.destroyed) return;
 
     this.errorState.set(null);
+    this.starting = true;
 
     try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Destroyed (or stopped) while the permission prompt was pending:
+      // release the microphone instead of leaking a live stream.
+      if (this.destroyed || !this.starting) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+        });
+        return;
+      }
+      this.mediaStream = stream;
       this.audioContext = new AudioContext();
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 4096;
@@ -193,10 +206,13 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
       this.stopListening();
       this.errorState.set(message);
       this.error.emit(message);
+    } finally {
+      this.starting = false;
     }
   }
 
   stopListening(): void {
+    this.starting = false;
     this.isListening.set(false);
 
     if (this.animationFrameId) {
@@ -280,10 +296,10 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     // Not enough signal
     if (rms < 0.01) return -1;
 
-    // Restrict the offset search to the musical range (~60 Hz to ~2 kHz):
-    // cuts ~90% of the O(n^2) work versus scanning every offset.
+    // Restrict the offset search to the musical range (~30 Hz to ~2 kHz):
+    // the floor must sit below bass E1 (41.2 Hz) so low strings are detectable.
     const minOffset = Math.max(1, Math.floor(sampleRate / 2000));
-    const maxOffset = Math.min(maxSamples, Math.ceil(sampleRate / 60));
+    const maxOffset = Math.min(maxSamples, Math.ceil(sampleRate / 30));
 
     let lastCorrelation = 1;
     for (let offset = minOffset; offset < maxOffset; offset++) {

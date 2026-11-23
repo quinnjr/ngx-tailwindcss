@@ -34,7 +34,7 @@ export class SpinnerDemoComponent {
 <tw-spinner color="danger"></tw-spinner>`;
 
   overlayCode = `<div class="relative p-8 bg-slate-100 rounded-lg">
-  <tw-spinner [overlay]="true"></tw-spinner>
+  <tw-loading-overlay overlay="inline" message="Loading..."></tw-loading-overlay>
   <p>Content behind the overlay</p>
 </div>`;
 }

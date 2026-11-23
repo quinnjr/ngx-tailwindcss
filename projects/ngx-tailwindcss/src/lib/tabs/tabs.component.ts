@@ -47,6 +47,8 @@ const TABS_VARIANTS: Record<TabsVariant, { list: string; tab: string; activeTab:
   },
 };
 
+let nextTabsId = 0;
+
 const TABS_SIZES: Record<TabsSize, string> = {
   sm: 'text-sm px-4 py-2',
   md: 'text-sm px-5 py-2.5',
@@ -65,7 +67,7 @@ const TABS_SIZES: Record<TabsSize, string> = {
   host: {
     '[class]': 'computedClasses()',
     role: 'tabpanel',
-    '[attr.id]': '"panel-" + value()',
+    '[attr.id]': 'panelId() || "panel-" + value()',
     '[attr.aria-labelledby]': 'labelledBy()',
     '[attr.tabindex]': '0',
     '[attr.hidden]': '!active() ? true : null',
@@ -113,6 +115,9 @@ export class TwTabPanelComponent {
 
   /** ID of the tab that labels this panel (managed by the parent tabs component) */
   readonly labelledBy = signal('');
+
+  /** Unique DOM id of this panel (managed by the parent tabs component) */
+  readonly panelId = signal('');
 
   /** Whether activation should animate (synced from the parent tabs component) */
   readonly animated = signal(true);
@@ -172,8 +177,24 @@ export class TwTabsComponent implements AfterContentInit {
   @ViewChildren('tabButton', { read: ElementRef })
   private readonly tabButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
+  /** Per-instance prefix so tab/panel ids stay unique across multiple tab sets */
+  private readonly idPrefix = `tw-tabs-${nextTabsId++}`;
+
+  private _value = '';
+  private contentInitialized = false;
+
   /** Currently active tab value */
-  @Input() value = '';
+  @Input()
+  set value(value: string) {
+    this._value = value;
+    // Apply later parent-driven changes (e.g. `[(value)]` updated programmatically)
+    if (this.contentInitialized && value && !this.panels.find(p => p.value() === value)?.active()) {
+      this.selectTab(value, false);
+    }
+  }
+  get value(): string {
+    return this._value;
+  }
 
   /** Visual variant */
   readonly variant = input<TabsVariant>('line');
@@ -218,9 +239,31 @@ export class TwTabsComponent implements AfterContentInit {
       }
     }
 
-    // Update panels list when content changes
+    this.contentInitialized = true;
+
+    // Update panels list when content changes, wiring ids/state for added panels
     this.tabPanels.changes.subscribe(() => {
       this.panels = this.tabPanels.toArray();
+      this.syncPanels();
+    });
+  }
+
+  /** DOM id of the tab button for a panel */
+  protected tabId(panel: TwTabPanelComponent): string {
+    return `${this.idPrefix}-tab-${panel.value()}`;
+  }
+
+  /** DOM id of a panel */
+  protected panelDomId(panel: TwTabPanelComponent): string {
+    return `${this.idPrefix}-panel-${panel.value()}`;
+  }
+
+  private syncPanels(): void {
+    this.panels.forEach(panel => {
+      panel.active.set(panel.value() === this._value);
+      panel.labelledBy.set(this.tabId(panel));
+      panel.panelId.set(this.panelDomId(panel));
+      panel.animated.set(this.animated());
     });
   }
 
@@ -260,15 +303,10 @@ export class TwTabsComponent implements AfterContentInit {
   }
 
   selectTab(value: string, emit = true): void {
-    const previousValue = this.value;
+    const previousValue = this._value;
 
-    this.panels.forEach(panel => {
-      panel.active.set(panel.value() === value);
-      panel.labelledBy.set(`tab-${panel.value()}`);
-      panel.animated.set(this.animated());
-    });
-
-    this.value = value;
+    this._value = value;
+    this.syncPanels();
 
     if (emit) {
       this.valueChange.emit(value);

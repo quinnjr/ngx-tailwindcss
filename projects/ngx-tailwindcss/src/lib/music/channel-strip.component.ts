@@ -91,6 +91,10 @@ export class TwChannelStripComponent implements ControlValueAccessor {
   protected readonly inputGain = signal(0); // -20 to +20 dB
   protected readonly auxSends = signal<number[]>([0, 0, 0, 0]); // Up to 4 aux sends
 
+  // Disabled state set imperatively via setDisabledState (forms API)
+  private readonly cvaDisabled = signal(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
+
   // Signal present detection
   protected readonly signalPresent = computed(() => {
     const level = this.stereo()
@@ -270,7 +274,7 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState?(isDisabled: boolean): void {
-    // Disabled state is managed via input
+  setDisabledState(isDisabled: boolean): void {
+    this.cvaDisabled.set(isDisabled);
   }
 }

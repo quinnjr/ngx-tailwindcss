@@ -49,6 +49,14 @@ const BASS_TUNING: Array<{ note: NoteName; octave: number }> = [
   { note: 'E', octave: 1 }, // String 4
 ];
 
+const BASS_5_TUNING: Array<{ note: NoteName; octave: number }> = [
+  { note: 'G', octave: 2 }, // String 1
+  { note: 'D', octave: 2 }, // String 2
+  { note: 'A', octave: 1 }, // String 3
+  { note: 'E', octave: 1 }, // String 4
+  { note: 'B', octave: 0 }, // String 5 (low B)
+];
+
 // Note names in chromatic order
 const CHROMATIC_NOTES: NoteName[] = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'];
 const CHROMATIC_ACCIDENTALS: Array<'sharp' | null> = [
@@ -280,7 +288,8 @@ export class TwTablatureComponent {
   ): { note: NoteName; octave: number; accidental: 'sharp' | null } | null {
     if (typeof fret === 'string' || fret < 0) return null;
 
-    const tuning = this.stringCount() === 4 ? BASS_TUNING : GUITAR_TUNING;
+    const count = this.stringCount();
+    const tuning = count === 4 ? BASS_TUNING : count === 5 ? BASS_5_TUNING : GUITAR_TUNING;
     if (stringNum < 1 || stringNum > tuning.length) return null;
 
     const openNote = tuning[stringNum - 1];
@@ -320,15 +329,12 @@ export class TwTablatureComponent {
     // Treble clef: E4 is on bottom line (line 5)
     // Each step (C, D, E, F, G, A, B) moves half a space
     const notePosition = NOTE_ORDER.indexOf(note);
-    const baseOctave = this.clef() === 'treble' ? 4 : 2;
 
-    // Calculate position relative to middle of staff
-    // Treble: B4 is on line 3 (middle), position 0
-    const trebleMiddleNote = 'B';
-    const trebleMiddleOctave = 4;
-
-    const refPosition = NOTE_ORDER.indexOf(trebleMiddleNote);
-    const refOctave = trebleMiddleOctave;
+    // Calculate position relative to middle of staff (line 3):
+    // treble clef = B4, bass clef = D3
+    const isBass = this.clef() === 'bass';
+    const refPosition = NOTE_ORDER.indexOf(isBass ? 'D' : 'B');
+    const refOctave = isBass ? 3 : 4;
 
     const octaveDiff = octave - refOctave;
     const noteDiff = notePosition - refPosition;

@@ -43,8 +43,10 @@ const OFFSET_VALUES: Record<StickyOffset, string> = {
   templateUrl: './sticky.component.html',
   styles: [
     `
+      /* The host must not be the sticky element's containing block: a block host is
+         exactly as tall as its content, which leaves no room to stick. */
       :host {
-        display: block;
+        display: contents;
       }
     `,
   ],

@@ -211,7 +211,17 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     if ((changes['audioBuffer'] || changes['peaks']) && this.mode() === 'static') {
       this.processPeaks();
     }
-    if (changes['width'] || changes['height'] || changes['variant'] || changes['colorScheme']) {
+    if (
+      changes['width'] ||
+      changes['height'] ||
+      changes['size'] ||
+      changes['barWidth'] ||
+      changes['barGap'] ||
+      changes['barRadius'] ||
+      changes['variant'] ||
+      changes['colorScheme']
+    ) {
+      // Resizing the canvas clears it, so every geometry input needs a redraw
       this.draw();
     }
     if (changes['mode']) {
@@ -361,7 +371,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     try {
       const channelData = buffer.getChannelData(0);
       const width = this.effectiveWidth();
-      const samplesPerPixel = Math.floor(channelData.length / width);
+      // At least one sample per pixel so very short buffers still produce peaks
+      const samplesPerPixel = Math.max(1, Math.floor(channelData.length / width));
 
       // Small buffers: scan synchronously
       if (channelData.length <= 262_144) {
@@ -1023,6 +1034,48 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.seek.emit(position);
   }
 
+  /** Keyboard seeking for the focusable (seekable) canvas */
+  onCanvasKeydown(event: KeyboardEvent): void {
+    if (!this.seekable()) return;
+
+    const current = Math.max(0, Math.min(1, this.progress()));
+    const step = event.shiftKey ? 0.1 : 0.01;
+    let next: number;
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowUp': {
+        next = current + step;
+        break;
+      }
+      case 'ArrowLeft':
+      case 'ArrowDown': {
+        next = current - step;
+        break;
+      }
+      case 'PageUp': {
+        next = current + 0.1;
+        break;
+      }
+      case 'PageDown': {
+        next = current - 0.1;
+        break;
+      }
+      case 'Home': {
+        next = 0;
+        break;
+      }
+      case 'End': {
+        next = 1;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    this.seek.emit(Math.max(0, Math.min(1, next)));
+  }
+
   onMouseDown(event: MouseEvent): void {
     if (this.selectable()) {
       this.isDragging.set(true);
@@ -1127,12 +1180,18 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   zoomToRegion(start: number, end: number): void {
-    const regionWidth = end - start;
-    const newZoom = Math.min(this.maxZoom(), 1 / regionWidth);
+    const lo = Math.max(0, Math.min(start, end));
+    const hi = Math.min(1, Math.max(start, end));
+    const regionWidth = hi - lo;
+    if (regionWidth <= 0) return;
+    const newZoom = Math.max(this.minZoom(), Math.min(this.maxZoom(), 1 / regionWidth));
+    // Center the region and keep the visible window inside 0..1
+    const visibleWidth = 1 / newZoom;
+    const newPan = Math.max(0, Math.min(1 - visibleWidth, lo + regionWidth / 2 - visibleWidth / 2));
     this.zoomLevel.set(newZoom);
-    this.panPosition.set(start);
+    this.panPosition.set(newPan);
     this.zoomChange.emit(newZoom);
-    this.panChange.emit(start);
+    this.panChange.emit(newPan);
     this.emitViewRange();
     this.draw();
   }

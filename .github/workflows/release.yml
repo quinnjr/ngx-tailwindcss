@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   release:
@@ -59,11 +58,13 @@ jobs:
 
       - name: Compose install section
         id: install
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           {
             echo 'text<<INSTALL_EOF'
             printf '### Installation\n\n```bash\nnpm install @quinnjr/ngx-tailwindcss@%s\n```\n' \
-              '${{ steps.version.outputs.version }}'
+              "$VERSION"
             echo 'INSTALL_EOF'
           } >> "$GITHUB_OUTPUT"
 

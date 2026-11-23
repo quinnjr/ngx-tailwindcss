@@ -128,8 +128,8 @@
             [stereo]="true"
             [disabled]="disabled()"
             [ngModel]="getChannelState(channel)"
-            (stateChange)="onChannelStateChange($event, scrollOffset() + i)"
-            (soloChange)="onChannelSoloChange($event, scrollOffset() + i)"
+            (stateChange)="onChannelStateChange($event, channels().indexOf(channel))"
+            (soloChange)="onChannelSoloChange($event, channels().indexOf(channel))"
           ></tw-channel-strip>
         </div>
       }

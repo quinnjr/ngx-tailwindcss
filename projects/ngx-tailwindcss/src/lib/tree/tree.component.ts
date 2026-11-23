@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   ElementRef,
@@ -8,10 +9,8 @@ import {
   input,
   numberAttribute,
   Output,
-  QueryList,
   signal,
   TemplateRef,
-  ViewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
@@ -57,8 +56,8 @@ interface TreeNodeViewState {
 })
 export class TwTreeComponent {
   private readonly twClass = inject(TwClassService);
-
-  @ViewChildren('treeNodeRow') private readonly nodeRows!: QueryList<ElementRef<HTMLElement>>;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Tree nodes */
   readonly nodes = input<TreeNode[]>([]);
@@ -223,6 +222,9 @@ export class TwTreeComponent {
 
   toggleNode(node: TreeNode): void {
     node.expanded = !node.expanded;
+    // Node objects are mutated in place, so the OnPush view must be marked explicitly
+    // (programmatic calls do not originate from a template event in this view)
+    this.cdr.markForCheck();
 
     if (node.expanded) {
       this.onNodeExpand.emit(node);
@@ -258,6 +260,10 @@ export class TwTreeComponent {
         event.preventDefault();
         if (node.children?.length && !node.expanded) {
           this.toggleNode(node);
+        } else if (node.children?.length) {
+          // Already expanded: move to the first child
+          const visible = this.getVisibleNodes();
+          this.focusNodeAt(visible, visible.indexOf(node) + 1);
         }
         break;
       }
@@ -265,6 +271,13 @@ export class TwTreeComponent {
         event.preventDefault();
         if (node.children?.length && node.expanded) {
           this.toggleNode(node);
+        } else {
+          // Collapsed or leaf: move to the parent node
+          const parent = this.parentMap().get(node);
+          if (parent) {
+            const visible = this.getVisibleNodes();
+            this.focusNodeAt(visible, visible.indexOf(parent));
+          }
         }
         break;
       }
@@ -281,7 +294,10 @@ export class TwTreeComponent {
     const target = visible[index];
     if (!target) return;
     this.focusedNode.set(target);
-    this.nodeRows?.get(index)?.nativeElement.focus();
+    // Query rows in DOM order: a @ViewChildren QueryList over the recursive
+    // template outlet is ordered by view insertion, not by visual position
+    const rows = this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[data-tw-tree-row]');
+    rows[index]?.focus();
   }
 
   /** Nodes currently rendered, in DOM order (visible and all ancestors expanded). */
@@ -363,6 +379,7 @@ export class TwTreeComponent {
       });
     };
     expandNodes(this.nodes());
+    this.cdr.markForCheck();
   }
 
   /** Collapse all nodes */
@@ -376,6 +393,7 @@ export class TwTreeComponent {
       });
     };
     collapseNodes(this.nodes());
+    this.cdr.markForCheck();
   }
 
   /** Get selected nodes */

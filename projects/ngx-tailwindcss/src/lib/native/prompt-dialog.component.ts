@@ -36,8 +36,9 @@ export class TwPromptDialogComponent {
 
   constructor() {
     effect(() => {
+      // The initial value is set by open(); resetting it here would discard
+      // a value passed to open(value).
       if (this.isOpen()) {
-        this.inputValue.set(this.defaultValue());
         setTimeout(() => {
           this.inputElement()?.nativeElement.focus();
           this.inputElement()?.nativeElement.select();

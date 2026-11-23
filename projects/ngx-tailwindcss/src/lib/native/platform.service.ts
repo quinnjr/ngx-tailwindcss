@@ -25,6 +25,8 @@ export class NativeAppPlatformService {
   private readonly _isTauri = signal(this.checkTauri());
   private readonly _isElectron = signal(this.checkElectron());
   private readonly _theme = signal<PlatformTheme>('system');
+  // Tracks the OS color scheme so `isDarkMode` re-evaluates when it changes
+  private readonly _systemPrefersDark = signal(this.querySystemPrefersDark());
 
   // Window state
   private readonly _windowState = signal<WindowState>({
@@ -46,9 +48,7 @@ export class NativeAppPlatformService {
 
   public readonly isDarkMode = computed(() => {
     if (this._theme() === 'system') {
-      return (
-        typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
-      );
+      return this._systemPrefersDark();
     }
     return this._theme() === 'dark';
   });
@@ -86,13 +86,21 @@ export class NativeAppPlatformService {
     );
   }
 
+  private querySystemPrefersDark(): boolean {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+    );
+  }
+
   private initThemeListener(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !window.matchMedia) return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', () => {
-      // Trigger re-computation of isDarkMode
-      this._theme.update(t => t);
+    mediaQuery.addEventListener('change', event => {
+      // A same-value set on `_theme` would not notify; track the OS scheme directly
+      this._systemPrefersDark.set(event.matches);
     });
   }
 

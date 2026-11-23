@@ -66,6 +66,18 @@ describe('TwVuMeterComponent', () => {
     expect(meterEl().getAttribute('aria-label')).toBe('Level: left 30%, right 60%');
   });
 
+  it('should track the peak hold for the right channel in stereo mode', () => {
+    component.stereo.set(true);
+    component.left.set(30);
+    component.right.set(60);
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const meter = fixture.debugElement.query(By.directive(TwVuMeterComponent))
+      .componentInstance as TwVuMeterComponent;
+    expect(meter.getPeakValue(1)).toBe(60);
+  });
+
   it('should clamp bound values into the min/max range', () => {
     component.value.set(250);
     fixture.detectChanges();

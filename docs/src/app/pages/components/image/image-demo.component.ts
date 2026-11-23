@@ -39,10 +39,5 @@ export class ImageDemoComponent {
 <tw-image src="..." borderRadius="full"></tw-image>`;
 
   previewCode = `<tw-image src="..." [preview]="true"></tw-image>`;
-
-  fallbackCode = `<tw-image
-  src="invalid-url"
-  fallback="https://via.placeholder.com/400x300?text=Image+Not+Found">
-</tw-image>`;
 }
 

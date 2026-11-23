@@ -3,5 +3,7 @@ set -e
 
 # Lint staged files within the configured lint scope (docs/ has no
 # eslint project coverage; keep this aligned with `pnpm run lint`).
-FILES=$(git diff --cached --name-only --diff-filter=ACM -- 'projects/**/*.ts' 'projects/**/*.html')
-[ -z "$FILES" ] || pnpm exec eslint $FILES
+# Files are passed in batches so large commits don't exceed the Windows
+# command-line length limit.
+git diff --cached --name-only --diff-filter=ACM -z -- 'projects/**/*.ts' 'projects/**/*.html' \
+  | xargs -0 -r -n 50 pnpm exec eslint

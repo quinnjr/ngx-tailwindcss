@@ -165,6 +165,18 @@
             class="relative w-12 h-32 mx-auto bg-slate-800 rounded-lg border border-slate-600 cursor-ns-resize overflow-hidden"
             (mousedown)="onPitchWheelDragStart($event)"
             (touchstart)="onPitchWheelDragStart($event)"
+            (keydown)="onPitchWheelKeydown($event)"
+            role="slider"
+            [attr.tabindex]="disabled() ? -1 : 0"
+            aria-orientation="vertical"
+            aria-label="Pitch bend"
+            aria-valuemin="-1"
+            aria-valuemax="1"
+            [attr.aria-valuenow]="internalPitchBend()"
+            [attr.aria-valuetext]="
+              (effectivePitchBend() > 0 ? '+' : '') + Math.round(effectivePitchBend()) + ' cents'
+            "
+            [attr.aria-disabled]="disabled()"
           >
             <!-- Track -->
             <div class="absolute inset-x-1 top-1 bottom-1 bg-slate-900 rounded"></div>
@@ -208,6 +220,18 @@
             class="relative h-8 bg-slate-800 rounded-lg border border-slate-600 cursor-ew-resize overflow-hidden"
             (mousedown)="onPitchWheelDragStart($event)"
             (touchstart)="onPitchWheelDragStart($event)"
+            (keydown)="onPitchWheelKeydown($event)"
+            role="slider"
+            [attr.tabindex]="disabled() ? -1 : 0"
+            aria-orientation="horizontal"
+            aria-label="Pitch bend"
+            aria-valuemin="-1"
+            aria-valuemax="1"
+            [attr.aria-valuenow]="internalPitchBend()"
+            [attr.aria-valuetext]="
+              (effectivePitchBend() > 0 ? '+' : '') + Math.round(effectivePitchBend()) + ' cents'
+            "
+            [attr.aria-disabled]="disabled()"
           >
             <!-- Track -->
             <div class="absolute inset-y-1 left-1 right-1 bg-slate-900 rounded"></div>

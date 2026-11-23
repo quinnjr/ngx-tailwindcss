@@ -415,3 +415,45 @@ describe('TwRatingComponent with FormControl', () => {
     expect(ratingEl.nativeElement.querySelector('div').className).toContain('opacity-50');
   });
 });
+
+@Component({
+  template: `
+    <tw-rating [allowHalf]="true" [showCancel]="true" [formControl]="a"></tw-rating>
+    <tw-rating [allowHalf]="true" [showCancel]="true" [formControl]="b"></tw-rating>
+  `,
+  standalone: true,
+  imports: [TwRatingComponent, ReactiveFormsModule],
+})
+class RatingRegressionHostComponent {
+  a = new FormControl(2.5);
+  b = new FormControl({ value: 2.5, disabled: true });
+}
+
+describe('TwRatingComponent (regressions)', () => {
+  it('should use document-unique half-star gradient ids', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const ids = [...fixture.nativeElement.querySelectorAll('linearGradient') as NodeListOf<Element>].map(g => g.id);
+    expect(ids.length).toBe(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('should not show the clear button when disabled', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const ratings = fixture.nativeElement.querySelectorAll('tw-rating');
+    expect(ratings[0].querySelector('[aria-label="Clear rating"]')).toBeTruthy();
+    expect(ratings[1].querySelector('[aria-label="Clear rating"]')).toBeNull();
+  });
+
+  it('should move focus to the newly active star on arrow keys', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.componentInstance.a.setValue(2);
+    fixture.detectChanges();
+    const stars: HTMLButtonElement[] = [...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]')];
+    stars[1].focus();
+    stars[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(stars[2]);
+  });
+});

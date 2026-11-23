@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileSupportService } from './mobile-support.service';
 
 describe('MobileSupportService', () => {
@@ -48,6 +48,28 @@ describe('MobileSupportService', () => {
 
       service.setHapticEnabled(true);
       expect(service.hapticEnabled()).toBe(true);
+    });
+
+    it('should use the iOS webkit haptic bridge when the Vibration API is unavailable', () => {
+      const postMessage = vi.fn();
+      const win = window as unknown as Record<string, unknown>;
+      win['webkit'] = { messageHandlers: { haptic: { postMessage } } };
+      service.supportsHaptic.set(false);
+
+      try {
+        service.triggerHaptic('success');
+        expect(postMessage).toHaveBeenCalledWith({ type: 'notification-success' });
+      } finally {
+        delete win['webkit'];
+      }
+    });
+
+    it('should remove window listeners on destroy', () => {
+      const spy = vi.spyOn(window, 'removeEventListener');
+      service.ngOnDestroy();
+      expect(spy).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(spy).toHaveBeenCalledWith('orientationchange', expect.any(Function));
+      spy.mockRestore();
     });
   });
 

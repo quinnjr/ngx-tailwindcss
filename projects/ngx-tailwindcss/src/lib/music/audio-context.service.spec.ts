@@ -179,6 +179,66 @@ describe('AudioContextService', () => {
       const reconnected = await service.connectMediaElement(element);
       expect(reconnected.id).not.toBe(source.id);
     });
+
+    it('should reuse the media element node when reconnecting after disconnect', async () => {
+      const element = document.createElement('audio');
+      const ctx = service.getContext() as unknown as MockAudioContext;
+      ctx.createMediaElementSource.mockImplementation(() => {
+        if (ctx.createMediaElementSource.mock.calls.length > 1) {
+          throw new DOMException('already connected', 'InvalidStateError');
+        }
+        return new MockAudioNode();
+      });
+
+      const first = await service.connectMediaElement(element);
+      service.disconnectSource(first.id);
+      const second = await service.connectMediaElement(element);
+
+      expect(ctx.createMediaElementSource).toHaveBeenCalledTimes(1);
+      expect(second.node).toBe(first.node);
+    });
+  });
+
+  describe('microphone and context lifecycle', () => {
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', MockAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should stop microphone tracks when the source is disconnected', async () => {
+      const track = { stop: vi.fn() };
+      const stream = { getTracks: () => [track] } as unknown as MediaStream;
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createMediaStreamSource: ReturnType<typeof vi.fn>;
+      };
+      ctx.createMediaStreamSource = vi.fn(() => new MockAudioNode());
+      vi.stubGlobal('navigator', {
+        mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+      });
+
+      const source = await service.connectMicrophone();
+      expect(track.stop).not.toHaveBeenCalled();
+
+      service.disconnectSource(source.id);
+      expect(track.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('should forget loaded worklet modules when the context is closed', async () => {
+      vi.stubGlobal('AudioWorkletNode', class {});
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        audioWorklet: { addModule: ReturnType<typeof vi.fn> };
+      };
+      ctx.audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+
+      await service.loadWorkletModule('proc', '/proc.js');
+      expect(service.workletModules().length).toBe(1);
+
+      await service.close();
+      expect(service.workletModules().length).toBe(0);
+    });
   });
 
   describe('signals', () => {

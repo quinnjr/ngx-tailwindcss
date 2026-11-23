@@ -297,3 +297,39 @@ describe('TwMultiSelectComponent', () => {
     });
   });
 });
+
+@Component({
+  template: `<tw-multiselect
+    label="Fruits"
+    [options]="options"
+    [formControl]="control"
+  ></tw-multiselect>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class DisabledReactiveHostComponent {
+  options: MultiSelectOption[] = [{ label: 'Apple', value: 'apple' }];
+  control = new FormControl<unknown[]>({ value: [], disabled: true });
+}
+
+describe('TwMultiSelectComponent (regressions)', () => {
+  it('should honor a FormControl that starts disabled', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.disabled).toBe(true);
+
+    fixture.componentInstance.control.enable();
+    fixture.detectChanges();
+    expect(trigger.disabled).toBe(false);
+  });
+
+  it('should associate the label with the trigger button', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const label: HTMLLabelElement = fixture.nativeElement.querySelector('label');
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.id).toBeTruthy();
+    expect(label.htmlFor).toBe(trigger.id);
+  });
+});

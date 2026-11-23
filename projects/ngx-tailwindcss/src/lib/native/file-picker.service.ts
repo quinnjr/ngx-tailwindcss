@@ -86,10 +86,11 @@ export class FilePickerService {
       const paths = Array.isArray(result) ? result : [result];
       return paths.map(path => ({
         path: typeof path === 'string' ? path : path.path,
+        // Split on both separators so Windows paths yield just the file name
         name:
           typeof path === 'string'
-            ? path.split('/').pop() || path
-            : path.name || path.path.split('/').pop() || '',
+            ? path.split(/[/\\]/).pop() || path
+            : path.name || path.path.split(/[/\\]/).pop() || '',
       }));
     } catch (error) {
       console.error('Tauri file picker error:', error);

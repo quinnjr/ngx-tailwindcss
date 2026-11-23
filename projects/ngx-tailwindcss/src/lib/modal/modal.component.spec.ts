@@ -278,3 +278,69 @@ describe('TwModalComponent with projected title', () => {
     expect(dialog.getAttribute('aria-labelledby')).toBe(title.id);
   });
 });
+
+@Component({
+  template: `
+    <tw-modal [open]="outerOpen()" (openChange)="outerOpen.set($event)">Outer</tw-modal>
+    @if (showInner()) {
+      <tw-modal [open]="innerOpen()" (openChange)="innerOpen.set($event)">Inner</tw-modal>
+    }
+  `,
+  standalone: true,
+  imports: [TwModalComponent],
+})
+class StackedModalsHostComponent {
+  outerOpen = signal(false);
+  innerOpen = signal(false);
+  showInner = signal(true);
+}
+
+describe('TwModalComponent stacking and scroll lock', () => {
+  let fixture: ComponentFixture<StackedModalsHostComponent>;
+  let host: StackedModalsHostComponent;
+
+  beforeEach(async () => {
+    document.body.style.overflow = '';
+    await TestBed.configureTestingModule({
+      imports: [StackedModalsHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(StackedModalsHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should not touch body overflow when a closed modal is created or destroyed', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // Destroying the never-opened inner modal must not release the outer lock
+    host.showInner.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    host.outerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should close only the topmost modal on Escape', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.innerOpen()).toBe(false);
+    expect(host.outerOpen()).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.outerOpen()).toBe(false);
+    expect(document.body.style.overflow).toBe('');
+  });
+});

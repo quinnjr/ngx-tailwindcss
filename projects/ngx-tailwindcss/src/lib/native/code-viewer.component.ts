@@ -82,8 +82,12 @@ export class TwCodeViewerComponent {
     this.wordWrap.update(v => !v);
   }
 
-  public copyCode(): void {
-    void navigator.clipboard.writeText(this.code());
-    this.copied.emit();
+  public async copyCode(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.code());
+      this.copied.emit();
+    } catch (error) {
+      console.error('Failed to copy code:', error);
+    }
   }
 }

@@ -283,16 +283,24 @@ export class TwChordDiagramComponent {
   }
 
   protected getBarreData(): { x1: number; x2: number; y: number } | null {
-    const chordData = this.chordData();
-    if (!chordData?.barreFrom || !chordData?.barreTo) return null;
-
     const fingerings = this.fingerings();
-    const barreFret = fingerings.find(f => f.barre)?.fret;
-    if (!barreFret) return null;
+    const barreFingerings = fingerings.filter(f => f.barre && f.fret > 0);
+    if (barreFingerings.length === 0) return null;
+
+    const barreFret = barreFingerings[0].fret;
+
+    // Prefer the explicit range from the chord definition (only when its fingerings are
+    // the ones displayed); otherwise span the strings marked as barre.
+    const chordData = this.chordData();
+    const useChordRange =
+      this.customFingerings().length === 0 && !!chordData?.barreFrom && !!chordData?.barreTo;
+    const barreStrings = barreFingerings.map(f => f.string);
+    const from = useChordRange ? chordData.barreFrom! : Math.min(...barreStrings);
+    const to = useChordRange ? chordData.barreTo! : Math.max(...barreStrings);
 
     return {
-      x1: this.getStringX(chordData.barreFrom),
-      x2: this.getStringX(chordData.barreTo),
+      x1: this.getStringX(from),
+      x2: this.getStringX(to),
       y: this.getFretY(barreFret) - this.dimensions().fretSpacing / 2,
     };
   }
@@ -307,11 +315,12 @@ export class TwChordDiagramComponent {
 
   protected readonly stringLabels = computed(() => {
     const count = this.stringCount();
+    // Ordered by string number (string 1 = highest); getStringX() handles left/right handedness
     if (count === 6) {
-      return this.leftHanded() ? ['E', 'B', 'G', 'D', 'A', 'E'] : ['E', 'A', 'D', 'G', 'B', 'E'];
+      return ['E', 'B', 'G', 'D', 'A', 'E'];
     }
     if (count === 4) {
-      return this.leftHanded() ? ['G', 'D', 'A', 'E'] : ['E', 'A', 'D', 'G'];
+      return ['G', 'D', 'A', 'E'];
     }
     return [];
   });

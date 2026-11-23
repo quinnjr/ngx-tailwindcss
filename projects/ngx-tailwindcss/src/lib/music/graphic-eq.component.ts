@@ -403,6 +403,11 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   readonly presetApplied = output<EQPreset>();
   readonly presetSaved = output<EQPreset>();
 
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly formDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input or a disabled form control */
+  protected readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
   protected readonly bandValues = signal<number[]>([]);
   protected readonly draggingBand = signal<number | null>(null);
   protected readonly currentPreset = signal<EQPreset | null>(null);
@@ -569,7 +574,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-xl p-4';
-    const disabled = this.disabled() ? 'opacity-50 pointer-events-none' : '';
+    const disabled = this.isDisabled() ? 'opacity-50 pointer-events-none' : '';
     return [base, this.colors().background, disabled, this.classOverride()]
       .filter(Boolean)
       .join(' ');
@@ -611,7 +616,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected onBandMouseDown(event: MouseEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
     this.draggingBand.set(bandIndex);
 
     // Capture the track rect once for the whole gesture
@@ -640,7 +645,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected onBandTouchStart(event: TouchEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
     this.draggingBand.set(bandIndex);
 
     // Capture the track rect once for the whole gesture
@@ -671,7 +676,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   // Keyboard control for a focused band slider
   protected onBandKeydown(event: KeyboardEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
 
     const step = this.step();
     const largeStep = step * 4;
@@ -753,11 +758,13 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected resetBand(bandIndex: number): void {
+    if (!this.interactive() || this.isDisabled()) return;
     this.bandValues.update(values => {
       const newValues = [...values];
       newValues[bandIndex] = 0;
       return newValues;
     });
+    this.bandChange.emit({ frequency: this.frequencies()[bandIndex], gain: 0 });
     this.emitValues();
   }
 
@@ -844,25 +851,25 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       .filter((p): p is EQPreset => p !== undefined);
   });
 
-  protected getBandFillHeight(gain: number): string {
+  /** Y offset (px) of a gain on the slider track, using the same linear scale as the thumb */
+  private gainToY(gain: number): number {
     const minGain = this.minGain();
     const maxGain = this.maxGain();
-    const height = this.sliderHeight();
+    const range = maxGain - minGain;
+    if (range <= 0) return this.sliderHeight() / 2;
+    const normalized = Math.max(0, Math.min(1, (gain - minGain) / range));
+    return (1 - normalized) * this.sliderHeight();
+  }
 
-    if (gain >= 0) {
-      const percentage = gain / maxGain;
-      return `${percentage * (height / 2)}px`;
-    }
-    const percentage = Math.abs(gain) / Math.abs(minGain);
-    return `${percentage * (height / 2)}px`;
+  /** Y offset (px) of the 0 dB line (not necessarily the middle for asymmetric ranges) */
+  protected readonly zeroLineY = computed(() => this.gainToY(0));
+
+  protected getBandFillHeight(gain: number): string {
+    return `${Math.abs(this.gainToY(gain) - this.gainToY(0))}px`;
   }
 
   protected getBandFillPosition(gain: number): string {
-    const height = this.sliderHeight();
-    if (gain >= 0) {
-      return `${height / 2 - (gain / this.maxGain()) * (height / 2)}px`;
-    }
-    return `${height / 2}px`;
+    return `${Math.min(this.gainToY(gain), this.gainToY(0))}px`;
   }
 
   private formatFrequency(freq: number): string {
@@ -894,6 +901,12 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    // Handled via input
+    this.formDisabled.set(isDisabled);
+    if (isDisabled) {
+      this.dragController?.abort();
+      this.dragController = null;
+      this.draggingBand.set(null);
+      this.showPresetMenu.set(false);
+    }
   }
 }

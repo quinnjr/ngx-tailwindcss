@@ -74,14 +74,22 @@
           [duration]="duration()"
           [buffered]="buffered()"
           [showTime]="false"
-          (seek)="onSeek($event)"
+          (seek)="onSeekTime($event)"
         ></tw-scrubber>
 
         <!-- Time Display -->
         @if (showTime()) {
           <div class="flex items-center justify-between text-xs" [class]="textClasses().time">
-            <tw-time-display [value]="currentTime()" variant="minimal"></tw-time-display>
-            <tw-time-display [value]="duration()" variant="minimal"></tw-time-display>
+            <tw-time-display
+              [value]="currentTime()"
+              variant="minimal"
+              [showTotal]="false"
+            ></tw-time-display>
+            <tw-time-display
+              [value]="duration()"
+              variant="minimal"
+              [showTotal]="false"
+            ></tw-time-display>
           </div>
         }
 
@@ -98,9 +106,9 @@
             (play)="onPlay()"
             (pause)="onPause()"
             (stop)="onStop()"
-            (skipBackward)="onSkipBackward()"
-            (skipForward)="onSkipForward()"
-            (toggleLoop)="toggleLoop()"
+            (skipPrevious)="onSkipBackward()"
+            (skipNext)="onSkipForward()"
+            (loopToggle)="toggleLoop()"
           ></tw-transport>
 
           @if (showVolume()) {
@@ -130,7 +138,7 @@
                 max="1"
                 step="0.01"
                 [value]="internalVolume()"
-                (input)="onVolumeChange($any($event.target).value)"
+                (input)="onVolumeChange(+$any($event.target).value)"
                 class="w-20 h-1 accent-blue-500"
               />
             </div>
@@ -163,9 +171,17 @@
 
             @if (showTime()) {
               <div class="text-xs" [class]="textClasses().time">
-                <tw-time-display [value]="currentTime()" variant="minimal"></tw-time-display>
+                <tw-time-display
+                  [value]="currentTime()"
+                  variant="minimal"
+                  [showTotal]="false"
+                ></tw-time-display>
                 <span class="mx-1">/</span>
-                <tw-time-display [value]="duration()" variant="minimal"></tw-time-display>
+                <tw-time-display
+                  [value]="duration()"
+                  variant="minimal"
+                  [showTotal]="false"
+                ></tw-time-display>
               </div>
             }
           </div>
@@ -176,7 +192,7 @@
             [buffered]="buffered()"
             [showTime]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
 
           <div class="flex items-center justify-between">
@@ -191,8 +207,8 @@
               (play)="onPlay()"
               (pause)="onPause()"
               (stop)="onStop()"
-              (skipBackward)="onSkipBackward()"
-              (skipForward)="onSkipForward()"
+              (skipPrevious)="onSkipBackward()"
+              (skipNext)="onSkipForward()"
             ></tw-transport>
 
             @if (showVolume()) {
@@ -253,7 +269,7 @@
             [showTime]="false"
             [showHoverPreview]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
         </div>
 
@@ -298,7 +314,7 @@
             [showTime]="false"
             [showHoverPreview]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
         </div>
       </div>

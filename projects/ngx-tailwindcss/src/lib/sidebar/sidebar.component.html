@@ -9,7 +9,8 @@
   [attr.aria-hidden]="!visible()"
   [attr.inert]="visible() ? null : ''"
   role="dialog"
-  aria-modal="true"
+  [attr.aria-modal]="modal() ? 'true' : null"
+  [attr.aria-label]="header() || null"
 >
   <!-- Header -->
   @if (header() || showCloseButton()) {

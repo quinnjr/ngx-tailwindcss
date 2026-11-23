@@ -7,6 +7,7 @@
         <!-- Submenu -->
         <div class="relative" (mouseenter)="onSubmenuEnter(item)" (mouseleave)="onSubmenuLeave()">
           <button
+            #submenuTrigger
             type="button"
             [class]="itemClasses(item)"
             [disabled]="item.disabled"
@@ -35,7 +36,12 @@
             </svg>
           </button>
           @if (openSubmenu() === item) {
-            <div [class]="submenuClasses()" (keydown.arrowleft)="onSubmenuLeave()">
+            <div
+              [class]="submenuClasses()"
+              (keydown.arrowleft)="
+                onSubmenuLeave(); submenuTrigger.focus(); $event.stopPropagation()
+              "
+            >
               @for (subItem of item.items; track subItem.id ?? $index) {
                 @if (subItem.visible !== false) {
                   @if (subItem.separator) {

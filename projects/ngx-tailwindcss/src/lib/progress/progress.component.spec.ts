@@ -103,6 +103,8 @@ describe('TwProgressComponent', () => {
       fixture.detectChanges();
       const bar = progressEl.querySelector('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('100%');
+      const host = progressEl.querySelector('[role="progressbar"]');
+      expect(host?.getAttribute('aria-valuenow')).toBe('100');
     });
 
     it('should not go below 0', () => {
@@ -298,6 +300,17 @@ describe('TwProgressCircularComponent', () => {
   it('should render SVG element', () => {
     const svg = progressEl.querySelector('svg');
     expect(svg).toBeTruthy();
+  });
+
+  it('should clamp aria-valuenow to the [0, max] range', () => {
+    const host = progressEl.querySelector('[role="progressbar"]')!;
+    component.value.set(150);
+    fixture.detectChanges();
+    expect(host.getAttribute('aria-valuenow')).toBe('100');
+
+    component.value.set(-5);
+    fixture.detectChanges();
+    expect(host.getAttribute('aria-valuenow')).toBe('0');
   });
 
   describe('size', () => {

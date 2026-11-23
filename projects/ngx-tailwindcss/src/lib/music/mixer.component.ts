@@ -308,10 +308,11 @@ export class TwMixerComponent {
     };
 
     // Handle linked group changes
+    let linkedChannels: MixerChannel[] = [];
     if (channel.groupId) {
       const group = this.groups().find(g => g.id === channel.groupId);
       if (group) {
-        const linkedChannels = this.applyGroupChanges(channel, updatedChannel, group);
+        linkedChannels = this.applyGroupChanges(channel, updatedChannel, group);
         if (linkedChannels.length > 0) {
           this.groupChange.emit({ groupId: group.id, channels: linkedChannels });
         }
@@ -319,7 +320,13 @@ export class TwMixerComponent {
     }
 
     this.channelChange.emit({ channel: updatedChannel, index });
-    this.emitState();
+
+    // Report the post-change state (the channels input still holds the old values)
+    const linkedById = new Map(linkedChannels.map(c => [c.id, c]));
+    const nextChannels = this.channels().map((c, i) =>
+      i === index ? updatedChannel : (linkedById.get(c.id) ?? c)
+    );
+    this.emitState(nextChannels);
   }
 
   // Apply changes to linked group members
@@ -426,9 +433,9 @@ export class TwMixerComponent {
     this.currentBreakpoint.set(bp);
   }
 
-  private emitState(): void {
+  private emitState(channels: MixerChannel[] = this.channels()): void {
     const state: MixerState = {
-      channels: this.channels(),
+      channels,
       masterVolume: this.internalMasterVolume(),
       masterMute: this.masterMute(),
       groups: this.groups(),
@@ -440,7 +447,20 @@ export class TwMixerComponent {
     this.stateChange.emit(state);
   }
 
+  // Memoized per channel object: a fresh object on every change detection would make
+  // ngModel re-write (and reset) each strip on every cycle, e.g. mid-drag.
+  private readonly channelStates = new WeakMap<MixerChannel, ChannelStripState>();
+
   protected getChannelState(channel: MixerChannel): ChannelStripState {
+    let state = this.channelStates.get(channel);
+    if (!state) {
+      state = this.buildChannelState(channel);
+      this.channelStates.set(channel, state);
+    }
+    return state;
+  }
+
+  private buildChannelState(channel: MixerChannel): ChannelStripState {
     return {
       volume: channel.volume,
       pan: channel.pan,

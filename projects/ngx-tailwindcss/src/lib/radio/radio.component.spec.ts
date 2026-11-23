@@ -346,3 +346,32 @@ describe('TwRadioGroupComponent with FormControl', () => {
     });
   });
 });
+
+@Component({
+  template: `
+    <tw-radio-group [formControl]="control">
+      <div><tw-radio-button value="a" label="A"></tw-radio-button></div>
+      <div><tw-radio-button value="b" label="B"></tw-radio-button></div>
+    </tw-radio-group>
+  `,
+  standalone: true,
+  imports: [TwRadioGroupComponent, TwRadioButtonComponent, ReactiveFormsModule],
+})
+class WrappedRadioHostComponent {
+  control = new FormControl('a');
+}
+
+describe('TwRadioGroupComponent (regressions)', () => {
+  it('should manage radio buttons nested inside wrapper elements', () => {
+    const fixture = TestBed.createComponent(WrappedRadioHostComponent);
+    fixture.detectChanges();
+    const inputs: HTMLInputElement[] = [...fixture.nativeElement.querySelectorAll('input[type="radio"]')];
+    expect(inputs[0].checked).toBe(true);
+    expect(inputs[0].name).toBeTruthy();
+    expect(inputs[0].name).toBe(inputs[1].name);
+
+    inputs[1].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toBe('b');
+  });
+});

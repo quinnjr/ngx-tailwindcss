@@ -2,7 +2,7 @@ import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { MenuItem, TwMenuComponent } from './menu.component';
+import { MenuItem, TwContextMenuComponent, TwMenuComponent } from './menu.component';
 import { TwClassService } from '../core/tw-class.service';
 
 @Component({
@@ -205,5 +205,68 @@ describe('TwMenuComponent', () => {
       expect(parent.getAttribute('aria-expanded')).toBe('true');
       expect(menuItems().length).toBe(2);
     });
+
+    it('should close the submenu on ArrowLeft and return focus to its trigger', () => {
+      const parent = menuItems()[0];
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      const child = menuItems()[1];
+      child.focus();
+      child.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+  });
+});
+
+@Component({
+  template: `
+    <div class="target" (contextmenu)="cm.show($event)">Right-click me</div>
+    <tw-context-menu #cm [items]="items" (onHide)="hideCount = hideCount + 1"></tw-context-menu>
+  `,
+  standalone: true,
+  imports: [TwContextMenuComponent],
+})
+class ContextMenuHostComponent {
+  items: MenuItem[] = [{ label: 'Copy' }, { label: 'Paste' }];
+  hideCount = 0;
+}
+
+describe('TwContextMenuComponent', () => {
+  let fixture: ComponentFixture<ContextMenuHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ContextMenuHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ContextMenuHostComponent);
+    fixture.detectChanges();
+  });
+
+  const openMenu = () => {
+    const target = fixture.nativeElement.querySelector('.target') as HTMLElement;
+    target.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 })
+    );
+    fixture.detectChanges();
+  };
+
+  it('should stay open after the contextmenu event bubbles to the document', () => {
+    openMenu();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeTruthy();
+    expect(fixture.componentInstance.hideCount).toBe(0);
+  });
+
+  it('should hide on a later document click', () => {
+    openMenu();
+    document.body.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.hideCount).toBe(1);
   });
 });

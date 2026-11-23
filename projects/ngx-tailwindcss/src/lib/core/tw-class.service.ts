@@ -87,7 +87,13 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   ],
   [/^border-/, 'border-color'],
   [/^rounded(-|$)/, 'border-radius'],
-  [/^ring-/, 'ring'],
+  // Ring width, offset and color are distinct utilities that are used together
+  // (e.g. `focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500`)
+  [/^ring(?:$|-\d+$|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'ring-width'],
+  [/^ring-inset$/, 'ring-inset'],
+  [/^ring-offset-(?:\d+$|\[\d[^\]]*(?:px|rem|em)\]$)/, 'ring-offset-width'],
+  [/^ring-offset-/, 'ring-offset-color'],
+  [/^ring-/, 'ring-color'],
 
   // Effects
   [/^shadow(-|$)/, 'shadow'],

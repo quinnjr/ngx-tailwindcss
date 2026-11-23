@@ -92,9 +92,9 @@
         <!-- Fader Cap/Thumb (Professional styling) -->
         <div
           class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all"
-          [class.cursor-grab]="!disabled()"
-          [class.cursor-not-allowed]="disabled()"
-          [class.active:cursor-grabbing]="!disabled()"
+          [class.cursor-grab]="!isDisabled()"
+          [class.cursor-not-allowed]="isDisabled()"
+          [class.active:cursor-grabbing]="!isDisabled()"
           [style.left.%]="thumbPosition()"
         >
           <!-- Outer Cap Body -->
@@ -102,7 +102,7 @@
             class="relative w-5 h-7 rounded-sm shadow-lg transition-transform"
             [class.scale-105]="isDragging()"
             [class]="
-              disabled()
+              isDisabled()
                 ? 'bg-slate-600'
                 : 'bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500 dark:from-slate-500 dark:via-slate-600 dark:to-slate-700'
             "
@@ -297,7 +297,7 @@
           [step]="step()"
           [value]="internalValue()"
           (input)="onWidthSliderChange($event)"
-          [disabled]="disabled()"
+          [disabled]="isDisabled()"
           class="absolute inset-0 w-full opacity-0 cursor-pointer"
           [attr.aria-label]="'Stereo width: ' + internalValue() + '%'"
         />
@@ -305,13 +305,13 @@
         <!-- Width Control Slider Cap -->
         <div
           class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 transition-all"
-          [class.cursor-ew-resize]="!disabled()"
+          [class.cursor-ew-resize]="!isDisabled()"
         >
           <div
             class="w-8 h-6 rounded-sm shadow-lg transition-transform"
             [class.scale-105]="isDragging()"
             [class]="
-              disabled()
+              isDisabled()
                 ? 'bg-slate-600'
                 : 'bg-gradient-to-b from-slate-400 via-slate-500 to-slate-600 dark:from-slate-500 dark:via-slate-600 dark:to-slate-700'
             "

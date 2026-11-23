@@ -92,7 +92,8 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     const shiftPressed = keyEvent.shiftKey;
     const metaPressed = keyEvent.metaKey;
 
-    const keyMatches = keyEvent.key.toLowerCase() === key || keyEvent.code.toLowerCase() === key;
+    // Synthetic keydown events (e.g. Chrome autofill) carry no key/code
+    const keyMatches = keyEvent.key?.toLowerCase() === key || keyEvent.code?.toLowerCase() === key;
 
     const modifiersMatch =
       ctrlRequired === ctrlPressed &&

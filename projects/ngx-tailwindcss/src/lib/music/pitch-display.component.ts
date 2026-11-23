@@ -5,14 +5,12 @@ import {
   DestroyRef,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
-  OnInit,
   output,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
 
 export type PitchDisplayVariant =
   'default' | 'minimal' | 'digital' | 'wheel' | 'dj' | 'light' | 'highContrast';
@@ -61,7 +59,7 @@ export const PITCH_PRESETS = {
     class: 'inline-block',
   },
 })
-export class TwPitchDisplayComponent implements OnInit {
+export class TwPitchDisplayComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   // Expose Math for template use
@@ -100,34 +98,25 @@ export class TwPitchDisplayComponent implements OnInit {
   readonly pitchBendChange = output<number>();
   readonly keyLockChange = output<boolean>();
 
-  // Internal state
-  protected readonly internalSemitones = signal(0);
-  protected readonly internalCents = signal(0);
-  protected readonly internalPitchBend = signal(0);
-  protected readonly internalKeyLock = signal(false);
+  // Internal state: seeded by (and reset whenever) the matching input changes,
+  // but otherwise keeps local edits. Previously a 100ms poll overwrote local
+  // edits with the input value (and kept SSR from ever becoming stable).
+  protected readonly internalSemitones = linkedSignal(() => this.semitones());
+  protected readonly internalCents = linkedSignal(() => this.cents());
+  protected readonly internalPitchBend = linkedSignal(() => this.pitchBend());
+  protected readonly internalKeyLock = linkedSignal(() => this.keyLock());
   protected readonly isDragging = signal(false);
 
+  private dragStartX = 0;
   private dragStartY = 0;
   private dragStartValue = 0;
+  private dragAxis: 'x' | 'y' = 'y';
 
-  ngOnInit(): void {
-    // Sync initial values
-    this.internalSemitones.set(this.semitones());
-    this.internalCents.set(this.cents());
-    this.internalPitchBend.set(this.pitchBend());
-    this.internalKeyLock.set(this.keyLock());
-
-    // Update internal state when inputs change
-    interval(100)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        if (!this.isDragging()) {
-          this.internalSemitones.set(this.semitones());
-          this.internalCents.set(this.cents());
-          this.internalPitchBend.set(this.pitchBend());
-          this.internalKeyLock.set(this.keyLock());
-        }
-      });
+  constructor() {
+    // Remove document drag listeners if destroyed mid-drag
+    this.destroyRef.onDestroy(() => {
+      this.removeDragListeners();
+    });
   }
 
   // Computed values
@@ -178,11 +167,9 @@ export class TwPitchDisplayComponent implements OnInit {
 
   // Pitch as percentage (for DJ displays)
   protected readonly pitchPercentage = computed(() => {
-    const totalCents = this.totalCents();
-    // 100 cents = 1 semitone, 1200 cents = 1 octave = ~100% (for reference)
-    // In DJ terms, typically shown as +/- 8%, 16%, etc. from original pitch
-    const percentage = (totalCents / 1200) * 100;
-    return percentage;
+    // DJ pitch % is the change in playback rate: (ratio - 1) * 100,
+    // e.g. +1 semitone = +5.95%, -12 semitones = -50%
+    return (this.frequencyRatio() - 1) * 100;
   });
 
   protected readonly pitchPercentageDisplay = computed(() => {
@@ -277,18 +264,83 @@ export class TwPitchDisplayComponent implements OnInit {
   protected onPitchWheelDragStart(event: MouseEvent | TouchEvent): void {
     if (this.disabled()) return;
     this.isDragging.set(true);
-    this.dragStartY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    const point = 'touches' in event ? event.touches[0] : event;
+    this.dragStartX = point.clientX;
+    this.dragStartY = point.clientY;
     this.dragStartValue = this.internalPitchBend();
+    // The horizontal slider follows horizontal movement; the others vertical
+    this.dragAxis = this.pitchBendStyle() === 'horizontal' ? 'x' : 'y';
 
+    this.removeDragListeners();
     document.addEventListener('mousemove', this.onPitchWheelDrag);
     document.addEventListener('mouseup', this.onPitchWheelDragEnd);
     document.addEventListener('touchmove', this.onPitchWheelDrag);
     document.addEventListener('touchend', this.onPitchWheelDragEnd);
   }
 
+  /** Keyboard control for the focusable pitch bend slider */
+  protected onPitchWheelKeydown(event: KeyboardEvent): void {
+    if (this.disabled()) return;
+
+    const step = event.shiftKey ? 0.25 : 0.05;
+    const current = this.internalPitchBend();
+    let next: number;
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'ArrowRight': {
+        next = current + step;
+        break;
+      }
+      case 'ArrowDown':
+      case 'ArrowLeft': {
+        next = current - step;
+        break;
+      }
+      case 'PageUp': {
+        next = current + 0.25;
+        break;
+      }
+      case 'PageDown': {
+        next = current - 0.25;
+        break;
+      }
+      case 'Home': {
+        next = -1;
+        break;
+      }
+      case 'End': {
+        next = 1;
+        break;
+      }
+      case 'Escape':
+      case 'Delete':
+      case 'Backspace': {
+        next = 0;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    // Round off float drift from repeated steps
+    this.setPitchBend(Math.round(next * 1000) / 1000);
+  }
+
+  private removeDragListeners(): void {
+    document.removeEventListener('mousemove', this.onPitchWheelDrag);
+    document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
+    document.removeEventListener('touchmove', this.onPitchWheelDrag);
+    document.removeEventListener('touchend', this.onPitchWheelDragEnd);
+  }
+
   private readonly onPitchWheelDrag = (event: MouseEvent | TouchEvent): void => {
-    const currentY = 'touches' in event ? event.touches[0].clientY : event.clientY;
-    const delta = (this.dragStartY - currentY) / 100; // Normalize
+    const point = 'touches' in event ? event.touches[0] : event;
+    if (!point) return;
+    const delta =
+      this.dragAxis === 'x'
+        ? (point.clientX - this.dragStartX) / 100
+        : (this.dragStartY - point.clientY) / 100; // Normalize
     const newValue = this.applyBendSnap(Math.max(-1, Math.min(1, this.dragStartValue + delta)));
     if (newValue === this.internalPitchBend()) return;
     this.internalPitchBend.set(newValue);
@@ -312,10 +364,7 @@ export class TwPitchDisplayComponent implements OnInit {
       this.pitchBendChange.emit(0);
     }
 
-    document.removeEventListener('mousemove', this.onPitchWheelDrag);
-    document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
-    document.removeEventListener('touchmove', this.onPitchWheelDrag);
-    document.removeEventListener('touchend', this.onPitchWheelDragEnd);
+    this.removeDragListeners();
   };
 
   protected toggleKeyLock(): void {

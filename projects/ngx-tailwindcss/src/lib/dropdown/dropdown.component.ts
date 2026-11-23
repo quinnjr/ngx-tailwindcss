@@ -140,10 +140,13 @@ export class TwDropdownComponent implements OnDestroy {
   private portalHost: HTMLElement | null = null;
   private portalElement: HTMLElement | null = null;
   private menuContentElement: HTMLElement | null = null;
+  /** Original (hidden) parent of the menu content, restored on close */
+  private menuContentParent: HTMLElement | null = null;
   private clickOutsideListener: (() => void) | null = null;
   private scrollListener: (() => void) | null = null;
   private resizeListener: (() => void) | null = null;
   private keydownListener: (() => void) | null = null;
+  private escapeListener: ((event: KeyboardEvent) => void) | null = null;
   private menuClickListener: (() => void) | null = null;
 
   protected menuClasses = computed(() => {
@@ -289,6 +292,7 @@ export class TwDropdownComponent implements OnDestroy {
     // Move menu content to portal (not clone, to preserve Angular bindings)
     this.menuContentElement = this.elementRef.nativeElement.querySelector('tw-dropdown-menu');
     if (this.menuContentElement) {
+      this.menuContentParent = this.menuContentElement.parentElement;
       this.renderer.appendChild(this.portalElement, this.menuContentElement);
     }
 
@@ -323,13 +327,18 @@ export class TwDropdownComponent implements OnDestroy {
       this.updatePosition();
     });
 
-    this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
+    // Escape is handled in the capture phase and stopped there, so only this (topmost)
+    // layer closes and an enclosing modal/sidebar listening on document stays open
+    this.escapeListener = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
+        event.stopImmediatePropagation();
         this.close();
-        return;
       }
+    };
+    this.document.addEventListener('keydown', this.escapeListener, true);
 
+    this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
         this.moveItemFocus(event.key);
@@ -355,11 +364,16 @@ export class TwDropdownComponent implements OnDestroy {
   }
 
   private destroyPortal(): void {
-    // Move menu content back to original location before destroying portal
-    if (this.menuContentElement && this.elementRef.nativeElement) {
-      this.renderer.appendChild(this.elementRef.nativeElement, this.menuContentElement);
+    // Move menu content back to its original (hidden) container before destroying
+    // the portal; appending to the host would leave the menu items visible inline
+    if (this.menuContentElement) {
+      this.renderer.appendChild(
+        this.menuContentParent ?? this.elementRef.nativeElement,
+        this.menuContentElement
+      );
     }
     this.menuContentElement = null;
+    this.menuContentParent = null;
 
     if (this.portalHost && this.document.body.contains(this.portalHost)) {
       this.renderer.removeChild(this.document.body, this.portalHost);
@@ -382,6 +396,10 @@ export class TwDropdownComponent implements OnDestroy {
     if (this.keydownListener) {
       this.keydownListener();
       this.keydownListener = null;
+    }
+    if (this.escapeListener) {
+      this.document.removeEventListener('keydown', this.escapeListener, true);
+      this.escapeListener = null;
     }
     if (this.menuClickListener) {
       this.menuClickListener();

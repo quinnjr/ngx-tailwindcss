@@ -20,6 +20,15 @@ interface KeySignatureInfo {
   positions: number[]; // Line positions for accidentals
 }
 
+// Key signature positions above are for treble clef; shift (in half-spaces) for other clefs
+const KEY_SIGNATURE_CLEF_OFFSETS: Record<ClefType, number> = {
+  treble: 0,
+  bass: 2,
+  alto: 1,
+  tenor: -1,
+  percussion: 0,
+};
+
 const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   C: { sharps: 0, flats: 0, positions: [] },
   G: { sharps: 1, flats: 0, positions: [0] }, // F#
@@ -35,7 +44,7 @@ const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   Ab: { sharps: 0, flats: 4, positions: [4, 1, 5, 2] },
   Db: { sharps: 0, flats: 5, positions: [4, 1, 5, 2, 6] },
   Gb: { sharps: 0, flats: 6, positions: [4, 1, 5, 2, 6, 3] },
-  Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 0] },
+  Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 7] },
 };
 
 // SVG paths for musical symbols
@@ -221,6 +230,11 @@ export class TwStaffComponent {
       y: top + pos * (spacing / 2),
       type: isSharp ? 'sharp' : 'flat',
     }));
+  });
+
+  // Vertical shift of the key signature for the main staff's clef
+  protected readonly keySignatureClefOffset = computed(() => {
+    return KEY_SIGNATURE_CLEF_OFFSETS[this.clef()] * (this.lineSpacing() / 2);
   });
 
   protected readonly timeSignaturePosition = computed(() => {

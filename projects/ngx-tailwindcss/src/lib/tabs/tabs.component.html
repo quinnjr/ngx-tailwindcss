@@ -6,9 +6,9 @@
         #tabButton
         type="button"
         [class]="getTabClasses(panel)"
-        [id]="'tab-' + panel.value()"
+        [id]="tabId(panel)"
         [attr.aria-selected]="panel.active()"
-        [attr.aria-controls]="'panel-' + panel.value()"
+        [attr.aria-controls]="panelDomId(panel)"
         [attr.tabindex]="panel.active() ? 0 : -1"
         [disabled]="panel.disabled()"
         role="tab"

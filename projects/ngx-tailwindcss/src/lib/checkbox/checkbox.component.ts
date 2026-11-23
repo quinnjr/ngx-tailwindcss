@@ -5,6 +5,7 @@ import {
   forwardRef,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -74,6 +75,8 @@ export class TwCheckboxComponent implements ControlValueAccessor {
 
   // Internal state
   protected readonly checked = signal(false);
+  /** Mixed state: follows the `indeterminate` input, cleared when the user toggles the box */
+  protected readonly isIndeterminate = linkedSignal(() => this.indeterminate());
   /** Disabled state set through the forms API (setDisabledState) */
   private readonly _disabled = signal(false);
 
@@ -113,12 +116,19 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   });
 
   onCheckboxChange(event: Event): void {
-    if (this.isDisabled() || this.readonly()) return;
-
     const inputElement = event.target as HTMLInputElement;
+
+    if (this.isDisabled() || this.readonly()) {
+      // The browser already toggled the native input; restore the model state
+      inputElement.checked = this.checked();
+      inputElement.indeterminate = this.isIndeterminate();
+      return;
+    }
+
     const isChecked = inputElement.checked;
 
     this.checked.set(isChecked);
+    this.isIndeterminate.set(false);
     this.onChangeFn(isChecked);
     this.onChange.emit({ checked: isChecked, value: this.value() });
   }
@@ -149,6 +159,7 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   toggle(): void {
     if (!this.isDisabled() && !this.readonly()) {
       this.checked.set(!this.checked());
+      this.isIndeterminate.set(false);
       this.onChangeFn(this.checked());
       this.onChange.emit({ checked: this.checked(), value: this.value() });
     }

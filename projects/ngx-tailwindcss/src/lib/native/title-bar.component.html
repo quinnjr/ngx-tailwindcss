@@ -2,7 +2,7 @@
   class="tw-title-bar-drag"
   [class]="containerClasses()"
   [style.height.px]="height()"
-  (dblclick)="onDoubleClick()"
+  (dblclick)="onDoubleClick($event)"
 >
   <!-- Left section (macOS controls + icon/title on Windows/Linux) -->
   <div class="flex items-center gap-2 min-w-0 tw-title-bar-no-drag">

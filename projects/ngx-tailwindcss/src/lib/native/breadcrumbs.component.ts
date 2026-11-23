@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface NativeBreadcrumbItem {
@@ -37,6 +45,8 @@ export interface NativeBreadcrumbItem {
   },
 })
 export class TwBreadcrumbsNavComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   // Inputs
   public readonly items = input<NativeBreadcrumbItem[]>([]);
   public readonly showHome = input(true);
@@ -71,7 +81,8 @@ export class TwBreadcrumbsNavComponent {
 
     // Focus input after render
     setTimeout(() => {
-      const inputEl = document.querySelector<HTMLInputElement>('.tw-breadcrumbs-nav input');
+      // Scope to this instance; a document-wide query would hit the first breadcrumbs on the page
+      const inputEl = this.elementRef.nativeElement.querySelector<HTMLInputElement>('input');
       inputEl?.focus();
       inputEl?.select();
     }, 0);

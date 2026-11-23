@@ -93,7 +93,7 @@
   </div>
 
   <!-- Log entries -->
-  <div class="flex-1 overflow-y-auto">
+  <div class="flex-1 overflow-y-auto" #scrollContainer>
     @if (filteredEntries().length === 0) {
       <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
         @if (entries().length === 0) {

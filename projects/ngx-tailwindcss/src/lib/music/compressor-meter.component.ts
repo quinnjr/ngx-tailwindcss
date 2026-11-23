@@ -10,10 +10,11 @@ import {
   OnDestroy,
   OnInit,
   output,
+  PLATFORM_ID,
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 
@@ -73,6 +74,7 @@ export const AR_TIME_PRESETS = {
 })
 export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly platformId = inject(PLATFORM_ID);
 
   // Expose Math for template use
   protected readonly Math = Math;
@@ -145,8 +147,13 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   private ctx: CanvasRenderingContext2D | null = null;
   private grHistoryCtx: CanvasRenderingContext2D | null = null;
   private envelopeCtx: CanvasRenderingContext2D | null = null;
+  // Envelope position captured when the release phase began
+  private releaseStartPosition = 0;
 
   ngOnInit(): void {
+    // A never-ending interval would keep SSR from ever becoming stable
+    if (!isPlatformBrowser(this.platformId)) return;
+
     // Update internal values periodically
     interval(50)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -182,6 +189,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       // Ending compression (release phase)
       this.isCompressing.set(false);
       this.releaseStartTime.set(now);
+      this.releaseStartPosition = this.envelopePosition();
     }
 
     // Update envelope position for visualization
@@ -218,12 +226,12 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Check for clipping
-    if (inputLevel >= 0) {
+    // Check for clipping: emit once per clip event (until reset), not on every tick
+    if (inputLevel >= 0 && !this.inputClip()) {
       this.inputClip.set(true);
       this.clipInput.emit();
     }
-    if (outputLevel >= 0) {
+    if (outputLevel >= 0 && !this.outputClip()) {
       this.outputClip.set(true);
       this.clipOutput.emit();
     }
@@ -252,9 +260,9 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       // Release phase - gradual fall
       const elapsed = now - this.releaseStartTime();
       const releaseProgress = Math.min(1, elapsed / settings.release);
-      // Exponential release curve
-      const startPos = this.envelopePosition();
-      this.envelopePosition.set(startPos * Math.exp(-3 * releaseProgress));
+      // Exponential release curve, decaying from the level at release start
+      // (not compounded on every tick)
+      this.envelopePosition.set(this.releaseStartPosition * Math.exp(-3 * releaseProgress));
     }
   }
 

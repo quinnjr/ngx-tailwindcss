@@ -107,7 +107,9 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   private beatTimestamps: number[] = [];
   private lastBeatTime = 0;
   private beatFlashIntensity = 0;
-  private beatRingRadius = 0;
+  // Start "expired" so no ring animates before the first detected beat
+  private beatRingRadius = Number.POSITIVE_INFINITY;
+  private beatResetTimer: ReturnType<typeof setTimeout> | null = null;
   private beatPulseScale = 1;
 
   protected readonly containerClasses = computed(() => {
@@ -138,6 +140,10 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+    }
+    if (this.beatResetTimer) {
+      clearTimeout(this.beatResetTimer);
+      this.beatResetTimer = null;
     }
   }
 
@@ -388,7 +394,11 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
         });
 
         // Reset beat active after short delay
-        setTimeout(() => {
+        if (this.beatResetTimer) {
+          clearTimeout(this.beatResetTimer);
+        }
+        this.beatResetTimer = setTimeout(() => {
+          this.beatResetTimer = null;
           this.isBeatActive.set(false);
         }, 100);
       });
@@ -511,9 +521,24 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   private drawBeatParticles(): void {
     if (!this.ctx) return;
 
+    const width = this.width();
+    const height = this.height();
+
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i] as BeatParticle;
       if (!p.isBeatParticle) continue;
+
+      // Beat particles are animated here (not in drawParticles) so they move,
+      // fade and get removed regardless of the active variant.
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.02;
+      p.size *= 0.98;
+
+      if (p.life <= 0 || p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
+        this.particles.splice(i, 1);
+        continue;
+      }
 
       // Draw with glow effect
       const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
@@ -699,6 +724,8 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     // Update and draw particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
+      // Beat particles are animated and drawn by drawBeatParticles()
+      if ((p as BeatParticle).isBeatParticle) continue;
 
       p.x += p.vx;
       p.y += p.vy;

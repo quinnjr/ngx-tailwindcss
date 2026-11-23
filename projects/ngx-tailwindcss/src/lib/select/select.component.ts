@@ -170,9 +170,17 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     return this.options().filter(opt => opt.label.toLowerCase().includes(filterVal));
   });
 
+  /** Options reachable by keyboard, in display order (flattened across groups) */
+  protected navigableOptions = computed(() => {
+    if (this.groups().length > 0) {
+      return this.filteredGroups().flatMap(g => g.options);
+    }
+    return this.filteredOptions();
+  });
+
   protected activeDescendantId = computed(() => {
     const index = this.activeIndex();
-    if (!this.isOpen() || index < 0 || index >= this.filteredOptions().length) return null;
+    if (!this.isOpen() || index < 0 || index >= this.navigableOptions().length) return null;
     return `${this.listboxId}-option-${index}`;
   });
 
@@ -273,6 +281,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     this.detachPositionListeners();
   }
 
+  /** Index of an option within navigableOptions(), used for option ids and active state */
+  protected optionIndex(option: SelectOption): number {
+    return this.navigableOptions().indexOf(option);
+  }
+
   isSelected(option: SelectOption): boolean {
     return option.value === this.selectedValue();
   }
@@ -311,7 +324,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case ' ': {
         event.preventDefault();
         if (this.isOpen() && event.key === 'Enter') {
-          const active = this.filteredOptions()[this.activeIndex()];
+          const active = this.navigableOptions()[this.activeIndex()];
           if (active) {
             this.selectOption(active);
             break;
@@ -343,15 +356,46 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case 'Home': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.filteredOptions().length > 0 ? 0 : -1);
+          this.activeIndex.set(this.navigableOptions().length > 0 ? 0 : -1);
         }
         break;
       }
       case 'End': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.filteredOptions().length - 1);
+          this.activeIndex.set(this.navigableOptions().length - 1);
         }
+        break;
+      }
+    }
+  }
+
+  /** Keyboard handling while focus is in the filter input */
+  onFilterKeydown(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'ArrowDown': {
+        event.preventDefault();
+        this.moveActiveIndex(1);
+        break;
+      }
+      case 'ArrowUp': {
+        event.preventDefault();
+        this.moveActiveIndex(-1);
+        break;
+      }
+      case 'Enter': {
+        event.preventDefault();
+        const active = this.navigableOptions()[this.activeIndex()];
+        if (active && !active.disabled) {
+          this.selectOption(active);
+          this.triggerButton?.nativeElement.focus();
+        }
+        break;
+      }
+      case 'Escape': {
+        event.preventDefault();
+        this.closeDropdown();
+        this.triggerButton?.nativeElement.focus();
         break;
       }
     }
@@ -374,7 +418,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     this.activeIndex.set(
       Math.max(
         0,
-        this.filteredOptions().findIndex(option => this.isSelected(option))
+        this.navigableOptions().findIndex(option => this.isSelected(option))
       )
     );
     this.updateDropdownPosition();
@@ -396,7 +440,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private moveActiveIndex(delta: number): void {
-    const options = this.filteredOptions();
+    const options = this.navigableOptions();
     if (options.length === 0) return;
 
     let index = this.activeIndex();

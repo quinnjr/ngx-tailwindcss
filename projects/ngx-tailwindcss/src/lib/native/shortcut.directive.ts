@@ -9,6 +9,7 @@ import {
   OnInit,
   output,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { NativeAppPlatformService } from './platform.service';
 import { KeyboardShortcut } from './native.types';
 
@@ -29,6 +30,7 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
   private readonly ngZone = inject(NgZone);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly document = inject(DOCUMENT);
 
   // Inputs
   public readonly twShortcut = input.required<string>();
@@ -50,7 +52,7 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     const target: HTMLElement | Document = this.shortcutGlobal()
-      ? document
+      ? this.document
       : this.elementRef.nativeElement;
     this.listenerTarget = target;
     this.ngZone.runOutsideAngular(() => {
@@ -199,6 +201,12 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
 
     // Check key
     const eventKey = event.key.length === 1 ? event.key.toUpperCase() : event.key;
-    return eventKey === shortcut.key;
+    if (eventKey === shortcut.key) return true;
+
+    // Modifiers such as Option (macOS) or AltGr change `event.key` (e.g. Option+S
+    // yields 'ß'), so fall back to the physical key code for letters and digits.
+    if (/^[A-Z]$/.test(shortcut.key)) return event.code === `Key${shortcut.key}`;
+    if (/^\d$/.test(shortcut.key)) return event.code === `Digit${shortcut.key}`;
+    return false;
   }
 }

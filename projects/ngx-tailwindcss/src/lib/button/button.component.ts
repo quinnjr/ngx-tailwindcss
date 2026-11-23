@@ -106,10 +106,10 @@ const SPINNER_SIZES: Record<ButtonSize, string> = {
   hostDirectives: [TwRippleDirective],
   host: {
     '[class]': 'computedClasses()',
-    '[attr.disabled]': 'isDisabled() || null',
+    '[attr.disabled]': 'hostDisabledAttr()',
     '[attr.aria-disabled]': 'isDisabled()',
     '[attr.aria-busy]': '_loading()',
-    role: 'button',
+    '[attr.role]': 'hostRole',
     '[attr.tabindex]': 'isDisabled() ? -1 : 0',
     '[style.display]': '"inline-flex"',
     '[style.position]': '"relative"',
@@ -202,6 +202,14 @@ export class TwButtonComponent {
 
   protected readonly spinnerSizeClass = computed(() => SPINNER_SIZES[this._size()]);
 
+  /** Host role; overridden by subclasses whose host already has native semantics */
+  protected readonly hostRole: string | null = 'button';
+
+  /** Host `disabled` attribute; overridden by subclasses where it is not valid */
+  protected hostDisabledAttr(): true | null {
+    return this.isDisabled() || null;
+  }
+
   constructor() {
     // Sync ripple directive state
     effect(() => {
@@ -271,6 +279,13 @@ export class TwButtonComponent {
   },
 })
 export class TwButtonLinkComponent extends TwButtonComponent {
+  // Keep native link semantics: no role="button" and no (invalid) disabled attribute on <a>
+  protected override readonly hostRole = null;
+
+  protected override hostDisabledAttr(): null {
+    return null;
+  }
+
   @HostBinding('style.pointer-events')
   get pointerEvents(): string | null {
     return this._disabled() ? 'none' : null;

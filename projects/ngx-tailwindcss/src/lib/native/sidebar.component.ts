@@ -4,8 +4,8 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   output,
-  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NativeSidebarPosition, NativeSidebarVariant, SidebarItem } from './native.types';
@@ -57,8 +57,9 @@ export class TwSidebarNavComponent {
   public readonly itemExpand = output<SidebarItem>();
   public readonly collapsedChange = output<boolean>();
 
-  // Internal state
-  private readonly _collapsed = signal(false);
+  // Internal state: follows the `collapsed` input but can be toggled locally,
+  // so the collapse button works without a parent binding.
+  protected readonly isCollapsed = linkedSignal(() => this.collapsed());
 
   // Computed classes
   protected readonly containerClasses = computed(() => {
@@ -86,13 +87,17 @@ export class TwSidebarNavComponent {
   });
 
   protected getItemClasses(item: SidebarItem, depth: number): string {
-    const paddingLeft = this.collapsed() ? 'px-3' : `pl-${3 + depth * 3}`;
-    return `py-2 pr-3 ${paddingLeft}`;
+    return this.isCollapsed() ? 'py-2 px-3' : 'py-2 pr-3';
+  }
+
+  /** Depth-based indent (rem); dynamic `pl-*` classes are invisible to Tailwind's scanner */
+  protected getItemIndent(depth: number): number | null {
+    return this.isCollapsed() ? null : 0.75 + depth * 0.75;
   }
 
   protected toggleCollapse(): void {
-    const newValue = !this.collapsed();
-    this._collapsed.set(newValue);
+    const newValue = !this.isCollapsed();
+    this.isCollapsed.set(newValue);
     this.collapsedChange.emit(newValue);
   }
 

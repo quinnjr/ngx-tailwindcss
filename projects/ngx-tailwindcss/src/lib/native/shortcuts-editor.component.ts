@@ -145,7 +145,8 @@ export class TwShortcutsEditorComponent {
   }
 
   private findConflict(keys: string[]): ShortcutBinding | null {
-    const keysStr = keys.sort().join('+');
+    // Sort a copy: sorting in place would reorder the recorded keys
+    const keysStr = [...keys].sort().join('+');
     const editingId = this.editingId();
 
     return (

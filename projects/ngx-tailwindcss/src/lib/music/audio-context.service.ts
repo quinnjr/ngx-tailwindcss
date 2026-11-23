@@ -101,6 +101,16 @@ export class AudioContextService implements OnDestroy {
   private readonly elementSourceIds = new WeakMap<HTMLMediaElement, string>();
   private readonly sourceElements = new Map<string, HTMLMediaElement>();
 
+  // A media element can be wrapped by createMediaElementSource() only once per
+  // AudioContext (a second call throws InvalidStateError), and once wrapped its
+  // output is routed exclusively through the graph. Cache the node so an
+  // element can be reconnected after disconnectSource().
+  private mediaElementNodes = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+
+  // Streams opened by the service itself (connectMicrophone) that must be
+  // stopped when their source is disconnected so the microphone is released.
+  private readonly ownedStreams = new Map<string, MediaStream>();
+
   /** Current audio context state */
   readonly state = this._state.asReadonly();
 
@@ -173,6 +183,10 @@ export class AudioContextService implements OnDestroy {
       this.disconnectAll();
       await this._audioContext.close();
       this._audioContext = null;
+      // Worklet modules and media element nodes belong to the closed context;
+      // a new context created by getContext() must load/create them again.
+      this._workletModules.set(new Map());
+      this.mediaElementNodes = new WeakMap();
       this._state.set('closed');
     }
   }
@@ -219,7 +233,8 @@ export class AudioContextService implements OnDestroy {
     }
 
     const id = this.generateSourceId('element');
-    const source = ctx.createMediaElementSource(element);
+    const source = this.mediaElementNodes.get(element) ?? ctx.createMediaElementSource(element);
+    this.mediaElementNodes.set(element, source);
     const analyser = this.createAnalyser(config);
     const gain = ctx.createGain();
 
@@ -310,7 +325,14 @@ export class AudioContextService implements OnDestroy {
    */
   async connectMicrophone(config: AudioNodeConfig = {}): Promise<ConnectedSource> {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    return this.connectMediaStream(stream, config);
+    try {
+      const source = await this.connectMediaStream(stream, config);
+      this.ownedStreams.set(source.id, stream);
+      return source;
+    } catch (error) {
+      for (const track of stream.getTracks()) track.stop();
+      throw error;
+    }
   }
 
   // =========================================================================
@@ -691,6 +713,12 @@ export class AudioContextService implements OnDestroy {
     if (element) {
       this.elementSourceIds.delete(element);
       this.sourceElements.delete(id);
+    }
+
+    const stream = this.ownedStreams.get(id);
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      this.ownedStreams.delete(id);
     }
   }
 

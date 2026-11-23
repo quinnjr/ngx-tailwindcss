@@ -10,6 +10,7 @@ import {
   Input,
   input,
   model,
+  OnDestroy,
   output,
   PLATFORM_ID,
   TemplateRef,
@@ -47,7 +48,7 @@ const SIDEBAR_SIZES: Record<SidebarPosition, Record<SidebarSize, string>> = {
     '[class]': '"contents"',
   },
 })
-export class TwSidebarComponent {
+export class TwSidebarComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly platformId = inject(PLATFORM_ID);
 
@@ -210,7 +211,7 @@ export class TwSidebarComponent {
   private applyShowEffects(): void {
     this.onShow.emit();
 
-    if (this.modal() && isPlatformBrowser(this.platformId)) {
+    if (this.modal() && this.previousBodyOverflow === null && isPlatformBrowser(this.platformId)) {
       this.previousBodyOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
     }
@@ -218,9 +219,18 @@ export class TwSidebarComponent {
 
   private applyHideEffects(): void {
     this.onHide.emit();
+    this.releaseScrollLock();
+  }
 
-    if (this.modal() && isPlatformBrowser(this.platformId)) {
-      document.body.style.overflow = this.previousBodyOverflow ?? '';
+  ngOnDestroy(): void {
+    // Destroyed while open (e.g. route change): don't leave the page scroll-locked
+    this.releaseScrollLock();
+  }
+
+  /** Restores body overflow only if this sidebar locked it. */
+  private releaseScrollLock(): void {
+    if (this.previousBodyOverflow !== null && isPlatformBrowser(this.platformId)) {
+      document.body.style.overflow = this.previousBodyOverflow;
       this.previousBodyOverflow = null;
     }
   }

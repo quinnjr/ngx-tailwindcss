@@ -84,6 +84,8 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
   } = options;
 
   const inputLength = frequencyData.length;
+  // Number of input FFT bins averaged into each output bin (linear mode)
+  const step = Math.max(1, Math.floor(inputLength / outputBins));
   let processedData: number[];
 
   if (logarithmic) {
@@ -102,7 +104,6 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
     }
   } else {
     // Linear scaling with optional downsampling
-    const step = Math.max(1, Math.floor(inputLength / outputBins));
     processedData = Array.from<number>({ length: outputBins });
 
     for (let i = 0; i < outputBins; i++) {
@@ -161,7 +162,8 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
         Math.log(minFrequency) +
           (dominantBin / outputBins) * (Math.log(maxFrequency) - Math.log(minFrequency))
       )
-    : (dominantBin * sampleRate) / fftSize;
+    : // Output bin i averages input bins [i*step, (i+1)*step); use its center
+      ((dominantBin * step + (step - 1) / 2) * sampleRate) / fftSize;
 
   return {
     processedData,

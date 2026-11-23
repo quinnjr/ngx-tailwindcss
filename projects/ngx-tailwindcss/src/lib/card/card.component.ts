@@ -271,6 +271,9 @@ export class TwCardComponent {
   protected onKeydown(event: KeyboardEvent): void {
     if (!this.clickable()) return;
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    // Ignore keys from focusable descendants (inputs, buttons) so typing a space
+    // or pressing Enter inside them is not swallowed and does not click the card
+    if (event.target !== this.elementRef.nativeElement) return;
 
     event.preventDefault();
     (this.elementRef.nativeElement as HTMLElement).click();

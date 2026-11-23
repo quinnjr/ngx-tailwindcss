@@ -86,6 +86,31 @@ const NASHVILLE_MAP: Record<string, Record<string, string>> = {
   'F#': { 'F#': '1', 'G#m': '2m', 'A#m': '3m', B: '4', 'C#': '5', 'D#m': '6m', 'E#dim': '7°' },
 };
 
+interface ParsedChordSymbol {
+  /** Lookup key for NASHVILLE_MAP / COMMON_CHORDS, e.g. "A", "Am", "Bdim" */
+  base: string;
+  /** Everything after the root + triad quality, e.g. "7", "maj7", "/B" */
+  modifier: string;
+}
+
+// Split a chord symbol into root + triad quality and the remaining extension
+function parseChordSymbol(chord: string): ParsedChordSymbol | null {
+  const match = /^([A-G][#b]?)(.*)$/.exec(chord);
+  if (!match) return null;
+
+  const [, root, rest] = match;
+  const dimMatch = /^(dim|°)/.exec(rest);
+  if (dimMatch) {
+    return { base: `${root}dim`, modifier: rest.slice(dimMatch[0].length) };
+  }
+  // Minor ("m", "min", "-") but not major-seventh style "maj"
+  const minorMatch = /^(min|m(?!aj)|-)/.exec(rest);
+  if (minorMatch) {
+    return { base: `${root}m`, modifier: rest.slice(minorMatch[0].length) };
+  }
+  return { base: root, modifier: rest };
+}
+
 // Common slash patterns
 const SLASH_PATTERNS: Record<string, SlashPattern> = {
   '4/4-basic': { beats: [1, 2, 3, 4] },
@@ -246,44 +271,33 @@ export class TwLeadSheetComponent {
 
     if (style === 'standard') return chord;
 
+    const keyMap = NASHVILLE_MAP[key];
+    const parsed = parseChordSymbol(chord);
+    const nashville = keyMap && parsed ? keyMap[parsed.base] : undefined;
+    if (!nashville || !parsed) return chord;
+
     if (style === 'nashville') {
-      const keyMap = NASHVILLE_MAP[key];
-      if (keyMap) {
-        // Try to find the base chord
-        const baseChord = chord.replace(/[0-9maj].*/, '');
-        const modifier = chord.replace(baseChord, '');
-        const nashville = keyMap[baseChord];
-        if (nashville) return nashville + modifier;
-      }
-      return chord;
+      return nashville + parsed.modifier;
     }
 
     if (style === 'roman') {
       // Roman numeral conversion
       const romanMap: Record<string, string> = {
         '1': 'I',
-        '2': 'ii',
-        '3': 'iii',
+        '2': 'II',
+        '3': 'III',
         '4': 'IV',
         '5': 'V',
-        '6': 'vi',
-        '7': 'vii°',
+        '6': 'VI',
+        '7': 'VII',
       };
-      const keyMap = NASHVILLE_MAP[key];
-      if (keyMap) {
-        const baseChord = chord.replace(/[0-9maj].*/, '');
-        const modifier = chord.replace(baseChord, '');
-        const nashville = keyMap[baseChord];
-        if (nashville) {
-          const num = nashville.replace(/[m°]/, '');
-          const isMinor = nashville.includes('m');
-          const isDim = nashville.includes('°');
-          const roman = romanMap[num];
-          if (roman) {
-            const result = isMinor ? roman.toLowerCase() : roman;
-            return result + (isDim ? '°' : '') + modifier;
-          }
-        }
+      const num = nashville.replace(/[m°]/, '');
+      const isMinor = nashville.includes('m');
+      const isDim = nashville.includes('°');
+      const roman = romanMap[num];
+      if (roman) {
+        const result = isMinor || isDim ? roman.toLowerCase() : roman;
+        return result + (isDim ? '°' : '') + parsed.modifier;
       }
       return chord;
     }
@@ -359,8 +373,8 @@ export class TwLeadSheetComponent {
     const slashIndex = chord.indexOf('/');
     const mainChord = slashIndex > 0 ? chord.slice(0, Math.max(0, slashIndex)) : chord;
 
-    // Remove extensions (7, 9, 11, 13, maj7, sus, etc.)
-    return mainChord.replace(/[0-9majsusadd]+$/, '');
+    // Keep root + triad quality, drop extensions (7, 9, maj7, sus, etc.)
+    return parseChordSymbol(mainChord)?.base ?? mainChord;
   }
 
   // Get slash pattern for a measure

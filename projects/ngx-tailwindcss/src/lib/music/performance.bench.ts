@@ -14,6 +14,9 @@
 
 import { bench, describe } from 'vitest';
 
+/** Keeps benchmark results observable so the work is not optimized away. */
+export let benchSink: unknown;
+
 // ============================================================================
 // MOCK DATA GENERATORS
 // ============================================================================
@@ -511,7 +514,7 @@ describe('Audio Data Processing Performance', () => {
         sum += sample * sample;
       }
       const rms = Math.sqrt(sum / samples.length);
-      return rms;
+      benchSink = rms;
     });
 
     bench('calculate peak level', () => {
@@ -520,7 +523,7 @@ describe('Audio Data Processing Performance', () => {
         const abs = Math.abs(sample);
         if (abs > peak) peak = abs;
       }
-      return peak;
+      benchSink = peak;
     });
 
     bench('calculate dB from linear', () => {
@@ -583,7 +586,7 @@ describe('Audio Data Processing Performance', () => {
         }
       }
 
-      return peaks;
+      benchSink = peaks;
     });
 
     bench('find dominant frequencies', () => {
@@ -597,7 +600,7 @@ describe('Audio Data Processing Performance', () => {
 
       // Sort by magnitude and take top 10
       peaks.sort((a, b) => b.magnitude - a.magnitude);
-      return peaks.slice(0, 10);
+      benchSink = peaks.slice(0, 10);
     });
   });
 
@@ -619,7 +622,7 @@ describe('Audio Data Processing Performance', () => {
 
       // Beat if current energy > 1.5x average
       const isBeat = currentEnergy > avgEnergy * 1.5;
-      return isBeat;
+      benchSink = isBeat;
     });
 
     bench('frequency band energy', () => {
@@ -639,7 +642,7 @@ describe('Audio Data Processing Performance', () => {
         return Math.sqrt(energy / (band.end - band.start));
       });
 
-      return bandEnergies;
+      benchSink = bandEnergies;
     });
   });
 });

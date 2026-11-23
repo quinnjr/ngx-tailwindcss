@@ -131,6 +131,12 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
   private loadImage(): void {
     const img = this.el.nativeElement;
 
+    // No Image constructor on the server (SSR): render the real source directly
+    if (typeof Image === 'undefined') {
+      this.renderer.setAttribute(img, 'src', this.twLazyImage);
+      return;
+    }
+
     // Create a new image to preload
     const tempImg = new Image();
 

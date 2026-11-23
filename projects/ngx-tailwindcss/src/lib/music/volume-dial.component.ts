@@ -9,6 +9,7 @@ import {
   model,
   OnDestroy,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -146,8 +147,13 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   // Note: valueChange is automatically created by the model() signal
   readonly hapticTrigger = output<'change' | 'detent' | 'boundary'>(); // Haptic feedback trigger points
   private isDragging = false;
-  private startAngle = 0;
+  private lastAngle = 0;
+  private accumulatedAngle = 0;
   private startValue = 0;
+
+  // Disabled state set imperatively via setDisabledState (forms API)
+  private readonly cvaDisabled = signal(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
   private dragController: AbortController | null = null;
   private lastHapticTime = 0;
 
@@ -335,7 +341,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
 
   // Event handlers
   onMouseDown(event: MouseEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     event.preventDefault();
     this.startDrag(event.clientX, event.clientY);
 
@@ -354,7 +360,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   }
 
   onTouchStart(event: TouchEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     event.preventDefault();
     const touch = event.touches[0];
     const guarded = this.touchGuard();
@@ -378,32 +384,40 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     const { signal: abortSignal } = this.dragController;
     document.addEventListener('touchmove', onTouchMove, { passive: false, signal: abortSignal });
     document.addEventListener('touchend', onTouchEnd, { signal: abortSignal });
+    document.addEventListener('touchcancel', onTouchEnd, { signal: abortSignal });
   }
 
   private startDrag(clientX: number, clientY: number): void {
     this.isDragging = true;
-    this.startAngle = this.getAngleFromPoint(clientX, clientY);
+    this.lastAngle = this.getAngleFromPoint(clientX, clientY);
+    this.accumulatedAngle = 0;
     this.startValue = this.value();
   }
 
   private handleDrag(clientX: number, clientY: number): void {
     if (!this.isDragging) return;
 
+    // Accumulate the per-move angle delta so a gesture can sweep the whole
+    // 270° arc (a single start→current diff wraps at ±180°).
     const currentAngle = this.getAngleFromPoint(clientX, clientY);
-    let angleDiff = currentAngle - this.startAngle;
+    let angleDiff = currentAngle - this.lastAngle;
+    this.lastAngle = currentAngle;
 
     // Handle wrap-around
     if (angleDiff > 180) angleDiff -= 360;
     if (angleDiff < -180) angleDiff += 360;
 
-    const valueDiff = (angleDiff / this.totalAngle) * (this.max() - this.min());
-    let newValue = this.startValue + valueDiff;
+    // Keep the accumulated rotation within what the value range can absorb
+    const range = this.max() - this.min();
+    const minAngle = ((this.min() - this.startValue) / range) * this.totalAngle;
+    const maxAngle = ((this.max() - this.startValue) / range) * this.totalAngle;
+    this.accumulatedAngle = Math.max(
+      minAngle,
+      Math.min(maxAngle, this.accumulatedAngle + angleDiff)
+    );
 
-    // Apply constraints
-    newValue = Math.max(this.min(), Math.min(this.max(), newValue));
-
-    // Apply step
-    newValue = Math.round(newValue / this.step()) * this.step();
+    const valueDiff = (this.accumulatedAngle / this.totalAngle) * range;
+    let newValue = this.snapToStep(this.startValue + valueDiff);
 
     // Center detent
     if (this.centerDetent()) {
@@ -439,7 +453,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
 
     let newValue = this.value();
     const largeStep = (this.max() - this.min()) * 0.1;
@@ -477,10 +491,25 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     }
 
     event.preventDefault();
-    newValue = Math.max(this.min(), Math.min(this.max(), newValue));
-    newValue = Math.round(newValue / this.step()) * this.step();
-    this.setValue(newValue);
+    this.setValue(this.snapToStep(newValue));
     this.onTouchedFn();
+  }
+
+  // Round to the step grid (anchored at min), clamp, and strip float noise
+  private snapToStep(value: number): number {
+    const min = this.min();
+    const max = this.max();
+    const step = this.step();
+    let snapped = value;
+    if (step > 0) {
+      snapped = min + Math.round((value - min) / step) * step;
+      const decimals = Math.max(
+        step.toString().split('.')[1]?.length ?? 0,
+        min.toString().split('.')[1]?.length ?? 0
+      );
+      snapped = Number(snapped.toFixed(Math.min(decimals, 20)));
+    }
+    return Math.max(min, Math.min(max, snapped));
   }
 
   private setValue(newValue: number): void {
@@ -539,7 +568,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     this.onTouchedFn = fn;
   }
 
-  setDisabledState(_isDisabled: boolean): void {
-    // Disabled state is handled via input
+  setDisabledState(isDisabled: boolean): void {
+    this.cvaDisabled.set(isDisabled);
   }
 }

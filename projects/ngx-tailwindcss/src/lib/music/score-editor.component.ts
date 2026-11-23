@@ -2,14 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   HostListener,
   inject,
   input,
   numberAttribute,
+  OnInit,
   output,
   signal,
-  viewChild,
+  viewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -118,6 +120,9 @@ const CHROMATIC_TO_NOTE: Array<{ note: NoteName; accidental: NoteAccidental }> =
   { note: 'B', accidental: null },
 ];
 
+// MusicXML divisions per quarter note: 16 keeps dotted 32nd notes integral (3)
+const MUSICXML_DIVISIONS = 16;
+
 const NOTE_TO_CHROMATIC: Record<NoteName, number> = {
   C: 0,
   D: 2,
@@ -139,7 +144,7 @@ const NOTE_TO_CHROMATIC: Record<NoteName, number> = {
     class: 'block',
   },
 })
-export class TwScoreEditorComponent {
+export class TwScoreEditorComponent implements OnInit {
   private readonly elementRef = inject(ElementRef);
 
   // ==================== INPUTS ====================
@@ -205,6 +210,8 @@ export class TwScoreEditorComponent {
   private partIdCounter = 0;
   private lyricIdCounter = 0;
 
+  private readonly noteInputs = viewChildren(TwNoteInputComponent);
+
   // ==================== COMPUTED ====================
 
   protected readonly selectedPart = computed(() => {
@@ -235,7 +242,25 @@ export class TwScoreEditorComponent {
   // ==================== LIFECYCLE ====================
 
   constructor() {
-    // Initialize with default part or initial score
+    // Push the toolbar's entry settings down to every staff's note input
+    effect(() => {
+      const duration = this.currentDuration();
+      const accidental = this.currentAccidental();
+      const dotted = this.isDotted();
+      const rest = this.isRest();
+      const voice = this.currentVoice();
+      for (const noteInput of this.noteInputs()) {
+        noteInput.setDuration(duration);
+        noteInput.setAccidental(accidental);
+        noteInput.setDotted(dotted);
+        noteInput.setRestMode(rest);
+        noteInput.setVoice(voice);
+      }
+    });
+  }
+
+  ngOnInit(): void {
+    // Inputs are only available from ngOnInit on (not in the constructor)
     const initial = this.initialScore();
     if (initial) {
       this.loadScore(initial);
@@ -243,6 +268,9 @@ export class TwScoreEditorComponent {
       // Add default piano part
       this.addPart('piano-treble');
     }
+    // The initial state is the baseline, not an undoable action
+    this.undoStack.set([]);
+    this.redoStack.set([]);
   }
 
   // ==================== PART MANAGEMENT ====================
@@ -640,7 +668,7 @@ export class TwScoreEditorComponent {
         // Attributes (first measure)
         if (m === 0) {
           xml += '      <attributes>\n';
-          xml += '        <divisions>4</divisions>\n';
+          xml += `        <divisions>${MUSICXML_DIVISIONS}</divisions>\n`;
           xml += this.keySignatureToXml(score.keySignature);
           xml += this.timeSignatureToXml(score.timeSignature);
           xml += this.clefToXml(part.clef);
@@ -661,8 +689,9 @@ export class TwScoreEditorComponent {
           // Add whole rest
           xml += '      <note>\n';
           xml += '        <rest/>\n';
-          xml += '        <duration>16</duration>\n';
-          xml += '        <type>whole</type>\n';
+          const measureDivisions =
+            this.getQuartersPerMeasure(score.timeSignature) * MUSICXML_DIVISIONS;
+          xml += `        <duration>${measureDivisions}</duration>\n`;
           xml += '      </note>\n';
         } else {
           for (const note of notes.sort((a, b) => a.beat - b.beat)) {
@@ -759,16 +788,16 @@ export class TwScoreEditorComponent {
     xml += `          <octave>${note.octave}</octave>\n`;
     xml += '        </pitch>\n';
 
-    // Duration (in divisions - assuming 4 divisions per quarter)
-    const durationMap: Record<NoteDuration, number> = {
-      whole: 16,
-      half: 8,
-      quarter: 4,
-      eighth: 2,
-      sixteenth: 1,
-      thirtysecond: 0.5,
+    // Duration in divisions (MUSICXML_DIVISIONS per quarter, so every value is an integer)
+    const quarterFractions: Record<NoteDuration, number> = {
+      whole: 4,
+      half: 2,
+      quarter: 1,
+      eighth: 0.5,
+      sixteenth: 0.25,
+      thirtysecond: 0.125,
     };
-    let dur = durationMap[note.duration] || 4;
+    let dur = (quarterFractions[note.duration] ?? 1) * MUSICXML_DIVISIONS;
     if (note.dotted) dur *= 1.5;
     xml += `        <duration>${dur}</duration>\n`;
 
@@ -841,46 +870,63 @@ export class TwScoreEditorComponent {
     events.push(0); // Delta time
     events.push(0xff, 0x03); // Track name meta event
     const nameBytes = new TextEncoder().encode(part.name);
-    events.push(nameBytes.length);
+    events.push(...this.toVariableLength(nameBytes.length));
     events.push(...nameBytes);
 
-    // Sort notes by position
-    const sortedNotes = [...part.notes].sort(
-      (a, b) => a.measure * 1000 + a.beat - (b.measure * 1000 + b.beat)
-    );
+    // Build absolute-time note on/off events so chords and overlapping voices keep their
+    // positions (delta times must never be negative)
+    const quartersPerMeasure = this.getQuartersPerMeasure(this.timeSignature());
+    const gridDivision = 8; // tw-note-input default: beats are eighths of a measure
+    const timed: Array<{ tick: number; isOn: boolean; midiNote: number }> = [];
 
-    let lastTick = 0;
-
-    for (const note of sortedNotes) {
-      const tick = (note.measure * 4 + note.beat / 2) * ticksPerQuarter;
+    for (const note of part.notes) {
+      const startQuarters =
+        note.measure * quartersPerMeasure + (note.beat / gridDivision) * quartersPerMeasure;
+      const tick = Math.round(startQuarters * ticksPerQuarter);
       const midiNote = this.noteToMidi(
         note.name,
         note.octave,
         note.accidental ?? null,
         part.transposition
       );
-      const velocity = 80;
       const durationTicks = this.durationToTicks(
         note.duration,
         note.dotted ?? false,
         ticksPerQuarter
       );
+      timed.push(
+        { tick, isOn: true, midiNote },
+        { tick: tick + durationTicks, isOn: false, midiNote }
+      );
+    }
 
-      // Note on
-      const deltaOn = tick - lastTick;
-      events.push(...this.toVariableLength(Math.max(0, deltaOn)));
-      events.push(0x90, midiNote, velocity);
+    // At equal ticks, emit note-offs before note-ons so repeated pitches retrigger
+    timed.sort((a, b) => a.tick - b.tick || Number(a.isOn) - Number(b.isOn));
 
-      // Note off
-      events.push(...this.toVariableLength(durationTicks));
-      events.push(0x80, midiNote, 0);
-      lastTick = tick + durationTicks;
+    const velocity = 80;
+    let lastTick = 0;
+    for (const event of timed) {
+      events.push(...this.toVariableLength(event.tick - lastTick));
+      if (event.isOn) {
+        events.push(0x90, event.midiNote, velocity);
+      } else {
+        events.push(0x80, event.midiNote, 0);
+      }
+      lastTick = event.tick;
     }
 
     // End of track
     events.push(0, 0xff, 0x2f, 0x00);
 
     return this.createMidiTrackChunk(new Uint8Array(events));
+  }
+
+  // Length of one measure in quarter notes for the given time signature
+  private getQuartersPerMeasure(time: StaffTimeSignature): number {
+    if (time === 'C' || time === 'C|') return 4;
+    const [beats, beatType] = time.split('/').map(Number);
+    if (!beats || !beatType) return 4;
+    return (beats * 4) / beatType;
   }
 
   private noteToMidi(
@@ -1019,7 +1065,8 @@ export class TwScoreEditorComponent {
           .sort((a, b) => a.beat - b.beat);
 
         if (measureNotes.length === 0) {
-          measureGroups.push('z4'); // Whole rest
+          // Full-measure rest, in units of L:1/8
+          measureGroups.push(`z${this.getQuartersPerMeasure(score.timeSignature) * 2}`);
         } else {
           const noteStrings = measureNotes.map(n => this.noteToABC(n));
           measureGroups.push(noteStrings.join(''));
@@ -1071,18 +1118,31 @@ export class TwScoreEditorComponent {
       abc += ','.repeat(4 - note.octave);
     }
 
-    // Duration
-    const durationMap: Record<NoteDuration, string> = {
-      whole: '8',
-      half: '4',
-      quarter: '2',
-      eighth: '',
-      sixteenth: '/2',
-      thirtysecond: '/4',
+    // Duration in units of L:1/8 (dotted notes are 1.5x)
+    const eighths: Record<NoteDuration, number> = {
+      whole: 8,
+      half: 4,
+      quarter: 2,
+      eighth: 1,
+      sixteenth: 0.5,
+      thirtysecond: 0.25,
     };
-    abc += durationMap[note.duration] || '';
+    const length = (eighths[note.duration] ?? 2) * (note.dotted ? 1.5 : 1);
+    abc += this.abcLength(length);
 
     return abc;
+  }
+
+  // Format a length (in L units) as an ABC duration suffix: 1 -> '', 3 -> '3', 0.5 -> '/2', 0.75 -> '3/4'
+  private abcLength(length: number): string {
+    if (length === 1) return '';
+    if (Number.isInteger(length)) return String(length);
+    let denominator = 1;
+    while (!Number.isInteger(length * denominator) && denominator < 64) {
+      denominator *= 2;
+    }
+    const numerator = Math.round(length * denominator);
+    return numerator === 1 ? `/${denominator}` : `${numerator}/${denominator}`;
   }
 
   async exportToPDF(): Promise<Blob> {
@@ -1121,6 +1181,7 @@ export class TwScoreEditorComponent {
         resolve();
       });
       img.addEventListener('error', () => {
+        URL.revokeObjectURL(svgUrl);
         reject(new Error('Failed to load SVG image for PDF export'));
       });
       img.src = svgUrl;
@@ -1305,6 +1366,9 @@ export class TwScoreEditorComponent {
   @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (!this.enableKeyboardShortcuts() || !this.editable()) return;
+    // A focused tw-note-input already handled this key (e.g. its own Ctrl+Z); handling it
+    // again here would immediately revert that edit
+    if (event.defaultPrevented) return;
 
     const key = event.key.toLowerCase();
 

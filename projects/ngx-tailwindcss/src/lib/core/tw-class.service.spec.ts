@@ -210,6 +210,24 @@ describe('TwClassService', () => {
         expect(result).toBe('ring-2');
       });
 
+      it('should keep ring width, ring offset and ring color separate', () => {
+        const result = service.merge(
+          'focus-visible:ring-2 focus-visible:ring-offset-2',
+          'focus-visible:ring-blue-500'
+        );
+        expect(result).toBe(
+          'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500'
+        );
+      });
+
+      it('should resolve ring color and ring offset conflicts independently', () => {
+        expect(service.merge('ring-blue-500 ring-2', 'ring-red-500')).toBe('ring-red-500 ring-2');
+        expect(service.merge('ring-offset-2 ring-offset-white', 'ring-offset-4')).toBe(
+          'ring-offset-4 ring-offset-white'
+        );
+        expect(service.merge('ring', 'ring-4')).toBe('ring-4');
+      });
+
       it('should handle gradient from', () => {
         const result = service.merge('from-blue-500', 'from-red-500');
         expect(result).toBe('from-red-500');

@@ -13,6 +13,7 @@ import {
   TwDropdownTriggerDirective,
 } from './dropdown.component';
 import { TwClassService } from '../core/tw-class.service';
+import { TwModalComponent } from '../modal/modal.component';
 
 @Component({
   template: `
@@ -105,6 +106,21 @@ describe('TwDropdownComponent', () => {
 
     expect(component.dropdown.isOpen()).toBe(false);
     expect(component.closedCount).toBe(1);
+  });
+
+  it('should return the menu content to its hidden container after closing', () => {
+    const menu = fixture.debugElement.query(By.directive(TwDropdownMenuComponent))
+      .nativeElement as HTMLElement;
+    const originalParent = menu.parentElement!;
+    expect(originalParent.style.display).toBe('none');
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(menu.parentElement).not.toBe(originalParent);
+
+    trigger.click();
+    fixture.detectChanges();
+    expect(menu.parentElement).toBe(originalParent);
   });
 
   it('should not open when disabled', () => {
@@ -282,5 +298,53 @@ describe('TwDropdownHeaderComponent', () => {
   it('should render header content', () => {
     const header = fixture.debugElement.query(By.directive(TwDropdownHeaderComponent));
     expect(header.nativeElement.textContent).toContain('Actions');
+  });
+});
+
+@Component({
+  template: `
+    <tw-modal [open]="modalOpen()" (openChange)="modalOpen.set($event)">
+      <tw-dropdown>
+        <button twDropdownTrigger class="dd-trigger">Open</button>
+        <tw-dropdown-menu>
+          <button twDropdownItem>Item</button>
+        </tw-dropdown-menu>
+      </tw-dropdown>
+    </tw-modal>
+  `,
+  standalone: true,
+  imports: [
+    TwModalComponent,
+    TwDropdownComponent,
+    TwDropdownItemDirective,
+    TwDropdownMenuComponent,
+    TwDropdownTriggerDirective,
+  ],
+})
+class DropdownInModalHostComponent {
+  @ViewChild(TwDropdownComponent) dropdown!: TwDropdownComponent;
+  modalOpen = signal(true);
+}
+
+describe('TwDropdownComponent inside a modal', () => {
+  it('should close only the dropdown on Escape, not the enclosing modal', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DropdownInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DropdownInModalHostComponent);
+    fixture.detectChanges();
+
+    const ddTrigger = document.querySelector('.dd-trigger')!;
+    ddTrigger.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.dropdown.isOpen()).toBe(true);
+
+    ddTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.dropdown.isOpen()).toBe(false);
+    expect(fixture.componentInstance.modalOpen()).toBe(true);
+    fixture.destroy();
   });
 });

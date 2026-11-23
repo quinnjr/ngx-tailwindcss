@@ -125,8 +125,10 @@ export class TwSliderComponent implements ControlValueAccessor {
 
   protected fillPercentage = computed(() => {
     const range = this.max() - this.min();
-    if (range === 0) return 0;
-    return ((this.value() - this.min()) / range) * 100;
+    if (range <= 0) return 0;
+    const percentage = ((this.value() - this.min()) / range) * 100;
+    // Keep the fill/thumb on the track when the value is outside [min, max]
+    return Math.min(100, Math.max(0, percentage));
   });
 
   protected displayValue = computed(() => {
@@ -139,8 +141,10 @@ export class TwSliderComponent implements ControlValueAccessor {
     if (count === 1) return [this.min()];
     const ticks: number[] = [];
     const step = (this.max() - this.min()) / (count - 1);
+    // Round to the precision of the slider step so fractional ranges keep their ticks
+    const decimals = (this.step().toString().split('.')[1] ?? '').length;
     for (let i = 0; i < count; i++) {
-      ticks.push(Math.round(this.min() + step * i));
+      ticks.push(Number((this.min() + step * i).toFixed(decimals)));
     }
     return ticks;
   });

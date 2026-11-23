@@ -107,7 +107,10 @@ export class TwProgressComponent {
   protected _animated = signal(false);
   protected _indeterminate = signal(false);
 
-  protected valueNum = computed(() => this._value());
+  /** Value clamped to [0, max] so aria-valuenow stays within aria-valuemin/aria-valuemax */
+  protected valueNum = computed(() =>
+    Math.min(Math.max(this._value(), 0), Math.max(this._max(), 0))
+  );
   protected maxNum = computed(() => this._max());
   protected labelText = computed(() => this._label());
   protected showValueFlag = computed(() => this._showValue());
@@ -239,7 +242,10 @@ export class TwProgressCircularComponent {
   protected _thickness = signal(4);
 
   protected sizeValue = computed(() => this._size());
-  protected valueNum = computed(() => this._value());
+  /** Value clamped to [0, max] so aria-valuenow stays within aria-valuemin/aria-valuemax */
+  protected valueNum = computed(() =>
+    Math.min(Math.max(this._value(), 0), Math.max(this._max(), 0))
+  );
   protected maxNum = computed(() => this._max());
   protected showValueFlag = computed(() => this._showValue());
   protected indeterminateFlag = computed(() => this._indeterminate());

@@ -92,7 +92,8 @@
                             lineIndex
                           )
                         "
-                        [staffTop]="40"
+                        [staffTop]="noteStaffTop()"
+                        [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
                         [highlighted]="
                           isNoteHighlighted(
@@ -177,7 +178,8 @@
                             currentPage()
                           )
                         "
-                        [staffTop]="40"
+                        [staffTop]="noteStaffTop()"
+                        [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
                         [highlighted]="
                           isNoteHighlighted(
@@ -240,7 +242,8 @@
                     [accidental]="note.accidental || null"
                     [dotted]="note.dotted || false"
                     [x]="getNoteX(measureInLineIndex, noteIndex, measure.notes.length, 0)"
-                    [staffTop]="40"
+                    [staffTop]="noteStaffTop()"
+                    [clef]="musicData().clef"
                     [lineSpacing]="lineSpacing()"
                     [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
                   ></tw-note>

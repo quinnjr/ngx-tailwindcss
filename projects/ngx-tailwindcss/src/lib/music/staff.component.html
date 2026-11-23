@@ -112,7 +112,7 @@
         @for (acc of keySignatureAccidentals(); track $index) {
           <text
             [attr.x]="acc.x"
-            [attr.y]="acc.y + lineSpacing() * 0.8"
+            [attr.y]="acc.y + keySignatureClefOffset() + lineSpacing() * 0.8"
             [attr.font-size]="lineSpacing() * 2"
             [attr.fill]="colors().symbol"
             font-family="serif"

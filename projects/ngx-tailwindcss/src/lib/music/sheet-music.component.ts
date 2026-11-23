@@ -347,7 +347,8 @@ export function parseABCNotation(abcString: string): SheetMusicData | null {
         inBody = true;
         continue;
       }
-      if (inBody && !line.startsWith('%') && line.length > 0) {
+      // Skip comments and inline field lines such as lyrics (w:) or voice (V:)
+      if (inBody && !line.startsWith('%') && !/^[A-Za-z]:/.test(line) && line.length > 0) {
         musicBody += `${line} `;
       }
     }
@@ -428,6 +429,13 @@ function tokenizeABC(str: string): string[] {
     // Skip whitespace
     if (/\s/.test(char)) {
       i++;
+      continue;
+    }
+
+    // Skip quoted chord symbols / annotations such as "Am7"
+    if (char === '"') {
+      const end = str.indexOf('"', i + 1);
+      i = end === -1 ? str.length : end + 1;
       continue;
     }
 
@@ -760,6 +768,11 @@ export class TwSheetMusicComponent {
     return this.lineSpacing() * this.currentZoom();
   });
 
+  // Y of the top staff line inside tw-staff (mirrors TwStaffComponent.staffTop)
+  protected readonly noteStaffTop = computed(() => {
+    return (this.staffHeight() - this.lineSpacing() * 4) / 2;
+  });
+
   protected readonly totalLines = computed(() => {
     const measures = this.musicData().measures.length;
     const perLine = this.measuresPerLine();
@@ -971,10 +984,11 @@ export class TwSheetMusicComponent {
     if (measurePart !== measureIndex) return 0;
 
     // Calculate position within measure based on beat fraction
+    // Unscaled coordinates: zoom is applied to the whole container via CSS transform
     const measureX = this.getMeasureStartX(measureIndex, lineIndex);
     const perLine = this.measuresPerLine();
-    const width = this.effectiveWidth();
-    const margin = 80 * this.currentZoom();
+    const width = this.width();
+    const margin = 80;
     const availableWidth = width - margin - 20;
     const measureWidth = availableWidth / perLine;
 

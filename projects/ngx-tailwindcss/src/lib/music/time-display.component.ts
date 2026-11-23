@@ -182,7 +182,8 @@ export class TwTimeDisplayComponent {
   // Utility
   formatTime(seconds: number): string {
     if (!seconds || !Number.isFinite(seconds) || seconds < 0) {
-      return this.showHours() === 'always' ? '0:00:00' : '0:00';
+      const zero = this.showHours() === 'always' ? '0:00:00' : '0:00';
+      return this.showMilliseconds() ? `${zero}.000` : zero;
     }
 
     const hrs = Math.floor(seconds / 3600);

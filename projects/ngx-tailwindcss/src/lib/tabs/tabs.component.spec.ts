@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -121,7 +121,7 @@ describe('TwTabsComponent', () => {
       const tabButtons = fixture.debugElement.queryAll(By.css('[role="tab"]'));
       const panel1 = fixture.debugElement.query(By.css('[data-testid="panel-1"]'));
 
-      expect(panel1.nativeElement.id).toBe('panel-tab1');
+      expect(panel1.nativeElement.id).toMatch(/^tw-tabs-\d+-panel-tab1$/);
       expect(tabButtons[0].nativeElement.getAttribute('aria-controls')).toBe(
         panel1.nativeElement.id
       );
@@ -194,5 +194,62 @@ describe('TwTabsComponent lazy panels', () => {
     // Content is retained ("load once"), only hidden
     expect(lazyPanel().nativeElement.textContent).toContain('Lazy B');
     expect(lazyPanel().nativeElement.getAttribute('hidden')).toBe('true');
+  });
+});
+
+@Component({
+  template: `
+    <tw-tabs [(value)]="active">
+      <tw-tab-panel value="one" label="One">One</tw-tab-panel>
+      <tw-tab-panel value="two" label="Two">Two</tw-tab-panel>
+    </tw-tabs>
+    <tw-tabs>
+      <tw-tab-panel value="one" label="One">Other one</tw-tab-panel>
+    </tw-tabs>
+  `,
+  standalone: true,
+  imports: [TwTabsComponent, TwTabPanelComponent],
+})
+class MultiTabsHostComponent {
+  active = signal('one');
+}
+
+describe('TwTabsComponent (multiple instances / external value)', () => {
+  let fixture: ComponentFixture<MultiTabsHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [MultiTabsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(MultiTabsHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should generate unique tab and panel ids across instances', () => {
+    const ids = [...fixture.nativeElement.querySelectorAll('[role="tab"], [role="tabpanel"]')].map(
+      (el: Element) => el.id
+    );
+    expect(ids.every(Boolean)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
+    tabs.forEach((tab: Element) => {
+      const panel = document.querySelector(`[id="${tab.getAttribute('aria-controls')}"]`);
+      expect(panel?.getAttribute('aria-labelledby')).toBe(tab.id);
+    });
+  });
+
+  it('should activate the tab when the bound value changes after init', () => {
+    fixture.componentInstance.active.set('two');
+    fixture.detectChanges();
+
+    const panels = fixture.debugElement.queryAll(By.directive(TwTabPanelComponent));
+    expect(panels[0].componentInstance.active()).toBe(false);
+    expect(panels[1].componentInstance.active()).toBe(true);
+    expect(fixture.nativeElement.querySelectorAll('[role="tab"]')[1].getAttribute('tabindex')).toBe(
+      '0'
+    );
   });
 });

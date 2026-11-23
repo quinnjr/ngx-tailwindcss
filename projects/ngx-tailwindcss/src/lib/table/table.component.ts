@@ -90,7 +90,6 @@ export class TwTableComponent {
   protected globalFilter = signal('');
   protected sortField = signal<string>('');
   protected sortOrder = signal<1 | -1>(1);
-  protected currentPage = signal(1);
   /** Current page size; follows the `rows` input until changed via the rows-per-page select. */
   protected pageSize = linkedSignal(() => this.rows());
   /** Selection is held as a Set internally for O(1) lookups; emitted as an array. */
@@ -133,6 +132,11 @@ export class TwTableComponent {
 
   protected totalRecords = computed(() => this.filteredData().length);
   protected totalPages = computed(() => Math.ceil(this.totalRecords() / this.pageSize()));
+  /** Current page; clamped into range whenever the page count shrinks (e.g. data replaced). */
+  protected currentPage = linkedSignal<number, number>({
+    source: this.totalPages,
+    computation: (total, previous) => Math.min(previous?.value ?? 1, Math.max(1, total)),
+  });
 
   protected displayedData = computed(() => {
     if (!this.paginator()) return this.filteredData();
@@ -156,12 +160,13 @@ export class TwTableComponent {
     if (total <= 7) {
       for (let i = 1; i <= total; i++) pages.push(i);
     } else {
+      // Distinct ellipsis markers keep @for track keys unique
       pages.push(1);
-      if (current > 3) pages.push('...');
+      if (current > 3) pages.push('...start');
       const start = Math.max(2, current - 1);
       const end = Math.min(total - 1, current + 1);
       for (let i = start; i <= end; i++) pages.push(i);
-      if (current < total - 2) pages.push('...');
+      if (current < total - 2) pages.push('...end');
       pages.push(total);
     }
     return pages;

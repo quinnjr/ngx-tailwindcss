@@ -333,6 +333,17 @@ describe('TwButtonLinkComponent', () => {
     expect(linkEl.getAttribute('href')).toBe('#');
   });
 
+  it('should keep native link semantics (no role="button" or disabled attribute)', () => {
+    expect(linkEl.hasAttribute('role')).toBe(false);
+
+    component.disabled.set(true);
+    fixture.detectChanges();
+
+    expect(linkEl.hasAttribute('role')).toBe(false);
+    expect(linkEl.hasAttribute('disabled')).toBe(false);
+    expect(linkEl.getAttribute('aria-disabled')).toBe('true');
+  });
+
   it('should apply pointer-events none when disabled', () => {
     component.disabled.set(true);
     fixture.detectChanges();

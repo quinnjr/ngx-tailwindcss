@@ -262,6 +262,9 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
 
       // Calculate bin to bar mapping based on frequency scale
       this.calculateBinMapping(analyser.frequencyBinCount);
+    } else {
+      // A stale analyser mapping would mis-bin static frequencyData
+      this.binToBarMapping = [];
     }
   }
 

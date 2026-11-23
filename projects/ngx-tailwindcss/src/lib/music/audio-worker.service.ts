@@ -181,6 +181,11 @@ export class AudioWorkerService implements OnDestroy {
       this._isInitialized.set(true);
       return true;
     } catch (error) {
+      this.worker = null;
+      if (this.workerUrl) {
+        URL.revokeObjectURL(this.workerUrl);
+        this.workerUrl = null;
+      }
       console.error('Failed to initialize audio worker:', error);
       this._lastError.set(error instanceof Error ? error.message : 'Failed to initialize');
       return false;
@@ -352,6 +357,7 @@ export class AudioWorkerService implements OnDestroy {
         clearTimeout(oldest[1].timeoutId);
         oldest[1].reject(new Error('Request dropped due to queue overflow'));
         this.pendingRequests.delete(oldest[0]);
+        this._pendingCount.update(n => Math.max(0, n - 1));
       }
     }
 

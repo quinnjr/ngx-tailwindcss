@@ -38,13 +38,13 @@ ngx-tailwindcss is an open-source Angular UI component library that provides 30+
 
 ```bash
 # Using pnpm (recommended)
-pnpm add ngx-tailwindcss
+pnpm add @quinnjr/ngx-tailwindcss
 
 # Using npm
-npm install ngx-tailwindcss
+npm install @quinnjr/ngx-tailwindcss
 
 # Using yarn
-yarn add ngx-tailwindcss
+yarn add @quinnjr/ngx-tailwindcss
 ```
 
 ### Step 2: Configure Tailwind CSS
@@ -55,13 +55,13 @@ In your `styles.css` or `styles.scss`:
 @import "tailwindcss";
 
 /* IMPORTANT: Add this line to scan the library for Tailwind classes */
-@source "../node_modules/ngx-tailwindcss/**/*.mjs";
+@source "../node_modules/@quinnjr/ngx-tailwindcss/**/*.mjs";
 ```
 
 ### Step 3: Import Components
 
 ```typescript
-import { TwButtonComponent, TwCardComponent } from 'ngx-tailwindcss';
+import { TwButtonComponent, TwCardComponent } from '@quinnjr/ngx-tailwindcss';
 
 @Component({
   standalone: true,
@@ -79,7 +79,7 @@ export class MyComponent {}
 
 ```typescript
 import { ApplicationConfig } from '@angular/core';
-import { provideTwConfig } from 'ngx-tailwindcss';
+import { provideTwConfig } from '@quinnjr/ngx-tailwindcss';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -164,8 +164,7 @@ The most commonly used component. Supports multiple variants, sizes, and states.
 - `classOverride`: string (merge additional classes)
 - `classReplace`: string (replace all classes)
 
-**Outputs:**
-- `onClick`: EventEmitter<MouseEvent>
+**Outputs:** none — listen to the native `(click)` event (suppressed while disabled/loading)
 
 ---
 
@@ -201,10 +200,10 @@ Container component with optional header, body, and footer sections.
 <tw-card variant="filled">Filled card with background</tw-card>
 
 <!-- Hoverable -->
-<tw-card [hover]="true">Hover effect on mouse over</tw-card>
+<tw-card [hoverable]="true">Hover effect on mouse over</tw-card>
 
 <!-- Clickable -->
-<tw-card [clickable]="true" (cardClick)="onCardClick()">
+<tw-card [clickable]="true" (click)="onCardClick()">
   Clickable card
 </tw-card>
 ```
@@ -239,19 +238,19 @@ Form input with label, helper text, and validation states.
 <!-- States -->
 <tw-input [disabled]="true" label="Disabled"></tw-input>
 <tw-input [readonly]="true" label="Readonly" value="Read only value"></tw-input>
-<tw-input [error]="true" errorMessage="This field is required" label="Error"></tw-input>
+<tw-input error="This field is required" label="Error"></tw-input>
 
 <!-- With helper text -->
 <tw-input
   label="Password"
   type="password"
-  helperText="Must be at least 8 characters">
+  hint="Must be at least 8 characters">
 </tw-input>
 
 <!-- With prefix/suffix -->
 <tw-input label="Price">
-  <span prefix>$</span>
-  <span suffix>.00</span>
+  <span twInputPrefix>$</span>
+  <span twInputSuffix>.00</span>
 </tw-input>
 ```
 
@@ -265,7 +264,10 @@ Dialog/modal component with focus trapping and keyboard support.
 <!-- Basic modal -->
 <tw-button (click)="showModal = true">Open Modal</tw-button>
 
-<tw-modal [(open)]="showModal" title="Modal Title">
+<tw-modal [(open)]="showModal">
+  <tw-modal-header>
+    <tw-modal-title>Modal Title</tw-modal-title>
+  </tw-modal-header>
   <p>Modal content goes here.</p>
 
   <tw-modal-footer>
@@ -282,7 +284,7 @@ Dialog/modal component with focus trapping and keyboard support.
 <tw-modal size="full">Full screen modal</tw-modal>
 
 <!-- Prevent close on backdrop click -->
-<tw-modal [closeOnBackdrop]="false">
+<tw-modal [closeOnBackdropClick]="false">
   Can only be closed via close button or ESC key
 </tw-modal>
 
@@ -303,9 +305,8 @@ Data table with sorting, selection, and styling options.
   [data]="users"
   [columns]="columns"
   [selectable]="true"
-  [(selection)]="selectedUsers"
-  [sortable]="true"
-  (sort)="onSort($event)">
+  (selectionChange)="selectedUsers = $event"
+  (sortChange)="onSort($event)">
 </tw-table>
 ```
 
@@ -329,7 +330,7 @@ users = [
 Tabbed navigation with multiple style variants.
 
 ```html
-<tw-tabs [(activeTab)]="activeTab">
+<tw-tabs [(value)]="activeTab">
   <tw-tab-panel label="Tab 1" value="tab1">
     Content for tab 1
   </tw-tab-panel>
@@ -342,10 +343,10 @@ Tabbed navigation with multiple style variants.
 </tw-tabs>
 
 <!-- Variants -->
-<tw-tabs variant="default">Default tabs</tw-tabs>
+<tw-tabs variant="line">Line tabs (default)</tw-tabs>
 <tw-tabs variant="pills">Pill-style tabs</tw-tabs>
 <tw-tabs variant="soft-rounded">Soft rounded tabs</tw-tabs>
-<tw-tabs variant="bordered">Bordered tabs</tw-tabs>
+<tw-tabs variant="enclosed">Enclosed tabs</tw-tabs>
 ```
 
 ---
@@ -355,7 +356,7 @@ Tabbed navigation with multiple style variants.
 Programmatic toast notifications.
 
 ```typescript
-import { TwToastService } from 'ngx-tailwindcss';
+import { TwToastService } from '@quinnjr/ngx-tailwindcss';
 
 @Component({...})
 export class MyComponent {
@@ -366,7 +367,7 @@ export class MyComponent {
   }
 
   showError() {
-    this.toast.error('An error occurred', { duration: 5000 });
+    this.toast.error('An error occurred', 'Error');
   }
 
   showWarning() {
@@ -381,7 +382,6 @@ export class MyComponent {
     this.toast.show({
       message: 'Custom toast',
       variant: 'info',
-      position: 'top-right',
       duration: 3000,
       dismissible: true,
     });
@@ -432,7 +432,7 @@ Detects clicks outside an element.
 Traps focus within an element (useful for modals).
 
 ```html
-<div twFocusTrap [twFocusTrapEnabled]="isOpen">
+<div [twFocusTrap]="isOpen">
   <input placeholder="First focusable" />
   <button>Second focusable</button>
   <button>Last focusable (focus wraps to first)</button>
@@ -725,10 +725,10 @@ Override using CSS custom properties in your styles:
 
 ```typescript
 // Good - tree-shakeable
-import { TwButtonComponent, TwCardComponent } from 'ngx-tailwindcss';
+import { TwButtonComponent, TwCardComponent } from '@quinnjr/ngx-tailwindcss';
 
 // Avoid - imports everything
-import * as Tw from 'ngx-tailwindcss';
+import * as Tw from '@quinnjr/ngx-tailwindcss';
 ```
 
 ### 2. Use Semantic Variants
@@ -773,28 +773,29 @@ All components include proper ARIA attributes, but always add context:
   <tw-input
     formControlName="email"
     label="Email"
-    [error]="form.get('email')?.invalid && form.get('email')?.touched"
-    errorMessage="Valid email required">
+    [error]="form.get('email')?.invalid && form.get('email')?.touched ? 'Valid email required' : ''">
   </tw-input>
 
   <tw-input
     formControlName="password"
     type="password"
     label="Password"
-    [error]="form.get('password')?.invalid && form.get('password')?.touched"
-    errorMessage="Password must be 8+ characters">
+    [error]="form.get('password')?.invalid && form.get('password')?.touched ? 'Password must be 8+ characters' : ''">
   </tw-input>
 
-  <tw-button type="submit" variant="primary" [disabled]="form.invalid">
+  <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white" [disabled]="form.invalid">
     Submit
-  </tw-button>
+  </button>
 </form>
 ```
 
 ### Confirmation Modal
 
 ```html
-<tw-modal [(open)]="showConfirm" title="Confirm Delete">
+<tw-modal [(open)]="showConfirm">
+  <tw-modal-header>
+    <tw-modal-title>Confirm Delete</tw-modal-title>
+  </tw-modal-header>
   <p>Are you sure you want to delete this item? This action cannot be undone.</p>
 
   <tw-modal-footer>
@@ -830,7 +831,7 @@ All components include proper ARIA attributes, but always add context:
 **Solution:** Ensure you've added the @source directive in your CSS:
 
 ```css
-@source "../node_modules/ngx-tailwindcss/**/*.mjs";
+@source "../node_modules/@quinnjr/ngx-tailwindcss/**/*.mjs";
 ```
 
 ### Class Conflicts
@@ -865,6 +866,6 @@ MIT License - Copyright (c) 2025 Joseph R Quinn
 
 - **Documentation**: https://ngx-tailwindcss.dev
 - **GitHub**: https://github.com/quinnjr/ngx-tailwindcss
-- **npm**: https://www.npmjs.com/package/ngx-tailwindcss
+- **npm**: https://www.npmjs.com/package/@quinnjr/ngx-tailwindcss
 - **Issues**: https://github.com/quinnjr/ngx-tailwindcss/issues
 

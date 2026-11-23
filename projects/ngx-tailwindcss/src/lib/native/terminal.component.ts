@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   input,
   output,
@@ -78,6 +79,14 @@ export class TwTerminalComponent implements AfterViewChecked {
     return lines.length > max ? lines.slice(-max) : lines;
   });
 
+  constructor() {
+    // Scroll to the newest output whenever lines are added
+    effect(() => {
+      this.displayedLines();
+      this.shouldScroll = true;
+    });
+  }
+
   public ngAfterViewChecked(): void {
     if (this.shouldScroll && this.autoScroll() && this.outputArea?.nativeElement) {
       this.outputArea.nativeElement.scrollTop = this.outputArea.nativeElement.scrollHeight;
@@ -142,9 +151,15 @@ export class TwTerminalComponent implements AfterViewChecked {
     this.shouldScroll = true;
   }
 
-  protected navigateHistory(direction: number): void {
+  /**
+   * Walk the command history. `direction` 1 = older (ArrowUp), -1 = newer
+   * (ArrowDown); index -1 is the empty prompt, 0 the most recent command.
+   */
+  protected navigateHistory(direction: number, event?: Event): void {
     const history = this.commandHistory();
     if (history.length === 0) return;
+    // Keep the caret from jumping to the start of the input on ArrowUp
+    event?.preventDefault();
 
     let newIndex = this.historyIndex() + direction;
 

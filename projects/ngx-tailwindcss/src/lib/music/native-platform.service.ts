@@ -760,7 +760,9 @@ export class NativePlatformService {
     }
 
     // Browser fallback
-    window.open(path, '_blank');
+    // noopener: the opened page must not get a window.opener handle to this
+    // app (reverse tabnabbing)
+    window.open(path, '_blank', 'noopener,noreferrer');
   }
 
   // =========================================================================

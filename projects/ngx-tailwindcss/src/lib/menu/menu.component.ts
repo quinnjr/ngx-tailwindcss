@@ -206,7 +206,7 @@ export class TwMenuComponent {
   templateUrl: './context-menu.component.html',
   host: {
     '(document:click)': 'hide()',
-    '(document:contextmenu)': 'hide()',
+    '(document:contextmenu)': 'onDocumentContextMenu($event)',
   },
 })
 export class TwContextMenuComponent {
@@ -218,11 +218,24 @@ export class TwContextMenuComponent {
   protected x = signal(0);
   protected y = signal(0);
 
+  /** The contextmenu event that opened the menu; it still bubbles to the document. */
+  private openingEvent: Event | null = null;
+
   show(event: MouseEvent): void {
     event.preventDefault();
+    this.openingEvent = event;
     this.x.set(event.clientX);
     this.y.set(event.clientY);
     this.visible.set(true);
+  }
+
+  protected onDocumentContextMenu(event: Event): void {
+    // Ignore the same event that just opened the menu, otherwise it closes immediately
+    if (event === this.openingEvent) {
+      this.openingEvent = null;
+      return;
+    }
+    this.hide();
   }
 
   hide(): void {

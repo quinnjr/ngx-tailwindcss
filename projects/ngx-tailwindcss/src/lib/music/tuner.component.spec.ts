@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwTunerComponent } from './tuner.component';
 
 describe('TwTunerComponent', () => {
@@ -63,6 +63,54 @@ describe('TwTunerComponent', () => {
       expect(result.note).toBe('A');
       expect(result.octave).toBe(4);
       expect(result.cents).toBe(0);
+    });
+  });
+  describe('autoCorrelate', () => {
+    const sine = (freq: number, sampleRate: number, size = 4096): Float32Array => {
+      const buffer = new Float32Array(size);
+      for (let i = 0; i < size; i++) {
+        buffer[i] = 0.5 * Math.sin((2 * Math.PI * freq * i) / sampleRate);
+      }
+      return buffer;
+    };
+
+    it.each([41.2, 55, 82.41, 440])('should detect a %f Hz tone (incl. bass E1/A1)', freq => {
+      const detected = (component as any).autoCorrelate(sine(freq, 48_000), 48_000);
+
+      expect(Math.abs(1200 * Math.log2(detected / freq))).toBeLessThan(50);
+    });
+  });
+
+  describe('microphone lifecycle', () => {
+    const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+
+    afterEach(() => {
+      if (originalMediaDevices) {
+        Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+      } else {
+        delete (navigator as any).mediaDevices;
+      }
+    });
+
+    it('should stop the stream if destroyed while getUserMedia is pending', async () => {
+      const stop = vi.fn();
+      let resolveStream!: (s: MediaStream) => void;
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: {
+          getUserMedia: () =>
+            new Promise<MediaStream>(resolve => {
+              resolveStream = resolve;
+            }),
+        },
+      });
+
+      const pending = component.startListening();
+      fixture.destroy();
+      resolveStream({ getTracks: () => [{ stop }] } as unknown as MediaStream);
+      await pending;
+
+      expect(stop).toHaveBeenCalled();
     });
   });
 });

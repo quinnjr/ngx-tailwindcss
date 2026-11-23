@@ -59,6 +59,7 @@ export class MusicAccessibilityService implements OnDestroy {
   // Media query listeners
   private reducedMotionQuery: MediaQueryList | null = null;
   private highContrastQuery: MediaQueryList | null = null;
+  private forcedColorsQuery: MediaQueryList | null = null;
   private reducedMotionHandler: ((e: MediaQueryListEvent) => void) | null = null;
   private highContrastHandler: ((e: MediaQueryListEvent) => void) | null = null;
 
@@ -456,13 +457,21 @@ export class MusicAccessibilityService implements OnDestroy {
     this.highContrastQuery = window.matchMedia('(prefers-contrast: more)');
     this._highContrast.set(this.highContrastQuery.matches || this.checkHighContrast());
 
-    this.highContrastHandler = (e: MediaQueryListEvent) => {
-      this._highContrast.set(e.matches);
+    // Re-evaluate both queries on either change: a prefers-contrast change
+    // must not clear high contrast while forced-colors is still active
+    this.highContrastHandler = () => {
+      this._highContrast.set(this.checkHighContrast());
     };
     this.highContrastQuery.addEventListener('change', this.highContrastHandler);
+
+    this.forcedColorsQuery = window.matchMedia('(forced-colors: active)');
+    this.forcedColorsQuery.addEventListener('change', this.highContrastHandler);
   }
 
   private cleanup(): void {
+    // Drop pending announcements so the queue pump stops on its next tick
+    this.announcementQueue = [];
+
     // Remove live regions
     if (this.politeRegion?.parentNode) {
       this.politeRegion.remove();
@@ -470,6 +479,8 @@ export class MusicAccessibilityService implements OnDestroy {
     if (this.assertiveRegion?.parentNode) {
       this.assertiveRegion.remove();
     }
+    this.politeRegion = null;
+    this.assertiveRegion = null;
 
     // Remove media query listeners
     if (this.reducedMotionQuery && this.reducedMotionHandler) {
@@ -477,6 +488,9 @@ export class MusicAccessibilityService implements OnDestroy {
     }
     if (this.highContrastQuery && this.highContrastHandler) {
       this.highContrastQuery.removeEventListener('change', this.highContrastHandler);
+    }
+    if (this.forcedColorsQuery && this.highContrastHandler) {
+      this.forcedColorsQuery.removeEventListener('change', this.highContrastHandler);
     }
   }
 }

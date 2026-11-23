@@ -48,14 +48,14 @@ export type PanControlSize = 'sm' | 'md' | 'lg';
     // The stereo-width variant uses a native range input with its own
     // slider semantics, so the host only acts as a slider otherwise.
     '[attr.role]': 'variant() === "stereo-width" ? null : "slider"',
-    '[attr.tabindex]': 'variant() === "stereo-width" || disabled() ? -1 : 0',
+    '[attr.tabindex]': 'variant() === "stereo-width" || isDisabled() ? -1 : 0',
     '[attr.aria-valuemin]': 'variant() === "stereo-width" ? null : min()',
     '[attr.aria-valuemax]': 'variant() === "stereo-width" ? null : max()',
     '[attr.aria-valuenow]': 'variant() === "stereo-width" ? null : internalValue()',
     '[attr.aria-valuetext]': 'variant() === "stereo-width" ? null : displayValue()',
     '[attr.aria-label]': 'variant() === "stereo-width" ? null : label() || "Pan"',
     '[attr.aria-orientation]': 'variant() === "stereo-width" ? null : "horizontal"',
-    '[attr.aria-disabled]': 'variant() === "stereo-width" ? null : disabled()',
+    '[attr.aria-disabled]': 'variant() === "stereo-width" ? null : isDisabled()',
   },
 })
 export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
@@ -85,6 +85,10 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
   protected readonly internalValue = signal(0);
   protected readonly isDragging = signal(false);
 
+  // Disabled state set imperatively via setDisabledState (forms API)
+  private readonly cvaDisabled = signal(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
+
   private onChange: (value: number) => void = () => {};
   private onTouched: () => void = () => {};
   private dragController: AbortController | null = null;
@@ -105,6 +109,10 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
 
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {
+    this.cvaDisabled.set(isDisabled);
   }
 
   // Computed classes
@@ -215,7 +223,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
   // Event handlers
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent): void {
-    if (this.disabled() || this.variant() === 'knob') return;
+    // Knob drags are handled by onKnobDrag; stereo-width uses its native 0-100 range input
+    if (this.isDisabled() || this.variant() !== 'slider') return;
     this.isDragging.set(true);
 
     // Capture the track rect once for the whole gesture
@@ -232,13 +241,13 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
 
   @HostListener('dblclick')
   onDoubleClick(): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     this.setValue(0);
   }
 
   @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
 
     const step = this.step();
     const largeStep = step * 10;
@@ -278,7 +287,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
     }
 
     event.preventDefault();
-    this.setValue(newValue);
+    // No center detent for keyboard steps, otherwise small steps could never leave center
+    this.setValue(newValue, false);
     this.onTouched();
   }
 
@@ -309,7 +319,7 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected onKnobDrag(event: MouseEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     event.preventDefault();
 
     const startY = event.clientY;
@@ -335,12 +345,14 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
     this.onTouched();
   }
 
-  private setValue(value: number): void {
-    const stepped = Math.round(value / this.step()) * this.step();
+  private setValue(value: number, applyDetent = true): void {
+    const step = this.step();
+    const decimals = step.toString().split('.')[1]?.length ?? 0;
+    const stepped = Number((Math.round(value / step) * step).toFixed(Math.min(decimals, 20)));
     let clamped = Math.max(this.min(), Math.min(this.max(), stepped));
 
     // Apply center detent
-    if (this.centerDetent() && Math.abs(clamped) < this.detentRange()) {
+    if (applyDetent && this.centerDetent() && Math.abs(clamped) < this.detentRange()) {
       clamped = 0;
     }
 
@@ -355,6 +367,7 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
     this.internalValue.set(value);
     this.onChange(value);
     this.valueChange.emit(value);
+    this.onTouched();
   }
 
   // Public methods

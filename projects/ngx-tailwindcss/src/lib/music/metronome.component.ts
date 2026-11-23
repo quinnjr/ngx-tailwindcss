@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   NgZone,
   numberAttribute,
   OnDestroy,
@@ -134,7 +135,10 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
 
   protected readonly isPlaying = signal(false);
   protected readonly currentBeat = signal(0);
-  protected readonly currentBpm = signal(120);
+  // Tracks the bpm input, but can be changed locally (buttons, slider, tap tempo)
+  protected readonly currentBpm = linkedSignal(() => this.bpm());
+  // Tracks the timeSignature input, but can be changed locally via the selector buttons
+  protected readonly currentTimeSignature = linkedSignal(() => this.timeSignature());
   protected readonly pendulumAngle = signal(0);
   protected readonly tapTimes = signal<number[]>([]);
   protected readonly internalAccentPattern = signal<AccentLevel[]>([]);
@@ -146,6 +150,8 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   protected readonly Math = Math;
 
   private audioContext: AudioContext | null = null;
+  private starting = false;
+  private destroyed = false;
 
   // Lookahead scheduling state (see https://web.dev/audio-scheduling/)
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -157,12 +163,12 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   private static readonly LOOKAHEAD_SECONDS = 0.1;
 
   protected readonly beatsPerMeasure = computed(() => {
-    const sig = this.timeSignature();
+    const sig = this.currentTimeSignature();
     return parseInt(sig.split('/')[0], 10);
   });
 
   protected readonly beatUnit = computed(() => {
-    const sig = this.timeSignature();
+    const sig = this.currentTimeSignature();
     return parseInt(sig.split('/')[1], 10);
   });
 
@@ -191,7 +197,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
 
   // Available presets for current time signature
   protected readonly availablePresets = computed((): AccentPattern[] => {
-    return ACCENT_PRESETS[this.timeSignature()] || [];
+    return ACCENT_PRESETS[this.currentTimeSignature()] || [];
   });
 
   // Get accent level for a specific beat (1-based)
@@ -265,7 +271,6 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.currentBpm.set(this.bpm());
     this.initializeAccentPattern();
 
     if (this.autoStart()) {
@@ -279,7 +284,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
       this.internalAccentPattern.set([...custom]);
     } else {
       // Use first preset for time signature
-      const presets = ACCENT_PRESETS[this.timeSignature()];
+      const presets = ACCENT_PRESETS[this.currentTimeSignature()];
       if (presets && presets.length > 0) {
         this.internalAccentPattern.set([...presets[0].pattern]);
         this.selectedPresetIndex.set(0);
@@ -288,12 +293,15 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stop();
     void this.audioContext?.close();
   }
 
   protected async start(): Promise<void> {
-    if (this.isPlaying() || this.disabled()) return;
+    if (this.isPlaying() || this.starting || this.destroyed || this.disabled()) return;
+    // No Web Audio during SSR / in unsupported environments
+    if (typeof AudioContext === 'undefined') return;
 
     // Initialize audio context for click sounds
     this.audioContext ??= new AudioContext();
@@ -301,11 +309,17 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     // A context created without a user gesture (e.g. autoStart) starts
     // suspended — resume it, and surface a needs-gesture state if that fails.
     if (this.audioContext.state === 'suspended') {
+      // Guard the await: a second start() (double click) or a destroy while
+      // resuming must not spin up a second, unstoppable scheduler.
+      this.starting = true;
       try {
         await this.audioContext.resume();
       } catch {
         // handled below via the state check
+      } finally {
+        this.starting = false;
       }
+      if (this.destroyed || this.isPlaying()) return;
       if ((this.audioContext.state as AudioContextState) !== 'running') {
         this.needsGesture.set(true);
         return;
@@ -449,6 +463,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   }
 
   protected selectTimeSignature(sig: TimeSignature): void {
+    this.currentTimeSignature.set(sig);
     this.timeSignatureChange.emit(sig);
     this.currentBeat.set(0);
     this.beatCounter = 0;

@@ -109,7 +109,14 @@ export class SystemTrayService {
 
   public async destroy(): Promise<void> {
     if (this.platformService.isTauri() && this.trayInstance) {
+      // Dropping the JS reference alone leaves the native tray icon visible
+      const tray = this.trayInstance as { close?: () => Promise<void> };
       this.trayInstance = null;
+      try {
+        await tray.close?.();
+      } catch (error) {
+        console.error('Failed to destroy Tauri tray:', error);
+      }
     } else if (this.platformService.isElectron()) {
       const { ipcRenderer } = await dynamicImport('electron');
       ipcRenderer.send('tray-destroy');
@@ -162,13 +169,14 @@ export class SystemTrayService {
 
   private async buildTauriMenuItems(items: NativeMenuItem[]): Promise<unknown[]> {
     const tauriMenu = await dynamicImport('@tauri-apps/api/menu');
-    const { MenuItem, Submenu } = tauriMenu;
+    const { MenuItem, PredefinedMenuItem, Submenu } = tauriMenu;
 
     const menuItems: unknown[] = [];
 
     for (const item of items) {
       if (item.type === 'separator') {
-        menuItems.push(await MenuItem.new({ id: 'separator', text: '-', enabled: false }));
+        // A real native separator (a MenuItem would render a disabled '-' entry)
+        menuItems.push(await PredefinedMenuItem.new({ item: 'Separator' }));
       } else if (item.submenu) {
         menuItems.push(
           await Submenu.new({

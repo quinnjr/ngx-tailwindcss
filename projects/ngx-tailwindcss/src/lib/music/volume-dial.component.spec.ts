@@ -161,6 +161,56 @@ describe('TwVolumeDialComponent', () => {
     });
   });
 
+  describe('regressions', () => {
+    it('should not leak floating-point noise with fractional steps', () => {
+      component.value.set(0.2);
+      component.step.set(0.1);
+      fixture.detectChanges();
+
+      svgEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('aria-valuenow')).toBe('0.3');
+    });
+
+    it('should honour setDisabledState from the forms API', () => {
+      component.dial.setDisabledState(true);
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('tabindex')).toBe('-1');
+      svgEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+      fixture.detectChanges();
+      expect(component.valueChanges).toHaveLength(0);
+    });
+
+    it('should sweep the full range in a single drag beyond 180 degrees', () => {
+      component.value.set(0);
+      fixture.detectChanges();
+
+      // jsdom rects are all zero, so the dial centre is at (0, 0)
+      const point = (deg: number) => ({
+        clientX: 100 * Math.cos((deg * Math.PI) / 180),
+        clientY: 100 * Math.sin((deg * Math.PI) / 180),
+      });
+
+      // Drive the drag handlers directly (jsdom's AbortSignal does not mix with
+      // zone.js-patched document listeners)
+      const drag = component.dial as unknown as {
+        startDrag(x: number, y: number): void;
+        handleDrag(x: number, y: number): void;
+      };
+      const start = point(0);
+      drag.startDrag(start.clientX, start.clientY);
+      for (let deg = 10; deg <= 280; deg += 10) {
+        const p = point(deg);
+        drag.handleDrag(p.clientX, p.clientY);
+      }
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('aria-valuenow')).toBe('100');
+    });
+  });
+
   describe('disabled state', () => {
     it('should set tabindex to -1 when disabled', () => {
       component.disabled.set(true);

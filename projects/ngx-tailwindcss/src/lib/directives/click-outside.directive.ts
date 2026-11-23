@@ -55,6 +55,7 @@ export class TwClickOutsideDirective implements OnInit, OnDestroy {
   private clickHandler: ((event: MouseEvent) => void) | null = null;
   private isListening = false;
   private delayTimeout: ReturnType<typeof setTimeout> | null = null;
+  private destroyed = false;
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -76,7 +77,8 @@ export class TwClickOutsideDirective implements OnInit, OnDestroy {
   }
 
   private attachListener(): void {
-    if (this.isListening) return;
+    // The deferred attach can resolve after the directive was destroyed
+    if (this.isListening || this.destroyed) return;
 
     this.clickHandler = (event: MouseEvent) => {
       if (!this.clickOutsideEnabled) return;
@@ -119,6 +121,7 @@ export class TwClickOutsideDirective implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     if (this.delayTimeout) {
       clearTimeout(this.delayTimeout);
     }

@@ -512,6 +512,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     document.addEventListener('mouseup', onUp, { signal: abortSignal });
     document.addEventListener('touchmove', onMove, { signal: abortSignal });
     document.addEventListener('touchend', onUp, { signal: abortSignal });
+    document.addEventListener('touchcancel', onUp, { signal: abortSignal });
   }
 
   private updateValueFromPosition(
@@ -549,7 +550,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private setValue(value: number): void {
-    const clampedValue = Math.max(this.min(), Math.min(this.max(), value));
+    const clampedValue = this.roundToStepPrecision(
+      Math.max(this.min(), Math.min(this.max(), value))
+    );
     const previousValue = this.internalValue();
     this.internalValue.set(clampedValue);
     this.onChange(clampedValue);
@@ -562,6 +565,12 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         this.label() || (this.channelNumber() ? `Channel ${this.channelNumber()}` : 'Fader');
       this.a11y.announceValueChange(labelName, clampedValue.toFixed(1), 'dB');
     }
+  }
+
+  // Strip floating-point noise (e.g. 0.1 + 0.2) so values match the step's precision
+  private roundToStepPrecision(value: number): number {
+    const decimals = this.step().toString().split('.')[1]?.length ?? 0;
+    return Number(value.toFixed(Math.min(decimals, 20)));
   }
 
   private triggerHaptics(value: number, previous: number): void {

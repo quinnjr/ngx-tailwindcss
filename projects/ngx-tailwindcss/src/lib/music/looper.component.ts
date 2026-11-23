@@ -114,6 +114,8 @@ export class TwLooperComponent implements OnDestroy {
   // Undo/redo history
   private undoStack: AudioBuffer[] = [];
   private redoStack: AudioBuffer[] = [];
+  // Signal mirror of redoStack.length so canRedo() is reactive
+  private readonly redoCount = signal(0);
 
   // Audio context and nodes
   private audioContext: AudioContext | null = null;
@@ -130,6 +132,14 @@ export class TwLooperComponent implements OnDestroy {
   private layerIdCounter = 0;
   private micErrorMessage: string | null = null;
   private clickTrackTimer: ReturnType<typeof setInterval> | null = null;
+  // Whether this component acquired mediaStream itself (and must stop its tracks)
+  private ownsMediaStream = false;
+  private destroyed = false;
+  // Start playback automatically once the first recording has been decoded
+  private pendingAutoPlay = false;
+  // Playhead anchor: loop position (s) at playbackAnchorTime (AudioContext time)
+  private playbackAnchorTime = 0;
+  private playbackAnchorPosition = 0;
 
   constructor() {
     // Position ticker only runs while playing/overdubbing (idle otherwise)
@@ -144,6 +154,7 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.cleanup();
   }
 
@@ -156,10 +167,28 @@ export class TwLooperComponent implements OnDestroy {
     this.analyserNode = this.audioContext.createAnalyser();
     this.analyserNode.fftSize = 2048;
 
-    // Get microphone access if no external source
-    if (!this.audioSource()) {
+    // Record from the external source's stream when one is provided
+    const externalSource = this.audioSource();
+    if (externalSource) {
+      this.mediaStream = externalSource.mediaStream;
+      this.ownsMediaStream = false;
+      this.micErrorMessage = null;
+      return;
+    }
+
+    // Otherwise get microphone access
+    if (!this.mediaStream) {
       try {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Destroyed while the permission prompt was pending: release the mic
+        if (this.destroyed) {
+          stream.getTracks().forEach(track => {
+            track.stop();
+          });
+          return;
+        }
+        this.mediaStream = stream;
+        this.ownsMediaStream = true;
         this.micErrorMessage = null;
       } catch (error) {
         this.micErrorMessage =
@@ -178,11 +207,19 @@ export class TwLooperComponent implements OnDestroy {
       cancelAnimationFrame(this.animationFrame);
     }
 
-    if (this.mediaStream) {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
+    }
+    this.mediaRecorder = null;
+
+    // Only stop tracks we acquired; an external audioSource stream belongs to the caller
+    if (this.mediaStream && this.ownsMediaStream) {
       this.mediaStream.getTracks().forEach(track => {
         track.stop();
       });
     }
+    this.mediaStream = null;
 
     if (this.audioContext) {
       void this.audioContext.close();
@@ -195,7 +232,7 @@ export class TwLooperComponent implements OnDestroy {
     if (this.disabled()) return;
 
     await this.initAudio();
-    if (!this.audioContext) return;
+    if (this.destroyed || !this.audioContext) return;
 
     // Microphone unavailable: surface the error and do NOT enter recording state
     if (!this.mediaStream) {
@@ -206,6 +243,8 @@ export class TwLooperComponent implements OnDestroy {
     // Count-in if enabled
     if (this.countIn() && this.state() === 'idle') {
       await this.performCountIn();
+      // Destroyed during the count-in: the audio graph is gone
+      if (this.destroyed || !this.audioContext || !this.mediaStream) return;
     }
 
     this.setState('recording');
@@ -241,8 +280,10 @@ export class TwLooperComponent implements OnDestroy {
     this.setState(wasOverdubbing ? 'playing' : 'stopped');
     this.emitEvent(wasOverdubbing ? 'overdub-stop' : 'record-stop');
 
-    if (this.autoPlay() && !wasOverdubbing && this.layers().length > 0) {
-      this.play();
+    // The new layer only exists once MediaRecorder's onstop has decoded it,
+    // so defer auto-play until processRecording() adds the layer.
+    if (this.autoPlay() && !wasOverdubbing) {
+      this.pendingAutoPlay = true;
     }
 
     return Promise.resolve();
@@ -269,7 +310,7 @@ export class TwLooperComponent implements OnDestroy {
     if (this.disabled() || this.loopDuration() === 0) return;
 
     await this.initAudio();
-    if (!this.audioContext) return;
+    if (this.destroyed || !this.audioContext) return;
 
     // Microphone unavailable: surface the error and do NOT enter overdub state
     if (!this.mediaStream) {
@@ -305,6 +346,8 @@ export class TwLooperComponent implements OnDestroy {
     this.currentPosition.set(0);
     this.undoStack = [];
     this.redoStack = [];
+    this.redoCount.set(0);
+    this.pendingAutoPlay = false;
     this.setState('idle');
     this.emitEvent('clear');
     this.layerChange.emit([]);
@@ -319,8 +362,10 @@ export class TwLooperComponent implements OnDestroy {
     const lastLayer = currentLayers.at(-1)!;
     if (lastLayer.audioBuffer) {
       this.redoStack.push(lastLayer.audioBuffer);
+      this.redoCount.set(this.redoStack.length);
     }
 
+    this.stopLayerPlayback(currentLayers.length - 1);
     this.layers.set(currentLayers.slice(0, -1));
     this.emitEvent('undo');
     this.layerChange.emit(this.layers());
@@ -331,6 +376,7 @@ export class TwLooperComponent implements OnDestroy {
     if (this.redoStack.length === 0 || this.layers().length >= this.maxLayers()) return;
 
     const buffer = this.redoStack.pop()!;
+    this.redoCount.set(this.redoStack.length);
     const newLayer: LoopLayer = {
       id: this.layerIdCounter++,
       audioBuffer: buffer,
@@ -340,6 +386,7 @@ export class TwLooperComponent implements OnDestroy {
     };
 
     this.layers.update(layers => [...layers, newLayer]);
+    this.startLayerPlayback(this.layers().length - 1);
     this.emitEvent('redo');
     this.layerChange.emit(this.layers());
     this.drawWaveform();
@@ -351,10 +398,11 @@ export class TwLooperComponent implements OnDestroy {
       layers.map(l => (l.id === layerId ? { ...l, volume: Math.max(0, Math.min(1, volume)) } : l))
     );
 
-    // Update gain node if playing
+    // Update gain node if playing (a muted layer stays silent)
     const layerIndex = this.layers().findIndex(l => l.id === layerId);
-    if (layerIndex >= 0 && this.gainNodes[layerIndex]) {
-      this.gainNodes[layerIndex].gain.value = volume;
+    const layer = this.layers()[layerIndex];
+    if (layer && this.gainNodes[layerIndex]) {
+      this.gainNodes[layerIndex].gain.value = layer.muted ? 0 : layer.volume;
     }
 
     this.layerChange.emit(this.layers());
@@ -376,9 +424,15 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   deleteLayer(layerId: number): void {
-    const layer = this.layers().find(l => l.id === layerId);
+    const layerIndex = this.layers().findIndex(l => l.id === layerId);
+    const layer = this.layers()[layerIndex];
     if (layer?.audioBuffer) {
       this.undoStack.push(layer.audioBuffer);
+    }
+
+    // Silence the deleted layer and keep node arrays aligned with layers()
+    if (layerIndex >= 0) {
+      this.stopLayerPlayback(layerIndex);
     }
 
     this.layers.update(layers => layers.filter(l => l.id !== layerId));
@@ -399,8 +453,18 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   setPlaybackSpeed(speed: number): void {
+    // Re-anchor the playhead so the position stays continuous across the change
+    if (this.audioContext && this.sourceNodes.length > 0) {
+      this.playbackAnchorPosition = this.computePosition();
+      this.playbackAnchorTime = this.audioContext.currentTime;
+    }
     this.playbackSpeed.set(Math.max(0.5, Math.min(2, speed)));
-    // Note: Changing speed during playback would require recreating source nodes
+    // Apply to live sources so the change is audible immediately
+    for (const source of this.sourceNodes) {
+      if (source) {
+        source.playbackRate.value = this.playbackSpeed();
+      }
+    }
   }
 
   // Helper methods
@@ -511,9 +575,20 @@ export class TwLooperComponent implements OnDestroy {
         this.layers.update(layers => [...layers, newLayer]);
         this.layerChange.emit(this.layers());
         this.redoStack = []; // Clear redo stack on new recording
+        this.redoCount.set(0);
+        // An overdub layer joins the already-running loop immediately
+        this.startLayerPlayback(this.layers().length - 1);
         this.drawWaveform();
       }
+
+      if (this.pendingAutoPlay) {
+        this.pendingAutoPlay = false;
+        if (this.state() === 'stopped') {
+          this.play();
+        }
+      }
     } catch (error) {
+      this.pendingAutoPlay = false;
       console.error('Error decoding audio:', error);
     }
   }
@@ -523,29 +598,62 @@ export class TwLooperComponent implements OnDestroy {
 
     this.stopAllPlayback();
 
-    const layers = this.layers();
-    const speed = this.playbackSpeed();
+    // Playhead is measured from when playback actually starts
+    this.playbackAnchorTime = this.audioContext.currentTime;
+    this.playbackAnchorPosition = 0;
 
-    layers.forEach((layer, index) => {
-      if (!layer.audioBuffer || layer.muted) return;
-
-      const source = this.audioContext!.createBufferSource();
-      const gain = this.audioContext!.createGain();
-
-      source.buffer = layer.audioBuffer;
-      source.loop = true;
-      source.playbackRate.value = speed;
-
-      gain.gain.value = layer.volume;
-
-      source.connect(gain);
-      gain.connect(this.masterGainNode!);
-
-      source.start(0);
-
-      this.sourceNodes[index] = source;
-      this.gainNodes[index] = gain;
+    this.layers().forEach((_layer, index) => {
+      this.startLayerPlayback(index, true);
     });
+  }
+
+  /** Start one layer in sync with the loop. */
+  private startLayerPlayback(index: number, force = false): void {
+    if (!this.audioContext || !this.masterGainNode) return;
+    // Outside of playAllLayers, only join a loop that is already running
+    if (!force && this.state() !== 'playing' && this.state() !== 'overdubbing') return;
+
+    const layer = this.layers()[index];
+    if (!layer?.audioBuffer) return;
+
+    const source = this.audioContext.createBufferSource();
+    const gain = this.audioContext.createGain();
+
+    source.buffer = layer.audioBuffer;
+    source.loop = true;
+    // Every layer loops on the master loop length so overdubs stay in sync
+    const loopDuration = Math.min(this.loopDuration(), layer.audioBuffer.duration);
+    if (loopDuration > 0) {
+      source.loopStart = 0;
+      source.loopEnd = loopDuration;
+    }
+    source.playbackRate.value = this.playbackSpeed();
+
+    // Muted layers still run (silently) so unmuting takes effect immediately
+    gain.gain.value = layer.muted ? 0 : layer.volume;
+
+    source.connect(gain);
+    gain.connect(this.masterGainNode);
+
+    const offset = loopDuration > 0 ? this.computePosition() % loopDuration : 0;
+    source.start(0, offset);
+
+    this.sourceNodes[index] = source;
+    this.gainNodes[index] = gain;
+  }
+
+  /** Stop one layer's source and drop it from the index-aligned node arrays. */
+  private stopLayerPlayback(index: number): void {
+    const source = this.sourceNodes[index];
+    if (source) {
+      try {
+        source.stop();
+      } catch {
+        // Source might not be started
+      }
+    }
+    if (index < this.sourceNodes.length) this.sourceNodes.splice(index, 1);
+    if (index < this.gainNodes.length) this.gainNodes.splice(index, 1);
   }
 
   private stopAllPlayback(): void {
@@ -560,13 +668,19 @@ export class TwLooperComponent implements OnDestroy {
     this.gainNodes = [];
   }
 
-  private updatePosition(): void {
-    if (!this.audioContext || this.loopDuration() === 0) return;
+  /** Current loop position (s), measured from when playback actually started. */
+  private computePosition(): number {
+    const loopDuration = this.loopDuration();
+    if (!this.audioContext || loopDuration === 0) return 0;
 
     const elapsed =
-      (this.audioContext.currentTime - this.recordingStartTime) * this.playbackSpeed();
-    const position = elapsed % this.loopDuration();
-    this.currentPosition.set(position);
+      (this.audioContext.currentTime - this.playbackAnchorTime) * this.playbackSpeed();
+    return (this.playbackAnchorPosition + elapsed) % loopDuration;
+  }
+
+  private updatePosition(): void {
+    if (!this.audioContext || this.loopDuration() === 0) return;
+    this.currentPosition.set(this.computePosition());
   }
 
   // Waveform visualization
@@ -741,7 +855,7 @@ export class TwLooperComponent implements OnDestroy {
   });
 
   protected readonly canUndo = computed(() => this.layers().length > 0);
-  protected readonly canRedo = computed(() => this.redoStack.length > 0);
+  protected readonly canRedo = computed(() => this.redoCount() > 0);
   protected readonly canOverdub = computed(
     () => this.loopDuration() > 0 && this.layers().length < this.maxLayers()
   );

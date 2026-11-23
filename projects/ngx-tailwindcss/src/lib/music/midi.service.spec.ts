@@ -440,6 +440,16 @@ describe('MidiService', () => {
       expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xb0, 123, 0]);
     });
 
+    it('should clamp out-of-range pitch bend values instead of wrapping', async () => {
+      await service.requestAccess();
+
+      service.sendPitchBend('output-1', 8192, 0);
+      service.sendPitchBend('output-1', -9000, 0);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0x7f, 0x7f]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0, 0]);
+    });
+
     it('should look up outputs by id and ignore unknown output ids', async () => {
       await service.requestAccess();
 

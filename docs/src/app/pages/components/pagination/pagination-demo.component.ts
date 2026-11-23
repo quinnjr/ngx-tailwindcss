@@ -30,7 +30,7 @@ export class PaginationDemoComponent {
 
   variantsCode = `<tw-pagination variant="default" [totalPages]="10"></tw-pagination>
 <tw-pagination variant="simple" [totalPages]="10"></tw-pagination>
-<tw-pagination variant="numbered" [totalPages]="10"></tw-pagination>`;
+<tw-pagination variant="outlined" [totalPages]="10"></tw-pagination>`;
 
   sizesCode = `<tw-pagination size="sm" [totalPages]="10"></tw-pagination>
 <tw-pagination size="md" [totalPages]="10"></tw-pagination>

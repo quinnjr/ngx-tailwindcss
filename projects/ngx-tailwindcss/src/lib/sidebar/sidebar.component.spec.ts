@@ -151,6 +151,16 @@ describe('TwSidebarComponent', () => {
       fixture.detectChanges();
       expect(document.body.style.overflow).toBe('scroll');
     });
+
+    it('should restore body scroll when destroyed while visible', () => {
+      document.body.style.overflow = 'scroll';
+      component.visible.set(true);
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fixture.destroy();
+      expect(document.body.style.overflow).toBe('scroll');
+    });
   });
 
   describe('dismissal', () => {

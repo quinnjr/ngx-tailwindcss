@@ -248,6 +248,19 @@ describe('TwImageComponent', () => {
 
       document.body.style.overflow = '';
     });
+
+    it('should restore body overflow when destroyed with the preview open', () => {
+      document.body.style.overflow = 'scroll';
+
+      component.image.openPreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fixture.destroy();
+      expect(document.body.style.overflow).toBe('scroll');
+
+      document.body.style.overflow = '';
+    });
   });
 
   describe('loading state', () => {

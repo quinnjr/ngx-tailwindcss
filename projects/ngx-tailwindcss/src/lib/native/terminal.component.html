@@ -79,8 +79,8 @@
         [placeholder]="inputPlaceholder()"
         [(ngModel)]="currentInput"
         (keydown.enter)="submitCommand()"
-        (keydown.arrowup)="navigateHistory(-1)"
-        (keydown.arrowdown)="navigateHistory(1)"
+        (keydown.arrowup)="navigateHistory(1, $event)"
+        (keydown.arrowdown)="navigateHistory(-1, $event)"
         [disabled]="isProcessing()"
         #commandInput
       />

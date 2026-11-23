@@ -411,4 +411,49 @@ describe('TwTreeComponent', () => {
       expect(group.nativeElement.textContent).toContain('Work');
     });
   });
+
+  describe('regressions', () => {
+    const rows = () => treeEl.queryAll(By.css('.cursor-pointer'));
+    const pressKey = (row: DebugElement, key: string) => {
+      row.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      fixture.detectChanges();
+    };
+
+    it('should re-render when expandAll/collapseAll are called programmatically', () => {
+      component.tree.expandAll();
+      fixture.detectChanges();
+      expect(treeEl.nativeElement.textContent).toContain('Work');
+      expect(treeEl.nativeElement.textContent).toContain('Vacation');
+
+      component.tree.collapseAll();
+      fixture.detectChanges();
+      expect(treeEl.nativeElement.textContent).not.toContain('Work');
+    });
+
+    it('should move focus in DOM order when several nodes are expanded', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[3], 'ArrowRight'); // expand Pictures
+      const labels = rows().map(r => r.nativeElement.textContent.trim());
+      expect(labels.slice(0, 6)).toEqual([
+        'Documents',
+        'Work',
+        'Personal',
+        'Pictures',
+        'Vacation',
+        'Family',
+      ]);
+
+      pressKey(rows()[0], 'ArrowDown');
+      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Work');
+
+      pressKey(rows()[3], 'ArrowDown');
+      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Vacation');
+    });
+
+    it('should move focus to the parent with ArrowLeft on a child node', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], 'ArrowLeft'); // on Work
+      expect((document.activeElement as HTMLElement).textContent?.trim()).toBe('Documents');
+    });
+  });
 });

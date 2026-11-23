@@ -356,3 +356,38 @@ describe('TwCheckboxComponent with FormControl', () => {
     expect(input.checked).toBe(false);
   });
 });
+
+@Component({
+  template: `<tw-checkbox [readonly]="readonly()" [indeterminate]="indeterminate()"
+    >X</tw-checkbox
+  >`,
+  standalone: true,
+  imports: [TwCheckboxComponent],
+})
+class CheckboxRegressionHostComponent {
+  readonly = signal(false);
+  indeterminate = signal(false);
+}
+
+describe('TwCheckboxComponent (regressions)', () => {
+  it('should keep the native checkbox unchecked when readonly', () => {
+    const fixture = TestBed.createComponent(CheckboxRegressionHostComponent);
+    fixture.componentInstance.readonly.set(true);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.click();
+    fixture.detectChanges();
+    expect(input.checked).toBe(false);
+  });
+
+  it('should drop aria-checked="mixed" once the user toggles an indeterminate checkbox', () => {
+    const fixture = TestBed.createComponent(CheckboxRegressionHostComponent);
+    fixture.componentInstance.indeterminate.set(true);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    expect(input.getAttribute('aria-checked')).toBe('mixed');
+    input.click();
+    fixture.detectChanges();
+    expect(input.getAttribute('aria-checked')).toBe('true');
+  });
+});

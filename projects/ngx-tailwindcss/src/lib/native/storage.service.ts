@@ -53,13 +53,19 @@ export class NativeStorageService {
 
       const parsed = JSON.parse(item);
 
+      // Values written by set() are wrapped as { _value, _expires? }; anything
+      // else (written by other code) is returned as-is.
+      if (parsed === null || typeof parsed !== 'object' || !('_value' in parsed)) {
+        return parsed ?? defaultValue ?? null;
+      }
+
       // Check expiration
       if (parsed._expires && Date.now() > parsed._expires) {
         this.remove(key);
         return defaultValue ?? null;
       }
 
-      return parsed._value ?? parsed;
+      return parsed._value ?? defaultValue ?? null;
     } catch {
       return defaultValue ?? null;
     }
@@ -139,7 +145,8 @@ export class NativeStorageService {
     if (this.platformService.isElectron()) {
       try {
         const electron = await dynamicImport('electron');
-        return electron.ipcRenderer.invoke('secure-storage-get', key);
+        // Await so an IPC rejection is caught below rather than escaping to the caller
+        return (await electron.ipcRenderer.invoke('secure-storage-get', key)) as T | null;
       } catch (error) {
         console.error('Electron secure storage error:', error);
         return null;

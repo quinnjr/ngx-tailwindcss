@@ -10,19 +10,19 @@
     [attr.height]="sizeConfig().size"
     [attr.viewBox]="'0 0 ' + sizeConfig().size + ' ' + sizeConfig().size"
     class="cursor-pointer select-none"
-    [class.opacity-50]="disabled()"
-    [class.cursor-not-allowed]="disabled()"
+    [class.opacity-50]="isDisabled()"
+    [class.cursor-not-allowed]="isDisabled()"
     (mousedown)="onMouseDown($event)"
     (touchstart)="onTouchStart($event)"
     (keydown)="onKeyDown($event)"
-    [attr.tabindex]="disabled() ? -1 : 0"
+    [attr.tabindex]="isDisabled() ? -1 : 0"
     role="slider"
     [attr.aria-valuenow]="value()"
     [attr.aria-valuemin]="min()"
     [attr.aria-valuemax]="max()"
     [attr.aria-valuetext]="displayValue() + unit()"
     [attr.aria-label]="label() || 'Volume dial'"
-    [attr.aria-disabled]="disabled()"
+    [attr.aria-disabled]="isDisabled()"
   >
     <!-- Track (background arc) -->
     <path

@@ -44,6 +44,18 @@ describe('TwFaderComponent', () => {
     });
   });
 
+  describe('step precision', () => {
+    it('should not leak floating-point noise into aria-valuenow on keyboard steps', () => {
+      component.writeValue(0.2);
+      fixture.detectChanges();
+
+      hostEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      fixture.detectChanges();
+
+      expect(hostEl.getAttribute('aria-valuenow')).toBe('0.3');
+    });
+  });
+
   describe('setDisabledState', () => {
     it('should reflect the disabled state on the host', () => {
       component.setDisabledState(true);

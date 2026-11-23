@@ -449,13 +449,20 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     const width = this.width();
     const height = this.height();
     const bufferLength = this.frequencyData.length;
+    // FFT bin i is centred at i * (nyquist / binCount) Hz
+    const sampleRate = this.analyserNode()?.context?.sampleRate ?? 44_100;
+    const binHz = sampleRate / 2 / bufferLength;
+    const minFreq = this.minFreq();
+    const maxFreq = this.maxFreq();
 
     this.ctx.fillStyle = color;
     this.ctx.beginPath();
     this.ctx.moveTo(0, height);
 
     for (let i = 0; i < bufferLength; i++) {
-      const freq = (i / bufferLength) * (this.maxFreq() - this.minFreq()) + this.minFreq();
+      const freq = i * binHz;
+      if (freq < minFreq) continue;
+      if (freq > maxFreq) break;
       const x = this.frequencyToX(freq);
       const value = this.frequencyData[i] / 255;
       const y = height - value * height;
@@ -628,16 +635,18 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     return 10 ** (minLog + ratio * (maxLog - minLog));
   }
 
+  // Linear gain axis: maxGain at the top, minGain at the bottom (works for
+  // asymmetric ranges, where 0 dB is not the vertical centre)
   private gainToY(gain: number): number {
     const height = this.height();
     const range = this.maxGain() - this.minGain();
-    return height / 2 - (gain / range) * height;
+    return ((this.maxGain() - gain) / range) * height;
   }
 
   private yToGain(y: number): number {
     const height = this.height();
     const range = this.maxGain() - this.minGain();
-    return ((height / 2 - y) / height) * range;
+    return this.maxGain() - (y / height) * range;
   }
 
   private getCanvasPosition(event: MouseEvent): { x: number; y: number } {
@@ -716,6 +725,10 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
       }
       case 'Home': {
         updatedBand = { ...band, gain: 0 };
+        break;
+      }
+      case 'End': {
+        updatedBand = { ...band, gain: this.maxGain() };
         break;
       }
       default: {

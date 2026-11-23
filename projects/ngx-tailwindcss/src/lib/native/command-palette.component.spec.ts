@@ -151,4 +151,28 @@ describe('TwCommandPaletteComponent', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('false');
     expect(options[1].getAttribute('aria-selected')).toBe('true');
   });
+  it('should run the highlighted command when categories are interleaved', () => {
+    const editAction = vi.fn();
+    const viewAction = vi.fn();
+    const undoAction = vi.fn();
+    component.commands.set([
+      { id: 'cut', label: 'Cut', category: 'Edit', action: editAction },
+      { id: 'zoom', label: 'Zoom', category: 'View', action: viewAction },
+      { id: 'undo', label: 'Undo', category: 'Edit', action: undoAction },
+    ]);
+    fixture.detectChanges();
+    component.palette.open();
+    fixture.detectChanges();
+
+    // Display order is grouped: Cut, Undo (Edit) then Zoom (View)
+    pressKey('ArrowDown');
+    expect(getOptions()[1].textContent).toContain('Undo');
+    expect(getOptions()[1].getAttribute('aria-selected')).toBe('true');
+
+    pressKey('Enter');
+
+    expect(component.selected?.id).toBe('undo');
+    expect(undoAction).toHaveBeenCalledTimes(1);
+    expect(viewAction).not.toHaveBeenCalled();
+  });
 });

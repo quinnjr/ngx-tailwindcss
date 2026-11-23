@@ -550,7 +550,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Music: a disabled `tw-scrubber` no longer grows or reveals its thumb on hover
 - Music: `tw-mixer` group indicators above the channels are no longer clipped
 - Music: `tw-score-editor` transposition rounds to whole semitones and ignores
-  an empty amount
+  an empty amount, and is refused (score unchanged, no undo entry) when any
+  note would leave the MIDI 0–127 range
 - `tw-checkbox` shows a default cursor instead of a pointer when `readonly`
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes

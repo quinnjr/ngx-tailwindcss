@@ -196,4 +196,29 @@ describe('TwCompressorMeterComponent', () => {
       expect(label.classList).not.toContain('text-amber-600/80');
     }
   });
+
+  it('should use page-readable, dark-mode-aware text on the transparent minimal variant', () => {
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+
+    expect(internals.labelClass()).toBe('text-slate-600 dark:text-slate-400');
+    expect(internals.valueClass()).toBe('text-slate-800 dark:text-slate-300');
+    expect(internals.grValueClass()).toBe('text-amber-700 dark:text-amber-400');
+    expect(internals.attackTextClass()).toBe('text-green-700 dark:text-green-400');
+    expect(internals.releaseTextClass()).toBe('text-amber-700 dark:text-amber-400');
+
+    const label = [...(fixture.nativeElement as HTMLElement).querySelectorAll('span')].find(
+      s => s.textContent?.trim() === 'Compressor'
+    )!;
+    expect(label.classList).toContain('text-slate-600');
+    expect(label.classList).toContain('dark:text-slate-400');
+  });
+
+  it('should keep the per-variant text tones on the light and dark panels', () => {
+    expect(internals.labelClass()).toBe('text-slate-400');
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(internals.labelClass()).toBe('text-slate-600');
+    expect(internals.grValueClass()).toBe('text-amber-700');
+  });
 });

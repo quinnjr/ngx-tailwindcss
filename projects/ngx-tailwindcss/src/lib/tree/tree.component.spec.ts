@@ -266,6 +266,23 @@ describe('TwTreeComponent', () => {
       expect(updated[2].nativeElement.className).toContain('bg-blue-50');
       expect(updated[0].nativeElement.className).not.toContain('bg-blue-50');
     });
+
+    it('should keep the selected background while the node is hovered', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      treeEl.queryAll(By.css('.cursor-pointer'))[2].nativeElement.click();
+      fixture.detectChanges();
+
+      const cls = (
+        treeEl.queryAll(By.css('.cursor-pointer'))[2].nativeElement as HTMLElement
+      ).className.split(/\s+/);
+      // The unselected hover:bg-slate-100 would otherwise hide the selection under the pointer
+      expect(cls).toEqual(
+        expect.arrayContaining(['hover:bg-blue-100', 'dark:hover:bg-blue-900/50'])
+      );
+      expect(cls).not.toContain('hover:bg-slate-100');
+      expect(cls).not.toContain('dark:hover:bg-slate-700');
+    });
   });
 
   describe('checkbox gating', () => {

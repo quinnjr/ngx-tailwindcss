@@ -14,6 +14,8 @@
           [class.dark:bg-slate-700]="currentDuration() !== dur"
           [class.text-slate-700]="currentDuration() !== dur"
           [class.dark:text-slate-300]="currentDuration() !== dur"
+          [attr.aria-pressed]="currentDuration() === dur"
+          [attr.aria-label]="dur | titlecase"
           (click)="setDuration($any(dur))"
           [title]="dur"
         >
@@ -49,6 +51,10 @@
         [class.text-white]="currentAccidental() === 'sharp'"
         [class.bg-slate-200]="currentAccidental() !== 'sharp'"
         [class.dark:bg-slate-700]="currentAccidental() !== 'sharp'"
+        [class.text-slate-700]="currentAccidental() !== 'sharp'"
+        [class.dark:text-slate-300]="currentAccidental() !== 'sharp'"
+        [attr.aria-pressed]="currentAccidental() === 'sharp'"
+        aria-label="Sharp"
         (click)="setAccidental(currentAccidental() === 'sharp' ? null : 'sharp')"
         title="Sharp (#)"
       >
@@ -61,6 +67,10 @@
         [class.text-white]="currentAccidental() === 'flat'"
         [class.bg-slate-200]="currentAccidental() !== 'flat'"
         [class.dark:bg-slate-700]="currentAccidental() !== 'flat'"
+        [class.text-slate-700]="currentAccidental() !== 'flat'"
+        [class.dark:text-slate-300]="currentAccidental() !== 'flat'"
+        [attr.aria-pressed]="currentAccidental() === 'flat'"
+        aria-label="Flat"
         (click)="setAccidental(currentAccidental() === 'flat' ? null : 'flat')"
         title="Flat (-)"
       >
@@ -73,6 +83,10 @@
         [class.text-white]="currentAccidental() === 'natural'"
         [class.bg-slate-200]="currentAccidental() !== 'natural'"
         [class.dark:bg-slate-700]="currentAccidental() !== 'natural'"
+        [class.text-slate-700]="currentAccidental() !== 'natural'"
+        [class.dark:text-slate-300]="currentAccidental() !== 'natural'"
+        [attr.aria-pressed]="currentAccidental() === 'natural'"
+        aria-label="Natural"
         (click)="setAccidental(currentAccidental() === 'natural' ? null : 'natural')"
         title="Natural (=)"
       >
@@ -91,6 +105,10 @@
         [class.text-white]="isDotted()"
         [class.bg-slate-200]="!isDotted()"
         [class.dark:bg-slate-700]="!isDotted()"
+        [class.text-slate-700]="!isDotted()"
+        [class.dark:text-slate-300]="!isDotted()"
+        [attr.aria-pressed]="isDotted()"
+        aria-label="Dotted"
         (click)="setDotted(!isDotted())"
         title="Dotted (.)"
       >
@@ -103,6 +121,10 @@
         [class.text-white]="isRest()"
         [class.bg-slate-200]="!isRest()"
         [class.dark:bg-slate-700]="!isRest()"
+        [class.text-slate-700]="!isRest()"
+        [class.dark:text-slate-300]="!isRest()"
+        [attr.aria-pressed]="isRest()"
+        aria-label="Rest"
         (click)="setRestMode(!isRest())"
         title="Rest (R)"
       >
@@ -122,6 +144,8 @@
               type="button"
               class="w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-colors"
               [class]="voiceButtonClasses(voice, currentVoice() === voice)"
+              [attr.aria-pressed]="currentVoice() === voice"
+              [attr.aria-label]="'Voice ' + voice"
               (click)="setVoice($any(voice))"
               [title]="'Voice ' + voice + ' (Shift+' + voice + ')'"
             >

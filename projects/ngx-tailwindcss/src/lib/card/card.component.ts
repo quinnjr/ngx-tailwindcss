@@ -233,6 +233,13 @@ export class TwCardComponent {
   /** Additional classes to merge with base styles */
   readonly classOverride = input('');
 
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('');
+
   /** Complete class override (replaces all default classes) */
   readonly classReplace = input('');
 
@@ -264,6 +271,7 @@ export class TwCardComponent {
       baseClasses,
       variantClasses,
       conditionalClasses.join(' '),
+      this.class(),
       this.classOverride()
     );
   });
@@ -299,11 +307,18 @@ export class TwCardHorizontalComponent {
 
   readonly variant = input<CardVariant>('elevated');
   readonly classOverride = input('');
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('');
 
   protected computedClasses = computed(() => {
     return this.twClass.merge(
       'flex rounded-xl overflow-hidden',
       CARD_VARIANTS[this.variant()],
+      this.class(),
       this.classOverride()
     );
   });

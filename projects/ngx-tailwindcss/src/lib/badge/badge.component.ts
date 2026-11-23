@@ -5,6 +5,7 @@ import {
   computed,
   EventEmitter,
   inject,
+  input,
   Input,
   Output,
   signal,
@@ -134,6 +135,12 @@ export class TwBadgeComponent {
   @Input() set classOverride(value: string) {
     this._classOverride.set(value);
   }
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('');
 
   // Output
   @Output() remove = new EventEmitter<void>();
@@ -151,6 +158,7 @@ export class TwBadgeComponent {
       styleVariants[this._badgeStyle()][this._variant()],
       BADGE_SIZES[this._size()],
       this._pill() ? BADGE_ROUNDED['pill'] : BADGE_ROUNDED['default'],
+      this.class(),
       this._classOverride()
     );
   });

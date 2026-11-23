@@ -30,6 +30,24 @@ describe('TwMetronomeComponent', () => {
   const buttonByText = (text: string): HTMLButtonElement =>
     [...el.querySelectorAll('button')].find(b => b.textContent?.trim() === text)!;
 
+  it('should keep the Start/Stop label at 4.5:1, hovered or not', () => {
+    // White on green-600 was ~3.3:1 (green-500 hover ~2.3:1); on red-500 hover ~3.8:1
+    const start = buttonByText('Start');
+    expect(start.className).toContain('bg-green-700');
+    expect(start.className).toContain('hover:bg-green-800');
+    expect(start.className).not.toMatch(/(^|\s)(hover:)?bg-green-[56]00(\s|$)/);
+
+    const metronome = fixture.debugElement.query(By.directive(TwMetronomeComponent))
+      .componentInstance as unknown as { isPlaying: { set(v: boolean): void } };
+    metronome.isPlaying.set(true);
+    fixture.detectChanges();
+    const stop = buttonByText('Stop');
+    expect(stop.className).toContain('bg-red-600');
+    expect(stop.className).toContain('hover:bg-red-700');
+    expect(stop.className).not.toContain('hover:bg-red-500');
+    metronome.isPlaying.set(false);
+  });
+
   it('should count down the tap hint and drop it once the tempo is set', () => {
     const hint = () => /Tap \d more \w+/.exec(el.textContent?.replaceAll(/\s+/g, ' ') ?? '')?.[0];
     buttonByText('TAP').click();

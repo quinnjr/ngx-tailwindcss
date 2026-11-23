@@ -22,6 +22,25 @@ describe('TwChannelStripComponent', () => {
     expect(buttons.every(b => b.disabled)).toBe(true);
   });
 
+  it('should keep the R/M/S letters readable on their hover fills', () => {
+    fixture.componentRef.setInput('showRecord', true);
+    fixture.detectChanges();
+    const button = (name: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        `button[aria-label="${name}"]`
+      )!;
+    // slate-300 was ~2.6:1 on hover red-500, ~1.2:1 on amber-400 and ~1.4:1 on green-400
+    expect(button('Record arm').className).toContain('hover:bg-red-600');
+    expect(button('Record arm').className).toContain('hover:text-white');
+    expect(button('Mute').className).toContain('hover:text-black');
+    expect(button('Solo').className).toContain('hover:text-black');
+
+    // Engaged buttons drop the hover overrides
+    button('Mute').click();
+    fixture.detectChanges();
+    expect(button('Mute').className).not.toContain('hover:');
+  });
+
   it('should give each dial its own accessible name', () => {
     const labels = [
       ...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="slider"]'),

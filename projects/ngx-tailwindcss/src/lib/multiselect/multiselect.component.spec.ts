@@ -600,3 +600,18 @@ describe('TwMultiSelectComponent (round 12)', () => {
     expect(trigger.className).toContain('dark:text-slate-100');
   });
 });
+
+describe('TwMultiSelectComponent (round 16)', () => {
+  it('should show the filter input focus border in dark mode', () => {
+    const fixture = TestBed.createComponent(FilterInFormHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const filterInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[aria-label="Search options"]'
+    );
+    // `dark:border-slate-600` would otherwise beat `focus:border-blue-500` in dark mode
+    expect(filterInput.className).toContain('dark:focus:border-blue-500');
+  });
+});

@@ -32,13 +32,13 @@ const INPUT_BASE_CLASSES = `
 
 const INPUT_VARIANTS: Record<InputVariant, string> = {
   default:
-    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
+    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
   filled:
     'bg-slate-100 dark:bg-slate-700 border-2 border-transparent rounded-lg focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500',
   outlined:
-    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500',
+    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 dark:focus:border-blue-500',
   underlined:
-    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus:border-blue-500',
+    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus:border-blue-500 dark:focus:border-blue-500',
 };
 
 const INPUT_SIZES: Record<InputSize, string> = {
@@ -48,9 +48,11 @@ const INPUT_SIZES: Record<InputSize, string> = {
 };
 
 // `dark:border-rose-500` replaces the variants' `dark:border-slate-600`, which would
-// otherwise override the error border in dark mode (dark: utilities are emitted later)
+// otherwise override the error border in dark mode (dark: utilities are emitted later).
+// Likewise the variants carry `dark:focus:border-blue-500` so the focus border is not
+// beaten by `dark:border-slate-600`; the error classes replace it with rose.
 const INPUT_ERROR_CLASSES =
-  'border-rose-500 dark:border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
+  'border-rose-500 dark:border-rose-500 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-rose-500/20';
 
 /**
  * Variant classes for the wrapper rendered around the input when it has a
@@ -60,17 +62,17 @@ const INPUT_ERROR_CLASSES =
  */
 const INPUT_WRAPPER_VARIANTS: Record<InputVariant, string> = {
   default:
-    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20',
+    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 dark:focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20',
   filled:
     'bg-slate-100 dark:bg-slate-700 border-2 border-transparent rounded-lg focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:border-blue-500',
   outlined:
-    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500',
+    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 dark:focus-within:border-blue-500',
   underlined:
-    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus-within:border-blue-500',
+    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus-within:border-blue-500 dark:focus-within:border-blue-500',
 };
 
 const INPUT_WRAPPER_ERROR_CLASSES =
-  'border-rose-500 dark:border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500/20';
+  'border-rose-500 dark:border-rose-500 focus-within:border-rose-500 dark:focus-within:border-rose-500 focus-within:ring-rose-500/20';
 
 const LABEL_REQUIRED_CLASSES = "after:content-['*'] after:ml-0.5 after:text-rose-500";
 

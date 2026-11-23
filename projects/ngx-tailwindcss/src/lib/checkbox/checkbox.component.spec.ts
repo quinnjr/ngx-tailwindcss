@@ -133,6 +133,22 @@ describe('TwCheckboxComponent', () => {
       const input = checkboxEl.querySelector('input');
       expect(input?.className).toContain('text-slate-600');
     });
+
+    it('should colour the native checkbox via accent-color for every variant', () => {
+      // A native checkbox ignores `color`; only `accent-color` tints the checked box
+      const expected = {
+        primary: 'accent-blue-600',
+        secondary: 'accent-slate-600',
+        success: 'accent-emerald-600',
+        warning: 'accent-amber-600',
+        danger: 'accent-rose-600',
+      } as const;
+      for (const [variant, cls] of Object.entries(expected)) {
+        component.variant.set(variant as CheckboxVariant);
+        fixture.detectChanges();
+        expect(checkboxEl.querySelector('input')?.className).toContain(cls);
+      }
+    });
   });
 
   describe('sizes', () => {

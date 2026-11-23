@@ -81,6 +81,7 @@
       [disabled]="item.disabled"
       [attr.aria-current]="item.active ? 'page' : undefined"
       [attr.title]="isCollapsed() ? item.label : undefined"
+      [attr.aria-label]="isCollapsed() ? item.label : null"
       (click)="onItemClick(item)"
     >
       <!-- Icon -->

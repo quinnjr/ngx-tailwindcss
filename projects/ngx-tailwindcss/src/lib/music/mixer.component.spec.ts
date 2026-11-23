@@ -116,6 +116,21 @@ describe('TwMixerComponent layout', () => {
     expect(fixture.debugElement.queryAll(By.css('button[title^="Scroll"]')).length).toBe(0);
   });
 
+  it('should expose each section header collapsed state to assistive technology', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+    const header = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+        b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+      )!;
+    expect(header().getAttribute('aria-expanded')).toBe('true');
+
+    header().click();
+    fixture.detectChanges();
+    expect(header().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('should show the collapsed-section channel count in a readable colour', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

@@ -156,6 +156,13 @@ export class TwAlertComponent {
   /** Additional classes */
   readonly classOverride = input('');
 
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('');
+
   /** Dismiss event */
   @Output() dismiss = new EventEmitter<void>();
 
@@ -195,6 +202,7 @@ export class TwAlertComponent {
     return this.twClass.merge(
       ALERT_BASE_CLASSES,
       styleVariants[this.alertStyle()][this.variant()],
+      this.class(),
       this.classOverride()
     );
   });

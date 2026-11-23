@@ -277,3 +277,24 @@ describe('TwBadgeGroupComponent', () => {
     });
   });
 });
+
+describe('TwBadgeComponent class attribute', () => {
+  @Component({
+    template: `<tw-badge class="bg-sky-100 text-sky-800 mt-1">Static</tw-badge>`,
+    standalone: true,
+    imports: [TwBadgeComponent],
+  })
+  class ClassHostComponent {}
+
+  it('lets a static class override the conflicting variant colours', async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+    const badge = fixture.debugElement.query(By.css('tw-badge')).nativeElement as HTMLElement;
+    expect(badge.classList).toContain('bg-sky-100');
+    expect(badge.classList).toContain('text-sky-800');
+    expect(badge.classList).toContain('mt-1');
+    expect(badge.classList).not.toContain('bg-slate-200');
+    expect(badge.classList).not.toContain('text-slate-800');
+  });
+});

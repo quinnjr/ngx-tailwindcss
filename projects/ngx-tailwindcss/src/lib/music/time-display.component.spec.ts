@@ -81,6 +81,25 @@ describe('TwTimeDisplayComponent', () => {
       '01:05.250'
     );
   });
+  it('should keep LED unit letters and flip separators at 4.5:1', () => {
+    const root = fixture.nativeElement as HTMLElement;
+    fixture.componentRef.setInput('variant', 'led');
+    fixture.componentRef.setInput('mode', 'bpm');
+    fixture.componentRef.setInput('size', 'sm');
+    fixture.detectChanges();
+    // 'BPM' at emerald-400/50 was ~3.1:1 on the slate-900 display
+    const letter = root.querySelector('[data-char="B"]')!;
+    expect(letter.className).toContain('text-emerald-400/70');
+    expect(letter.className).not.toContain('/50');
+
+    fixture.componentRef.setInput('variant', 'flip');
+    fixture.componentRef.setInput('mode', 'time');
+    fixture.detectChanges();
+    const separator = [...root.querySelectorAll('span')].find(s => s.textContent === ':')!;
+    // slate-500 alone was ~3.5:1 on a dark page
+    expect(separator.className).toContain('dark:text-slate-400');
+  });
+
   it('should inherit the surrounding text colour in the minimal variant', () => {
     const textDiv = () =>
       (fixture.nativeElement as HTMLElement).querySelector('[role="img"] > div')!;

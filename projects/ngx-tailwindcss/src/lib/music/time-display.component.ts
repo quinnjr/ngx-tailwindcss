@@ -172,7 +172,9 @@ export class TwTimeDisplayComponent {
     if (isSeparator) {
       return this.twClass.merge(baseClasses, 'text-emerald-400/70 mx-0.5');
     }
-    return this.twClass.merge(baseClasses, 'text-emerald-400/50');
+    // Unit letters and signs (e.g. 'BPM', the remaining-time '-') are text too: at 50% they
+    // were ~3.1:1 on the slate-900 display
+    return this.twClass.merge(baseClasses, 'text-emerald-400/70');
   }
 
   protected readonly digitalClasses = computed(() => {
@@ -190,7 +192,8 @@ export class TwTimeDisplayComponent {
 
   protected readonly separatorClasses = computed(() => {
     const size = this.sizeConfig();
-    return this.twClass.merge('text-slate-500 font-bold', size.flip);
+    // Sits on the page: slate-500 is ~3.5:1 on a dark page
+    return this.twClass.merge('text-slate-500 dark:text-slate-400 font-bold', size.flip);
   });
 
   protected readonly defaultClasses = computed(() => {

@@ -250,4 +250,45 @@ describe('TwLooperComponent', () => {
       0
     );
   });
+
+  it('should use page-readable, dark-mode-aware text on the transparent minimal variant', () => {
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('showLayers', true);
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
+    internals.loopDuration.set(2);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    // no fixed light text that would be ~1.5-2.6:1 on a light page
+    for (const node of el.querySelectorAll('span, div')) {
+      const classes = [...node.classList];
+      for (const tone of ['text-slate-300', 'text-slate-400']) {
+        if (classes.includes(tone)) {
+          expect(classes.some(c => c.startsWith('dark:text-'))).toBe(true);
+        }
+      }
+    }
+    expect(el.querySelectorAll('.text-slate-600.dark\\:text-slate-400').length).toBeGreaterThan(0);
+    expect(el.querySelectorAll('.text-slate-800.dark\\:text-slate-300').length).toBeGreaterThan(0);
+    expect(el.querySelector('.bg-slate-800\\/50')).toBeNull();
+    expect(el.querySelector('[aria-label="Overdub"] svg')!.classList).toContain('text-amber-700');
+  });
+
+  it('should keep the light text on the dark panel variants', () => {
+    expect(internals.labelClass()).toBe('text-slate-400');
+    expect(internals.valueClass()).toBe('text-slate-300');
+    expect(internals.layerRowClass()).toBe('bg-slate-800/50');
+  });
+
+  it('should give unselected speed buttons >= 4.5:1 text on their slate-700 background', () => {
+    fixture.componentRef.setInput('showSpeedControl', true);
+    fixture.detectChanges();
+
+    const half = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+    ].find(b => b.textContent?.trim() === '0.5x')!;
+    expect(half.classList).toContain('bg-slate-700');
+    expect(half.classList).toContain('text-slate-300');
+    expect(half.classList).not.toContain('text-slate-400');
+  });
 });

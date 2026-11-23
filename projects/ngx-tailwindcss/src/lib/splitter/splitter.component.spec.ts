@@ -64,6 +64,22 @@ describe('TwSplitterComponent', () => {
     expect(el.className).toContain('dark:bg-slate-700');
   });
 
+  it('should keep the dragging colour while the gutter is hovered', () => {
+    const el = gutter().nativeElement as HTMLElement;
+    el.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 0, bubbles: true }));
+    fixture.detectChanges();
+
+    const cls = el.className.split(/\s+/);
+    expect(cls).toEqual(
+      expect.arrayContaining(['bg-blue-400', 'hover:bg-blue-400', 'dark:hover:bg-blue-500'])
+    );
+    expect(cls).not.toContain('hover:bg-slate-300');
+    expect(cls).not.toContain('dark:hover:bg-slate-600');
+
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    fixture.detectChanges();
+  });
+
   describe('pane projection', () => {
     it('should project both panes into their slots', () => {
       const start = splitterEl.query(By.css('[data-testid="pane-start"]'));

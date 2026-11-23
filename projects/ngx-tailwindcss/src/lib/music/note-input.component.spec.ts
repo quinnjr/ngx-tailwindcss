@@ -286,4 +286,24 @@ describe('TwNoteInputComponent host', () => {
     expect(host.getAttribute('role')).toBe('group');
     expect(host.getAttribute('aria-label')).toBe('Note input');
   });
+
+  it('names the symbol-only toolbar buttons and exposes their toggle state', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const byLabel = (label: string) =>
+      host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    // Their content ('•', '𝄽', '𝅘𝅥', ...) was the accessible name
+    for (const label of ['Quarter', 'Sharp', 'Flat', 'Natural', 'Dotted', 'Rest', 'Voice 1']) {
+      expect(byLabel(label), label).not.toBeNull();
+    }
+    expect(byLabel('Quarter')!.getAttribute('aria-pressed')).toBe('true');
+    expect(byLabel('Rest')!.getAttribute('aria-pressed')).toBe('false');
+    byLabel('Rest')!.click();
+    fixture.detectChanges();
+    expect(byLabel('Rest')!.getAttribute('aria-pressed')).toBe('true');
+    // Inactive symbol buttons set their own text colour on the slate-700 dark fill
+    expect(byLabel('Sharp')!.classList).toContain('dark:text-slate-300');
+  });
 });

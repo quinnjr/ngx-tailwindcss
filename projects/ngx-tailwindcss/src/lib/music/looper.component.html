@@ -20,7 +20,7 @@
           [class.bg-amber-500]="state() === 'overdubbing'"
           [class.bg-slate-600]="state() === 'idle' || state() === 'stopped'"
         ></div>
-        <span class="text-xs uppercase tracking-wider text-slate-400">
+        <span class="text-xs uppercase tracking-wider" [class]="labelClass()">
           @switch (state()) {
             @case ('recording') {
               Recording
@@ -41,10 +41,10 @@
         </span>
       </div>
 
-      <div class="font-mono text-slate-300">
+      <div class="font-mono" [class]="valueClass()">
         <span class="text-sm">{{ formattedPosition() }}</span>
-        <span class="text-slate-400 mx-1">/</span>
-        <span class="text-xs text-slate-400">{{ formattedDuration() }}</span>
+        <span class="mx-1" [class]="labelClass()">/</span>
+        <span class="text-xs" [class]="labelClass()">{{ formattedDuration() }}</span>
       </div>
     </div>
   }
@@ -144,7 +144,7 @@
         <svg
           class="w-5 h-5"
           [class.text-white]="state() === 'overdubbing'"
-          [class.text-amber-500]="state() !== 'overdubbing'"
+          [class]="state() !== 'overdubbing' ? overdubIconClass() : ''"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -232,12 +232,12 @@
   <!-- Layer List -->
   @if (showLayers() && layers().length > 0) {
     <div class="space-y-1 border-t border-slate-700 pt-3 mt-1">
-      <div class="text-xs text-slate-400 uppercase tracking-wider mb-2">
+      <div class="text-xs uppercase tracking-wider mb-2" [class]="labelClass()">
         Layers ({{ layers().length }}/{{ maxLayers() }})
       </div>
 
       @for (layer of layers(); track layer.id) {
-        <div class="flex items-center gap-2 p-2 rounded bg-slate-800/50">
+        <div class="flex items-center gap-2 p-2 rounded" [class]="layerRowClass()">
           <!-- Mute Toggle -->
           <button
             type="button"
@@ -245,7 +245,7 @@
             [class.bg-red-500]="layer.muted"
             [class.text-white]="layer.muted"
             [class.bg-slate-700]="!layer.muted"
-            [class.text-slate-400]="!layer.muted"
+            [class.text-slate-300]="!layer.muted"
             [class.hover:bg-slate-600]="!layer.muted"
             (click)="toggleLayerMute(layer.id)"
             [attr.aria-label]="(layer.muted ? 'Unmute ' : 'Mute ') + layer.name"
@@ -255,7 +255,7 @@
           </button>
 
           <!-- Layer Name -->
-          <span class="flex-1 text-sm text-slate-300 truncate">{{ layer.name }}</span>
+          <span class="flex-1 text-sm truncate" [class]="valueClass()">{{ layer.name }}</span>
 
           <!-- Volume Slider -->
           <input
@@ -272,7 +272,8 @@
           <!-- Delete Button -->
           <button
             type="button"
-            class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-500/20 transition-colors"
+            class="w-6 h-6 rounded flex items-center justify-center hover:text-red-500 hover:bg-red-500/20 transition-colors"
+            [class]="labelClass()"
             (click)="deleteLayer(layer.id)"
             [attr.aria-label]="'Delete ' + layer.name"
           >
@@ -294,7 +295,7 @@
   <!-- Master Volume -->
   @if (showVolumeControl()) {
     <div class="flex items-center gap-3 pt-2 border-t border-slate-700">
-      <span class="text-xs text-slate-400 uppercase">Volume</span>
+      <span class="text-xs uppercase" [class]="labelClass()">Volume</span>
       <input
         type="range"
         [value]="masterVolume() * 100"
@@ -305,7 +306,7 @@
         class="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
         aria-label="Master volume"
       />
-      <span class="text-xs text-slate-400 w-8 text-right"
+      <span class="text-xs w-8 text-right" [class]="labelClass()"
         >{{ masterVolume() * 100 | number: '1.0-0' }}%</span
       >
     </div>
@@ -314,7 +315,7 @@
   <!-- Speed Control -->
   @if (showSpeedControl()) {
     <div class="flex items-center gap-3">
-      <span class="text-xs text-slate-400 uppercase">Speed</span>
+      <span class="text-xs uppercase" [class]="labelClass()">Speed</span>
       <div class="flex gap-1">
         <button
           type="button"
@@ -322,7 +323,7 @@
           [class.bg-blue-600]="playbackSpeed() === 0.5"
           [class.text-white]="playbackSpeed() === 0.5"
           [class.bg-slate-700]="playbackSpeed() !== 0.5"
-          [class.text-slate-400]="playbackSpeed() !== 0.5"
+          [class.text-slate-300]="playbackSpeed() !== 0.5"
           [class.hover:bg-slate-600]="playbackSpeed() !== 0.5"
           (click)="setPlaybackSpeed(0.5)"
         >
@@ -334,7 +335,7 @@
           [class.bg-blue-600]="playbackSpeed() === 1"
           [class.text-white]="playbackSpeed() === 1"
           [class.bg-slate-700]="playbackSpeed() !== 1"
-          [class.text-slate-400]="playbackSpeed() !== 1"
+          [class.text-slate-300]="playbackSpeed() !== 1"
           [class.hover:bg-slate-600]="playbackSpeed() !== 1"
           (click)="setPlaybackSpeed(1)"
         >
@@ -346,7 +347,7 @@
           [class.bg-blue-600]="playbackSpeed() === 2"
           [class.text-white]="playbackSpeed() === 2"
           [class.bg-slate-700]="playbackSpeed() !== 2"
-          [class.text-slate-400]="playbackSpeed() !== 2"
+          [class.text-slate-300]="playbackSpeed() !== 2"
           [class.hover:bg-slate-600]="playbackSpeed() !== 2"
           (click)="setPlaybackSpeed(2)"
         >

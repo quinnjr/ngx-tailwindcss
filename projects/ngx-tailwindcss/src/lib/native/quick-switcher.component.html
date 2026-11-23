@@ -4,10 +4,12 @@
   role="dialog"
   aria-modal="true"
   aria-label="Quick switcher"
-  (click)="onBackdropClick($event)"
 >
-  <!-- Backdrop -->
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <!-- Backdrop: it covers the whole overlay, so it must own the close click -->
+  <div
+    class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+    (click)="onBackdropClick($event)"
+  ></div>
 
   <!-- Switcher Panel -->
   <div

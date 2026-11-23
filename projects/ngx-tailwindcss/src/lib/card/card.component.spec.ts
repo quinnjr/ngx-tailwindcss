@@ -409,3 +409,30 @@ describe('TwCardHorizontalComponent', () => {
     expect(cardEl.className).toContain('custom-horizontal');
   });
 });
+
+describe('TwCardComponent class attribute', () => {
+  @Component({
+    template: `<tw-card class="bg-slate-50 shadow-lg mb-6">Static</tw-card
+      ><tw-card-horizontal class="bg-slate-50">Horizontal</tw-card-horizontal>`,
+    standalone: true,
+    imports: [TwCardComponent, TwCardHorizontalComponent],
+  })
+  class ClassHostComponent {}
+
+  it('lets a static class override the conflicting variant classes', async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+    const card = fixture.debugElement.query(By.css('tw-card')).nativeElement as HTMLElement;
+    expect(card.classList).toContain('bg-slate-50');
+    expect(card.classList).toContain('shadow-lg');
+    expect(card.classList).toContain('mb-6');
+    expect(card.classList).not.toContain('bg-white');
+    expect(card.classList).not.toContain('shadow-md');
+
+    const horizontal = fixture.debugElement.query(By.css('tw-card-horizontal'))
+      .nativeElement as HTMLElement;
+    expect(horizontal.classList).toContain('bg-slate-50');
+    expect(horizontal.classList).not.toContain('bg-white');
+  });
+});

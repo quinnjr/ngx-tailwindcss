@@ -7,6 +7,7 @@ import {
   ElementRef,
   HostBinding,
   inject,
+  input,
   Input,
   signal,
   viewChild,
@@ -163,6 +164,12 @@ export class TwButtonComponent {
   @Input() set rippleColor(value: string) {
     this._rippleColor.set(value);
   }
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('');
   @Input() set classOverride(value: string) {
     this._classOverride.set(value);
   }
@@ -207,6 +214,7 @@ export class TwButtonComponent {
       sizeClasses,
       iconClasses,
       conditionalClasses.join(' '),
+      this.class(),
       this._classOverride()
     );
   });

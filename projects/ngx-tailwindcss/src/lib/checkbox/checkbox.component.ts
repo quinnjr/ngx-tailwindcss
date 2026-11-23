@@ -18,11 +18,16 @@ export type CheckboxVariant = 'primary' | 'secondary' | 'success' | 'warning' | 
 export type CheckboxSize = 'sm' | 'md' | 'lg';
 
 const CHECKBOX_VARIANTS: Record<CheckboxVariant, string> = {
-  primary: 'text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
-  secondary: 'text-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
-  success: 'text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
-  warning: 'text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
-  danger: 'text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
+  primary:
+    'text-blue-600 accent-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
+  secondary:
+    'text-slate-600 accent-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
+  success:
+    'text-emerald-600 accent-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
+  warning:
+    'text-amber-600 accent-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
+  danger:
+    'text-rose-600 accent-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
 };
 
 const CHECKBOX_SIZES: Record<CheckboxSize, { box: string; label: string }> = {

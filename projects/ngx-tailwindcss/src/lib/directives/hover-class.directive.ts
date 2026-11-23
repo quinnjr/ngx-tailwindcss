@@ -156,10 +156,20 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
       this.renderer.removeClass(element, cls);
     }
 
-    // Restore base and conflicting classes
-    const restore = new Set([...this.hoverClassBase.split(/\s+/), ...(applied?.removed ?? [])]);
-    for (const cls of restore) {
-      if (cls) this.renderer.addClass(element, cls);
+    // Restore base and conflicting classes. A removed conflicting class is not
+    // restored if the element gained a replacement while hovered (e.g. a
+    // `[class]` binding switched from `bg-gray-200` to `bg-blue-600`), as the
+    // stale class would otherwise override the new one
+    const base = this.hoverClassBase.split(/\s+/).filter(Boolean);
+    const current = (element.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+    for (const cls of new Set([...base, ...(applied?.removed ?? [])])) {
+      if (
+        base.includes(cls) ||
+        current.length === 0 ||
+        this.twClassService.merge(cls, current.join(' ')).split(' ').includes(cls)
+      ) {
+        this.renderer.addClass(element, cls);
+      }
     }
   }
 

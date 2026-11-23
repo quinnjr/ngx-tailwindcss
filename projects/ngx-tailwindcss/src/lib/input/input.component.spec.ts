@@ -195,6 +195,28 @@ describe('TwInputComponent', () => {
         expect(inputEl.className).not.toContain('dark:border-slate-600');
       }
     });
+
+    it('should keep the error border (not blue) when focused in dark mode', () => {
+      component.error.set('Required');
+      for (const variant of ['default', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:focus:border-rose-500');
+        expect(inputEl.className).not.toContain('dark:focus:border-blue-500');
+      }
+    });
+  });
+
+  describe('dark mode focus indicator', () => {
+    it('should show the focus border in dark mode for bordered variants', () => {
+      // `dark:border-slate-600` is emitted after `focus:border-blue-500` and would win
+      for (const variant of ['default', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:border-slate-600');
+        expect(inputEl.className).toContain('dark:focus:border-blue-500');
+      }
+    });
   });
 
   describe('native validation attributes', () => {
@@ -618,6 +640,16 @@ describe('TwInputComponent wrapper focus indicator', () => {
     const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
     expect(wrapper.className).toContain('dark:border-rose-500');
     expect(wrapper.className).not.toContain('dark:border-slate-600');
+  });
+
+  it('should show the wrapper focus border in dark mode', () => {
+    for (const variant of ['default', 'outlined', 'underlined'] as const) {
+      const fixture = TestBed.createComponent(WrappedInputHostComponent);
+      fixture.componentInstance.variant.set(variant);
+      fixture.detectChanges();
+      const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+      expect(wrapper.className).toContain('dark:focus-within:border-blue-500');
+    }
   });
 
   it('should use focus-within on the wrapper of a clearable input', () => {

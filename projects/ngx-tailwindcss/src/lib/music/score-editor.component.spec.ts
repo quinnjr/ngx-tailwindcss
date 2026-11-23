@@ -426,6 +426,42 @@ describe('TwScoreEditorComponent', () => {
     expect(editor.parts().map(p => p.id)).toEqual(['part-0']);
   });
 
+  it('gives icon-only toolbar and part buttons a name and exposes toggle state', () => {
+    createWith(score([placed('n1')]));
+    const root = fixture.nativeElement as HTMLElement;
+    const byLabel = (label: string) =>
+      root.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    // Their content ('.', '𝄽', 'M', 'S', '↩', ...) was the accessible name
+    for (const label of ['Undo', 'Redo', 'Sharp', 'Dotted', 'Rest', 'Voice 1', 'Quarter']) {
+      expect(byLabel(label), label).not.toBeNull();
+    }
+    expect(byLabel('Mute Violin')).not.toBeNull();
+    expect(byLabel('Solo Violin')).not.toBeNull();
+    expect(byLabel('Remove Violin')).not.toBeNull();
+
+    expect(byLabel('Quarter')!.getAttribute('aria-pressed')).toBe('true');
+    expect(byLabel('Dotted')!.getAttribute('aria-pressed')).toBe('false');
+    byLabel('Dotted')!.click();
+    fixture.detectChanges();
+    expect(byLabel('Dotted')!.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('selects a part when its staff receives keyboard focus', () => {
+    createWith(score([placed('n1')]));
+    editor.addPart('flute');
+    fixture.detectChanges();
+    const ids = editor.parts().map(p => p.id);
+    const internals = editor as unknown as { selectedPartId: () => string | null };
+    expect(internals.selectedPartId()).toBe(ids[1]);
+
+    // Only mouse clicks selected a part, so keyboard users could never edit another part
+    const staves = fixture.debugElement.queryAll(By.directive(TwNoteInputComponent));
+    (staves[0].nativeElement as HTMLElement).dispatchEvent(
+      new FocusEvent('focusin', { bubbles: true })
+    );
+    expect(internals.selectedPartId()).toBe(ids[0]);
+  });
+
   it('disables the score-changing controls when not editable', () => {
     fixture = TestBed.createComponent(TwScoreEditorComponent);
     fixture.componentRef.setInput('initialScore', score([placed('n1')]));

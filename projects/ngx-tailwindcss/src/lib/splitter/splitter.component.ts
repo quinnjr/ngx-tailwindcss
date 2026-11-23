@@ -154,7 +154,10 @@ export class TwSplitterComponent implements OnDestroy {
       this.showGutter()
         ? 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'
         : 'bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700',
-      this.isDragging() ? 'bg-blue-400 dark:bg-blue-500' : '',
+      // Hover overrides keep the drag state visible while the pointer is over the gutter
+      this.isDragging()
+        ? 'bg-blue-400 dark:bg-blue-500 hover:bg-blue-400 dark:hover:bg-blue-500'
+        : '',
       this.disabled() ? 'cursor-default pointer-events-none opacity-50' : ''
     );
   });

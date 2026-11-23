@@ -900,6 +900,28 @@ export class TwLooperComponent implements OnDestroy {
       .join(' ');
   });
 
+  // The minimal variant is transparent and sits on the (typically light) page
+  // background, where the slate-300/400 text used on the dark panels is
+  // ~1.5-2.6:1; it uses darker shades there, restoring them in dark mode.
+  protected readonly labelClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly valueClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-800 dark:text-slate-300' : 'text-slate-300'
+  );
+
+  // Layer rows: the dark half-transparent row turns mid-grey on a light page,
+  // where neither light nor dark text reaches 4.5:1
+  protected readonly layerRowClass = computed(() =>
+    this.variant() === 'minimal' ? 'bg-slate-500/10' : 'bg-slate-800/50'
+  );
+
+  // Idle overdub icon: amber-500 on its amber-500/20 button is ~1.8:1 on a light page
+  protected readonly overdubIconClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-500' : 'text-amber-500'
+  );
+
   protected readonly buttonSizeClasses = computed(() => {
     const size = this.size();
     return {

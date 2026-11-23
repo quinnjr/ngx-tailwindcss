@@ -103,6 +103,34 @@ describe('TwQuickSwitcherComponent recent items', () => {
 
     expect(fixture.componentInstance.recentItems().map(item => item.id)).toEqual(['c', 'a']);
   });
+
+  it('closes when the backdrop is clicked but not when the panel is', () => {
+    const fixture = TestBed.createComponent(TwQuickSwitcherComponent);
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    el.querySelector<HTMLElement>('[twFocusTrap]')!.click();
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+
+    // The backdrop covers the whole overlay, so it is what a user clicks
+    el.querySelector<HTMLElement>('.backdrop-blur-sm')!.click();
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+  });
+});
+
+describe('TwSidebarNavComponent collapsed accessible names', () => {
+  it('names a collapsed icon item by its label, not its icon glyph', () => {
+    const fixture = TestBed.createComponent(TwSidebarNavComponent);
+    fixture.componentRef.setInput('items', [{ id: 'files', label: 'Files', icon: '📁' }]);
+    fixture.detectChanges();
+    const button = () => (fixture.nativeElement as HTMLElement).querySelector('nav button')!;
+    expect(button().hasAttribute('aria-label')).toBe(false);
+
+    fixture.componentRef.setInput('collapsed', true);
+    fixture.detectChanges();
+    expect(button().getAttribute('aria-label')).toBe('Files');
+  });
 });
 
 describe('TwTabBarComponent', () => {

@@ -229,6 +229,23 @@ describe('TwRadioButtonComponent', () => {
       const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
       expect(radioInput.nativeElement.className).toContain('text-rose-600');
     });
+
+    it('should colour the native radio via accent-color for every variant', () => {
+      // A native radio ignores `color`; only `accent-color` tints the selected dot
+      const expected = {
+        primary: 'accent-blue-600',
+        secondary: 'accent-slate-600',
+        success: 'accent-emerald-600',
+        warning: 'accent-amber-600',
+        danger: 'accent-rose-600',
+      } as const;
+      for (const [variant, cls] of Object.entries(expected)) {
+        component.variant.set(variant as RadioVariant);
+        fixture.detectChanges();
+        const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
+        expect(radioInput.nativeElement.className).toContain(cls);
+      }
+    });
   });
 
   describe('sizes', () => {

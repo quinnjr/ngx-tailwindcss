@@ -24,11 +24,16 @@ export type RadioVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'da
 export type RadioSize = 'sm' | 'md' | 'lg';
 
 const RADIO_VARIANTS: Record<RadioVariant, string> = {
-  primary: 'text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
-  secondary: 'text-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
-  success: 'text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
-  warning: 'text-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
-  danger: 'text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
+  primary:
+    'text-blue-600 accent-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
+  secondary:
+    'text-slate-600 accent-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
+  success:
+    'text-emerald-600 accent-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
+  warning:
+    'text-amber-600 accent-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
+  danger:
+    'text-rose-600 accent-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
 };
 
 const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {

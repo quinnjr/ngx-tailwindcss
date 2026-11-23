@@ -837,36 +837,51 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     return 'limiting';
   });
 
-  // Activity color class
   // Label / readout text colours that stay >= 4.5:1 against the variant's
-  // background (slate-500/600 on the dark panels were ~2.4-3:1)
+  // background (slate-500/600 on the dark panels were ~2.4-3:1). The minimal
+  // variant is transparent and sits on the (typically light) page background,
+  // so it uses the darker shades there and restores the light ones in dark mode
+  // (full class names are spelled out so Tailwind's source scan picks them up).
+  private textTone(light: string, dark: string, minimal: string): string {
+    const variant = this.variant();
+    if (variant === 'light') return light;
+    if (variant === 'minimal') return minimal;
+    return dark;
+  }
+
   protected readonly labelClass = computed(() =>
-    this.variant() === 'light' ? 'text-slate-600' : 'text-slate-400'
+    this.textTone('text-slate-600', 'text-slate-400', 'text-slate-600 dark:text-slate-400')
   );
 
   protected readonly valueClass = computed(() =>
-    this.variant() === 'light' ? 'text-slate-800' : 'text-slate-300'
+    this.textTone('text-slate-800', 'text-slate-300', 'text-slate-800 dark:text-slate-300')
   );
 
   // Gain-reduction readout: the amber/orange/red 400 shades are ~1.7-2.8:1 on
   // the light variant's white panel, so it uses the darker 700 shades there
   protected readonly grValueClass = computed(() => {
     const gr = Math.abs(this.internalGainReduction());
-    const light = this.variant() === 'light';
-    if (gr >= 20) return light ? 'text-red-700' : 'text-red-400';
-    if (gr >= 10) return light ? 'text-orange-700' : 'text-orange-400';
-    return light ? 'text-amber-700' : 'text-amber-400';
+    if (gr >= 20)
+      return this.textTone('text-red-700', 'text-red-400', 'text-red-700 dark:text-red-400');
+    if (gr >= 10)
+      return this.textTone(
+        'text-orange-700',
+        'text-orange-400',
+        'text-orange-700 dark:text-orange-400'
+      );
+    return this.textTone('text-amber-700', 'text-amber-400', 'text-amber-700 dark:text-amber-400');
   });
 
   // Attack/release text in the 'graph' display, readable on the light panel
   protected readonly attackTextClass = computed(() =>
-    this.variant() === 'light' ? 'text-green-700' : 'text-green-400'
+    this.textTone('text-green-700', 'text-green-400', 'text-green-700 dark:text-green-400')
   );
 
   protected readonly releaseTextClass = computed(() =>
-    this.variant() === 'light' ? 'text-amber-700' : 'text-amber-400'
+    this.textTone('text-amber-700', 'text-amber-400', 'text-amber-700 dark:text-amber-400')
   );
 
+  // Activity color class
   protected readonly activityColorClass = computed(() => {
     const activity = this.compressionActivity();
     return {

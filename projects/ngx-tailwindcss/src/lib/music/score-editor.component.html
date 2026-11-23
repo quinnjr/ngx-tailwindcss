@@ -29,6 +29,7 @@
           [disabled]="!editable() || !canUndo()"
           (click)="undo()"
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
           <span class="icon">↩</span>
         </button>
@@ -38,6 +39,7 @@
           [disabled]="!editable() || !canRedo()"
           (click)="redo()"
           title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo"
         >
           <span class="icon">↪</span>
         </button>
@@ -52,6 +54,8 @@
             type="button"
             class="toolbar-btn duration-btn"
             [class.active]="currentDuration() === dur"
+            [attr.aria-pressed]="currentDuration() === dur"
+            [attr.aria-label]="dur | titlecase"
             (click)="currentDuration.set(dur)"
             [title]="dur | titlecase"
           >
@@ -68,6 +72,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'sharp'"
+          [attr.aria-pressed]="currentAccidental() === 'sharp'"
+          aria-label="Sharp"
           (click)="currentAccidental.set(currentAccidental() === 'sharp' ? null : 'sharp')"
           title="Sharp"
         >
@@ -77,6 +83,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'flat'"
+          [attr.aria-pressed]="currentAccidental() === 'flat'"
+          aria-label="Flat"
           (click)="currentAccidental.set(currentAccidental() === 'flat' ? null : 'flat')"
           title="Flat"
         >
@@ -86,6 +94,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'natural'"
+          [attr.aria-pressed]="currentAccidental() === 'natural'"
+          aria-label="Natural"
           (click)="currentAccidental.set(currentAccidental() === 'natural' ? null : 'natural')"
           title="Natural"
         >
@@ -101,6 +111,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="isDotted()"
+          [attr.aria-pressed]="isDotted()"
+          aria-label="Dotted"
           (click)="toggleDotted()"
           title="Dotted"
         >
@@ -110,6 +122,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="isRest()"
+          [attr.aria-pressed]="isRest()"
+          aria-label="Rest"
           (click)="toggleRest()"
           title="Rest"
         >
@@ -126,6 +140,8 @@
             type="button"
             class="toolbar-btn voice-btn"
             [class.active]="currentVoice() === voice"
+            [attr.aria-pressed]="currentVoice() === voice"
+            [attr.aria-label]="'Voice ' + voice"
             [style.--voice-color]="voiceColors[voice]"
             (click)="setVoice(voice)"
             title="Voice {{ voice }}"
@@ -182,6 +198,7 @@
             [disabled]="!editable()"
             (click)="showPartDialog.set(true)"
             title="Add Part"
+            aria-label="Add part"
           >
             +
           </button>
@@ -204,6 +221,8 @@
                   type="button"
                   class="part-btn"
                   [class.active]="part.muted"
+                  [attr.aria-pressed]="part.muted"
+                  [attr.aria-label]="'Mute ' + part.name"
                   (click)="updatePart(part.id, { muted: !part.muted }); $event.stopPropagation()"
                   title="Mute"
                 >
@@ -213,6 +232,8 @@
                   type="button"
                   class="part-btn"
                   [class.active]="part.solo"
+                  [attr.aria-pressed]="part.solo"
+                  [attr.aria-label]="'Solo ' + part.name"
                   (click)="updatePart(part.id, { solo: !part.solo }); $event.stopPropagation()"
                   title="Solo"
                 >
@@ -224,6 +245,7 @@
                   (click)="removePart(part.id); $event.stopPropagation()"
                   [disabled]="!editable() || parts().length <= 1"
                   title="Remove"
+                  [attr.aria-label]="'Remove ' + part.name"
                 >
                   ×
                 </button>
@@ -328,6 +350,7 @@
               [showVoiceColors]="true"
               (notesChanged)="onPartNotesChanged(part.id, $event)"
               (click)="selectPart(part.id)"
+              (focusin)="selectPart(part.id)"
             ></tw-note-input>
 
             <!-- Lyrics -->
@@ -354,7 +377,14 @@
       <div class="dialog" (click)="$event.stopPropagation()">
         <div class="dialog-header">
           <h3>Add Part</h3>
-          <button type="button" class="close-btn" (click)="showPartDialog.set(false)">×</button>
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showPartDialog.set(false)"
+          >
+            ×
+          </button>
         </div>
         <div class="dialog-content">
           <div class="preset-grid">
@@ -379,7 +409,12 @@
       <div class="dialog" (click)="$event.stopPropagation()">
         <div class="dialog-header">
           <h3>Transpose</h3>
-          <button type="button" class="close-btn" (click)="showTransposeDialog.set(false)">
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showTransposeDialog.set(false)"
+          >
             ×
           </button>
         </div>
@@ -438,7 +473,14 @@
       <div class="dialog" (click)="$event.stopPropagation()">
         <div class="dialog-header">
           <h3>Export Score</h3>
-          <button type="button" class="close-btn" (click)="showExportDialog.set(false)">×</button>
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showExportDialog.set(false)"
+          >
+            ×
+          </button>
         </div>
         <div class="dialog-content">
           <div class="export-options">

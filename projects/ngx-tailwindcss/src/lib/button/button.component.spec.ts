@@ -580,3 +580,56 @@ describe('TwButtonComponent form type', () => {
     expect(host.submitCount).toBe(0);
   });
 });
+
+describe('TwButtonComponent class attribute', () => {
+  @Component({
+    template: `<tw-button class="bg-sky-700 hover:bg-sky-800 text-white">Static</tw-button
+      ><tw-button variant="outline" [class]="dynamic()" classOverride="shadow-none">Bound</tw-button
+      ><a tw-button href="#" class="bg-sky-700">Link</a>`,
+    standalone: true,
+    imports: [TwButtonComponent, TwButtonLinkComponent],
+  })
+  class ClassHostComponent {
+    dynamic = signal('text-sky-600');
+  }
+
+  let fixture: ComponentFixture<ClassHostComponent>;
+  const hosts = (): HTMLElement[] =>
+    fixture.debugElement
+      .queryAll(By.css('tw-button, a[tw-button]'))
+      .map(de => de.nativeElement as HTMLElement);
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('lets a static class override the conflicting variant colours', () => {
+    const [button] = hosts();
+    expect(button.classList).toContain('bg-sky-700');
+    expect(button.classList).toContain('hover:bg-sky-800');
+    expect(button.classList).not.toContain('bg-blue-600');
+    expect(button.classList).not.toContain('hover:bg-blue-700');
+    expect(button.classList).toContain('rounded-lg');
+  });
+
+  it('merges a bound class and still applies classOverride', () => {
+    const button = hosts()[1];
+    expect(button.classList).toContain('text-sky-600');
+    expect(button.classList).not.toContain('text-slate-800');
+    expect(button.classList).toContain('shadow-none');
+    expect(button.classList).not.toContain('shadow-sm');
+
+    fixture.componentInstance.dynamic.set('text-rose-600');
+    fixture.detectChanges();
+    expect(button.classList).toContain('text-rose-600');
+    expect(button.classList).not.toContain('text-sky-600');
+  });
+
+  it('merges a static class on link buttons', () => {
+    const link = hosts()[2];
+    expect(link.classList).toContain('bg-sky-700');
+    expect(link.classList).not.toContain('bg-blue-600');
+  });
+});

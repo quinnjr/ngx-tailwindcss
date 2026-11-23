@@ -204,6 +204,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wrap toggle exposes `aria-pressed`
 - `tw-timeline` connectors run through the centre of icon markers instead of
   their left edge (vertical) or top (horizontal)
+- Consumer classes override conflicting defaults instead of losing to them by
+  Tailwind's utility order: `tw-modal` `classOverride`, `tw-datatable`
+  `containerClass`/`toolbarClass` and the music components' `classOverride`
+  are merged; `twHoverClass` swaps out conflicting classes while hovered and
+  restores them afterwards
+- A `class` attribute on `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`,
+  `tw-card` and `tw-card-horizontal` is merged into the component's classes, so
+  `class="bg-sky-700 text-white"` replaces the variant colours (it used to
+  compete with them and often lost)
+- Selected, active and error states are visible: `tw-tabs` `pills` (dark mode)
+  and `line` (on hover) active tabs, the `tw-input` error border in dark
+  mode, the preferences dialog tab, settings panel category, toolbar toggle
+  and prompt dialog error border, the `tw-pitch-display` pitch wheel thumb
+  and bold fakebook chords
+- Native (Tauri) platform service supports the Tauri 2 API (window, file
+  system, clipboard and dialogs)
+- Visible keyboard focus and accessible names: `tw-note-input`, `tw-waveform`,
+  `tw-sheet-music` zoom buttons, `tw-pitch-display` buttons, cents slider and
+  key-lock pressed state; clear buttons and chevrons in `tw-input`,
+  `tw-select` and `tw-multiselect` meet 3:1
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

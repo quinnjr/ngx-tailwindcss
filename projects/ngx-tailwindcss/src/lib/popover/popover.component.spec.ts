@@ -447,6 +447,30 @@ describe('TwPopoverComponent', () => {
 
       expect(isPopoverVisible(component.popover)).toBe(false);
     });
+
+    it('should stay closed (with one portal) when it hides with focus inside', () => {
+      const triggerContainer = popoverEl.querySelector('div') as HTMLElement;
+      triggerContainer.dispatchEvent(new MouseEvent('mouseenter'));
+      vi.advanceTimersByTime(10);
+      fixture.detectChanges();
+
+      // Pointer moves into the panel and clicks its button (focus moves inside)
+      const panel = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+      triggerContainer.dispatchEvent(new MouseEvent('mouseleave'));
+      panel.dispatchEvent(new MouseEvent('mouseenter'));
+      vi.advanceTimersByTime(10);
+      panel.querySelector<HTMLElement>('[data-testid="action"]')!.focus();
+
+      // Pointer leaves the panel: the popover hides and focus returns to the trigger,
+      // which must not reopen it
+      panel.dispatchEvent(new MouseEvent('mouseleave'));
+      vi.advanceTimersByTime(10);
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(popoverEl.querySelector('[twPopoverTrigger]'));
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.querySelectorAll('[role="tooltip"]').length).toBe(0);
+    });
   });
 
   describe('position', () => {

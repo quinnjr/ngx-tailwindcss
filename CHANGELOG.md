@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flex/grid parent like any other element. `tw-square`/`tw-circle` do not
   shrink below `size` in a flex row. CSS that targeted the removed wrapper
   (`tw-stack > div`) should target the host instead
+- Music: the browser `NativePlatformService.openFile({ directory: true })`
+  throws `UnsupportedOnPlatformError` instead of returning the files inside
+  the chosen directory; directory picking needs Tauri or Electron
 
 ### 🐛 Fixed
 
@@ -425,6 +428,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bubble and marks line up with the thumb; the `tw-pan-control` stereo-width
   cap passes pointer input through; the `tw-waveform` hover label is visible in
   short views
+- Focus is kept when the focused control disappears or becomes disabled:
+  toasts removed by their timer, the toast limit or `dismissAll()`; choosing a
+  `tw-select` option with the mouse; removing the only `tw-chip` when
+  `allowAdd` is off; `tw-note-input`, `tw-score-editor` and `tw-sheet-music`
+  buttons that disable or remove themselves. A dismissed `tw-alert` skips
+  controls inside closed `<details>` or hidden containers
+- Music: `tw-note-input` ignores MIDI notes when not editable; a disabled
+  `tw-piano` ignores MIDI note-on; disabled `tw-transport`, `tw-metronome`,
+  `tw-mixer` scroll, `tw-bpm-display`, `tw-looper`, `tw-pitch-display` and
+  `tw-waveform` zoom buttons no longer change colour on hover; `tw-graphic-eq`
+  lists custom presets that have no category
+- Native: the `tw-quick-switcher` clear icon has enough contrast
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

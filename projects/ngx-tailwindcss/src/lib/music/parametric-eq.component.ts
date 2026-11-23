@@ -270,6 +270,20 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     return onDark > onWhite ? '#0F172A' : '#FFFFFF';
   }
 
+  /**
+   * Band chip colours. A disabled (bypassed) band is shown as a neutral grey
+   * chip rather than dimming the whole chip: at opacity-40 its still-operable
+   * select button's text was ~2:1 against its own background.
+   */
+  protected chipColors(band: EQBand): { background: string | undefined; text: string } {
+    if (band.enabled) {
+      return { background: band.color, text: this.bandTextColor(band.color) };
+    }
+    return this.variant() === 'light'
+      ? { background: '#E2E8F0', text: '#334155' } // slate-200 / slate-700 (~8.9:1)
+      : { background: '#475569', text: '#FFFFFF' }; // slate-600 / white (~7.6:1)
+  }
+
   protected readonly containerClasses = computed(() => {
     const base = 'relative rounded-lg overflow-hidden';
     return [base, this.classOverride()].filter(Boolean).join(' ');

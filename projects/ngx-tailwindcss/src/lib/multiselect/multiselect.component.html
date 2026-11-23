@@ -115,7 +115,7 @@
     </div>
   }
 
-  <!-- Select All Option -->
+  <!-- Select All Option. Rows cancel mousedown so a click keeps focus on the trigger/filter -->
   @if (showSelectAllRow()) {
     <div
       class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-200 dark:border-slate-700 flex items-center gap-2"
@@ -125,6 +125,7 @@
       [attr.aria-disabled]="selectAllDisabled() || null"
       [class.bg-slate-100]="isSelectAllActive()"
       [class.dark:bg-slate-700]="isSelectAllActive()"
+      (mousedown)="$event.preventDefault()"
       (click)="toggleSelectAll(); $event.stopPropagation()"
     >
       @if (showCheckbox()) {
@@ -181,6 +182,7 @@
             "
             [class.bg-slate-100]="isActive(option)"
             [class.dark:bg-slate-700]="isActive(option)"
+            (mousedown)="$event.preventDefault()"
             (click)="toggleOption(option); $event.stopPropagation()"
           >
             @if (showCheckbox()) {
@@ -241,6 +243,7 @@
         [class.dark:bg-blue-900/30]="isSelected(option) && !option.disabled && !isActive(option)"
         [class.bg-slate-100]="isActive(option)"
         [class.dark:bg-slate-700]="isActive(option)"
+        (mousedown)="$event.preventDefault()"
         (click)="toggleOption(option); $event.stopPropagation()"
       >
         @if (showCheckbox()) {

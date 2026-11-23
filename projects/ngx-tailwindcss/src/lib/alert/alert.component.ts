@@ -247,22 +247,43 @@ export class TwAlertComponent {
     // (dismiss) handler moved focus, hand it to the next control on the page (or
     // the previous one) instead of losing it to the document body
     if (hadFocus && host.contains(host.ownerDocument.activeElement)) {
-      this.focusTargetAfterDismiss()?.focus();
+      this.focusNextControlAfterDismiss();
     }
   }
 
-  private focusTargetAfterDismiss(): HTMLElement | null {
+  private focusNextControlAfterDismiss(): void {
     const host = this.elementRef.nativeElement;
-    const candidates = [
-      ...host.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-    ].filter(el => !host.contains(el) && !el.closest('[hidden], [inert], [aria-hidden="true"]'));
-    const next = candidates.find(
+    const doc = host.ownerDocument;
+    const candidates = [...doc.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
+      el => !host.contains(el) && !el.closest('[hidden], [inert], [aria-hidden="true"]')
+    );
+    const next = candidates.filter(
       el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
     );
-    const previous = candidates.filter(
-      el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING
-    );
-    return next ?? previous.at(-1) ?? null;
+    const previous = candidates
+      .filter(el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING)
+      .reverse();
+    // Skip controls that are not rendered (display:none ancestors, closed <details>):
+    // focusing them is a no-op that would leave focus to fall to the document body
+    for (const el of [...next, ...previous]) {
+      if (!this.isRendered(el)) continue;
+      el.focus();
+      if (doc.activeElement === el) return;
+    }
+  }
+
+  private isRendered(el: HTMLElement): boolean {
+    if (el.closest('details:not([open]) > :not(summary)')) return false;
+    if (typeof el.checkVisibility === 'function') {
+      return el.checkVisibility({ visibilityProperty: true });
+    }
+    const view = el.ownerDocument.defaultView;
+    for (let node: Element | null = el; node; node = node.parentElement) {
+      const style = view?.getComputedStyle(node);
+      if (style?.display === 'none') return false;
+      if (node === el && style?.visibility === 'hidden') return false;
+    }
+    return true;
   }
 
   /** Programmatically dismiss the alert */

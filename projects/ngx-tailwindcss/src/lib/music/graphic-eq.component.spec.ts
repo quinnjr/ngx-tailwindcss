@@ -50,6 +50,24 @@ describe('TwGraphicEQComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Custom');
   });
 
+  it('should list custom presets tagged with a disabled category under Custom', () => {
+    fixture.componentRef.setInput('presetCategories', ['custom']);
+    fixture.componentRef.setInput('customPresets', [
+      { id: 'mine', name: 'My Mix', category: 'music', values: { 1000: 3 } },
+    ]);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('button[aria-expanded]')!
+      .click();
+    fixture.detectChanges();
+
+    const names = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button .font-medium'),
+    ].map(el => el.textContent?.trim());
+    expect(names).toEqual(['My Mix']);
+    expect(fixture.nativeElement.textContent).toContain('Custom');
+  });
+
   it('should honor the forms disabled state', () => {
     component.setDisabledState(true);
     fixture.detectChanges();

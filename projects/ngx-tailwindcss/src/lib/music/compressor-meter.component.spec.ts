@@ -47,6 +47,22 @@ describe('TwCompressorMeterComponent', () => {
     }
   });
 
+  it('should place the gain-reduction scale labels at their real depth on the GR fill', () => {
+    const grLabels = [
+      ...fixture.nativeElement.querySelectorAll('span.text-\\[8px\\].text-center'),
+    ] as HTMLElement[];
+    expect(grLabels.map(l => l.textContent?.trim())).toEqual(['0', '-10', '-20', '-30', '-40']);
+
+    component.setGainReduction(-10);
+    fixture.detectChanges();
+    // The -10 label sits exactly where a 10 dB GR fill ends
+    expect(Number.parseFloat(grLabels[1].style.top)).toBeCloseTo(internals.gainReductionPercent());
+    expect(grLabels.map(l => Number.parseFloat(l.style.top))).toEqual([0, 25, 50, 75, 100]);
+    expect(grLabels[1].classList).toContain('-translate-y-1/2');
+    expect(grLabels[4].classList).toContain('-translate-y-full');
+    expect(grLabels[0].classList).not.toContain('-translate-y-1/2');
+  });
+
   it('should be silent with no clip indication when no levels are bound', () => {
     let clips = 0;
     component.clipInput.subscribe(() => clips++);

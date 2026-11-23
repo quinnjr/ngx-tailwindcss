@@ -125,6 +125,35 @@ describe('TwMixerComponent layout', () => {
     expect(right.classList).not.toContain('hover:text-white');
   });
 
+  it('should move focus to the other scroll button when one disables itself at the end', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const right = root.querySelector<HTMLButtonElement>('button[title="Scroll Right"]')!;
+    const left = root.querySelector<HTMLButtonElement>('button[title="Scroll Left"]')!;
+
+    right.focus();
+    right.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    // Still enabled after one step: focus stays put
+    expect(document.activeElement).toBe(right);
+
+    right.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(right.disabled).toBe(true);
+    expect(document.activeElement).toBe(left);
+
+    left.click();
+    left.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(left.disabled).toBe(true);
+    expect(document.activeElement).toBe(right);
+  });
+
   it('should not show no-op scroll buttons when the sectioned layout shows every channel', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

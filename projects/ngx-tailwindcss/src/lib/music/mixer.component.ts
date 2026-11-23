@@ -1,13 +1,18 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
+  ElementRef,
+  inject,
+  Injector,
   input,
   linkedSignal,
   numberAttribute,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -82,6 +87,11 @@ const BREAKPOINT_CONFIGS: Record<
   },
 })
 export class TwMixerComponent {
+  private readonly injector = inject(Injector);
+  private readonly scrollLeftButton = viewChild<ElementRef<HTMLButtonElement>>('scrollLeftButton');
+  private readonly scrollRightButton =
+    viewChild<ElementRef<HTMLButtonElement>>('scrollRightButton');
+
   readonly channels = input<MixerChannel[]>([]);
   readonly groups = input<ChannelGroup[]>([]); // NEW: Channel groups
   readonly sections = input<MixerSection[]>([]); // NEW: Collapsible sections
@@ -417,17 +427,38 @@ export class TwMixerComponent {
     this.emitState();
   }
 
-  protected scrollLeft(): void {
+  protected scrollLeft(event?: Event): void {
     if (this.canScrollLeft()) {
       this.scrollOffset.set(Math.max(0, this.effectiveScrollOffset() - 1));
+      this.keepScrollFocus(event, this.scrollRightButton);
     }
   }
 
-  protected scrollRight(): void {
+  protected scrollRight(event?: Event): void {
     if (this.canScrollRight()) {
       const max = this.filteredChannels().length - this.effectiveMaxChannels();
       this.scrollOffset.set(Math.min(max, this.effectiveScrollOffset() + 1));
+      this.keepScrollFocus(event, this.scrollLeftButton);
     }
+  }
+
+  // A scroll button disables itself at the end of the channel list: move keyboard focus to
+  // the opposite scroll button instead of dropping it to the page body
+  private keepScrollFocus(
+    event: Event | undefined,
+    other: () => ElementRef<HTMLButtonElement> | undefined
+  ): void {
+    const from = event?.currentTarget as HTMLButtonElement | null | undefined;
+    if (from?.ownerDocument.activeElement !== from || !from) return;
+    afterNextRender(
+      {
+        write: () => {
+          if (from.isConnected && !from.disabled) return;
+          other()?.nativeElement.focus();
+        },
+      },
+      { injector: this.injector }
+    );
   }
 
   // Toggle section collapse

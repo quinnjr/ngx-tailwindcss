@@ -458,10 +458,14 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   // Presets grouped by category
   protected readonly presetsByCategory = computed(() => {
     const presets = this.filteredPresets();
+    const enabled = this.presetCategories();
     const grouped = new Map<EQPresetCategory, EQPreset[]>();
 
     for (const preset of presets) {
-      const category = preset.category || 'custom';
+      // Custom presets admitted via the "custom" category but tagged with a
+      // disabled category have no section of their own: list them under Custom
+      const category =
+        preset.category && enabled.includes(preset.category) ? preset.category : 'custom';
       const list = grouped.get(category) || [];
       list.push(preset);
       grouped.set(category, list);

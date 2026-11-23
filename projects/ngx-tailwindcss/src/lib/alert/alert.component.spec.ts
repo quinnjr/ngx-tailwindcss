@@ -220,6 +220,54 @@ describe('TwAlertComponent', () => {
       expect(document.activeElement).toBe(after);
       after.remove();
     });
+
+    it('should skip unrendered controls (closed <details>, display:none) when moving focus', () => {
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const details = document.createElement('details');
+      details.innerHTML = '<summary tabindex="-1">More</summary><button>Inside</button>';
+      const hiddenWrap = document.createElement('div');
+      hiddenWrap.style.display = 'none';
+      hiddenWrap.innerHTML = '<button>Hidden</button>';
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(details, hiddenWrap, after);
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(after);
+      details.remove();
+      hiddenWrap.remove();
+      after.remove();
+    });
+
+    it('should not override focus moved by a (dismiss) handler', () => {
+      const target = document.createElement('button');
+      target.textContent = 'Target';
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(after);
+      document.body.append(target);
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      fixture.debugElement
+        .query(By.directive(TwAlertComponent))
+        .componentInstance.dismiss.subscribe(() => {
+          target.focus();
+        });
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(target);
+      target.remove();
+      after.remove();
+    });
   });
 
   describe('aria-live', () => {

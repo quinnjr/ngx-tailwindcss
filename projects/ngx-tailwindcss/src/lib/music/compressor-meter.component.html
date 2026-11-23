@@ -106,13 +106,17 @@
             [style.background]="grMeterBackground()"
           ></div>
 
-          <!-- Scale markers -->
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none py-1">
-            <span class="text-[8px] text-slate-400 text-center">0</span>
-            <span class="text-[8px] text-slate-400 text-center">-10</span>
-            <span class="text-[8px] text-slate-400 text-center">-20</span>
-            <span class="text-[8px] text-slate-400 text-center">-30</span>
-            <span class="text-[8px] text-slate-400 text-center">-40</span>
+          <!-- Scale markers (each at its real depth on the GR fill's scale) -->
+          <div class="absolute inset-0 pointer-events-none">
+            @for (tick of grScale; track tick.label) {
+              <span
+                class="absolute inset-x-0 text-[8px] leading-none text-slate-400 text-center"
+                [class.-translate-y-1/2]="tick.align === 'center'"
+                [class.-translate-y-full]="tick.align === 'bottom'"
+                [style.top.%]="tick.topPercent"
+                >{{ tick.label }}</span
+              >
+            }
           </div>
         </div>
 

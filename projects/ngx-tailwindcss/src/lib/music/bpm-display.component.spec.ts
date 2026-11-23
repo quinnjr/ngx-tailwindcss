@@ -97,6 +97,22 @@ describe('TwBpmDisplayComponent', () => {
 
     expect(host.changes).toEqual([121, 120, 119]);
   });
+
+  it('should keep focus in the controls when a button disables itself at the tempo limit', async () => {
+    const double = [...el.querySelectorAll('button')].find(b => b.textContent?.trim() === '×2')!;
+    double.focus();
+    double.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // 240 BPM: doubling again would pass maxBpm, so ×2 is now disabled
+    expect(double.disabled).toBe(true);
+    const active = document.activeElement as HTMLButtonElement;
+    expect(active).not.toBe(document.body);
+    expect(active.tagName).toBe('BUTTON');
+    expect(active.disabled).toBe(false);
+    expect(el.contains(active)).toBe(true);
+  });
 });
 
 @Component({

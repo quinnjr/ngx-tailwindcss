@@ -111,6 +111,8 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
 
   protected visible = signal(false);
   private hoverTimeout: any = null;
+  /** Set while hide() hands focus back to the trigger, so that focusin does not reopen */
+  private restoringFocus = false;
 
   /** Id of the popover panel, referenced from the trigger while open */
   protected readonly popoverId = `tw-popover-${nextPopoverId++}`;
@@ -222,6 +224,7 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   }
 
   onTriggerFocusIn(): void {
+    if (this.restoringFocus) return;
     // Keyboard equivalence: focus opens for both focus and hover triggers
     if (this.trigger === 'focus' || this.trigger === 'hover') {
       this.clearHoverTimeout();
@@ -275,7 +278,14 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     const focusInside = !!this.portalElement?.contains(this.document.activeElement);
     this.visible.set(false);
     this.onHide.emit();
-    if (focusInside) this.getTriggerElement()?.focus();
+    if (focusInside) {
+      this.restoringFocus = true;
+      try {
+        this.getTriggerElement()?.focus();
+      } finally {
+        this.restoringFocus = false;
+      }
+    }
   }
 
   toggle(): void {

@@ -18,6 +18,7 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type BpmDisplayVariant =
   'default' | 'minimal' | 'led' | 'digital' | 'analog' | 'light' | 'highContrast';
@@ -257,6 +258,11 @@ export class TwBpmDisplayComponent implements OnDestroy {
       this.editValue.set(this.internalBpm().toString());
       this.restoreDisplayFocus();
     }
+  }
+
+  // Step/halve/double buttons disable themselves at the tempo limits: keep keyboard focus in the group
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
   }
 
   // Keyboard commit/cancel removes the focused input: return focus to the value display

@@ -75,7 +75,7 @@
         class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() <= minBpm()"
-        (click)="incrementBpm(-step())"
+        (click)="keepFocus($event); incrementBpm(-step())"
         aria-label="Decrease BPM"
         title="Decrease BPM"
       >
@@ -128,7 +128,7 @@
         class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() >= maxBpm()"
-        (click)="incrementBpm(step())"
+        (click)="keepFocus($event); incrementBpm(step())"
         aria-label="Increase BPM"
         title="Increase BPM"
       >
@@ -222,7 +222,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() / 2 < minBpm()"
-        (click)="halfTempo()"
+        (click)="keepFocus($event); halfTempo()"
         title="Half tempo (÷2)"
       >
         ÷2
@@ -231,7 +231,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() * 2 > maxBpm()"
-        (click)="doubleTempo()"
+        (click)="keepFocus($event); doubleTempo()"
         title="Double tempo (×2)"
       >
         ×2
@@ -244,7 +244,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() / 3 < minBpm()"
-        (click)="thirdTempo()"
+        (click)="keepFocus($event); thirdTempo()"
         title="Third tempo (÷3)"
       >
         ÷3
@@ -253,7 +253,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() * 3 > maxBpm()"
-        (click)="tripleTempo()"
+        (click)="keepFocus($event); tripleTempo()"
         title="Triple tempo (×3)"
       >
         ×3

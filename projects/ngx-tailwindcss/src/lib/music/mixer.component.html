@@ -2,12 +2,13 @@
   <!-- Scroll Left Button -->
   @if (showScrollButtons()) {
     <button
+      #scrollLeftButton
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 enabled:hover:bg-slate-700 rounded text-slate-400 enabled:hover:text-white transition-colors self-stretch flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       [class.opacity-50]="!canScrollLeft()"
       [class.cursor-not-allowed]="!canScrollLeft()"
       [disabled]="!canScrollLeft() || disabled()"
-      (click)="scrollLeft()"
+      (click)="scrollLeft($event)"
       title="Scroll Left"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,12 +142,13 @@
   <!-- Scroll Right Button -->
   @if (showScrollButtons()) {
     <button
+      #scrollRightButton
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 enabled:hover:bg-slate-700 rounded text-slate-400 enabled:hover:text-white transition-colors self-stretch flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       [class.opacity-50]="!canScrollRight()"
       [class.cursor-not-allowed]="!canScrollRight()"
       [disabled]="!canScrollRight() || disabled()"
-      (click)="scrollRight()"
+      (click)="scrollRight($event)"
       title="Scroll Right"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

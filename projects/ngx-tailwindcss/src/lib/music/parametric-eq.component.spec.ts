@@ -167,6 +167,25 @@ describe('TwParametricEQComponent', () => {
     expect(chip.style.color).toBe('rgb(15, 23, 42)'); // first default band is red-500
   });
 
+  it('should show a disabled band as a readable grey chip instead of dimming its text', () => {
+    fixture.componentRef.setInput('bands', [
+      { ...internals.bands()[0], enabled: false },
+      ...internals.bands().slice(1),
+    ]);
+    fixture.detectChanges();
+
+    const chip = fixture.nativeElement.querySelector('[role="switch"]')!
+      .parentElement as HTMLElement;
+    expect(chip.classList).not.toContain('opacity-40');
+    expect(chip.style.backgroundColor).toBe('rgb(71, 85, 105)');
+    expect(chip.style.color).toBe('rgb(255, 255, 255)');
+
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(chip.style.backgroundColor).toBe('rgb(226, 232, 240)');
+    expect(chip.style.color).toBe('rgb(51, 65, 85)');
+  });
+
   it('should render the selected-band readout legibly on the light variant', () => {
     fixture.componentRef.setInput('variant', 'light');
     internals.selectBand(internals.bands()[0]);

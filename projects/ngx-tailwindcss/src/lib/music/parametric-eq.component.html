@@ -17,13 +17,11 @@
     @for (band of bands(); track band.id) {
       <div
         class="flex items-center rounded text-xs font-medium transition-all"
-        [class.opacity-100]="band.enabled"
-        [class.opacity-40]="!band.enabled"
         [class.ring-2]="selectedBandId() === band.id"
         [class.ring-white]="selectedBandId() === band.id && variant() !== 'light'"
         [class.ring-slate-900]="selectedBandId() === band.id && variant() === 'light'"
-        [style.backgroundColor]="band.color"
-        [style.color]="bandTextColor(band.color)"
+        [style.backgroundColor]="chipColors(band).background"
+        [style.color]="chipColors(band).text"
       >
         <button
           type="button"

@@ -320,6 +320,17 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     return Math.min(100, (gr / 40) * 100); // 40dB max GR range
   });
 
+  /**
+   * Gain-reduction scale labels at their real depth on the GR fill's 0..40 dB
+   * scale (top-down), so "-10" lines up with a 10 dB fill rather than being
+   * spread evenly across a padded box. End labels are kept inside the meter.
+   */
+  protected readonly grScale = [0, 10, 20, 30, 40].map(db => ({
+    label: db === 0 ? '0' : `-${db}`,
+    topPercent: (db / 40) * 100,
+    align: db === 0 ? 'top' : db === 40 ? 'bottom' : 'center',
+  }));
+
   protected readonly thresholdPercent = computed(() => {
     return this.dbToPercent(this.effectiveSettings().threshold);
   });

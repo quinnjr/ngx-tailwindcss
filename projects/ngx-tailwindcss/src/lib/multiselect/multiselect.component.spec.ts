@@ -757,3 +757,28 @@ describe('TwMultiSelectComponent (round 28)', () => {
     expect(option.classList).not.toContain('bg-slate-100');
   });
 });
+
+describe('TwMultiSelectComponent (round 30)', () => {
+  it('should cancel mousedown on options and Select All so clicking keeps focus', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.focus();
+    trigger.click();
+    fixture.detectChanges();
+
+    const rows: HTMLElement[] = [...fixture.nativeElement.querySelectorAll('[role="option"]')];
+    expect(rows.length).toBe(4); // Select All + 3 options
+    for (const row of rows) {
+      const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      row.dispatchEvent(mousedown);
+      expect(mousedown.defaultPrevented).toBe(true);
+    }
+
+    rows[1].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.lastSelection).toEqual(['apple']);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(trigger);
+  });
+});

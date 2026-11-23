@@ -5,6 +5,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   NgZone,
   numberAttribute,
   OnDestroy,
@@ -69,13 +70,16 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
   protected readonly currentNote = signal('--');
   protected readonly currentOctave = signal(4);
   protected readonly currentCents = signal(0);
-  protected readonly selectedString = signal(0); // For instrument modes
+  // For instrument modes; reset when the mode (and so the string set) changes
+  protected readonly selectedString = linkedSignal({ source: this.mode, computation: () => 0 });
 
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private mediaStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
   private dataArray: Float32Array<ArrayBuffer> | null = null;
+  private starting = false;
+  private destroyed = false;
 
   protected readonly isInTune = computed(() => {
     const cents = Math.abs(this.currentCents());
@@ -151,10 +155,31 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     const cents = this.currentCents();
     const base = 'font-mono text-lg';
 
-    if (cents < -this.tolerance()) return `${base} text-blue-400`;
-    if (cents > this.tolerance()) return `${base} text-red-400`;
-    return `${base} text-green-400`;
+    // minimal sits on the page background: the 400 shades are ~1.9-2.8:1 on a
+    // light page, so it uses the 700 shades there
+    const minimal = this.variant() === 'minimal';
+    if (cents < -this.tolerance()) {
+      return `${base} ${minimal ? 'text-blue-700 dark:text-blue-400' : 'text-blue-400'}`;
+    }
+    if (cents > this.tolerance()) {
+      return `${base} ${minimal ? 'text-red-700 dark:text-red-400' : 'text-red-400'}`;
+    }
+    return `${base} ${minimal ? 'text-green-700 dark:text-green-400' : 'text-green-400'}`;
   });
+
+  // Secondary text (octave, scale, frequency, hints): slate-400 on the dark
+  // panels, darker on the minimal variant's (typically light) page background
+  protected readonly mutedClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly successClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-green-700 dark:text-green-400' : 'text-green-400'
+  );
+
+  protected readonly errorClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-red-700 dark:text-red-400' : 'text-red-400'
+  );
 
   ngAfterViewInit(): void {
     if (this.autoStart()) {
@@ -163,16 +188,27 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopListening();
   }
 
   async startListening(): Promise<void> {
-    if (this.isListening()) return;
+    if (this.isListening() || this.starting || this.destroyed) return;
 
     this.errorState.set(null);
+    this.starting = true;
 
     try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Destroyed (or stopped) while the permission prompt was pending:
+      // release the microphone instead of leaking a live stream.
+      if (this.destroyed || !this.starting) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+        });
+        return;
+      }
+      this.mediaStream = stream;
       this.audioContext = new AudioContext();
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 4096;
@@ -193,10 +229,13 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
       this.stopListening();
       this.errorState.set(message);
       this.error.emit(message);
+    } finally {
+      this.starting = false;
     }
   }
 
   stopListening(): void {
+    this.starting = false;
     this.isListening.set(false);
 
     if (this.animationFrameId) {
@@ -280,20 +319,22 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     // Not enough signal
     if (rms < 0.01) return -1;
 
-    // Restrict the offset search to the musical range (~60 Hz to ~2 kHz):
-    // cuts ~90% of the O(n^2) work versus scanning every offset.
+    // Restrict the offset search to the musical range (~30 Hz to ~2 kHz):
+    // the floor must sit below bass E1 (41.2 Hz) so low strings are detectable.
     const minOffset = Math.max(1, Math.floor(sampleRate / 2000));
-    const maxOffset = Math.min(maxSamples, Math.ceil(sampleRate / 60));
+    const maxOffset = Math.min(maxSamples, Math.ceil(sampleRate / 30));
+
+    const correlationAt = (offset: number): number => {
+      let difference = 0;
+      for (let i = 0; i < maxSamples; i++) {
+        difference += Math.abs(buffer[i] - buffer[i + offset]);
+      }
+      return 1 - difference / maxSamples;
+    };
 
     let lastCorrelation = 1;
     for (let offset = minOffset; offset < maxOffset; offset++) {
-      let correlation = 0;
-
-      for (let i = 0; i < maxSamples; i++) {
-        correlation += Math.abs(buffer[i] - buffer[i + offset]);
-      }
-
-      correlation = 1 - correlation / maxSamples;
+      const correlation = correlationAt(offset);
 
       if (correlation > 0.9 && correlation > lastCorrelation) {
         foundGoodCorrelation = true;
@@ -309,7 +350,20 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     }
 
     if (bestCorrelation > 0.01 && bestOffset > 0) {
-      return sampleRate / bestOffset;
+      // Whole-sample lags quantise the pitch in steps of ~15-25 cents for
+      // the upper strings, far coarser than the in-tune tolerance, so refine
+      // the peak to a fractional lag. The mean-absolute-difference measure
+      // is V-shaped around its peak, so interpolate linearly from both sides.
+      let shift = 0;
+      if (bestOffset > minOffset && bestOffset + 1 <= maxSamples) {
+        const before = correlationAt(bestOffset - 1);
+        const after = correlationAt(bestOffset + 1);
+        const drop = bestCorrelation - Math.min(before, after);
+        if (drop > 0) {
+          shift = Math.max(-0.5, Math.min(0.5, (after - before) / (2 * drop)));
+        }
+      }
+      return sampleRate / (bestOffset + shift);
     }
 
     return -1;

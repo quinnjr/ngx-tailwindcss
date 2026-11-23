@@ -9,8 +9,25 @@ import {
   OnInit,
   output,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { NativeAppPlatformService } from './platform.service';
 import { KeyboardShortcut } from './native.types';
+import { splitShortcut } from './shortcut-keys.util';
+
+/** Physical key (`KeyboardEvent.code`) of each unshifted US-layout punctuation key. */
+const PUNCTUATION_CODES: Record<string, string> = {
+  '-': 'Minus',
+  '=': 'Equal',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+  ';': 'Semicolon',
+  "'": 'Quote',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  '`': 'Backquote',
+};
 
 /**
  * Directive for binding keyboard shortcuts to actions
@@ -29,6 +46,7 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
   private readonly ngZone = inject(NgZone);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly document = inject(DOCUMENT);
 
   // Inputs
   public readonly twShortcut = input.required<string>();
@@ -50,7 +68,7 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     const target: HTMLElement | Document = this.shortcutGlobal()
-      ? document
+      ? this.document
       : this.elementRef.nativeElement;
     this.listenerTarget = target;
     this.ngZone.runOutsideAngular(() => {
@@ -81,10 +99,8 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
   }
 
   private parseShortcut(shortcutStr: string): KeyboardShortcut | null {
-    const parts = shortcutStr
-      .toLowerCase()
-      .split('+')
-      .map(p => p.trim());
+    // `ctrl++` / `ctrl+plus` both bind the plus key
+    const parts = splitShortcut(shortcutStr.toLowerCase());
 
     if (parts.length === 0) return null;
 
@@ -194,11 +210,36 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
     // Check that we don't have extra modifiers
     if (!shortcut.ctrl && event.ctrlKey) return false;
     if (!shortcut.alt && event.altKey) return false;
-    if (!shortcut.shift && event.shiftKey) return false;
+    // A shifted symbol such as '+', '?' or '!' already encodes Shift in
+    // `event.key` (e.g. '+' is Shift+= on US layouts), so an unrequested Shift
+    // is only "extra" for letters, digits, Space and named keys.
+    const shiftEncodedInKey = shortcut.key.length === 1 && !/^[A-Z0-9 ]$/.test(shortcut.key);
+    if (!shortcut.shift && event.shiftKey && !shiftEncodedInKey) return false;
     if (!shortcut.meta && event.metaKey) return false;
 
     // Check key
     const eventKey = event.key.length === 1 ? event.key.toUpperCase() : event.key;
-    return eventKey === shortcut.key;
+    if (eventKey === shortcut.key) return true;
+
+    // The physical-key fallbacks below are only for keys whose character was
+    // changed by a modifier. A layout that types a different ASCII letter,
+    // digit or punctuation mark at that position (QWERTZ types 'z' at KeyY,
+    // AZERTY 'a' at KeyQ) means a different shortcut: Ctrl+Z must not fire
+    // `ctrl+y` too. Punctuation is exempt while Alt is held: Option (macOS)
+    // and AltGr (Ctrl+Alt on Windows) commonly type ASCII punctuation (German
+    // Option+5 / AltGr+8 give '['), so `alt+5` / `ctrl+alt+8` must still match.
+    if (/^[A-Z0-9]$/.test(eventKey)) return false;
+    if (!event.altKey && Object.hasOwn(PUNCTUATION_CODES, eventKey)) return false;
+
+    // Modifiers such as Option (macOS) or AltGr change `event.key` (e.g. Option+S
+    // yields 'ß'), so fall back to the physical key code for letters and digits.
+    if (/^[A-Z]$/.test(shortcut.key)) return event.code === `Key${shortcut.key}`;
+    if (/^\d$/.test(shortcut.key)) return event.code === `Digit${shortcut.key}`;
+    // Likewise a requested Shift turns '/' into '?' (so `ctrl+shift+/` reports
+    // '?'). Only when Shift wasn't pressed unrequested, so `ctrl+/` still
+    // ignores Ctrl+Shift+/ ('?').
+    if (event.shiftKey && !shortcut.shift) return false;
+    const punctuationCode = PUNCTUATION_CODES[shortcut.key];
+    return punctuationCode !== undefined && event.code === punctuationCode;
   }
 }

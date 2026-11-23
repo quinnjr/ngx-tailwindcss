@@ -4,15 +4,15 @@ import {
   computed,
   DestroyRef,
   inject,
+  Injector,
   input,
+  linkedSignal,
   numberAttribute,
-  OnInit,
   output,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type PitchDisplayVariant =
   'default' | 'minimal' | 'digital' | 'wheel' | 'dj' | 'light' | 'highContrast';
@@ -61,8 +61,11 @@ export const PITCH_PRESETS = {
     class: 'inline-block',
   },
 })
-export class TwPitchDisplayComponent implements OnInit {
+export class TwPitchDisplayComponent {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  // Injected (not the global) so destroy-time listener cleanup is SSR safe
+  private readonly document = inject(DOCUMENT);
 
   // Expose Math for template use
   protected readonly Math = Math;
@@ -100,34 +103,25 @@ export class TwPitchDisplayComponent implements OnInit {
   readonly pitchBendChange = output<number>();
   readonly keyLockChange = output<boolean>();
 
-  // Internal state
-  protected readonly internalSemitones = signal(0);
-  protected readonly internalCents = signal(0);
-  protected readonly internalPitchBend = signal(0);
-  protected readonly internalKeyLock = signal(false);
+  // Internal state: seeded by (and reset whenever) the matching input changes,
+  // but otherwise keeps local edits. Previously a 100ms poll overwrote local
+  // edits with the input value (and kept SSR from ever becoming stable).
+  protected readonly internalSemitones = linkedSignal(() => this.semitones());
+  protected readonly internalCents = linkedSignal(() => this.cents());
+  protected readonly internalPitchBend = linkedSignal(() => this.pitchBend());
+  protected readonly internalKeyLock = linkedSignal(() => this.keyLock());
   protected readonly isDragging = signal(false);
 
+  private dragStartX = 0;
   private dragStartY = 0;
   private dragStartValue = 0;
+  private dragAxis: 'x' | 'y' = 'y';
 
-  ngOnInit(): void {
-    // Sync initial values
-    this.internalSemitones.set(this.semitones());
-    this.internalCents.set(this.cents());
-    this.internalPitchBend.set(this.pitchBend());
-    this.internalKeyLock.set(this.keyLock());
-
-    // Update internal state when inputs change
-    interval(100)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        if (!this.isDragging()) {
-          this.internalSemitones.set(this.semitones());
-          this.internalCents.set(this.cents());
-          this.internalPitchBend.set(this.pitchBend());
-          this.internalKeyLock.set(this.keyLock());
-        }
-      });
+  constructor() {
+    // Remove document drag listeners if destroyed mid-drag
+    this.destroyRef.onDestroy(() => {
+      this.removeDragListeners();
+    });
   }
 
   // Computed values
@@ -178,11 +172,9 @@ export class TwPitchDisplayComponent implements OnInit {
 
   // Pitch as percentage (for DJ displays)
   protected readonly pitchPercentage = computed(() => {
-    const totalCents = this.totalCents();
-    // 100 cents = 1 semitone, 1200 cents = 1 octave = ~100% (for reference)
-    // In DJ terms, typically shown as +/- 8%, 16%, etc. from original pitch
-    const percentage = (totalCents / 1200) * 100;
-    return percentage;
+    // DJ pitch % is the change in playback rate: (ratio - 1) * 100,
+    // e.g. +1 semitone = +5.95%, -12 semitones = -50%
+    return (this.frequencyRatio() - 1) * 100;
   });
 
   protected readonly pitchPercentageDisplay = computed(() => {
@@ -241,9 +233,33 @@ export class TwPitchDisplayComponent implements OnInit {
     return this.internalPitchBend() * 90;
   });
 
+  // Fill arc for the arc-style display: runs along the track (centre 50,45,
+  // radius 40) from its top (50,5) to the current bend angle
+  protected readonly pitchBendArcPath = computed(() => {
+    const bend = this.internalPitchBend();
+    const angle = (bend * Math.PI) / 2;
+    const x = 50 + 40 * Math.sin(angle);
+    const y = 45 - 40 * Math.cos(angle);
+    // Positive bends sweep clockwise (to the right), negative counter-clockwise
+    return `M 50 5 A 40 40 0 0 ${bend > 0 ? 1 : 0} ${x} ${y}`;
+  });
+
   // Color indicator based on pitch direction
+  // The 400 shades are ~1.7-2.6:1 on a white panel, so the light variant (and
+  // minimal, which sits on the page background) use the darker 700 shades
   protected readonly pitchDirectionClass = computed(() => {
     const total = this.totalCents();
+    const variant = this.variant();
+    if (variant === 'light') {
+      if (total > 0) return 'text-amber-700';
+      if (total < 0) return 'text-blue-700';
+      return 'text-slate-600';
+    }
+    if (variant === 'minimal') {
+      if (total > 0) return 'text-amber-700 dark:text-amber-400';
+      if (total < 0) return 'text-blue-700 dark:text-blue-400';
+      return 'text-slate-600 dark:text-slate-400';
+    }
     if (total > 0) return 'text-amber-400'; // Sharp/up
     if (total < 0) return 'text-blue-400'; // Flat/down
     return 'text-slate-400'; // Neutral
@@ -251,6 +267,11 @@ export class TwPitchDisplayComponent implements OnInit {
 
   // Presets for quick access
   protected readonly PITCH_PRESETS = PITCH_PRESETS;
+
+  // Semitone -/+ disable themselves at -24/+24: keep keyboard focus in the group
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
+  }
 
   // Interaction handlers
   protected onSemitonesUp(): void {
@@ -277,18 +298,93 @@ export class TwPitchDisplayComponent implements OnInit {
   protected onPitchWheelDragStart(event: MouseEvent | TouchEvent): void {
     if (this.disabled()) return;
     this.isDragging.set(true);
-    this.dragStartY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    const point = 'touches' in event ? event.touches[0] : event;
+    this.dragStartX = point.clientX;
+    this.dragStartY = point.clientY;
     this.dragStartValue = this.internalPitchBend();
+    // The horizontal slider follows horizontal movement; the others vertical
+    this.dragAxis = this.pitchBendStyle() === 'horizontal' ? 'x' : 'y';
 
-    document.addEventListener('mousemove', this.onPitchWheelDrag);
-    document.addEventListener('mouseup', this.onPitchWheelDragEnd);
-    document.addEventListener('touchmove', this.onPitchWheelDrag);
-    document.addEventListener('touchend', this.onPitchWheelDragEnd);
+    this.removeDragListeners();
+    this.document.addEventListener('mousemove', this.onPitchWheelDrag);
+    this.document.addEventListener('mouseup', this.onPitchWheelDragEnd);
+    this.document.addEventListener('touchmove', this.onPitchWheelDrag);
+    this.document.addEventListener('touchend', this.onPitchWheelDragEnd);
+  }
+
+  /** Keyboard control for the focusable pitch bend slider */
+  protected onPitchWheelKeydown(event: KeyboardEvent): void {
+    if (this.disabled()) return;
+
+    const step = event.shiftKey ? 0.25 : 0.05;
+    const current = this.internalPitchBend();
+    let next: number;
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'ArrowRight': {
+        next = current + step;
+        break;
+      }
+      case 'ArrowDown':
+      case 'ArrowLeft': {
+        next = current - step;
+        break;
+      }
+      case 'PageUp': {
+        next = current + 0.25;
+        break;
+      }
+      case 'PageDown': {
+        next = current - 0.25;
+        break;
+      }
+      case 'Home': {
+        next = -1;
+        break;
+      }
+      case 'End': {
+        next = 1;
+        break;
+      }
+      case 'Escape':
+      case 'Delete':
+      case 'Backspace': {
+        next = 0;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    const range = this.pitchBendRange();
+    const delta = next - current;
+    if (this.snapToSemitone() && range > 0 && delta !== 0 && Math.abs(next) !== 1) {
+      // Snapping rounds the small fractional steps (0.05 = 0.1 st at the
+      // default ±2 st range) straight back to the current semitone, so the
+      // arrow/page keys never moved the bend: step in whole semitones instead
+      const semitones = Math.round(current * range);
+      const stepSemis = Math.max(1, Math.round(Math.abs(delta) * range));
+      next = (semitones + Math.sign(delta) * stepSemis) / range;
+    }
+    // Round off float drift from repeated steps
+    this.setPitchBend(Math.round(next * 1000) / 1000);
+  }
+
+  private removeDragListeners(): void {
+    this.document.removeEventListener('mousemove', this.onPitchWheelDrag);
+    this.document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
+    this.document.removeEventListener('touchmove', this.onPitchWheelDrag);
+    this.document.removeEventListener('touchend', this.onPitchWheelDragEnd);
   }
 
   private readonly onPitchWheelDrag = (event: MouseEvent | TouchEvent): void => {
-    const currentY = 'touches' in event ? event.touches[0].clientY : event.clientY;
-    const delta = (this.dragStartY - currentY) / 100; // Normalize
+    const point = 'touches' in event ? event.touches[0] : event;
+    if (!point) return;
+    const delta =
+      this.dragAxis === 'x'
+        ? (point.clientX - this.dragStartX) / 100
+        : (this.dragStartY - point.clientY) / 100; // Normalize
     const newValue = this.applyBendSnap(Math.max(-1, Math.min(1, this.dragStartValue + delta)));
     if (newValue === this.internalPitchBend()) return;
     this.internalPitchBend.set(newValue);
@@ -312,10 +408,7 @@ export class TwPitchDisplayComponent implements OnInit {
       this.pitchBendChange.emit(0);
     }
 
-    document.removeEventListener('mousemove', this.onPitchWheelDrag);
-    document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
-    document.removeEventListener('touchmove', this.onPitchWheelDrag);
-    document.removeEventListener('touchend', this.onPitchWheelDragEnd);
+    this.removeDragListeners();
   };
 
   protected toggleKeyLock(): void {
@@ -417,18 +510,53 @@ export class TwPitchDisplayComponent implements OnInit {
       lg: 'text-4xl',
     };
 
-    const variantClasses: Record<PitchDisplayVariant, string> = {
-      default: 'text-white font-bold',
-      minimal: 'text-slate-700 dark:text-white font-bold',
-      digital: 'text-green-400 font-mono font-bold',
-      wheel: 'text-blue-400 font-bold',
-      dj: 'text-cyan-400 font-mono font-bold',
-      light: 'text-blue-600 font-bold',
-      highContrast: 'text-yellow-400 font-bold',
+    const variantFont: Record<PitchDisplayVariant, string> = {
+      default: 'font-bold',
+      minimal: 'font-bold',
+      digital: 'font-mono font-bold',
+      wheel: 'font-bold',
+      dj: 'font-mono font-bold',
+      light: 'font-bold',
+      highContrast: 'font-bold',
     };
 
-    return [sizeClasses[size], variantClasses[variant]].join(' ');
+    const variantColor: Record<PitchDisplayVariant, string> = {
+      default: 'text-white',
+      minimal: 'text-slate-700 dark:text-white',
+      digital: 'text-green-400',
+      wheel: 'text-blue-400',
+      dj: 'text-cyan-400',
+      light: 'text-blue-600',
+      highContrast: 'text-yellow-400',
+    };
+
+    // Off-centre the value takes the sharp/flat colour. One binding: a second
+    // [class] on the element used to replace these size/weight classes.
+    const color = this.totalCents() === 0 ? variantColor[variant] : this.pitchDirectionClass();
+    return [sizeClasses[size], variantFont[variant], color].join(' ');
   });
+
+  // Secondary label text, kept >= 4.5:1 against each variant's background
+  // (slate-500/600 on the dark panels were ~2.4-3:1)
+  protected readonly labelClass = computed(() => {
+    const variant = this.variant();
+    if (variant === 'light') return 'text-slate-600';
+    if (variant === 'minimal') return 'text-slate-600 dark:text-slate-400';
+    return 'text-slate-400';
+  });
+
+  // Quick preset buttons. The active colour replaces the grey (rather than both
+  // being applied) and takes white text: slate-300 on the active blue/green/
+  // amber fills was ~2-3.4:1.
+  protected isPresetActive(semitones: number): boolean {
+    return this.internalSemitones() === semitones && this.internalCents() === 0;
+  }
+
+  protected presetButtonClass(semitones: number, activeBg: string): string {
+    return this.isPresetActive(semitones)
+      ? `${activeBg} text-white`
+      : 'bg-slate-700 enabled:hover:bg-slate-600 text-slate-300';
+  }
 
   protected readonly centsValueClasses = computed(() => {
     const variant = this.variant();
@@ -438,7 +566,8 @@ export class TwPitchDisplayComponent implements OnInit {
       minimal: 'text-slate-600 dark:text-slate-400 font-mono',
       digital: 'text-green-500/70 font-mono',
       wheel: 'text-slate-400 font-mono',
-      dj: 'text-cyan-500/70 font-mono',
+      // Full strength: cyan-500 at 70% was ~4.2-4.5:1 on the dj gradient
+      dj: 'text-cyan-500 font-mono',
       light: 'text-slate-500 font-mono',
       highContrast: 'text-white font-mono',
     };

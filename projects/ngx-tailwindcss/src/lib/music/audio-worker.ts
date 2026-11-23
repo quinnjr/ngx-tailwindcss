@@ -84,6 +84,8 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
   } = options;
 
   const inputLength = frequencyData.length;
+  // Number of input FFT bins averaged into each output bin (linear mode)
+  const step = Math.max(1, Math.floor(inputLength / outputBins));
   let processedData: number[];
 
   if (logarithmic) {
@@ -98,11 +100,10 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
       const freq = Math.exp(logFreq);
       const bin = Math.round((freq * fftSize) / sampleRate);
       const clampedBin = Math.min(bin, inputLength - 1);
-      processedData[i] = frequencyData[clampedBin];
+      processedData[i] = clampedBin >= 0 ? frequencyData[clampedBin] : 0;
     }
   } else {
     // Linear scaling with optional downsampling
-    const step = Math.max(1, Math.floor(inputLength / outputBins));
     processedData = Array.from<number>({ length: outputBins });
 
     for (let i = 0; i < outputBins; i++) {
@@ -114,7 +115,9 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
       for (let j = startBin; j < endBin; j++) {
         sum += frequencyData[j];
       }
-      processedData[i] = sum / (endBin - startBin);
+      // Output bins past the end of the input (fewer input bins than
+      // outputBins) carry no data: report silence rather than 0/0 = NaN
+      processedData[i] = endBin > startBin ? sum / (endBin - startBin) : 0;
     }
   }
 
@@ -143,7 +146,7 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
   for (const processedDatum of processedData) {
     totalLevel += processedDatum;
   }
-  const averageLevel = totalLevel / processedData.length;
+  const averageLevel = processedData.length > 0 ? totalLevel / processedData.length : 0;
 
   // Find dominant frequency bin
   let maxValue = 0;
@@ -161,7 +164,8 @@ function processFFT(options: FFTProcessOptions): FFTProcessResult {
         Math.log(minFrequency) +
           (dominantBin / outputBins) * (Math.log(maxFrequency) - Math.log(minFrequency))
       )
-    : (dominantBin * sampleRate) / fftSize;
+    : // Output bin i averages input bins [i*step, (i+1)*step); use its center
+      ((dominantBin * step + (step - 1) / 2) * sampleRate) / fftSize;
 
   return {
     processedData,
@@ -239,7 +243,7 @@ function processTimeDomain(options: TimeDomainOptions): TimeDomainResult {
     lastSign = sign;
   }
 
-  const rms = Math.sqrt(sumSquares / timeDomainData.length);
+  const rms = timeDomainData.length > 0 ? Math.sqrt(sumSquares / timeDomainData.length) : 0;
 
   return {
     processedData,
@@ -279,7 +283,7 @@ function calculateLevels(options: LevelOptions): LevelResult {
       sumSquares += sample * sample;
       if (sample > peak) peak = sample;
     }
-    rms = Math.sqrt(sumSquares / data.length);
+    rms = data.length > 0 ? Math.sqrt(sumSquares / data.length) : 0;
   } else {
     // Uint8Array data (0-255, centered at 128)
     let sumSquares = 0;
@@ -288,7 +292,7 @@ function calculateLevels(options: LevelOptions): LevelResult {
       sumSquares += sample * sample;
       if (sample > peak) peak = sample;
     }
-    rms = Math.sqrt(sumSquares / data.length);
+    rms = data.length > 0 ? Math.sqrt(sumSquares / data.length) : 0;
   }
 
   // Convert to dB
@@ -334,7 +338,9 @@ function detectBeat(options: BeatDetectionOptions): BeatDetectionResult {
     const val = frequencyData[i];
     energy += val * val;
   }
-  energy = Math.sqrt(energy / binCount);
+  // An empty band (no data, or a band past the end of the input) has no
+  // energy; 0/0 = NaN here would poison the energy history for ~1 second
+  energy = binCount > 0 ? Math.sqrt(energy / binCount) : 0;
 
   // Calculate average from history
   let averageEnergy = 0;
@@ -381,6 +387,22 @@ function downsampleWaveform(options: WaveformDownsampleOptions): WaveformDownsam
   const inputLength = samples.length;
   const samplesPerPixel = inputLength / outputLength;
 
+  if (inputLength === 0) {
+    const zeros = (): number[] => Array.from<number>({ length: outputLength }).fill(0);
+    return method === 'minmax'
+      ? { data: zeros(), minValues: zeros(), maxValues: zeros() }
+      : { data: zeros() };
+  }
+
+  // Sample range [start, end) for output point i. When upsampling
+  // (outputLength > inputLength) a bucket can be empty; fall back to the
+  // nearest sample so the result never contains NaN/Infinity.
+  const bucket = (i: number): [number, number] => {
+    const start = Math.min(Math.floor(i * samplesPerPixel), inputLength - 1);
+    const end = Math.min(Math.floor((i + 1) * samplesPerPixel), inputLength);
+    return [start, Math.max(end, start + 1)];
+  };
+
   const data: number[] = Array.from<number>({ length: outputLength });
   let minValues: number[] | undefined;
   let maxValues: number[] | undefined;
@@ -390,8 +412,7 @@ function downsampleWaveform(options: WaveformDownsampleOptions): WaveformDownsam
     maxValues = Array.from<number>({ length: outputLength });
 
     for (let i = 0; i < outputLength; i++) {
-      const startSample = Math.floor(i * samplesPerPixel);
-      const endSample = Math.min(Math.floor((i + 1) * samplesPerPixel), inputLength);
+      const [startSample, endSample] = bucket(i);
 
       let min = Infinity;
       let max = -Infinity;
@@ -408,8 +429,7 @@ function downsampleWaveform(options: WaveformDownsampleOptions): WaveformDownsam
     }
   } else if (method === 'average') {
     for (let i = 0; i < outputLength; i++) {
-      const startSample = Math.floor(i * samplesPerPixel);
-      const endSample = Math.min(Math.floor((i + 1) * samplesPerPixel), inputLength);
+      const [startSample, endSample] = bucket(i);
 
       let sum = 0;
       for (let j = startSample; j < endSample; j++) {
@@ -420,8 +440,7 @@ function downsampleWaveform(options: WaveformDownsampleOptions): WaveformDownsam
   } else {
     // RMS
     for (let i = 0; i < outputLength; i++) {
-      const startSample = Math.floor(i * samplesPerPixel);
-      const endSample = Math.min(Math.floor((i + 1) * samplesPerPixel), inputLength);
+      const [startSample, endSample] = bucket(i);
 
       let sumSquares = 0;
       for (let j = startSample; j < endSample; j++) {
@@ -461,7 +480,8 @@ function smoothData(options: SmoothDataOptions): SmoothDataResult {
       for (const [i, datum] of data.entries()) {
         result[i] = alpha * datum + (1 - alpha) * previousData[i];
       }
-    } else {
+    } else if (data.length > 0) {
+      // (guarded: assigning result[0] on empty input would yield [undefined])
       result[0] = data[0];
       for (let i = 1; i < data.length; i++) {
         result[i] = alpha * data[i] + (1 - alpha) * result[i - 1];
@@ -590,7 +610,11 @@ const WORKER_HANDLERS = {
 function handleMessage(event: MessageEvent<WorkerMessage>): WorkerResponse {
   const { id, type, data } = event.data;
 
-  const handler = WORKER_HANDLERS[type] as ((options: unknown) => unknown) | undefined;
+  // Own-property check: inherited keys such as 'constructor' or 'toString'
+  // must be rejected like any other unknown type, not invoked
+  const handler = Object.hasOwn(WORKER_HANDLERS, type)
+    ? (WORKER_HANDLERS[type] as (options: unknown) => unknown)
+    : undefined;
   if (!handler) {
     return { id, type, result: null, error: `Unknown message type: ${type}` };
   }

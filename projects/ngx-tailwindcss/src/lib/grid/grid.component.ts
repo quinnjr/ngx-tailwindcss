@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type GridCols = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 'none' | 'auto';
 export type GridGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -149,13 +150,10 @@ const GAP_Y_CLASSES: Record<GridGap, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './grid.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'gridClasses()',
+  },
 })
 export class TwGridComponent {
   private readonly twClass = inject(TwClassService);
@@ -186,9 +184,9 @@ export class TwGridComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly gridClasses = computed(() => {
     const classes = ['grid', COLS_CLASSES[this.cols().toString()]];
@@ -216,6 +214,11 @@ export class TwGridComponent {
     const colGap = this.colGap();
     if (rowGap && colGap) {
       classes.push(GAP_Y_CLASSES[rowGap], GAP_X_CLASSES[colGap]);
+    } else if (rowGap) {
+      // Only one axis overridden: the other axis keeps the `gap` value
+      classes.push(GAP_X_CLASSES[this.gap()], GAP_Y_CLASSES[rowGap]);
+    } else if (colGap) {
+      classes.push(GAP_Y_CLASSES[this.gap()], GAP_X_CLASSES[colGap]);
     } else {
       classes.push(GAP_CLASSES[this.gap()]);
     }
@@ -242,13 +245,11 @@ export class TwGridComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './simple-grid.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'gridClasses()',
+    '[style.grid-template-columns]': 'gridTemplateColumns()',
+  },
 })
 export class TwSimpleGridComponent {
   private readonly twClass = inject(TwClassService);
@@ -261,9 +262,9 @@ export class TwSimpleGridComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly gridClasses = computed(() => {
     return this.twClass.merge('grid', GAP_CLASSES[this.gap()], this.class());

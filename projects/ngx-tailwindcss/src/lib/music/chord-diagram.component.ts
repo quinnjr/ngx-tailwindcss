@@ -2,17 +2,24 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type ChordDiagramVariant = 'default' | 'minimal' | 'detailed' | 'dark';
 export type ChordDiagramSize = 'sm' | 'md' | 'lg';
 
 export interface ChordFingering {
   string: number; // 1-6 (1 = high E, 6 = low E)
-  fret: number; // 0 = open, -1 = muted, 1+ = fret number
+  /**
+   * Absolute fret number on the neck: 0 = open, -1 = muted, 1+ = fret. With a `baseFret`
+   * above 1 the diagram shows frets baseFret..baseFret + fretCount - 1, so e.g. a barre
+   * at the 5th fret is `fret: 5` with `baseFret: 5` (drawn on the diagram's first row).
+   */
+  fret: number;
   finger?: number; // 1-4 (index to pinky), 0 = thumb
   barre?: boolean; // Part of a barre chord
 }
@@ -20,7 +27,8 @@ export interface ChordFingering {
 export interface ChordDefinition {
   name: string; // e.g., "C", "Am", "G7"
   fingerings: ChordFingering[];
-  baseFret?: number; // Starting fret position (default 1)
+  /** Fret shown in the diagram's first row (default 1 = nut); `fret` values stay absolute */
+  baseFret?: number;
   barreFrom?: number; // String number where barre starts
   barreTo?: number; // String number where barre ends
 }
@@ -108,12 +116,18 @@ export const COMMON_CHORDS: Record<string, ChordDefinition> = {
   },
 })
 export class TwChordDiagramComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Expose Math for template
   protected readonly Math = Math;
 
   readonly chord = input<ChordDefinition | string | null>(null);
   readonly customFingerings = input<ChordFingering[]>([]);
   readonly name = input<string>('');
+  /**
+   * Fret shown in the first row when the chord does not define `baseFret` (default 1 = nut).
+   * Fingering `fret` numbers are absolute, see ChordFingering.fret.
+   */
   readonly baseFret = input(1, { transform: numberAttribute });
   readonly fretCount = input(4, { transform: numberAttribute });
   readonly stringCount = input(6, { transform: numberAttribute }); // 6 for guitar, 4 for bass
@@ -125,6 +139,8 @@ export class TwChordDiagramComponent {
   readonly showFretNumber = input(true);
   readonly leftHanded = input(false);
   readonly classOverride = input('');
+  /** Accessible name of the diagram; derived from the chord name and frets when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
 
   protected readonly chordData = computed((): ChordDefinition | null => {
     const chord = this.chord();
@@ -153,10 +169,34 @@ export class TwChordDiagramComponent {
     return chordData?.name || '';
   });
 
+  /**
+   * e.g. "C chord diagram, frets x 3 2 0 1 0": frets from the lowest string to string 1
+   * (x = muted, 0 = open, - = not shown)
+   */
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const name = this.displayName();
+    const label = name ? `${name} chord diagram` : 'Chord diagram';
+    const fingerings = this.fingerings();
+    if (fingerings.length === 0) return label;
+    const frets = Array.from({ length: this.stringCount() }, (_, i) => {
+      const fret = fingerings.find(f => f.string === this.stringCount() - i)?.fret;
+      return fret === undefined ? '-' : fret < 0 ? 'x' : String(fret);
+    });
+    return `${label}, frets ${frets.join(' ')}`;
+  });
+
   protected readonly displayBaseFret = computed(() => {
     const chordData = this.chordData();
-    return chordData?.baseFret || this.baseFret();
+    return Math.max(1, Math.floor(chordData?.baseFret || this.baseFret() || 1));
   });
+
+  // Diagram row (1 = first row) of an absolute fret, or null when outside the window
+  protected fretRow(fret: number): number | null {
+    const row = fret - this.displayBaseFret() + 1;
+    return row >= 1 && row <= this.fretCount() ? row : null;
+  }
 
   protected readonly dimensions = computed(() => {
     const size = this.size();
@@ -202,16 +242,20 @@ export class TwChordDiagramComponent {
         };
       }
       case 'minimal': {
+        // Drawn on the page's own background: the name, nut and finger dots use currentColor
+        // (the container's slate-700, lightened on a dark page where it was unreadable) and the
+        // finger numbers use fingerTextClasses, inverted against the dots
         return {
           background: 'transparent',
           string: '#94A3B8',
           fret: '#CBD5E1',
-          nut: '#334155',
-          finger: '#334155',
-          fingerText: '#FFFFFF',
-          text: '#334155',
+          nut: 'currentColor',
+          finger: 'currentColor',
+          fingerText: 'currentColor',
+          text: 'currentColor',
           muted: '#EF4444',
-          open: '#22C55E',
+          // Open-string ring: green-500 was ~2.3:1 on white, green-600 keeps >= 3:1
+          open: '#16A34A',
         };
       }
       case 'detailed': {
@@ -237,21 +281,27 @@ export class TwChordDiagramComponent {
           fingerText: '#FFFFFF',
           text: '#1E293B',
           muted: '#EF4444',
-          open: '#22C55E',
+          // Open-string ring: green-500 was ~2.3:1 on white, green-600 keeps >= 3:1
+          open: '#16A34A',
         };
       }
     }
   });
+
+  /** Finger-number colour for the minimal variant, whose dots follow the page theme */
+  protected readonly fingerTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-white dark:text-slate-900' : ''
+  );
 
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-lg';
     const variantClasses: Record<ChordDiagramVariant, string> = {
       default: 'bg-white border border-slate-200 shadow-sm',
       dark: 'bg-slate-800 border border-slate-700',
-      minimal: 'bg-transparent',
+      minimal: 'bg-transparent text-[#334155] dark:text-slate-200',
       detailed: 'bg-amber-50 border border-amber-200',
     };
-    return [base, variantClasses[this.variant()], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());
   });
 
   protected getStringX(stringNum: number): number {
@@ -271,9 +321,11 @@ export class TwChordDiagramComponent {
 
   protected getFingerPosition(fingering: ChordFingering): { x: number; y: number } | null {
     if (fingering.fret <= 0) return null;
+    const row = this.fretRow(fingering.fret);
+    if (row === null) return null;
 
     const x = this.getStringX(fingering.string);
-    const y = this.getFretY(fingering.fret) - this.dimensions().fretSpacing / 2;
+    const y = this.getFretY(row) - this.dimensions().fretSpacing / 2;
 
     return { x, y };
   }
@@ -283,17 +335,30 @@ export class TwChordDiagramComponent {
   }
 
   protected getBarreData(): { x1: number; x2: number; y: number } | null {
-    const chordData = this.chordData();
-    if (!chordData?.barreFrom || !chordData?.barreTo) return null;
-
     const fingerings = this.fingerings();
-    const barreFret = fingerings.find(f => f.barre)?.fret;
-    if (!barreFret) return null;
+    const barreFingerings = fingerings.filter(f => f.barre && f.fret > 0);
+    if (barreFingerings.length === 0) return null;
 
+    const barreRow = this.fretRow(barreFingerings[0].fret);
+    if (barreRow === null) return null;
+
+    // Prefer the explicit range from the chord definition (only when its fingerings are
+    // the ones displayed); otherwise span the strings marked as barre.
+    const chordData = this.chordData();
+    const useChordRange =
+      this.customFingerings().length === 0 && !!chordData?.barreFrom && !!chordData?.barreTo;
+    const barreStrings = barreFingerings.map(f => f.string);
+    const from = useChordRange ? chordData.barreFrom! : Math.min(...barreStrings);
+    const to = useChordRange ? chordData.barreTo! : Math.max(...barreStrings);
+
+    // Order left-to-right: string 1 is rightmost for right-handed diagrams, and the
+    // template draws the barre rect from x1 with a positive width
+    const xFrom = this.getStringX(from);
+    const xTo = this.getStringX(to);
     return {
-      x1: this.getStringX(chordData.barreFrom),
-      x2: this.getStringX(chordData.barreTo),
-      y: this.getFretY(barreFret) - this.dimensions().fretSpacing / 2,
+      x1: Math.min(xFrom, xTo),
+      x2: Math.max(xFrom, xTo),
+      y: this.getFretY(barreRow) - this.dimensions().fretSpacing / 2,
     };
   }
 
@@ -307,11 +372,12 @@ export class TwChordDiagramComponent {
 
   protected readonly stringLabels = computed(() => {
     const count = this.stringCount();
+    // Ordered by string number (string 1 = highest); getStringX() handles left/right handedness
     if (count === 6) {
-      return this.leftHanded() ? ['E', 'B', 'G', 'D', 'A', 'E'] : ['E', 'A', 'D', 'G', 'B', 'E'];
+      return ['E', 'B', 'G', 'D', 'A', 'E'];
     }
     if (count === 4) {
-      return this.leftHanded() ? ['G', 'D', 'A', 'E'] : ['E', 'A', 'D', 'G'];
+      return ['G', 'D', 'A', 'E'];
     }
     return [];
   });

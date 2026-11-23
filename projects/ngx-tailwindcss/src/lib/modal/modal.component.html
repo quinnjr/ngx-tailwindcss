@@ -4,16 +4,21 @@
     <div [class]="backdropClasses()"></div>
   </div>
 
-  <!-- Modal container (carries the backdrop click handler because it covers
-       the backdrop layer; the panel stops propagation) -->
-  <div class="fixed inset-0 z-50 overflow-y-auto" [@overlayAnimation] (click)="onBackdropClick()">
+  <!-- Modal container (carries the backdrop handlers because it covers the
+       backdrop layer). A click only closes when the press also started outside
+       the panel, so a drag from the panel onto the backdrop does not close. -->
+  <div
+    class="fixed inset-0 z-50 overflow-y-auto"
+    [@overlayAnimation]
+    (pointerdown)="onBackdropPointerDown($event)"
+    (click)="onBackdropClick($event)"
+  >
     <div [class]="containerClasses()">
       <!-- Modal panel -->
       <!-- Static classes for Tailwind JIT detection: bg-white dark:bg-slate-800 -->
       <div
         #modalPanel
-        class="relative w-full bg-white dark:bg-slate-800 rounded-xl shadow-2xl"
-        [ngClass]="sizeAndCustomClasses()"
+        [class]="panelClasses()"
         [@panelAnimation]
         twFocusTrap
         [focusTrapAutoFocus]="_autoFocus()"
@@ -22,13 +27,12 @@
         [attr.aria-modal]="true"
         [attr.aria-labelledby]="_ariaLabelledBy() || modalTitle()?.id || null"
         [attr.aria-describedby]="_ariaDescribedBy() || null"
-        (click)="$event.stopPropagation()"
       >
         <!-- Close button -->
         @if (_showCloseButton()) {
           <button
             type="button"
-            class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1"
+            class="absolute top-4 right-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1"
             (click)="closeModal()"
             aria-label="Close modal"
           >

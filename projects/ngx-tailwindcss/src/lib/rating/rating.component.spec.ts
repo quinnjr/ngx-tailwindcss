@@ -141,8 +141,8 @@ describe('TwRatingComponent', () => {
 
     it('should select a half step when clicking the left half of a star', () => {
       const event = {
-        offsetX: 4,
-        currentTarget: { getBoundingClientRect: () => ({ width: 24 }) },
+        clientX: 104,
+        currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 24 }) },
       } as unknown as MouseEvent;
       component.rating.onStarClick(2, event);
       expect(component.onChangeSpy).toHaveBeenCalledWith(2.5);
@@ -150,10 +150,19 @@ describe('TwRatingComponent', () => {
 
     it('should select a full step when clicking the right half of a star', () => {
       const event = {
-        offsetX: 20,
-        currentTarget: { getBoundingClientRect: () => ({ width: 24 }) },
+        clientX: 120,
+        currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 24 }) },
       } as unknown as MouseEvent;
       component.rating.onStarClick(2, event);
+      expect(component.onChangeSpy).toHaveBeenCalledWith(3);
+    });
+
+    it('should select the whole star on keyboard activation (click with detail 0)', () => {
+      const star: HTMLButtonElement = ratingEl.queryAll(By.css('button[role="radio"]'))[2]
+        .nativeElement;
+      // Keyboard-triggered clicks report detail 0 and a clientX of 0 (left of the star)
+      vi.spyOn(star, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 0, 24, 24));
+      star.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0, clientX: 0 }));
       expect(component.onChangeSpy).toHaveBeenCalledWith(3);
     });
   });
@@ -252,7 +261,19 @@ describe('TwRatingComponent', () => {
       component.rating.writeValue(3);
       fixture.detectChanges();
       const starIcons = ratingEl.queryAll(By.css('svg'));
-      expect(starIcons[0].nativeElement.parentElement.className).toContain('text-amber-400');
+      expect(starIcons[0].nativeElement.parentElement.className).toContain('text-amber-600');
+    });
+
+    it('should render filled and empty stars with >=3:1 contrast colours in light mode', () => {
+      component.rating.writeValue(2);
+      fixture.detectChanges();
+      const buttons = ratingEl.queryAll(By.css('button[role="radio"]'));
+      const filled = (buttons[0].nativeElement as HTMLElement).className;
+      const empty = (buttons[4].nativeElement as HTMLElement).className;
+      expect(filled).toContain('text-amber-600');
+      expect(filled).not.toMatch(/(^|\s)text-amber-400/);
+      expect(empty).toContain('text-slate-500');
+      expect(empty).not.toContain('text-slate-300');
     });
 
     it('should apply primary variant', () => {
@@ -413,5 +434,137 @@ describe('TwRatingComponent with FormControl', () => {
     component.ratingControl.disable();
     fixture.detectChanges();
     expect(ratingEl.nativeElement.querySelector('div').className).toContain('opacity-50');
+  });
+});
+
+@Component({
+  template: `
+    <tw-rating [allowHalf]="true" [showCancel]="true" [formControl]="a"></tw-rating>
+    <tw-rating [allowHalf]="true" [showCancel]="true" [formControl]="b"></tw-rating>
+  `,
+  standalone: true,
+  imports: [TwRatingComponent, ReactiveFormsModule],
+})
+class RatingRegressionHostComponent {
+  a = new FormControl(2.5);
+  b = new FormControl({ value: 2.5, disabled: true });
+}
+
+describe('TwRatingComponent (regressions)', () => {
+  it('should use document-unique half-star gradient ids', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const ids = [
+      ...(fixture.nativeElement.querySelectorAll('linearGradient') as NodeListOf<Element>),
+    ].map(g => g.id);
+    expect(ids.length).toBe(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('should not show the clear button when disabled', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const ratings = fixture.nativeElement.querySelectorAll('tw-rating');
+    expect(ratings[0].querySelector('[aria-label="Clear rating"]')).toBeTruthy();
+    expect(ratings[1].querySelector('[aria-label="Clear rating"]')).toBeNull();
+  });
+
+  it('should give the clear button an icon colour with >=3:1 contrast in light mode', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.detectChanges();
+    const clear = fixture.nativeElement.querySelector('[aria-label="Clear rating"]') as HTMLElement;
+    expect(clear.className).toContain('text-slate-500');
+    expect(clear.className).not.toMatch(/(^|\s)text-slate-400/);
+  });
+
+  it('should move focus to the newly active star on arrow keys', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.componentInstance.a.setValue(2);
+    fixture.detectChanges();
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]'),
+    ];
+    stars[1].focus();
+    stars[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(stars[2]);
+  });
+
+  it('should announce a half-step value on the checked star', () => {
+    const fixture = TestBed.createComponent(RatingRegressionHostComponent);
+    fixture.componentInstance.a.setValue(2.5);
+    fixture.detectChanges();
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-rating')[0].querySelectorAll('[role="radio"]'),
+    ];
+    const checked = stars.filter(s => s.getAttribute('aria-checked') === 'true');
+    expect(checked.length).toBe(1);
+    expect(checked[0].getAttribute('aria-label')).toBe('2.5 stars');
+    expect(stars[1].getAttribute('aria-label')).toBe('2 stars');
+  });
+});
+
+@Component({
+  template: `<tw-rating [showCancel]="true" [formControl]="control"></tw-rating>`,
+  standalone: true,
+  imports: [TwRatingComponent, ReactiveFormsModule],
+})
+class BlurUpdateRatingHostComponent {
+  control = new FormControl(3, { updateOn: 'blur' });
+}
+
+describe('TwRatingComponent (round 23)', () => {
+  it('should commit the cleared value of an updateOn blur control', () => {
+    const fixture = TestBed.createComponent(BlurUpdateRatingHostComponent);
+    fixture.detectChanges();
+    const clearButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      'button[aria-label="Clear rating"]'
+    );
+    clearButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('button[aria-label="Clear rating"]')).toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(0);
+    expect(fixture.componentInstance.control.touched).toBe(true);
+  });
+});
+
+describe('TwRatingComponent (round 28)', () => {
+  it('should move focus to the first star when the clear button removes itself', () => {
+    const fixture = TestBed.createComponent(BlurUpdateRatingHostComponent);
+    fixture.detectChanges();
+    const clearButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      'button[aria-label="Clear rating"]'
+    );
+    clearButton.focus();
+    clearButton.click();
+    fixture.detectChanges();
+
+    const stars = fixture.nativeElement.querySelectorAll('[role="radio"]');
+    expect(fixture.nativeElement.querySelector('button[aria-label="Clear rating"]')).toBeNull();
+    expect(document.activeElement).toBe(stars[0]);
+    expect(stars[0].getAttribute('tabindex')).toBe('0');
+  });
+});
+
+describe('TwRatingComponent (round 34)', () => {
+  it('should stop showing a hover preview once disabled mid-hover', () => {
+    const fixture = TestBed.createComponent(TestHostWithFormControlComponent);
+    fixture.detectChanges();
+    const filled = () =>
+      fixture.nativeElement.querySelectorAll('[role="radio"] svg[fill="currentColor"]').length;
+    expect(filled()).toBe(3);
+
+    const stars: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('[role="radio"]'),
+    ];
+    stars[4].dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    expect(filled()).toBe(5);
+
+    // Disabled buttons may never receive the mouseleave that clears the preview
+    fixture.componentInstance.ratingControl.disable();
+    fixture.detectChanges();
+    expect(filled()).toBe(3);
   });
 });

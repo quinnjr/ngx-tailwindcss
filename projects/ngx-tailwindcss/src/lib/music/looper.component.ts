@@ -2,20 +2,25 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
+  Injector,
   input,
   NgZone,
   numberAttribute,
   OnDestroy,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, interval, switchMap } from 'rxjs';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type LooperVariant = 'default' | 'minimal' | 'compact' | 'studio';
 export type LooperSize = 'sm' | 'md' | 'lg';
@@ -65,6 +70,8 @@ export interface LooperEvent {
 })
 export class TwLooperComponent implements OnDestroy {
   private readonly zone = inject(NgZone);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // Canvas reference
   readonly waveformCanvas = viewChild<ElementRef<HTMLCanvasElement>>('waveformCanvas');
@@ -114,6 +121,8 @@ export class TwLooperComponent implements OnDestroy {
   // Undo/redo history
   private undoStack: AudioBuffer[] = [];
   private redoStack: AudioBuffer[] = [];
+  // Signal mirror of redoStack.length so canRedo() is reactive
+  private readonly redoCount = signal(0);
 
   // Audio context and nodes
   private audioContext: AudioContext | null = null;
@@ -130,8 +139,43 @@ export class TwLooperComponent implements OnDestroy {
   private layerIdCounter = 0;
   private micErrorMessage: string | null = null;
   private clickTrackTimer: ReturnType<typeof setInterval> | null = null;
+  // Whether this component acquired mediaStream itself (and must stop its tracks)
+  private ownsMediaStream = false;
+  private destroyed = false;
+  // Start playback automatically once the first recording has been decoded
+  private pendingAutoPlay = false;
+  // A take is being set up (awaiting mic access / count-in); blocks re-entry
+  private takeStarting = false;
+  // Bumped by clear(): a take still being set up must not start afterwards
+  private takeGeneration = 0;
+  // Playhead anchor: loop position (s) at playbackAnchorTime (AudioContext time)
+  private playbackAnchorTime = 0;
+  private playbackAnchorPosition = 0;
+  // Redraws the (otherwise static) waveform after a device pixel ratio change
+  private readonly stopDprWatch = watchDevicePixelRatio(() => {
+    if (this.layers().length > 0) {
+      this.drawWaveform();
+    }
+  });
 
   constructor() {
+    // Disabling the looper mid-take or mid-playback stops it: every transport button
+    // is disabled too, so the recorder (mic), click track and loop would otherwise
+    // carry on with no way to stop them. A take still being set up is cancelled.
+    effect(() => {
+      if (!this.disabled()) return;
+      untracked(() => {
+        this.takeGeneration++;
+        const s = this.state();
+        if (s === 'recording' || s === 'playing' || s === 'overdubbing') {
+          this.stop();
+        }
+        // Release the microphone we opened: a disabled looper cannot record, so the
+        // mic (and the browser's recording indicator) must not stay live
+        this.releaseMicrophone();
+      });
+    });
+
     // Position ticker only runs while playing/overdubbing (idle otherwise)
     toObservable(this.state)
       .pipe(
@@ -144,22 +188,45 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch();
+    this.destroyed = true;
     this.cleanup();
   }
 
   private async initAudio(): Promise<void> {
-    if (this.audioContext) return;
+    if (!this.audioContext) {
+      this.audioContext = new AudioContext();
+      this.masterGainNode = this.audioContext.createGain();
+      this.masterGainNode.connect(this.audioContext.destination);
+      this.analyserNode = this.audioContext.createAnalyser();
+      this.analyserNode.fftSize = 2048;
+    }
+    // Already have a stream; otherwise (first take, mic released on disable, or an
+    // earlier failed/denied request) acquire one
+    if (this.mediaStream) return;
 
-    this.audioContext = new AudioContext();
-    this.masterGainNode = this.audioContext.createGain();
-    this.masterGainNode.connect(this.audioContext.destination);
-    this.analyserNode = this.audioContext.createAnalyser();
-    this.analyserNode.fftSize = 2048;
+    // Record from the external source's stream when one is provided
+    const externalSource = this.audioSource();
+    if (externalSource) {
+      this.mediaStream = externalSource.mediaStream;
+      this.ownsMediaStream = false;
+      this.micErrorMessage = null;
+      return;
+    }
 
-    // Get microphone access if no external source
-    if (!this.audioSource()) {
+    // Otherwise get microphone access
+    if (!this.mediaStream) {
       try {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Destroyed or disabled while the permission prompt was pending: release the mic
+        if (this.destroyed || this.disabled()) {
+          stream.getTracks().forEach(track => {
+            track.stop();
+          });
+          return;
+        }
+        this.mediaStream = stream;
+        this.ownsMediaStream = true;
         this.micErrorMessage = null;
       } catch (error) {
         this.micErrorMessage =
@@ -178,11 +245,13 @@ export class TwLooperComponent implements OnDestroy {
       cancelAnimationFrame(this.animationFrame);
     }
 
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(track => {
-        track.stop();
-      });
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
     }
+    this.mediaRecorder = null;
+
+    this.releaseMicrophone();
 
     if (this.audioContext) {
       void this.audioContext.close();
@@ -190,22 +259,50 @@ export class TwLooperComponent implements OnDestroy {
     }
   }
 
+  private releaseMicrophone(): void {
+    // Only stop tracks we acquired; an external audioSource stream belongs to the caller
+    if (this.mediaStream && this.ownsMediaStream) {
+      this.mediaStream.getTracks().forEach(track => {
+        track.stop();
+      });
+    }
+    this.mediaStream = null;
+    this.ownsMediaStream = false;
+  }
+
   // Main control methods
   async record(): Promise<void> {
-    if (this.disabled()) return;
+    // Starting a second take (including while one is still being set up, e.g.
+    // during the count-in) would orphan the running MediaRecorder and the mic
+    if (this.disabled() || this.takeStarting || this.isTakeActive()) return;
 
-    await this.initAudio();
-    if (!this.audioContext) return;
+    this.takeStarting = true;
+    const generation = this.takeGeneration;
+    try {
+      await this.initAudio();
+      if (this.destroyed || !this.audioContext || generation !== this.takeGeneration) return;
 
-    // Microphone unavailable: surface the error and do NOT enter recording state
-    if (!this.mediaStream) {
-      this.error.emit(this.micErrorMessage ?? 'No microphone available for recording');
-      return;
-    }
+      // Microphone unavailable: surface the error and do NOT enter recording state
+      if (!this.mediaStream) {
+        this.error.emit(this.micErrorMessage ?? 'No microphone available for recording');
+        return;
+      }
 
-    // Count-in if enabled
-    if (this.countIn() && this.state() === 'idle') {
-      await this.performCountIn();
+      // Count-in if enabled
+      if (this.countIn() && this.state() === 'idle') {
+        await this.performCountIn();
+        // Destroyed or cleared during the count-in
+        if (
+          this.destroyed ||
+          !this.audioContext ||
+          !this.mediaStream ||
+          generation !== this.takeGeneration
+        ) {
+          return;
+        }
+      }
+    } finally {
+      this.takeStarting = false;
     }
 
     this.setState('recording');
@@ -238,18 +335,31 @@ export class TwLooperComponent implements OnDestroy {
       this.mediaRecorder.stop();
     }
 
+    // A take recorded over a playing loop leaves its layers running: the
+    // 'stopped' state must not keep playing audio behind a Play button
+    if (!wasOverdubbing) {
+      this.stopAllPlayback();
+    }
     this.setState(wasOverdubbing ? 'playing' : 'stopped');
     this.emitEvent(wasOverdubbing ? 'overdub-stop' : 'record-stop');
 
-    if (this.autoPlay() && !wasOverdubbing && this.layers().length > 0) {
-      this.play();
+    // The new layer only exists once MediaRecorder's onstop has decoded it,
+    // so defer auto-play until processRecording() adds the layer.
+    if (this.autoPlay() && !wasOverdubbing) {
+      this.pendingAutoPlay = true;
     }
 
     return Promise.resolve();
   }
 
   play(): void {
-    if (this.disabled() || this.layers().length === 0) return;
+    if (this.disabled()) return;
+    // Finish an in-progress take first; otherwise its recorder and click track
+    // keep running with no way to stop them once the state is 'playing'
+    if (this.isTakeActive()) {
+      void this.stopRecording();
+    }
+    if (this.layers().length === 0) return;
 
     this.setState('playing');
     this.currentPosition.set(0);
@@ -259,6 +369,12 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   stop(): void {
+    // Finish an in-progress take (its layer is still added), but an explicit
+    // stop must not be followed by auto-play
+    if (this.isTakeActive()) {
+      void this.stopRecording();
+    }
+    this.pendingAutoPlay = false;
     this.stopAllPlayback();
     this.setState('stopped');
     this.currentPosition.set(0);
@@ -266,10 +382,19 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   async overdub(): Promise<void> {
-    if (this.disabled() || this.loopDuration() === 0) return;
+    // Same re-entry guard as record(): never orphan a running MediaRecorder
+    if (this.disabled() || this.loopDuration() === 0 || this.takeStarting || this.isTakeActive()) {
+      return;
+    }
 
-    await this.initAudio();
-    if (!this.audioContext) return;
+    this.takeStarting = true;
+    const generation = this.takeGeneration;
+    try {
+      await this.initAudio();
+    } finally {
+      this.takeStarting = false;
+    }
+    if (this.destroyed || !this.audioContext || generation !== this.takeGeneration) return;
 
     // Microphone unavailable: surface the error and do NOT enter overdub state
     if (!this.mediaStream) {
@@ -299,12 +424,26 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   clear(): void {
+    // Cancel a take that is still being set up (mic prompt / count-in)
+    this.takeGeneration++;
+    // Abandon any in-progress take: otherwise the recorder (and click track)
+    // keeps running with no way to stop it once the state is 'idle'
+    this.stopClickTrack();
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
+    }
+    this.mediaRecorder = null;
+    this.recordedChunks = [];
+
     this.stopAllPlayback();
     this.layers.set([]);
     this.loopDuration.set(0);
     this.currentPosition.set(0);
     this.undoStack = [];
     this.redoStack = [];
+    this.redoCount.set(0);
+    this.pendingAutoPlay = false;
     this.setState('idle');
     this.emitEvent('clear');
     this.layerChange.emit([]);
@@ -319,8 +458,10 @@ export class TwLooperComponent implements OnDestroy {
     const lastLayer = currentLayers.at(-1)!;
     if (lastLayer.audioBuffer) {
       this.redoStack.push(lastLayer.audioBuffer);
+      this.redoCount.set(this.redoStack.length);
     }
 
+    this.stopLayerPlayback(currentLayers.length - 1);
     this.layers.set(currentLayers.slice(0, -1));
     this.emitEvent('undo');
     this.layerChange.emit(this.layers());
@@ -331,6 +472,7 @@ export class TwLooperComponent implements OnDestroy {
     if (this.redoStack.length === 0 || this.layers().length >= this.maxLayers()) return;
 
     const buffer = this.redoStack.pop()!;
+    this.redoCount.set(this.redoStack.length);
     const newLayer: LoopLayer = {
       id: this.layerIdCounter++,
       audioBuffer: buffer,
@@ -340,6 +482,7 @@ export class TwLooperComponent implements OnDestroy {
     };
 
     this.layers.update(layers => [...layers, newLayer]);
+    this.startLayerPlayback(this.layers().length - 1);
     this.emitEvent('redo');
     this.layerChange.emit(this.layers());
     this.drawWaveform();
@@ -351,10 +494,11 @@ export class TwLooperComponent implements OnDestroy {
       layers.map(l => (l.id === layerId ? { ...l, volume: Math.max(0, Math.min(1, volume)) } : l))
     );
 
-    // Update gain node if playing
+    // Update gain node if playing (a muted layer stays silent)
     const layerIndex = this.layers().findIndex(l => l.id === layerId);
-    if (layerIndex >= 0 && this.gainNodes[layerIndex]) {
-      this.gainNodes[layerIndex].gain.value = volume;
+    const layer = this.layers()[layerIndex];
+    if (layer && this.gainNodes[layerIndex]) {
+      this.gainNodes[layerIndex].gain.value = layer.muted ? 0 : layer.volume;
     }
 
     this.layerChange.emit(this.layers());
@@ -375,10 +519,28 @@ export class TwLooperComponent implements OnDestroy {
     this.layerChange.emit(this.layers());
   }
 
+  // Clear/Undo/Redo disable themselves (no layers / nothing to redo) and a layer's
+  // Delete removes its row: keep keyboard focus in the looper rather than <body>
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector, () => {
+      const root = this.host.nativeElement;
+      return (
+        root.querySelector<HTMLElement>('button[aria-label^="Delete "]:not([disabled])') ??
+        root.querySelector<HTMLElement>('button:not([disabled])')
+      );
+    });
+  }
+
   deleteLayer(layerId: number): void {
-    const layer = this.layers().find(l => l.id === layerId);
+    const layerIndex = this.layers().findIndex(l => l.id === layerId);
+    const layer = this.layers()[layerIndex];
     if (layer?.audioBuffer) {
       this.undoStack.push(layer.audioBuffer);
+    }
+
+    // Silence the deleted layer and keep node arrays aligned with layers()
+    if (layerIndex >= 0) {
+      this.stopLayerPlayback(layerIndex);
     }
 
     this.layers.update(layers => layers.filter(l => l.id !== layerId));
@@ -399,11 +561,25 @@ export class TwLooperComponent implements OnDestroy {
   }
 
   setPlaybackSpeed(speed: number): void {
+    // Re-anchor the playhead so the position stays continuous across the change
+    if (this.audioContext && this.sourceNodes.length > 0) {
+      this.playbackAnchorPosition = this.computePosition();
+      this.playbackAnchorTime = this.audioContext.currentTime;
+    }
     this.playbackSpeed.set(Math.max(0.5, Math.min(2, speed)));
-    // Note: Changing speed during playback would require recreating source nodes
+    // Apply to live sources so the change is audible immediately
+    for (const source of this.sourceNodes) {
+      if (source) {
+        source.playbackRate.value = this.playbackSpeed();
+      }
+    }
   }
 
   // Helper methods
+  private isTakeActive(): boolean {
+    return this.state() === 'recording' || this.state() === 'overdubbing';
+  }
+
   private setState(newState: LooperState): void {
     this.state.set(newState);
     this.stateChange.emit(newState);
@@ -511,9 +687,20 @@ export class TwLooperComponent implements OnDestroy {
         this.layers.update(layers => [...layers, newLayer]);
         this.layerChange.emit(this.layers());
         this.redoStack = []; // Clear redo stack on new recording
+        this.redoCount.set(0);
+        // An overdub layer joins the already-running loop immediately
+        this.startLayerPlayback(this.layers().length - 1);
         this.drawWaveform();
       }
+
+      if (this.pendingAutoPlay) {
+        this.pendingAutoPlay = false;
+        if (this.state() === 'stopped') {
+          this.play();
+        }
+      }
     } catch (error) {
+      this.pendingAutoPlay = false;
       console.error('Error decoding audio:', error);
     }
   }
@@ -523,29 +710,62 @@ export class TwLooperComponent implements OnDestroy {
 
     this.stopAllPlayback();
 
-    const layers = this.layers();
-    const speed = this.playbackSpeed();
+    // Playhead is measured from when playback actually starts
+    this.playbackAnchorTime = this.audioContext.currentTime;
+    this.playbackAnchorPosition = 0;
 
-    layers.forEach((layer, index) => {
-      if (!layer.audioBuffer || layer.muted) return;
-
-      const source = this.audioContext!.createBufferSource();
-      const gain = this.audioContext!.createGain();
-
-      source.buffer = layer.audioBuffer;
-      source.loop = true;
-      source.playbackRate.value = speed;
-
-      gain.gain.value = layer.volume;
-
-      source.connect(gain);
-      gain.connect(this.masterGainNode!);
-
-      source.start(0);
-
-      this.sourceNodes[index] = source;
-      this.gainNodes[index] = gain;
+    this.layers().forEach((_layer, index) => {
+      this.startLayerPlayback(index, true);
     });
+  }
+
+  /** Start one layer in sync with the loop. */
+  private startLayerPlayback(index: number, force = false): void {
+    if (!this.audioContext || !this.masterGainNode) return;
+    // Outside of playAllLayers, only join a loop that is already running
+    if (!force && this.state() !== 'playing' && this.state() !== 'overdubbing') return;
+
+    const layer = this.layers()[index];
+    if (!layer?.audioBuffer) return;
+
+    const source = this.audioContext.createBufferSource();
+    const gain = this.audioContext.createGain();
+
+    source.buffer = layer.audioBuffer;
+    source.loop = true;
+    // Every layer loops on the master loop length so overdubs stay in sync
+    const loopDuration = Math.min(this.loopDuration(), layer.audioBuffer.duration);
+    if (loopDuration > 0) {
+      source.loopStart = 0;
+      source.loopEnd = loopDuration;
+    }
+    source.playbackRate.value = this.playbackSpeed();
+
+    // Muted layers still run (silently) so unmuting takes effect immediately
+    gain.gain.value = layer.muted ? 0 : layer.volume;
+
+    source.connect(gain);
+    gain.connect(this.masterGainNode);
+
+    const offset = loopDuration > 0 ? this.computePosition() % loopDuration : 0;
+    source.start(0, offset);
+
+    this.sourceNodes[index] = source;
+    this.gainNodes[index] = gain;
+  }
+
+  /** Stop one layer's source and drop it from the index-aligned node arrays. */
+  private stopLayerPlayback(index: number): void {
+    const source = this.sourceNodes[index];
+    if (source) {
+      try {
+        source.stop();
+      } catch {
+        // Source might not be started
+      }
+    }
+    if (index < this.sourceNodes.length) this.sourceNodes.splice(index, 1);
+    if (index < this.gainNodes.length) this.gainNodes.splice(index, 1);
   }
 
   private stopAllPlayback(): void {
@@ -560,13 +780,19 @@ export class TwLooperComponent implements OnDestroy {
     this.gainNodes = [];
   }
 
-  private updatePosition(): void {
-    if (!this.audioContext || this.loopDuration() === 0) return;
+  /** Current loop position (s), measured from when playback actually started. */
+  private computePosition(): number {
+    const loopDuration = this.loopDuration();
+    if (!this.audioContext || loopDuration === 0) return 0;
 
     const elapsed =
-      (this.audioContext.currentTime - this.recordingStartTime) * this.playbackSpeed();
-    const position = elapsed % this.loopDuration();
-    this.currentPosition.set(position);
+      (this.audioContext.currentTime - this.playbackAnchorTime) * this.playbackSpeed();
+    return (this.playbackAnchorPosition + elapsed) % loopDuration;
+  }
+
+  private updatePosition(): void {
+    if (!this.audioContext || this.loopDuration() === 0) return;
+    this.currentPosition.set(this.computePosition());
   }
 
   // Waveform visualization
@@ -578,6 +804,12 @@ export class TwLooperComponent implements OnDestroy {
 
     this.ctx = canvas.getContext('2d');
     if (!this.ctx) return;
+
+    // Never run two frame loops at once (e.g. play() while a loop is pending)
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
 
     // Draw loop never writes template state, so keep it out of the zone
     this.zone.runOutsideAngular(() => {
@@ -606,8 +838,10 @@ export class TwLooperComponent implements OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width } = canvas;
-    const { height } = canvas;
+    // Size the backing store for the device pixel ratio; drawing uses the
+    // nominal (CSS) canvas size
+    const { width, height } = this.canvasSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
 
     // Clear canvas
     ctx.fillStyle = 'rgb(30, 41, 59)'; // slate-800
@@ -625,20 +859,26 @@ export class TwLooperComponent implements OnDestroy {
     const firstLayerWithBuffer = layers.find(l => l.audioBuffer && !l.muted);
     if (firstLayerWithBuffer?.audioBuffer) {
       const data = firstLayerWithBuffer.audioBuffer.getChannelData(0);
-      const step = Math.ceil(data.length / width);
-
       for (let i = 0; i < width; i++) {
+        // Spread the samples evenly over the columns: a fixed ceil()'d step runs
+        // past the end of the buffer, leaving trailing columns with no samples
+        // (min 1 / max -1), which drew full-height spikes at the right edge
+        const start = Math.floor((i * data.length) / width);
+        const end = Math.max(start + 1, Math.floor(((i + 1) * data.length) / width));
+        if (start >= data.length) break;
+
         let min = 1;
         let max = -1;
 
-        for (let j = 0; j < step; j++) {
-          const datum = data[i * step + j];
+        for (let j = start; j < end && j < data.length; j++) {
+          const datum = data[j];
           if (datum < min) min = datum;
           if (datum > max) max = datum;
         }
 
-        const yMin = ((1 + min) / 2) * height;
-        const yMax = ((1 + max) / 2) * height;
+        // Canvas y grows downward: positive samples plot above the centre
+        const yMin = ((1 - min) / 2) * height;
+        const yMax = ((1 - max) / 2) * height;
 
         if (i === 0) {
           ctx.moveTo(i, yMin);
@@ -670,8 +910,10 @@ export class TwLooperComponent implements OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const { width, height } = this.canvasSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     ctx.fillStyle = 'rgb(30, 41, 59)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, width, height);
   }
 
   // Computed classes
@@ -679,7 +921,9 @@ export class TwLooperComponent implements OnDestroy {
     const variant = this.variant();
     const size = this.size();
 
-    const base = 'flex flex-col rounded-xl overflow-hidden';
+    // relative: positioning context for the absolute count-in overlay, which
+    // otherwise escapes the looper and covers the page
+    const base = 'relative flex flex-col rounded-xl overflow-hidden';
 
     const variantClasses: Record<LooperVariant, string> = {
       default: 'bg-slate-900 border border-slate-700 p-4',
@@ -698,6 +942,41 @@ export class TwLooperComponent implements OnDestroy {
       .filter(Boolean)
       .join(' ');
   });
+
+  // The minimal variant is transparent and sits on the (typically light) page
+  // background, where the slate-300/400 text used on the dark panels is
+  // ~1.5-2.6:1; it uses darker shades there, restoring them in dark mode.
+  protected readonly labelClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly valueClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-800 dark:text-slate-300' : 'text-slate-300'
+  );
+
+  // Layer rows: the dark half-transparent row turns mid-grey on a light page,
+  // where neither light nor dark text reaches 4.5:1
+  protected readonly layerRowClass = computed(() =>
+    this.variant() === 'minimal' ? 'bg-slate-500/10' : 'bg-slate-800/50'
+  );
+
+  // Layer delete icon on hover: red-500 on its red-500/20 hover fill is ~2.6:1 on a light page
+  protected readonly deleteButtonClass = computed(() =>
+    this.variant() === 'minimal'
+      ? 'text-slate-600 dark:text-slate-400 enabled:hover:text-red-700 dark:enabled:hover:text-red-500'
+      : 'text-slate-400 enabled:hover:text-red-500'
+  );
+
+  // Idle record icon: red-500 on its red-500/20 (hover /30) button is ~2.5-2.9:1 on a
+  // light page and ~2.8:1 on hover over the compact variant's slate-800
+  protected readonly recordIconClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-red-700 dark:text-red-400' : 'text-red-400'
+  );
+
+  // Idle overdub icon: amber-500 on its amber-500/20 button is ~1.8:1 on a light page
+  protected readonly overdubIconClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-500' : 'text-amber-500'
+  );
 
   protected readonly buttonSizeClasses = computed(() => {
     const size = this.size();
@@ -741,7 +1020,7 @@ export class TwLooperComponent implements OnDestroy {
   });
 
   protected readonly canUndo = computed(() => this.layers().length > 0);
-  protected readonly canRedo = computed(() => this.redoStack.length > 0);
+  protected readonly canRedo = computed(() => this.redoCount() > 0);
   protected readonly canOverdub = computed(
     () => this.loopDuration() > 0 && this.layers().length < this.maxLayers()
   );

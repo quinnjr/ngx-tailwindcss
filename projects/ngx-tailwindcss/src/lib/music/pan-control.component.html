@@ -1,7 +1,7 @@
 <div [class]="containerClasses()">
   <!-- Label -->
   @if (label()) {
-    <span class="text-xs font-medium text-slate-300 dark:text-slate-400 tracking-wide uppercase">{{
+    <span class="text-xs font-medium text-slate-600 dark:text-slate-400 tracking-wide uppercase">{{
       label()
     }}</span>
   }
@@ -12,21 +12,22 @@
       <!-- L/R Labels with Position Indicators -->
       @if (showLabels()) {
         <div class="flex justify-between items-center text-[10px] font-bold mb-2">
+          <!-- Active chips: white on cyan-500 was ~2.4:1 -->
           <span
             class="px-1.5 py-0.5 rounded text-[9px] transition-all"
-            [class.bg-cyan-500]="internalValue() < -20"
-            [class.text-white]="internalValue() < -20"
+            [class.bg-cyan-400]="internalValue() < -20"
+            [class.text-slate-900]="internalValue() < -20"
             [class.bg-slate-700]="internalValue() >= -20"
-            [class.text-slate-400]="internalValue() >= -20"
+            [class.text-slate-300]="internalValue() >= -20"
             >L</span
           >
-          <span class="text-slate-500 text-[8px] font-mono">PAN</span>
+          <span class="text-slate-500 dark:text-slate-400 text-[8px] font-mono">PAN</span>
           <span
             class="px-1.5 py-0.5 rounded text-[9px] transition-all"
-            [class.bg-cyan-500]="internalValue() > 20"
-            [class.text-white]="internalValue() > 20"
+            [class.bg-cyan-400]="internalValue() > 20"
+            [class.text-slate-900]="internalValue() > 20"
             [class.bg-slate-700]="internalValue() <= 20"
-            [class.text-slate-400]="internalValue() <= 20"
+            [class.text-slate-300]="internalValue() <= 20"
             >R</span
           >
         </div>
@@ -82,7 +83,9 @@
                   [class.h-1]="!tick.label"
                 ></div>
                 @if (tick.label) {
-                  <span class="text-[8px] text-slate-500 font-mono mt-0.5">{{ tick.label }}</span>
+                  <span class="text-[8px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{{
+                    tick.label
+                  }}</span>
                 }
               </div>
             }
@@ -92,9 +95,9 @@
         <!-- Fader Cap/Thumb (Professional styling) -->
         <div
           class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all"
-          [class.cursor-grab]="!disabled()"
-          [class.cursor-not-allowed]="disabled()"
-          [class.active:cursor-grabbing]="!disabled()"
+          [class.cursor-grab]="!isDisabled()"
+          [class.cursor-not-allowed]="isDisabled()"
+          [class.active:cursor-grabbing]="!isDisabled()"
           [style.left.%]="thumbPosition()"
         >
           <!-- Outer Cap Body -->
@@ -102,7 +105,7 @@
             class="relative w-5 h-7 rounded-sm shadow-lg transition-transform"
             [class.scale-105]="isDragging()"
             [class]="
-              disabled()
+              isDisabled()
                 ? 'bg-slate-600'
                 : 'bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500 dark:from-slate-500 dark:via-slate-600 dark:to-slate-700'
             "
@@ -136,11 +139,7 @@
 
   <!-- Knob Variant -->
   @if (variant() === 'knob') {
-    <div
-      [class]="knobContainerClasses()"
-      (mousedown)="onKnobDrag($event)"
-      class="cursor-pointer select-none"
-    >
+    <div [class]="knobContainerClasses()" (mousedown)="onKnobDrag($event)">
       <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
         <!-- Outer Ring (beveled effect) -->
         <defs>
@@ -180,7 +179,8 @@
           stroke-linecap="round"
         />
 
-        <!-- Value Arc -->
+        <!-- Value Arc (the gap outlasts the 289-unit circumference, so the dashoffset never
+             wraps the next dash into the arc's bottom opening at low values) -->
         <circle
           cx="50"
           cy="50"
@@ -189,7 +189,7 @@
           stroke="#22d3ee"
           stroke-width="5"
           stroke-linecap="round"
-          stroke-dasharray="217"
+          stroke-dasharray="217 290"
           [attr.stroke-dashoffset]="217 - (thumbPosition() / 100) * 217"
           transform="rotate(135 50 50)"
           class="transition-all duration-75"
@@ -213,10 +213,15 @@
         <!-- Knob Shine -->
         <ellipse cx="42" cy="35" rx="15" ry="10" fill="white" opacity="0.08" />
 
-        <!-- L/R Labels -->
+        <!-- L/R Labels: on the dark knob body in the dial opening (at x=12/82 they sat on the
+             arc ends, under the cyan value arc, and partly off the knob on the page) -->
         @if (showLabels()) {
-          <text x="12" y="80" class="fill-slate-400 text-[10px] font-bold">L</text>
-          <text x="82" y="80" class="fill-slate-400 text-[10px] font-bold">R</text>
+          <text x="36" y="84" text-anchor="middle" class="fill-slate-400 text-[10px] font-bold">
+            L
+          </text>
+          <text x="64" y="84" text-anchor="middle" class="fill-slate-400 text-[10px] font-bold">
+            R
+          </text>
         }
       </svg>
     </div>
@@ -228,17 +233,23 @@
       <!-- Labels -->
       @if (showLabels()) {
         <div class="flex justify-between items-center text-[10px] mb-2">
-          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 text-[9px] font-bold"
+          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-[9px] font-bold"
             >L</span
           >
-          <span class="text-slate-500 text-[8px] font-mono tracking-wider">WIDTH</span>
-          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 text-[9px] font-bold"
+          <span class="text-slate-500 dark:text-slate-400 text-[8px] font-mono tracking-wider"
+            >WIDTH</span
+          >
+          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-[9px] font-bold"
             >R</span
           >
         </div>
       }
 
-      <div [class]="sliderContainerClasses()" class="relative">
+      <!-- The range input is invisible, so the container shows its keyboard focus -->
+      <div
+        [class]="sliderContainerClasses()"
+        class="relative rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-cyan-400"
+      >
         <!-- Track Background -->
         <div
           class="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 rounded-md shadow-inner border border-slate-700/50 overflow-hidden"
@@ -297,21 +308,22 @@
           [step]="step()"
           [value]="internalValue()"
           (input)="onWidthSliderChange($event)"
-          [disabled]="disabled()"
+          [disabled]="isDisabled()"
           class="absolute inset-0 w-full opacity-0 cursor-pointer"
           [attr.aria-label]="'Stereo width: ' + internalValue() + '%'"
         />
 
-        <!-- Width Control Slider Cap -->
+        <!-- Width Control Slider Cap: pointer-events-none so presses on it reach the
+             range input beneath (painted above it, the cap swallowed drags started on it) -->
         <div
-          class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 transition-all"
-          [class.cursor-ew-resize]="!disabled()"
+          class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 transition-all pointer-events-none"
+          [class.cursor-ew-resize]="!isDisabled()"
         >
           <div
             class="w-8 h-6 rounded-sm shadow-lg transition-transform"
             [class.scale-105]="isDragging()"
             [class]="
-              disabled()
+              isDisabled()
                 ? 'bg-slate-600'
                 : 'bg-gradient-to-b from-slate-400 via-slate-500 to-slate-600 dark:from-slate-500 dark:via-slate-600 dark:to-slate-700'
             "
@@ -328,7 +340,7 @@
         <!-- Tick Marks -->
         @if (showTicks()) {
           <div
-            class="absolute top-full mt-3 left-0 right-0 flex justify-between text-[9px] text-slate-500 font-mono"
+            class="absolute top-full mt-3 left-0 right-0 flex justify-between text-[9px] text-slate-400 font-mono"
           >
             <span class="px-1 py-0.5 bg-slate-800 rounded text-[8px]">MONO</span>
             <span class="px-1 py-0.5 bg-slate-800 rounded text-[8px]">STEREO</span>

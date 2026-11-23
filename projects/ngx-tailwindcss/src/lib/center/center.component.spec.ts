@@ -32,8 +32,8 @@ describe('TwCenterComponent', () => {
   let component: CenterHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -54,39 +54,46 @@ describe('TwCenterComponent', () => {
   });
 
   it('should center both axes by default', () => {
-    expect(getInner().className).toContain('flex');
-    expect(getInner().className).toContain('justify-center');
-    expect(getInner().className).toContain('items-center');
+    expect(getBox().className).toContain('flex');
+    expect(getBox().className).toContain('justify-center');
+    expect(getBox().className).toContain('items-center');
   });
 
   it('should drop horizontal centering when horizontal is false', () => {
     component.horizontal.set(false);
     fixture.detectChanges();
 
-    expect(getInner().className).not.toContain('justify-center');
-    expect(getInner().className).toContain('items-center');
+    expect(getBox().className).not.toContain('justify-center');
+    expect(getBox().className).toContain('items-center');
   });
 
   it('should drop vertical centering when vertical is false', () => {
     component.vertical.set(false);
     fixture.detectChanges();
 
-    expect(getInner().className).toContain('justify-center');
-    expect(getInner().className).not.toContain('items-center');
+    expect(getBox().className).toContain('justify-center');
+    expect(getBox().className).not.toContain('items-center');
   });
 
   it('should use inline-flex when inline', () => {
     component.inline.set(true);
     fixture.detectChanges();
 
-    expect(getInner().className).toContain('inline-flex');
+    // The host itself is the inline-flex box, so it flows within the line
+    expect(getBox().classList.contains('inline-flex')).toBe(true);
+    expect(getBox().classList.contains('flex')).toBe(false);
+
+    component.inline.set(false);
+    fixture.detectChanges();
+    expect(getBox().classList.contains('flex')).toBe(true);
+    expect(getBox().classList.contains('inline-flex')).toBe(false);
   });
 
   it('should merge custom classes', () => {
     component.customClass.set('h-screen');
     fixture.detectChanges();
 
-    expect(getInner().className).toContain('h-screen');
+    expect(getBox().className).toContain('h-screen');
   });
 });
 
@@ -110,8 +117,8 @@ describe('TwSquareComponent', () => {
   let component: SquareHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -127,36 +134,36 @@ describe('TwSquareComponent', () => {
   });
 
   it('should apply equal width and height', () => {
-    expect(getInner().style.width).toBe('48px');
-    expect(getInner().style.height).toBe('48px');
+    expect(getBox().style.width).toBe('48px');
+    expect(getBox().style.height).toBe('48px');
   });
 
   it('should update size', () => {
     component.size.set('64px');
     fixture.detectChanges();
 
-    expect(getInner().style.width).toBe('64px');
-    expect(getInner().style.height).toBe('64px');
+    expect(getBox().style.width).toBe('64px');
+    expect(getBox().style.height).toBe('64px');
   });
 
   it('should center content by default', () => {
-    expect(getInner().className).toContain('flex');
-    expect(getInner().className).toContain('items-center');
-    expect(getInner().className).toContain('justify-center');
+    expect(getBox().className).toContain('flex');
+    expect(getBox().className).toContain('items-center');
+    expect(getBox().className).toContain('justify-center');
   });
 
   it('should not center content when centerContent is false', () => {
     component.centerContent.set(false);
     fixture.detectChanges();
 
-    expect(getInner().className).not.toContain('justify-center');
+    expect(getBox().className).not.toContain('justify-center');
   });
 
   it('should merge custom classes', () => {
     component.customClass.set('bg-blue-500');
     fixture.detectChanges();
 
-    expect(getInner().className).toContain('bg-blue-500');
+    expect(getBox().className).toContain('bg-blue-500');
   });
 });
 
@@ -180,8 +187,8 @@ describe('TwCircleComponent', () => {
   let component: CircleHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -197,27 +204,92 @@ describe('TwCircleComponent', () => {
   });
 
   it('should be rounded and sized', () => {
-    expect(getInner().className).toContain('rounded-full');
-    expect(getInner().style.width).toBe('48px');
-    expect(getInner().style.height).toBe('48px');
+    expect(getBox().className).toContain('rounded-full');
+    expect(getBox().style.width).toBe('48px');
+    expect(getBox().style.height).toBe('48px');
   });
 
   it('should center content by default', () => {
-    expect(getInner().className).toContain('items-center');
-    expect(getInner().className).toContain('justify-center');
+    expect(getBox().className).toContain('items-center');
+    expect(getBox().className).toContain('justify-center');
   });
 
   it('should not center content when centerContent is false', () => {
     component.centerContent.set(false);
     fixture.detectChanges();
 
-    expect(getInner().className).not.toContain('justify-center');
+    expect(getBox().className).not.toContain('justify-center');
   });
 
   it('should merge custom classes', () => {
     component.customClass.set('bg-purple-500');
     fixture.detectChanges();
 
-    expect(getInner().className).toContain('bg-purple-500');
+    expect(getBox().className).toContain('bg-purple-500');
+  });
+});
+
+describe('Center class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
+    @Component({
+      template: `<tw-center class="tw-test-box"><span>a</span></tw-center
+        ><tw-square class="tw-test-box" size="40px"><span>a</span></tw-square
+        ><tw-circle class="tw-test-box" size="40px"><span>a</span></tw-circle>`,
+      standalone: true,
+      imports: [TwCenterComponent, TwSquareComponent, TwCircleComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes such as `p-4 border-2`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-center')).nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-square')).nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-circle')).nativeElement as HTMLElement;
+        expect(host.style.width).toBe('40px');
+        expect(host.style.height).toBe('40px');
+        // A fixed-size box that a flex parent must not squeeze
+        expect(host.classList.contains('shrink-0')).toBe(true);
+        expect(host.classList.contains('inline-flex')).toBe(true);
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+    } finally {
+      style.remove();
+    }
   });
 });

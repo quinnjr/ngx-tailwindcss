@@ -83,8 +83,25 @@ describe('TwPaginationComponent', () => {
       component.currentPage.set(10);
       fixture.detectChanges();
       const buttons = paginationEl.querySelectorAll('button');
-      const nextButton = [...buttons].at(-1);
+      const nextButton = [...buttons].at(-1)!;
       expect(nextButton.disabled || nextButton.className.includes('cursor-not-allowed')).toBe(true);
+    });
+
+    it('should move focus to the current page when Next reaches the last page', () => {
+      document.body.append(fixture.nativeElement);
+      component.currentPage.set(9);
+      fixture.detectChanges();
+      const next = paginationEl.querySelector<HTMLButtonElement>('[aria-label="Next page"]')!;
+
+      next.focus();
+      next.click();
+      component.currentPage.set(component.pageChangeValue!);
+      fixture.detectChanges();
+
+      expect(next.disabled).toBe(true);
+      expect(document.activeElement).toBe(paginationEl.querySelector('[aria-current="page"]'));
+      expect(document.activeElement?.textContent?.trim()).toBe('10');
+      fixture.nativeElement.remove();
     });
   });
 
@@ -212,6 +229,15 @@ describe('TwPaginationComponent', () => {
       expect(paginationEl.textContent).toContain('Previous');
       expect(paginationEl.textContent).toContain('Next');
     });
+
+    it('should keep the page indicator readable in dark mode', () => {
+      component.variant.set('simple');
+      fixture.detectChanges();
+      const indicator = [...paginationEl.querySelectorAll('span')].find(el =>
+        el.textContent?.includes('Page ')
+      ) as HTMLElement;
+      expect(indicator.className).toContain('dark:text-slate-400');
+    });
   });
 
   describe('sibling count', () => {
@@ -237,5 +263,27 @@ describe('TwPaginationComponent', () => {
       expect(paginationEl.textContent).toContain('5');
       expect(paginationEl.textContent).not.toContain('...');
     });
+  });
+});
+
+@Component({
+  template: `<tw-pagination [totalItems]="95" [itemsPerPage]="10"></tw-pagination>`,
+  standalone: true,
+  imports: [TwPaginationComponent],
+})
+class ItemsOnlyHostComponent {}
+
+describe('TwPaginationComponent (totalItems only)', () => {
+  it('should derive the page count from totalItems when totalPages is not bound', async () => {
+    await TestBed.configureTestingModule({ imports: [ItemsOnlyHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ItemsOnlyHostComponent);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent.replaceAll(/\s+/g, ' ');
+    expect(text).toContain('10');
+    const next = fixture.nativeElement.querySelector(
+      'button[aria-label="Next page"]'
+    ) as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
   });
 });

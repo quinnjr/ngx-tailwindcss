@@ -1,18 +1,22 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
+  ElementRef,
+  inject,
+  Injector,
   input,
+  linkedSignal,
   numberAttribute,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChannelStripState, TwChannelStripComponent } from './channel-strip.component';
-import { TwVolumeDialComponent } from './volume-dial.component';
-import { TwVuMeterComponent } from './vu-meter.component';
 
 export type MixerVariant = 'default' | 'compact' | 'studio' | 'vintage';
 export type MixerSize = 'sm' | 'md' | 'lg';
@@ -75,13 +79,7 @@ const BREAKPOINT_CONFIGS: Record<
 @Component({
   selector: 'tw-mixer',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    TwChannelStripComponent,
-    TwVolumeDialComponent,
-    TwVuMeterComponent,
-  ],
+  imports: [CommonModule, FormsModule, TwChannelStripComponent],
   templateUrl: './mixer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -89,6 +87,11 @@ const BREAKPOINT_CONFIGS: Record<
   },
 })
 export class TwMixerComponent {
+  private readonly injector = inject(Injector);
+  private readonly scrollLeftButton = viewChild<ElementRef<HTMLButtonElement>>('scrollLeftButton');
+  private readonly scrollRightButton =
+    viewChild<ElementRef<HTMLButtonElement>>('scrollRightButton');
+
   readonly channels = input<MixerChannel[]>([]);
   readonly groups = input<ChannelGroup[]>([]); // NEW: Channel groups
   readonly sections = input<MixerSection[]>([]); // NEW: Collapsible sections
@@ -119,7 +122,16 @@ export class TwMixerComponent {
   protected readonly internalMasterVolume = signal(75);
   protected readonly masterMute = signal(false);
   protected readonly scrollOffset = signal(0);
-  protected readonly collapsedSections = signal<Set<string>>(new Set());
+  // Seeded from each section's `collapsed` flag (re-seeded when `sections` changes), then
+  // toggled by the section headers
+  protected readonly collapsedSections = linkedSignal<Set<string>>(
+    () =>
+      new Set(
+        this.sections()
+          .filter(s => s.collapsed)
+          .map(s => s.id)
+      )
+  );
   protected readonly currentBreakpoint = signal<MixerBreakpoint>('md');
 
   constructor() {
@@ -129,7 +141,8 @@ export class TwMixerComponent {
     });
   }
 
-  protected readonly visibleChannels = computed(() => {
+  // Channels not hidden by a collapsed section
+  protected readonly filteredChannels = computed(() => {
     const all = this.channels();
     const collapsed = this.collapsedSections();
     const sectionsList = this.sections();
@@ -147,9 +160,14 @@ export class TwMixerComponent {
       }
       filtered = all.filter(ch => !collapsedChannelIds.has(ch.id));
     }
+    return filtered;
+  });
 
+  protected readonly visibleChannels = computed(() => {
+    const filtered = this.filteredChannels();
     const max = this.effectiveMaxChannels();
-    const offset = this.scrollOffset();
+    // Clamp: the list may have shrunk (input change, collapsed section)
+    const offset = this.effectiveScrollOffset();
 
     if (!this.scrollable() || filtered.length <= max) {
       return filtered;
@@ -231,15 +249,32 @@ export class TwMixerComponent {
     return !!channel.groupId && this.groups().some(g => g.id === channel.groupId);
   }
 
+  // Scroll offset clamped to the channels that can currently be scrolled through
+  protected readonly effectiveScrollOffset = computed(() =>
+    Math.min(
+      this.scrollOffset(),
+      Math.max(0, this.filteredChannels().length - this.effectiveMaxChannels())
+    )
+  );
+
+  // The sectioned layout renders every channel, so only the flat layout pages
+  protected readonly paged = computed(
+    () => this.scrollable() && !(this.sections().length > 0 && this.showSectionHeaders())
+  );
+
+  // Whether the scroll buttons are shown
+  protected readonly showScrollButtons = computed(
+    () => this.paged() && this.filteredChannels().length > this.effectiveMaxChannels()
+  );
+
   protected readonly canScrollLeft = computed(() => {
-    return this.scrollable() && this.scrollOffset() > 0;
+    return this.paged() && this.effectiveScrollOffset() > 0;
   });
 
   protected readonly canScrollRight = computed(() => {
-    const all = this.channels();
+    const count = this.filteredChannels().length;
     const max = this.effectiveMaxChannels();
-    const offset = this.scrollOffset();
-    return this.scrollable() && offset + max < all.length;
+    return this.paged() && this.effectiveScrollOffset() + max < count;
   });
 
   protected readonly containerClasses = computed(() => {
@@ -294,6 +329,10 @@ export class TwMixerComponent {
     return 'w-full';
   });
 
+  protected readonly rootClasses = computed(() =>
+    [this.containerClasses(), this.responsiveClasses()].filter(Boolean).join(' ')
+  );
+
   protected onChannelStateChange(state: ChannelStripState, index: number): void {
     const channel = this.channels()[index];
     if (!channel) return;
@@ -308,10 +347,11 @@ export class TwMixerComponent {
     };
 
     // Handle linked group changes
+    let linkedChannels: MixerChannel[] = [];
     if (channel.groupId) {
       const group = this.groups().find(g => g.id === channel.groupId);
       if (group) {
-        const linkedChannels = this.applyGroupChanges(channel, updatedChannel, group);
+        linkedChannels = this.applyGroupChanges(channel, updatedChannel, group);
         if (linkedChannels.length > 0) {
           this.groupChange.emit({ groupId: group.id, channels: linkedChannels });
         }
@@ -319,7 +359,13 @@ export class TwMixerComponent {
     }
 
     this.channelChange.emit({ channel: updatedChannel, index });
-    this.emitState();
+
+    // Report the post-change state (the channels input still holds the old values)
+    const linkedById = new Map(linkedChannels.map(c => [c.id, c]));
+    const nextChannels = this.channels().map((c, i) =>
+      i === index ? updatedChannel : (linkedById.get(c.id) ?? c)
+    );
+    this.emitState(nextChannels);
   }
 
   // Apply changes to linked group members
@@ -381,21 +427,43 @@ export class TwMixerComponent {
     this.emitState();
   }
 
-  protected scrollLeft(): void {
+  protected scrollLeft(event?: Event): void {
     if (this.canScrollLeft()) {
-      this.scrollOffset.update(v => Math.max(0, v - 1));
+      this.scrollOffset.set(Math.max(0, this.effectiveScrollOffset() - 1));
+      this.keepScrollFocus(event, this.scrollRightButton);
     }
   }
 
-  protected scrollRight(): void {
+  protected scrollRight(event?: Event): void {
     if (this.canScrollRight()) {
-      const max = this.channels().length - this.effectiveMaxChannels();
-      this.scrollOffset.update(v => Math.min(max, v + 1));
+      const max = this.filteredChannels().length - this.effectiveMaxChannels();
+      this.scrollOffset.set(Math.min(max, this.effectiveScrollOffset() + 1));
+      this.keepScrollFocus(event, this.scrollLeftButton);
     }
+  }
+
+  // A scroll button disables itself at the end of the channel list: move keyboard focus to
+  // the opposite scroll button instead of dropping it to the page body
+  private keepScrollFocus(
+    event: Event | undefined,
+    other: () => ElementRef<HTMLButtonElement> | undefined
+  ): void {
+    const from = event?.currentTarget as HTMLButtonElement | null | undefined;
+    if (from?.ownerDocument.activeElement !== from || !from) return;
+    afterNextRender(
+      {
+        write: () => {
+          if (from.isConnected && !from.disabled) return;
+          other()?.nativeElement.focus();
+        },
+      },
+      { injector: this.injector }
+    );
   }
 
   // Toggle section collapse
   protected toggleSection(sectionId: string): void {
+    if (this.disabled()) return;
     this.collapsedSections.update(set => {
       const newSet = new Set(set);
       if (newSet.has(sectionId)) {
@@ -426,9 +494,9 @@ export class TwMixerComponent {
     this.currentBreakpoint.set(bp);
   }
 
-  private emitState(): void {
+  private emitState(channels: MixerChannel[] = this.channels()): void {
     const state: MixerState = {
-      channels: this.channels(),
+      channels,
       masterVolume: this.internalMasterVolume(),
       masterMute: this.masterMute(),
       groups: this.groups(),
@@ -440,7 +508,20 @@ export class TwMixerComponent {
     this.stateChange.emit(state);
   }
 
+  // Memoized per channel object: a fresh object on every change detection would make
+  // ngModel re-write (and reset) each strip on every cycle, e.g. mid-drag.
+  private readonly channelStates = new WeakMap<MixerChannel, ChannelStripState>();
+
   protected getChannelState(channel: MixerChannel): ChannelStripState {
+    let state = this.channelStates.get(channel);
+    if (!state) {
+      state = this.buildChannelState(channel);
+      this.channelStates.set(channel, state);
+    }
+    return state;
+  }
+
+  private buildChannelState(channel: MixerChannel): ChannelStripState {
     return {
       volume: channel.volume,
       pan: channel.pan,

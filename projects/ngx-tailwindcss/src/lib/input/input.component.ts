@@ -4,7 +4,6 @@ import {
   Component,
   computed,
   Directive,
-  effect,
   ElementRef,
   forwardRef,
   HostBinding,
@@ -33,13 +32,13 @@ const INPUT_BASE_CLASSES = `
 
 const INPUT_VARIANTS: Record<InputVariant, string> = {
   default:
-    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
+    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
   filled:
     'bg-slate-100 dark:bg-slate-700 border-2 border-transparent rounded-lg focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500',
   outlined:
-    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500',
+    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:border-blue-500 dark:focus:border-blue-500',
   underlined:
-    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus:border-blue-500',
+    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus:border-blue-500 dark:focus:border-blue-500',
 };
 
 const INPUT_SIZES: Record<InputSize, string> = {
@@ -48,9 +47,35 @@ const INPUT_SIZES: Record<InputSize, string> = {
   lg: 'text-base px-4 py-3 min-h-12',
 };
 
-const INPUT_ERROR_CLASSES = 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
+// `dark:border-rose-500` replaces the variants' `dark:border-slate-600`, which would
+// otherwise override the error border in dark mode (dark: utilities are emitted later).
+// Likewise the variants carry `dark:focus:border-blue-500` so the focus border is not
+// beaten by `dark:border-slate-600`; the error classes replace it with rose.
+const INPUT_ERROR_CLASSES =
+  'border-rose-500 dark:border-rose-500 focus:border-rose-500 dark:focus:border-rose-500 focus:ring-rose-500/20';
 
-const LABEL_REQUIRED_CLASSES = "after:content-['*'] after:ml-0.5 after:text-rose-500";
+/**
+ * Variant classes for the wrapper rendered around the input when it has a
+ * prefix, suffix or clear button. The wrapper itself is not focusable, so the
+ * focus styles use `focus-within:` (the inner input's own focus styles are
+ * suppressed) to keep a visible focus indicator.
+ */
+const INPUT_WRAPPER_VARIANTS: Record<InputVariant, string> = {
+  default:
+    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 dark:focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20',
+  filled:
+    'bg-slate-100 dark:bg-slate-700 border-2 border-transparent rounded-lg focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:border-blue-500',
+  outlined:
+    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 dark:focus-within:border-blue-500',
+  underlined:
+    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus-within:border-blue-500 dark:focus-within:border-blue-500',
+};
+
+const INPUT_WRAPPER_ERROR_CLASSES =
+  'border-rose-500 dark:border-rose-500 focus-within:border-rose-500 dark:focus-within:border-rose-500 focus-within:ring-rose-500/20';
+
+const LABEL_REQUIRED_CLASSES =
+  "after:content-['*'] after:ml-0.5 after:text-rose-600 dark:after:text-rose-400";
 
 /**
  * Label directive for form fields
@@ -115,7 +140,7 @@ export class TwErrorDirective {
 
   @HostBinding('class')
   get hostClass(): string {
-    return this.twClass.merge('block text-xs text-rose-600 mt-1.5', this.class);
+    return this.twClass.merge('block text-xs text-rose-600 dark:text-rose-400 mt-1.5', this.class);
   }
 
   @HostBinding('attr.role')
@@ -258,18 +283,26 @@ export class TwInputComponent implements ControlValueAccessor {
   readonly onClear = output();
 
   protected readonly value = signal('');
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
 
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
-
   protected readonly hasError = computed(() => !!this.error());
+
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+
+  /** describedBy input plus the visible error (or hint) text */
+  protected readonly ariaDescribedBy = computed(
+    () =>
+      [this.describedBy(), this.error() ? this.errorId() : this.hint() ? this.hintId() : '']
+        .filter(Boolean)
+        .join(' ') || null
+  );
 
   protected readonly wrapperClasses = computed(() => {
     const hasAffixes = this.elementRef.nativeElement.querySelector(
@@ -279,9 +312,9 @@ export class TwInputComponent implements ControlValueAccessor {
     if (hasAffixes || this.clearable()) {
       return this.twClass.merge(
         'flex items-center gap-2',
-        INPUT_VARIANTS[this.variant()],
+        INPUT_WRAPPER_VARIANTS[this.variant()],
         INPUT_SIZES[this.size()],
-        this.hasError() ? INPUT_ERROR_CLASSES : ''
+        this.hasError() ? INPUT_WRAPPER_ERROR_CLASSES : ''
       );
     }
 
@@ -323,7 +356,7 @@ export class TwInputComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   protected onInput(event: Event): void {
@@ -398,18 +431,23 @@ export class TwTextareaComponent implements ControlValueAccessor {
   readonly autoResize = input(false, { transform: booleanAttribute });
 
   protected readonly value = signal('');
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
 
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
-
   protected readonly hasError = computed(() => !!this.error());
+
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+
+  /** The visible error (or hint) text describing the textarea */
+  protected readonly ariaDescribedBy = computed(() =>
+    this.error() ? this.errorId() : this.hint() ? this.hintId() : null
+  );
 
   protected readonly computedClasses = computed(() => {
     return this.twClass.merge(
@@ -440,7 +478,7 @@ export class TwTextareaComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   protected onInput(event: Event): void {

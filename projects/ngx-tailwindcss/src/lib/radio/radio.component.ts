@@ -6,9 +6,11 @@ import {
   computed,
   ContentChildren,
   effect,
+  ElementRef,
   forwardRef,
   HostListener,
   inject,
+  InjectionToken,
   input,
   output,
   QueryList,
@@ -22,11 +24,16 @@ export type RadioVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'da
 export type RadioSize = 'sm' | 'md' | 'lg';
 
 const RADIO_VARIANTS: Record<RadioVariant, string> = {
-  primary: 'text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
-  secondary: 'text-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
-  success: 'text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
-  warning: 'text-amber-500 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
-  danger: 'text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
+  primary:
+    'text-blue-600 accent-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
+  secondary:
+    'text-slate-600 accent-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
+  success:
+    'text-emerald-600 accent-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
+  warning:
+    'text-amber-600 accent-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
+  danger:
+    'text-rose-600 accent-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
 };
 
 const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {
@@ -34,6 +41,9 @@ const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {
   md: { radio: 'w-5 h-5', label: 'text-base' },
   lg: { radio: 'w-6 h-6', label: 'text-lg' },
 };
+
+/** Provided by each radio group so radios can tell which group owns them */
+const TW_RADIO_GROUP = new InjectionToken<object>('TwRadioGroup');
 
 /**
  * Single radio button component
@@ -52,6 +62,12 @@ const RADIO_SIZES: Record<RadioSize, { radio: string; label: string }> = {
 })
 export class TwRadioButtonComponent {
   private readonly twClass = inject(TwClassService);
+
+  /** Host element, used by the group to tell which radio focus left */
+  readonly _elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Nearest enclosing radio group (resolved through the element injector) */
+  readonly _group = inject(TW_RADIO_GROUP, { optional: true });
 
   /** Value of the radio button */
   readonly value = input.required<any>();
@@ -152,6 +168,7 @@ export class TwRadioButtonComponent {
       useExisting: forwardRef(() => TwRadioGroupComponent),
       multi: true,
     },
+    { provide: TW_RADIO_GROUP, useExisting: forwardRef(() => TwRadioGroupComponent) },
   ],
   templateUrl: './radio-group.component.html',
 })
@@ -170,10 +187,22 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   /** Whether all radios are disabled */
   readonly disabled = input(false, { transform: booleanAttribute });
 
+  /** Accessible name of the radio group */
+  readonly ariaLabel = input<string | null>(null);
+
+  /** Id(s) of the element(s) naming the radio group (e.g. a visible heading) */
+  readonly ariaLabelledby = input<string | null>(null);
+
   /** Change event */
   readonly onChange = output<any>();
 
-  @ContentChildren(TwRadioButtonComponent) radioButtons!: QueryList<TwRadioButtonComponent>;
+  @ContentChildren(TwRadioButtonComponent, { descendants: true })
+  radioButtons!: QueryList<TwRadioButtonComponent>;
+
+  /** Radios owned by this group (excludes radios of nested radio groups) */
+  private ownRadioButtons(): TwRadioButtonComponent[] {
+    return this.radioButtons.filter(radio => radio._group === this);
+  }
 
   protected selectedValue = signal<any>(null);
   private readonly _disabled = signal(false);
@@ -211,10 +240,17 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
     });
   }
 
-  /** Marks the control as touched when focus leaves any radio in the group. */
-  @HostListener('focusout')
-  onFocusOut(): void {
-    this.onTouchedFn();
+  /**
+   * Marks the control as touched when focus leaves one of this group's own radios
+   * (focusout bubbles, so ignore radios that belong to a nested group).
+   */
+  @HostListener('focusout', ['$event'])
+  onFocusOut(event: FocusEvent): void {
+    const target = event.target as Node | null;
+    if (!target || !this.radioButtons) return;
+    if (this.ownRadioButtons().some(radio => radio._elementRef.nativeElement.contains(target))) {
+      this.onTouchedFn();
+    }
   }
 
   ngAfterContentInit(): void {
@@ -226,7 +262,7 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   }
 
   private updateRadioButtons(): void {
-    this.radioButtons.forEach(radio => {
+    this.ownRadioButtons().forEach(radio => {
       radio._nameOverride.set(this.name());
       radio.selectedValue.set(this.selectedValue());
       radio._disabledOverride.set(this.isDisabled());
@@ -240,7 +276,7 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   }
 
   private updateRadioButtonsSelection(): void {
-    this.radioButtons.forEach(radio => {
+    this.ownRadioButtons().forEach(radio => {
       radio.selectedValue.set(this.selectedValue());
     });
   }

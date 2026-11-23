@@ -1,27 +1,39 @@
-<div [class]="wrapperClasses()" aria-label="Sheet music notation">
+<div [class]="wrapperClasses()" role="group" aria-label="Sheet music notation">
   <!-- Zoom Controls -->
   @if (showZoomControls() && !printFriendly()) {
     <div class="zoom-controls absolute top-2 right-2 z-20 no-print">
       <button
         type="button"
-        (click)="zoomOut()"
+        (click)="keepFocus($event); zoomOut()"
         [disabled]="currentZoom() <= minZoom()"
         title="Zoom Out"
+        aria-label="Zoom out"
       >
         −
       </button>
       <span class="zoom-display">{{ Math.round(currentZoom() * 100) }}%</span>
       <button
         type="button"
-        (click)="zoomIn()"
+        (click)="keepFocus($event); zoomIn()"
         [disabled]="currentZoom() >= maxZoom()"
         title="Zoom In"
+        aria-label="Zoom in"
       >
         +
       </button>
-      <button type="button" (click)="resetZoom()" title="Reset Zoom" class="text-xs">↺</button>
+      <button
+        type="button"
+        (click)="resetZoom()"
+        title="Reset Zoom"
+        aria-label="Reset zoom"
+        class="text-xs"
+      >
+        ↺
+      </button>
       @if (printFriendly() || variant() === 'printed') {
-        <button type="button" (click)="print()" title="Print" class="ml-2">🖨</button>
+        <button type="button" (click)="print()" title="Print" aria-label="Print" class="ml-2">
+          🖨
+        </button>
       }
     </div>
   }
@@ -47,7 +59,9 @@
       </p>
     }
     @if (showTempo() && musicData().tempo) {
-      <p class="text-center text-xs text-slate-500 mb-4">♩ = {{ musicData().tempo }}</p>
+      <p class="text-center text-xs mb-4" [class]="mutedTextClasses()">
+        ♩ = {{ musicData().tempo }}
+      </p>
     }
 
     <!-- Sheet Music Content -->
@@ -58,10 +72,30 @@
           <div class="space-y-8">
             @for (line of lines(); track $index; let lineIndex = $index) {
               <div class="relative">
+                <!-- Keyboard access to measureClick (pointer clicks reach the staff underneath) -->
+                @if (interactive()) {
+                  @for (measure of line; track $index; let measureInLineIndex = $index) {
+                    <button
+                      type="button"
+                      class="absolute top-0 bottom-0 z-10 pointer-events-none rounded bg-transparent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-blue-600"
+                      [style.left.px]="
+                        getMeasureStartX(
+                          getMeasureGlobalIndex(lineIndex, measureInLineIndex),
+                          lineIndex
+                        )
+                      "
+                      [style.width.px]="getMeasureWidth(lineIndex)"
+                      [attr.aria-label]="
+                        'Measure ' + (getMeasureGlobalIndex(lineIndex, measureInLineIndex) + 1)
+                      "
+                      (click)="onMeasureClick(getMeasureGlobalIndex(lineIndex, measureInLineIndex))"
+                    ></button>
+                  }
+                }
                 <!-- Staff for this line -->
                 <tw-staff
                   [clef]="musicData().clef"
-                  [keySignature]="musicData().keySignature"
+                  [keySignature]="lineKeys()[lineIndex]"
                   [timeSignature]="lineIndex === 0 ? musicData().timeSignature : null"
                   [measures]="line.length"
                   [width]="width()"
@@ -69,21 +103,25 @@
                   [lineSpacing]="lineSpacing()"
                   [variant]="staffVariant()"
                   [showClef]="true"
-                  [showKeySignature]="lineIndex === 0"
+                  [showKeySignature]="true"
                   [showTimeSignature]="lineIndex === 0"
                   [grandStaff]="musicData().grandStaff || false"
+                  (click)="onStaffClick($event, lineIndex)"
                 >
                   <!-- Notes in this line -->
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     @for (note of measure.notes; track $index; let noteIndex = $index) {
-                      <tw-note
+                      <svg:g
+                        twNote
                         [name]="note.name"
                         [octave]="note.octave"
                         [duration]="note.duration"
                         [accidental]="note.accidental || null"
+                        [isRest]="note.isRest || false"
                         [dotted]="note.dotted || false"
                         [doubleDotted]="note.doubleDotted || false"
                         [tied]="note.tied || false"
+                        [tieDirection]="note.tied ? 'start' : null"
                         [x]="
                           getNoteX(
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -92,8 +130,11 @@
                             lineIndex
                           )
                         "
-                        [staffTop]="40"
+                        [staffTop]="noteStaffTop()"
+                        [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
+                        [size]="lineSpacing()"
+                        [color]="noteColor()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -101,14 +142,44 @@
                           )
                         "
                         [class.cursor-pointer]="interactive()"
-                        (click)="
-                          onNoteClick(
+                        class="group/note outline-none"
+                        [focusRing]="interactive()"
+                        [attr.tabindex]="interactive() ? 0 : null"
+                        [attr.role]="interactive() ? 'button' : null"
+                        [attr.aria-label]="
+                          interactive()
+                            ? getNoteLabel(
+                                getMeasureGlobalIndex(lineIndex, measureInLineIndex),
+                                noteIndex,
+                                note
+                              )
+                            : null
+                        "
+                        (keydown.enter)="
+                          activateNote(
+                            $event,
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
                             noteIndex,
                             note
                           )
                         "
-                      ></tw-note>
+                        (keydown.space)="
+                          activateNote(
+                            $event,
+                            getMeasureGlobalIndex(lineIndex, measureInLineIndex),
+                            noteIndex,
+                            note
+                          )
+                        "
+                        (click)="
+                          onNoteClick(
+                            $event,
+                            getMeasureGlobalIndex(lineIndex, measureInLineIndex),
+                            noteIndex,
+                            note
+                          )
+                        "
+                      ></svg:g>
                     }
                   }
                 </tw-staff>
@@ -117,7 +188,8 @@
                 @if (showMeasureNumbers()) {
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     <span
-                      class="absolute text-[10px] text-slate-400"
+                      class="absolute text-[10px]"
+                      [class]="mutedTextClasses()"
                       [style.left.px]="
                         getMeasureStartX(
                           getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -147,9 +219,31 @@
           <div>
             @if (lines()[currentPage()]; as line) {
               <div class="relative">
+                <!-- Keyboard access to measureClick (pointer clicks reach the staff underneath) -->
+                @if (interactive()) {
+                  @for (measure of line; track $index; let measureInLineIndex = $index) {
+                    <button
+                      type="button"
+                      class="absolute top-0 bottom-0 z-10 pointer-events-none rounded bg-transparent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-blue-600"
+                      [style.left.px]="
+                        getMeasureStartX(
+                          getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                          currentPage()
+                        )
+                      "
+                      [style.width.px]="getMeasureWidth(currentPage())"
+                      [attr.aria-label]="
+                        'Measure ' + (getMeasureGlobalIndex(currentPage(), measureInLineIndex) + 1)
+                      "
+                      (click)="
+                        onMeasureClick(getMeasureGlobalIndex(currentPage(), measureInLineIndex))
+                      "
+                    ></button>
+                  }
+                }
                 <tw-staff
                   [clef]="musicData().clef"
-                  [keySignature]="musicData().keySignature"
+                  [keySignature]="lineKeys()[currentPage()]"
                   [timeSignature]="currentPage() === 0 ? musicData().timeSignature : null"
                   [measures]="line.length"
                   [width]="width()"
@@ -157,18 +251,24 @@
                   [lineSpacing]="lineSpacing()"
                   [variant]="staffVariant()"
                   [showClef]="true"
-                  [showKeySignature]="currentPage() === 0"
+                  [showKeySignature]="true"
                   [showTimeSignature]="currentPage() === 0"
                   [grandStaff]="musicData().grandStaff || false"
+                  (click)="onStaffClick($event, currentPage())"
                 >
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     @for (note of measure.notes; track $index; let noteIndex = $index) {
-                      <tw-note
+                      <svg:g
+                        twNote
                         [name]="note.name"
                         [octave]="note.octave"
                         [duration]="note.duration"
                         [accidental]="note.accidental || null"
+                        [isRest]="note.isRest || false"
                         [dotted]="note.dotted || false"
+                        [doubleDotted]="note.doubleDotted || false"
+                        [tied]="note.tied || false"
+                        [tieDirection]="note.tied ? 'start' : null"
                         [x]="
                           getNoteX(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
@@ -177,15 +277,56 @@
                             currentPage()
                           )
                         "
-                        [staffTop]="40"
+                        [staffTop]="noteStaffTop()"
+                        [clef]="musicData().clef"
                         [lineSpacing]="lineSpacing()"
+                        [size]="lineSpacing()"
+                        [color]="noteColor()"
                         [highlighted]="
                           isNoteHighlighted(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
                             noteIndex
                           )
                         "
-                      ></tw-note>
+                        [class.cursor-pointer]="interactive()"
+                        class="group/note outline-none"
+                        [focusRing]="interactive()"
+                        [attr.tabindex]="interactive() ? 0 : null"
+                        [attr.role]="interactive() ? 'button' : null"
+                        [attr.aria-label]="
+                          interactive()
+                            ? getNoteLabel(
+                                getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                                noteIndex,
+                                note
+                              )
+                            : null
+                        "
+                        (keydown.enter)="
+                          activateNote(
+                            $event,
+                            getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                            noteIndex,
+                            note
+                          )
+                        "
+                        (keydown.space)="
+                          activateNote(
+                            $event,
+                            getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                            noteIndex,
+                            note
+                          )
+                        "
+                        (click)="
+                          onNoteClick(
+                            $event,
+                            getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                            noteIndex,
+                            note
+                          )
+                        "
+                      ></svg:g>
                     }
                   }
                 </tw-staff>
@@ -196,20 +337,20 @@
             <div class="flex items-center justify-center gap-4 mt-4">
               <button
                 type="button"
-                class="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() === 0"
-                (click)="prevPage()"
+                (click)="keepFocus($event); prevPage()"
               >
                 ← Prev
               </button>
-              <span class="text-sm text-slate-600">
+              <span [class]="pageLabelClasses()">
                 Line {{ currentPage() + 1 }} of {{ totalLines() }}
               </span>
               <button
                 type="button"
-                class="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() >= totalLines() - 1"
-                (click)="nextPage()"
+                (click)="keepFocus($event); nextPage()"
               >
                 Next →
               </button>
@@ -220,33 +361,68 @@
         @case ('single') {
           <!-- Single line (first line only) -->
           @if (lines()[0]; as line) {
-            <tw-staff
-              [clef]="musicData().clef"
-              [keySignature]="musicData().keySignature"
-              [timeSignature]="musicData().timeSignature"
-              [measures]="line.length"
-              [width]="width()"
-              [height]="staffHeight()"
-              [lineSpacing]="lineSpacing()"
-              [variant]="staffVariant()"
-              [grandStaff]="musicData().grandStaff || false"
-            >
-              @for (measure of line; track $index; let measureInLineIndex = $index) {
-                @for (note of measure.notes; track $index; let noteIndex = $index) {
-                  <tw-note
-                    [name]="note.name"
-                    [octave]="note.octave"
-                    [duration]="note.duration"
-                    [accidental]="note.accidental || null"
-                    [dotted]="note.dotted || false"
-                    [x]="getNoteX(measureInLineIndex, noteIndex, measure.notes.length, 0)"
-                    [staffTop]="40"
-                    [lineSpacing]="lineSpacing()"
-                    [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
-                  ></tw-note>
+            <div class="relative">
+              <!-- Keyboard access to measureClick (pointer clicks reach the staff underneath) -->
+              @if (interactive()) {
+                @for (measure of line; track $index; let measureInLineIndex = $index) {
+                  <button
+                    type="button"
+                    class="absolute top-0 bottom-0 z-10 pointer-events-none rounded bg-transparent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-blue-600"
+                    [style.left.px]="getMeasureStartX(measureInLineIndex, 0)"
+                    [style.width.px]="getMeasureWidth(0)"
+                    [attr.aria-label]="'Measure ' + (measureInLineIndex + 1)"
+                    (click)="onMeasureClick(measureInLineIndex)"
+                  ></button>
                 }
               }
-            </tw-staff>
+              <tw-staff
+                [clef]="musicData().clef"
+                [keySignature]="lineKeys()[0]"
+                [timeSignature]="musicData().timeSignature"
+                [measures]="line.length"
+                [width]="width()"
+                [height]="staffHeight()"
+                [lineSpacing]="lineSpacing()"
+                [variant]="staffVariant()"
+                [grandStaff]="musicData().grandStaff || false"
+                (click)="onStaffClick($event, 0)"
+              >
+                @for (measure of line; track $index; let measureInLineIndex = $index) {
+                  @for (note of measure.notes; track $index; let noteIndex = $index) {
+                    <svg:g
+                      twNote
+                      [name]="note.name"
+                      [octave]="note.octave"
+                      [duration]="note.duration"
+                      [accidental]="note.accidental || null"
+                      [isRest]="note.isRest || false"
+                      [dotted]="note.dotted || false"
+                      [doubleDotted]="note.doubleDotted || false"
+                      [tied]="note.tied || false"
+                      [tieDirection]="note.tied ? 'start' : null"
+                      [x]="getNoteX(measureInLineIndex, noteIndex, measure.notes.length, 0)"
+                      [staffTop]="noteStaffTop()"
+                      [clef]="musicData().clef"
+                      [lineSpacing]="lineSpacing()"
+                      [size]="lineSpacing()"
+                      [color]="noteColor()"
+                      [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
+                      [class.cursor-pointer]="interactive()"
+                      class="group/note outline-none"
+                      [focusRing]="interactive()"
+                      [attr.tabindex]="interactive() ? 0 : null"
+                      [attr.role]="interactive() ? 'button' : null"
+                      [attr.aria-label]="
+                        interactive() ? getNoteLabel(measureInLineIndex, noteIndex, note) : null
+                      "
+                      (keydown.enter)="activateNote($event, measureInLineIndex, noteIndex, note)"
+                      (keydown.space)="activateNote($event, measureInLineIndex, noteIndex, note)"
+                      (click)="onNoteClick($event, measureInLineIndex, noteIndex, note)"
+                    ></svg:g>
+                  }
+                }
+              </tw-staff>
+            </div>
           }
         }
       }
@@ -254,7 +430,7 @@
 
     <!-- Empty state -->
     @if (musicData().measures.length === 0) {
-      <div class="text-center py-12 text-slate-500">
+      <div class="text-center py-12" [class]="mutedTextClasses()">
         <p class="text-lg">No music to display</p>
         <p class="text-sm mt-2">Add measures to see the sheet music</p>
       </div>

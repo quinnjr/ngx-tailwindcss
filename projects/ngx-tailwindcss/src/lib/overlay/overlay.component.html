@@ -2,10 +2,11 @@
   <div
     [class]="overlayClasses()"
     [style.zIndex]="zIndex()"
+    (pointerdown)="onOverlayPointerDown($event)"
     (click)="onOverlayClick($event)"
     [@.disabled]="!animate()"
   >
-    <div class="relative z-10" (click)="$event.stopPropagation()">
+    <div class="relative z-10">
       <ng-content></ng-content>
     </div>
   </div>

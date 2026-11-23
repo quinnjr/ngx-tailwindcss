@@ -1,14 +1,19 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
+  HostListener,
   inject,
+  Injector,
   input,
   output,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
+import { refocusIfLost } from './native-focus.util';
 import { TabBarPosition, TabBarVariant, TabEvent, TabItem } from './native.types';
 
 /**
@@ -61,9 +66,42 @@ export class TwTabBarComponent {
   public readonly closeAll = output();
   public readonly closeOthers = output<string>(); // ID of tab to keep
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
   // State
   protected readonly overflowMenuOpen = signal(false);
   private draggedTabIndex: number | null = null;
+
+  constructor() {
+    // Inside a dialog, Escape closes the overflow menu first, not the dialog too
+    trackNativeEscapeLayer(this, this.overflowMenuOpen);
+  }
+
+  /** Close the overflow menu on a click outside it (like the other menus). */
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.overflowMenuOpen()) return;
+    const menu = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
+    if (!menu?.contains(event.target as Node)) {
+      this.overflowMenuOpen.set(false);
+    }
+  }
+
+  /** Escape closes the overflow menu, returning focus to its button if it was inside. */
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (!this.overflowMenuOpen() || !claimNativeEscape(this, event)) return;
+    this.closeOverflowMenu();
+  }
+
+  /**
+   * A drag that ends without a drop on a tab (cancelled, or dropped elsewhere)
+   * must not leave a stale index behind for a later, unrelated drop.
+   */
+  protected onDragEnd(): void {
+    this.draggedTabIndex = null;
+  }
 
   // Computed classes
   protected readonly containerClasses = computed(() => {
@@ -86,7 +124,9 @@ export class TwTabBarComponent {
     const variant = this.variant();
     const isActive = tab.id === this.activeTabId();
 
-    const base = 'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors';
+    // A closable tab leaves room on the right for the close button laid over it
+    const closable = tab.closable !== false && !tab.pinned;
+    const base = `flex items-center gap-1.5 pl-3 ${closable ? 'pr-8' : 'pr-3'} py-1.5 text-sm transition-colors`;
 
     const variantClasses: Record<TabBarVariant, { active: string; inactive: string }> = {
       default: {
@@ -120,7 +160,19 @@ export class TwTabBarComponent {
 
   protected closeTab(tab: TabItem, index: number, event: MouseEvent): void {
     event.stopPropagation();
+    const host = this.elementRef.nativeElement;
+    const hadFocus = host.contains(host.ownerDocument.activeElement);
     this.tabClose.emit({ tab, index, action: 'close' });
+    if (!hadFocus) return;
+
+    // Removing the closed tab drops focus with its close button; move it to the
+    // tab that took its place (or the new last tab, or another tab-bar control
+    // once no tabs remain) so keyboard users keep their place. Only when focus
+    // was actually lost: never pull it back from wherever the parent moved it.
+    refocusIfLost(this.injector, () => {
+      const remaining = host.querySelectorAll<HTMLElement>('[data-tab-id]');
+      return remaining[Math.min(index, remaining.length - 1)] ?? host.querySelector('button');
+    });
   }
 
   protected onMiddleClick(tab: TabItem, index: number, event: MouseEvent): void {
@@ -129,6 +181,38 @@ export class TwTabBarComponent {
       event.preventDefault();
       this.tabClose.emit({ tab, index, action: 'close' });
     }
+  }
+
+  /**
+   * Keyboard alternative to drag-to-reorder: Ctrl/Cmd+Shift+PageUp/PageDown
+   * moves the focused tab one position left/right (browser tab convention).
+   */
+  protected onTabKeydown(tab: TabItem, index: number, event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || !event.shiftKey) return;
+    let to: number;
+    if (event.key === 'PageUp') {
+      to = index - 1;
+    } else if (event.key === 'PageDown') {
+      to = index + 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    if (to < 0 || to >= this.tabs().length) return;
+    this.tabReorder.emit({ from: index, to });
+
+    // Re-rendering the moved tab can drop its focus; put focus back on it
+    afterNextRender(
+      () => {
+        const host = this.elementRef.nativeElement;
+        if (host.contains(host.ownerDocument.activeElement)) return;
+        const button = [...host.querySelectorAll<HTMLElement>('[data-tab-id]')].find(
+          el => el.dataset['tabId'] === tab.id
+        );
+        button?.focus();
+      },
+      { injector: this.injector }
+    );
   }
 
   protected onDragStart(tab: TabItem, index: number, event: DragEvent): void {
@@ -154,13 +238,23 @@ export class TwTabBarComponent {
     this.draggedTabIndex = null;
   }
 
-  protected closeAllTabs(): void {
+  /** Close the overflow menu, returning focus to its button if it was in the menu. */
+  private closeOverflowMenu(): void {
+    const wrapper = this.elementRef.nativeElement.querySelector('[data-tab-overflow]');
+    const button = wrapper?.querySelector<HTMLElement>(':scope > button');
+    const active = this.elementRef.nativeElement.ownerDocument.activeElement;
+    const hadFocus = !!wrapper?.contains(active) && active !== button;
     this.overflowMenuOpen.set(false);
+    if (hadFocus) button?.focus();
+  }
+
+  protected closeAllTabs(): void {
+    this.closeOverflowMenu();
     this.closeAll.emit();
   }
 
   protected closeOtherTabs(): void {
-    this.overflowMenuOpen.set(false);
+    this.closeOverflowMenu();
     const activeId = this.activeTabId();
     if (activeId) {
       this.closeOthers.emit(activeId);

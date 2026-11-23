@@ -1,23 +1,23 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
   output,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwTransportComponent } from './transport.component';
 import { TwScrubberComponent } from './scrubber.component';
 import { TwTimeDisplayComponent } from './time-display.component';
-import { TwVolumeDialComponent } from './volume-dial.component';
 import { TwWaveformComponent } from './waveform.component';
-import { TwButtonComponent } from '../button/button.component';
 
 export type AudioPlayerVariant = 'default' | 'minimal' | 'compact' | 'full';
 export type AudioPlayerTheme = 'dark' | 'light' | 'transparent';
@@ -39,9 +39,7 @@ export interface AudioTrack {
     TwTransportComponent,
     TwScrubberComponent,
     TwTimeDisplayComponent,
-    TwVolumeDialComponent,
     TwWaveformComponent,
-    TwButtonComponent,
   ],
   templateUrl: './audio-player.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,7 +47,7 @@ export interface AudioTrack {
     class: 'block',
   },
 })
-export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
+export class TwAudioPlayerComponent implements OnDestroy {
   @ViewChild('audioElement') private readonly audioRef!: ElementRef<HTMLAudioElement>;
 
   readonly track = input<AudioTrack | null>(null);
@@ -77,14 +75,34 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
   protected readonly currentTime = signal(0);
   protected readonly duration = signal(0);
   protected readonly buffered = signal(0);
-  protected readonly internalVolume = signal(0.8);
-  protected readonly isMuted = signal(false);
-  protected readonly isLooping = signal(false);
+  // Track the inputs, but can be changed locally (volume slider, mute/loop buttons)
+  // (clamped: HTMLMediaElement.volume throws outside 0..1)
+  protected readonly internalVolume = linkedSignal(() => {
+    const v = this.volume();
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+  });
+  protected readonly isMuted = linkedSignal(() => this.muted());
+  protected readonly isLooping = linkedSignal(() => this.loop());
   protected readonly isExpanded = signal(false);
   protected readonly isLoading = signal(false);
   protected readonly audioBuffer = signal<AudioBuffer | null>(null);
 
   private audioContext: AudioContext | null = null;
+  private destroyed = false;
+
+  constructor() {
+    // (Re)load the waveform whenever the source changes or the waveform is enabled
+    effect(() => {
+      const src = this.audioSrc();
+      const show = this.showWaveform();
+      untracked(() => {
+        this.audioBuffer.set(null);
+        if (show && src) {
+          void this.loadAudioBuffer(src);
+        }
+      });
+    });
+  }
 
   protected readonly progress = computed(() => {
     const dur = this.duration();
@@ -115,7 +133,8 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
   protected readonly containerClasses = computed(() => {
     const variant = this.variant();
     const theme = this.theme();
-    const base = 'rounded-xl overflow-hidden';
+    // relative: contains the absolutely positioned loading overlay
+    const base = 'relative rounded-xl overflow-hidden';
 
     const themeClasses: Record<AudioPlayerTheme, string> = {
       dark: 'bg-slate-900 text-white',
@@ -135,8 +154,25 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
       .join(' ');
   });
 
+  // Hover fill for the mute button, whose icon takes the theme's text colour: a fixed
+  // slate-700 hid the dark icon of the light (and, on a light page, transparent) theme
+  protected readonly iconButtonHoverClass = computed(() => {
+    const theme = this.theme();
+    if (theme === 'dark') return 'hover:bg-slate-700';
+    return theme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700';
+  });
+
   protected readonly textClasses = computed(() => {
     const theme = this.theme();
+    if (theme === 'transparent') {
+      // No surface of its own: follow the page colour scheme (fixed white text
+      // vanished on a light page)
+      return {
+        title: 'text-slate-900 dark:text-white',
+        artist: 'text-slate-600 dark:text-slate-400',
+        time: 'text-slate-500 dark:text-slate-400',
+      };
+    }
     return {
       title: theme === 'light' ? 'text-slate-900' : 'text-white',
       artist: theme === 'light' ? 'text-slate-600' : 'text-slate-400',
@@ -144,44 +180,43 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
     };
   });
 
-  ngAfterViewInit(): void {
-    this.internalVolume.set(this.volume());
-    this.isMuted.set(this.muted());
-    this.isLooping.set(this.loop());
-
-    if (this.showWaveform() && this.audioSrc()) {
-      void this.loadAudioBuffer();
-    }
-  }
-
   ngOnDestroy(): void {
+    this.destroyed = true;
     if (this.audioContext) {
       void this.audioContext.close();
     }
   }
 
-  private async loadAudioBuffer(): Promise<void> {
-    const src = this.audioSrc();
-    if (!src) return;
+  private async loadAudioBuffer(src: string): Promise<void> {
+    // No Web Audio during SSR / in unsupported environments
+    if (!src || this.destroyed || typeof AudioContext === 'undefined') return;
 
     try {
       this.isLoading.set(true);
-      this.audioContext = new AudioContext();
+      // Reuse one context across source changes
+      this.audioContext ??= new AudioContext();
       const response = await fetch(src);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      this.audioBuffer.set(audioBuffer);
+      // Ignore a stale load superseded by a newer source (or by destroy)
+      if (!this.destroyed && src === this.audioSrc()) {
+        this.audioBuffer.set(audioBuffer);
+      }
     } catch (error) {
-      console.error('Error loading audio buffer:', error);
+      if (!this.destroyed) console.error('Error loading audio buffer:', error);
     } finally {
-      this.isLoading.set(false);
+      // A superseded load must not clear the spinner of the newer one
+      if (src === this.audioSrc()) this.isLoading.set(false);
     }
   }
 
   protected onPlay(): void {
     const audio = this.audioRef?.nativeElement;
     if (audio) {
-      void audio.play();
+      // play() rejects when blocked by autoplay policy or interrupted by pause()
+      Promise.resolve(audio.play()).catch(() => {
+        this.isPlaying.set(!audio.paused);
+      });
     }
   }
 
@@ -201,10 +236,19 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Seek from the waveform, which emits a 0-1 position */
   protected onSeek(position: number): void {
     const audio = this.audioRef?.nativeElement;
     if (audio) {
       audio.currentTime = position * this.duration();
+    }
+  }
+
+  /** Seek from the scrubber, which emits a time in seconds */
+  protected onSeekTime(seconds: number): void {
+    const audio = this.audioRef?.nativeElement;
+    if (audio) {
+      audio.currentTime = Math.max(0, Math.min(this.duration(), seconds));
     }
   }
 
@@ -290,14 +334,22 @@ export class TwAudioPlayerComponent implements AfterViewInit, OnDestroy {
   }
 
   protected onAudioError(): void {
-    this.error.emit('Error loading audio');
     this.isLoading.set(false);
+    // An empty src (no track yet) fails the media load by spec: not a real error
+    if (!this.audioSrc()) return;
+    this.error.emit('Error loading audio');
   }
 
   protected onAudioLoadStart(): void {
     this.isLoading.set(true);
   }
 
+  /**
+   * Loading is over once the element can play, has the metadata it was asked to
+   * preload, or has suspended fetching. With preload="metadata" (or where the
+   * browser defers loading until the user presses play, e.g. iOS) canplay may
+   * never fire before playback, and the overlay would block the play button.
+   */
   protected onAudioCanPlay(): void {
     this.isLoading.set(false);
   }

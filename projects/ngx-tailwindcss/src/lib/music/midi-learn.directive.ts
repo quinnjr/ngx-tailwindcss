@@ -1,6 +1,7 @@
 import {
   computed,
   Directive,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -8,8 +9,14 @@ import {
   OnDestroy,
   OnInit,
   output,
+  untracked,
 } from '@angular/core';
 import { CCValueChangeEvent, MidiCCMapping, MidiService } from './midi.service';
+
+type MidiLearnInputConfig = Pick<
+  MidiCCMapping,
+  'channel' | 'minValue' | 'maxValue' | 'inverted' | 'curve'
+> & { ccNumber: number | null };
 
 /**
  * Directive for MIDI Learn functionality
@@ -94,8 +101,38 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
 
   private ccUnsubscribe: (() => void) | null = null;
   private learnUnsubscribe: (() => void) | null = null;
+  // Learn started by this control that has neither completed nor been
+  // reported as cancelled yet
+  private learnPending = false;
+  // Mapping configuration last applied from this directive's inputs (null
+  // until ngOnInit has applied the initial configuration)
+  private appliedConfig: MidiLearnInputConfig | null = null;
+
+  constructor() {
+    // Learn mode can also end without completing outside this directive: the
+    // service timeout, or another control starting its own learn. Report that
+    // as a cancel so consumers do not stay stuck in a "learning" UI state.
+    effect(() => {
+      if (!this.isLearning() && this.learnPending) {
+        this.learnPending = false;
+        this.midiLearnCancel.emit();
+      }
+    });
+
+    // Propagate later changes of the configuration inputs to this control's
+    // mapping. Only inputs that actually changed are written, so mappings the
+    // consumer imported or updated through the service are not clobbered.
+    effect(() => {
+      const config = this.readInputConfig();
+      untracked(() => {
+        this.syncInputConfig(config);
+      });
+    });
+  }
 
   ngOnInit(): void {
+    this.appliedConfig = this.readInputConfig();
+
     // Subscribe to CC changes
     this.ccUnsubscribe = this.midiService.onCCChange(event => {
       if (event.mappingId === this.twMidiLearn()) {
@@ -106,6 +143,7 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
     // Subscribe to learn complete
     this.learnUnsubscribe = this.midiService.onLearnComplete(mapping => {
       if (mapping.id === this.twMidiLearn()) {
+        this.learnPending = false;
         this.midiLearnComplete.emit(mapping);
       }
     });
@@ -135,11 +173,49 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
     }
   }
 
+  private readInputConfig(): MidiLearnInputConfig {
+    return {
+      ccNumber: this.midiCC(),
+      channel: this.midiChannel(),
+      minValue: this.midiMinValue(),
+      maxValue: this.midiMaxValue(),
+      inverted: this.midiInverted(),
+      curve: this.midiCurve(),
+    };
+  }
+
+  private syncInputConfig(config: MidiLearnInputConfig): void {
+    const previous = this.appliedConfig;
+    // Before init the initial configuration is applied by ngOnInit
+    if (!previous) return;
+    this.appliedConfig = config;
+
+    const updates: Partial<MidiCCMapping> = {};
+    if (config.channel !== previous.channel) updates.channel = config.channel;
+    if (config.minValue !== previous.minValue) updates.minValue = config.minValue;
+    if (config.maxValue !== previous.maxValue) updates.maxValue = config.maxValue;
+    if (config.inverted !== previous.inverted) updates.inverted = config.inverted;
+    if (config.curve !== previous.curve) updates.curve = config.curve;
+    if (config.ccNumber !== previous.ccNumber && config.ccNumber !== null) {
+      updates.ccNumber = config.ccNumber;
+    }
+    if (Object.keys(updates).length === 0) return;
+
+    const id = this.twMidiLearn();
+    if (this.midiService.getCCMapping(id)) {
+      this.midiService.updateCCMapping(id, updates);
+    } else if (updates.ccNumber !== undefined) {
+      // A new CC was configured with no mapping registered yet: map it
+      this.midiService.addCCMapping({ id, ...config, ccNumber: updates.ccNumber });
+    }
+  }
+
   /**
    * Start MIDI Learn mode for this control
    */
   startLearn(): void {
     this.midiService.startMidiLearn(this.twMidiLearn());
+    this.learnPending = true;
     this.midiLearnStart.emit();
 
     // Update mapping configuration when learn completes
@@ -163,6 +239,7 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
    */
   cancelLearn(): void {
     if (this.isLearning()) {
+      this.learnPending = false;
       this.midiService.cancelMidiLearn();
       this.midiLearnCancel.emit();
     }
@@ -181,9 +258,12 @@ export class TwMidiLearnDirective implements OnInit, OnDestroy {
    * Whether this control has a MIDI mapping
    * (computed so the host class bindings only re-evaluate on signal changes)
    */
-  readonly isMapped = computed(
-    () => this.midiService.getCCMapping(this.twMidiLearn()) !== undefined
-  );
+  readonly isMapped = computed(() => {
+    // A mapping pre-registered by startLearn() carries the ccNumber -1
+    // sentinel until a CC is actually learned; that is not "mapped" yet
+    const mapping = this.midiService.getCCMapping(this.twMidiLearn());
+    return mapping !== undefined && mapping.ccNumber >= 0;
+  });
 
   /**
    * Get the current mapping

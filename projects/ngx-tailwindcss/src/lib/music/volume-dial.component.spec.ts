@@ -1,7 +1,7 @@
 import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DialSize, DialVariant, TwVolumeDialComponent } from './volume-dial.component';
 import { TwClassService } from '../core/tw-class.service';
 
@@ -43,6 +43,50 @@ class TestHostComponent {
   onValueChange(value: number): void {
     this.valueChanges.push(value);
   }
+}
+
+interface FakeTouch {
+  identifier: number;
+  clientX: number;
+  clientY: number;
+}
+/** A DOMRect at the origin with the given size */
+function rect(width: number, height: number): DOMRect {
+  const r = { x: 0, y: 0, left: 0, top: 0, width, height, right: width, bottom: height };
+  return { ...r, toJSON: () => r };
+}
+
+function touchEvent(
+  type: string,
+  touches: FakeTouch[],
+  changedTouches: FakeTouch[] = touches
+): TouchEvent {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    touches: { value: touches },
+    targetTouches: { value: changedTouches },
+    changedTouches: { value: changedTouches },
+  });
+  return event as TouchEvent;
+}
+
+/**
+ * Capture document listeners (jsdom's AbortSignal does not mix with zone.js-patched
+ * document listeners) so drag handlers can be driven directly.
+ */
+function captureDocumentListeners(): Record<string, (e: Event) => void> {
+  const listeners: Record<string, (e: Event) => void> = {};
+  vi.spyOn(document, 'addEventListener').mockImplementation(((
+    type: string,
+    listener: (e: Event) => void,
+    options?: AddEventListenerOptions
+  ) => {
+    // Honour AbortController-based removal
+    listeners[type] = e => {
+      if (!options?.signal?.aborted) listener(e);
+    };
+  }) as typeof document.addEventListener);
+  return listeners;
 }
 
 describe('TwVolumeDialComponent', () => {
@@ -88,6 +132,25 @@ describe('TwVolumeDialComponent', () => {
       expect((fixture.nativeElement as HTMLElement).textContent).toContain('42');
     });
 
+    it('should reserve layout space for the label instead of overlapping content below', () => {
+      const dialFixture = TestBed.createComponent(TwVolumeDialComponent);
+      dialFixture.componentRef.setInput('label', 'Gain');
+      dialFixture.componentRef.setInput('size', 'md');
+      dialFixture.detectChanges();
+      const box = () => (dialFixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;
+      expect(box().style.height).toBe('96px'); // 72 dial + 24 value, no label shown
+
+      dialFixture.componentRef.setInput('showLabel', true);
+      dialFixture.detectChanges();
+      const labelEl = [...box().children].find(c => c.textContent?.trim() === 'Gain')!;
+      // It sat absolutely at -bottom-6, outside the box, over whatever followed
+      expect(labelEl.className).not.toContain('absolute');
+      expect(labelEl.className).not.toContain('-bottom-6');
+      expect(box().style.height).toBe('116px');
+      expect(box().style.width).toBe('72px');
+      expect(box().querySelector('svg')!.getAttribute('width')).toBe('72');
+    });
+
     it('should clamp keyboard-driven changes at max', () => {
       component.min.set(10);
       component.max.set(90);
@@ -119,6 +182,24 @@ describe('TwVolumeDialComponent', () => {
 
       expect(svgEl.getAttribute('aria-valuenow')).toBe('100');
       expect(component.valueChanges).toContain(100);
+    });
+
+    it('should keep the drawn arc within the dial for out-of-range or degenerate values', () => {
+      const indicator = (): SVGLineElement =>
+        svgEl.querySelectorAll('line')[svgEl.querySelectorAll('line').length - 1];
+      component.value.set(100);
+      fixture.detectChanges();
+      const atMax = [indicator().getAttribute('x2'), indicator().getAttribute('y2')];
+      const fillAtMax = svgEl.querySelectorAll('path')[1].getAttribute('d');
+
+      component.value.set(250);
+      fixture.detectChanges();
+      expect([indicator().getAttribute('x2'), indicator().getAttribute('y2')]).toEqual(atMax);
+      expect(svgEl.querySelectorAll('path')[1].getAttribute('d')).toBe(fillAtMax);
+
+      component.min.set(100);
+      fixture.detectChanges();
+      expect(svgEl.querySelectorAll('path')[1].getAttribute('d')).not.toContain('NaN');
     });
 
     it('should apply the step to keyboard increments', () => {
@@ -158,6 +239,71 @@ describe('TwVolumeDialComponent', () => {
 
         expect(svgEl.querySelectorAll('path').length).toBeGreaterThan(0);
       }
+    });
+  });
+
+  describe('regressions', () => {
+    it('should ignore a late NgModel writeValue after being destroyed', () => {
+      const dial = fixture.debugElement.query(By.directive(TwVolumeDialComponent))
+        .componentInstance as TwVolumeDialComponent;
+      const emitted: number[] = [];
+      dial.value.subscribe(v => emitted.push(v));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      fixture.destroy();
+      dial.writeValue(42);
+
+      expect(emitted).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('should not leak floating-point noise with fractional steps', () => {
+      component.value.set(0.2);
+      component.step.set(0.1);
+      fixture.detectChanges();
+
+      svgEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('aria-valuenow')).toBe('0.3');
+    });
+
+    it('should honour setDisabledState from the forms API', () => {
+      component.dial.setDisabledState(true);
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('tabindex')).toBe('-1');
+      svgEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+      fixture.detectChanges();
+      expect(component.valueChanges).toHaveLength(0);
+    });
+
+    it('should sweep the full range in a single drag beyond 180 degrees', () => {
+      component.value.set(0);
+      fixture.detectChanges();
+
+      // jsdom rects are all zero, so the dial centre is at (0, 0)
+      const point = (deg: number) => ({
+        clientX: 100 * Math.cos((deg * Math.PI) / 180),
+        clientY: 100 * Math.sin((deg * Math.PI) / 180),
+      });
+
+      // Drive the drag handlers directly (jsdom's AbortSignal does not mix with
+      // zone.js-patched document listeners)
+      const drag = component.dial as unknown as {
+        startDrag(x: number, y: number): void;
+        handleDrag(x: number, y: number): void;
+      };
+      const start = point(0);
+      drag.startDrag(start.clientX, start.clientY);
+      for (let deg = 10; deg <= 280; deg += 10) {
+        const p = point(deg);
+        drag.handleDrag(p.clientX, p.clientY);
+      }
+      fixture.detectChanges();
+
+      expect(svgEl.getAttribute('aria-valuenow')).toBe('100');
     });
   });
 
@@ -212,6 +358,58 @@ describe('TwVolumeDialComponent', () => {
     it('should have circle element for the knob', () => {
       const circles = svgEl.querySelectorAll('circle');
       expect(circles.length).toBeGreaterThan(0);
+    });
+
+    it('should draw the whole LED ring inside the (clipping) SVG viewport', () => {
+      for (const size of ['xs', 'md', 'xl'] as DialSize[]) {
+        component.variant.set('led');
+        component.size.set(size);
+        fixture.detectChanges();
+        const extent = Number(svgEl.getAttribute('width'));
+        // The knob is the first circle; the rest are the 12 LEDs
+        const leds = [...svgEl.querySelectorAll('circle')].slice(1);
+        expect(leds).toHaveLength(12);
+        for (const led of leds) {
+          const cx = Number(led.getAttribute('cx'));
+          const cy = Number(led.getAttribute('cy'));
+          const r = Number(led.getAttribute('r'));
+          expect(cx - r).toBeGreaterThanOrEqual(-1e-9);
+          expect(cy - r).toBeGreaterThanOrEqual(-1e-9);
+          expect(cx + r).toBeLessThanOrEqual(extent + 1e-9);
+          expect(cy + r).toBeLessThanOrEqual(extent + 1e-9);
+        }
+      }
+    });
+  });
+
+  describe('multi-touch', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should follow only the finger that started the drag', () => {
+      const doc = captureDocumentListeners();
+      component.value.set(0);
+      fixture.detectChanges();
+      svgEl.getBoundingClientRect = (): DOMRect => rect(100, 100);
+
+      const other = { identifier: 1, clientX: 0, clientY: 50 }; // holding another control
+      const own = { identifier: 2, clientX: 50, clientY: 0 }; // lands at 12 o'clock
+      svgEl.dispatchEvent(touchEvent('touchstart', [other, own], [own]));
+
+      // Own finger rotates 90 degrees clockwise; the other finger sits at 9 o'clock
+      doc['touchmove'](touchEvent('touchmove', [other, { ...own, clientX: 100, clientY: 50 }]));
+      fixture.detectChanges();
+      expect(component.dial.value()).toBe(33);
+
+      // The other finger lifting must not end this drag
+      doc['touchend'](touchEvent('touchend', [own], [other]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientX: 50, clientY: 100 }]));
+      expect(component.dial.value()).toBe(67);
+
+      doc['touchend'](touchEvent('touchend', [], [own]));
+      doc['touchmove'](touchEvent('touchmove', [{ ...own, clientX: 0, clientY: 50 }]));
+      expect(component.dial.value()).toBe(67);
     });
   });
 });

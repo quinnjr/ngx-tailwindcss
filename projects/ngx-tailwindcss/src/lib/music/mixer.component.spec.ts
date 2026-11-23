@@ -1,0 +1,281 @@
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { MixerChannel, MixerState, TwMixerComponent } from './mixer.component';
+import { TwChannelStripComponent } from './channel-strip.component';
+
+@Component({
+  template: `<tw-mixer
+    [channels]="channels()"
+    [showMasterChannel]="false"
+    (stateChange)="states.push($event)"
+  ></tw-mixer>`,
+  standalone: true,
+  imports: [TwMixerComponent],
+})
+class TestHostComponent {
+  channels = signal<MixerChannel[]>([
+    { id: 'a', label: 'A', volume: 50, pan: 0, mute: false, solo: false },
+    { id: 'b', label: 'B', volume: 60, pan: 0, mute: false, solo: false },
+  ]);
+  states: MixerState[] = [];
+}
+
+describe('TwMixerComponent', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  let host: TestHostComponent;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  const strips = () =>
+    fixture.debugElement
+      .queryAll(By.directive(TwChannelStripComponent))
+      .map(d => d.componentInstance as TwChannelStripComponent);
+
+  it('should emit stateChange with the updated channel, not the stale input', () => {
+    (strips()[1] as unknown as { toggleMute(): void }).toggleMute();
+
+    const last = host.states.at(-1)!;
+    expect(last.channels[1].mute).toBe(true);
+    expect(last.channels[0].mute).toBe(false);
+  });
+
+  it('should hand each strip a stable state object across change detection', () => {
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as { getChannelState(c: MixerChannel): unknown };
+    const channel = host.channels()[0];
+    expect(mixer.getChannelState(channel)).toBe(mixer.getChannelState(channel));
+  });
+});
+
+@Component({
+  template: `<tw-mixer
+    [channels]="channels"
+    [sections]="sections"
+    [showSectionHeaders]="false"
+    [maxVisibleChannels]="2"
+    [showMasterChannel]="false"
+  ></tw-mixer>`,
+  standalone: true,
+  imports: [TwMixerComponent],
+})
+class ScrollHostComponent {
+  channels: MixerChannel[] = ['a', 'b', 'c', 'd'].map(id => ({
+    id,
+    label: id.toUpperCase(),
+    volume: 50,
+    pan: 0,
+    mute: false,
+    solo: false,
+  }));
+  sections = [{ id: 's', name: 'S', channelIds: ['c', 'd'], collapsed: false }];
+}
+
+describe('TwMixerComponent layout', () => {
+  it('should keep the variant container classes on the root element', async () => {
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const root = (fixture.nativeElement as HTMLElement).querySelector('tw-mixer > div')!;
+    expect(root.classList).toContain('rounded-xl');
+    expect(root.classList).toContain('bg-slate-900');
+  });
+
+  it('should bound scrolling by the channels left after collapsing sections', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as {
+      toggleSection(id: string): void;
+      canScrollRight(): boolean;
+    };
+
+    expect(mixer.canScrollRight()).toBe(true);
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+
+    // Only a and b remain visible, which fit within maxVisibleChannels
+    expect(mixer.canScrollRight()).toBe(false);
+    expect(fixture.debugElement.queryAll(By.css('button[title="Scroll Right"]')).length).toBe(0);
+  });
+
+  it('should show the scroll buttons as disabled while the mixer is disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const right = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[title="Scroll Right"]'
+    )!;
+    // Scrolling is possible, so only the disabled state can dim the button
+    expect(right.classList).not.toContain('opacity-50');
+    expect(right.classList).toContain('disabled:opacity-50');
+    expect(right.classList).toContain('disabled:cursor-not-allowed');
+    // A disabled (e.g. scrolled-to-the-end) button must not light up on hover
+    expect(right.classList).toContain('enabled:hover:bg-slate-700');
+    expect(right.classList).toContain('enabled:hover:text-white');
+    expect(right.classList).not.toContain('hover:bg-slate-700');
+    expect(right.classList).not.toContain('hover:text-white');
+  });
+
+  it('should move focus to the other scroll button when one disables itself at the end', async () => {
+    await TestBed.configureTestingModule({ imports: [ScrollHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ScrollHostComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const right = root.querySelector<HTMLButtonElement>('button[title="Scroll Right"]')!;
+    const left = root.querySelector<HTMLButtonElement>('button[title="Scroll Left"]')!;
+
+    right.focus();
+    right.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    // Still enabled after one step: focus stays put
+    expect(document.activeElement).toBe(right);
+
+    right.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(right.disabled).toBe(true);
+    expect(document.activeElement).toBe(left);
+
+    left.click();
+    left.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(left.disabled).toBe(true);
+    expect(document.activeElement).toBe(right);
+  });
+
+  it('should not show no-op scroll buttons when the sectioned layout shows every channel', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(4);
+    expect(fixture.debugElement.queryAll(By.css('button[title^="Scroll"]')).length).toBe(0);
+  });
+
+  it('should let the unpaged sectioned layout scroll instead of clipping channels', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+
+    const strip = fixture.debugElement.query(By.directive(TwChannelStripComponent))
+      .nativeElement as HTMLElement;
+    let row = strip.parentElement;
+    while (row && !row.classList.contains('flex-1')) row = row.parentElement;
+    expect(row).not.toBeNull();
+    expect(row!.classList).toContain('overflow-x-auto');
+    expect(row!.classList).not.toContain('overflow-hidden');
+  });
+
+  it('should keep the group indicators inside the clipping channel row', () => {
+    const mixerFixture = TestBed.createComponent(TwMixerComponent);
+    mixerFixture.componentRef.setInput('showMasterChannel', false);
+    mixerFixture.componentRef.setInput('groups', [
+      { id: 'g', name: 'Drums', channelIds: ['a'], color: 'rgb(255, 0, 0)' },
+    ]);
+    mixerFixture.componentRef.setInput('channels', [
+      { id: 'a', label: 'A', volume: 50, pan: 0, mute: false, solo: false, groupId: 'g' },
+    ]);
+    mixerFixture.detectChanges();
+
+    const indicator = (mixerFixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[title="Group: Drums"]'
+    )!;
+    expect(indicator.classList).toContain('-top-1');
+    // The row clips (overflow-hidden): without top padding the indicator, entirely above the
+    // strip, was never visible
+    const row = indicator.parentElement!.parentElement!;
+    expect(row.classList).toContain('overflow-hidden');
+    expect(row.classList).toContain('pt-1');
+  });
+
+  it('should expose each section header collapsed state to assistive technology', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+    const header = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+        b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+      )!;
+    expect(header().getAttribute('aria-expanded')).toBe('true');
+
+    header().click();
+    fixture.detectChanges();
+    expect(header().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('should not collapse a section while the mixer is disabled', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.componentInstance.disabled = true;
+    fixture.detectChanges();
+    const header = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+    )!;
+    expect(header.disabled).toBe(true);
+
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as { toggleSection(id: string): void };
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(4);
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('should start a section collapsed when its collapsed flag is set', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.componentInstance.sections = [
+      { id: 's', name: 'S', channelIds: ['c', 'd'], collapsed: true },
+    ];
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(2);
+    const header = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+    )!;
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('should show the collapsed-section channel count in a readable colour', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as { toggleSection(id: string): void };
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+
+    const indicator = [...(fixture.nativeElement as HTMLElement).querySelectorAll('div')].find(
+      d => d.textContent?.trim() === '2 ch'
+    )!;
+    // slate-500 is ~3:1 on the dark mixer surface
+    expect(indicator.className).toContain('text-slate-400');
+    expect(indicator.className).not.toContain('text-slate-500');
+  });
+});
+
+@Component({
+  template: `<tw-mixer
+    [channels]="channels"
+    [sections]="sections"
+    [maxVisibleChannels]="2"
+    [showMasterChannel]="false"
+    [disabled]="disabled"
+  ></tw-mixer>`,
+  standalone: true,
+  imports: [TwMixerComponent],
+})
+class SectionHostComponent extends ScrollHostComponent {
+  disabled = false;
+}

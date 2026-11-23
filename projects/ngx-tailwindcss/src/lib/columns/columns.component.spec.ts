@@ -46,8 +46,8 @@ describe('TwColumnsComponent', () => {
   let component: TestHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -69,22 +69,22 @@ describe('TwColumnsComponent', () => {
 
   describe('column count', () => {
     it('should apply 2 columns and md gap by default', () => {
-      expect(getInner().className).toContain('columns-2');
-      expect(getInner().className).toContain('gap-6');
+      expect(getBox().className).toContain('columns-2');
+      expect(getBox().className).toContain('gap-6');
     });
 
     it('should update classes when count changes', () => {
       component.count.set(4);
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('columns-4');
+      expect(getBox().className).toContain('columns-4');
     });
 
     it('should support auto columns', () => {
       component.count.set('auto');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('columns-auto');
+      expect(getBox().className).toContain('columns-auto');
     });
   });
 
@@ -97,7 +97,7 @@ describe('TwColumnsComponent', () => {
       component.countXl.set(6);
       fixture.detectChanges();
 
-      const { className } = getInner();
+      const { className } = getBox();
       expect(className).toContain('columns-1');
       expect(className).toContain('sm:columns-2');
       expect(className).toContain('md:columns-3');
@@ -106,7 +106,7 @@ describe('TwColumnsComponent', () => {
     });
 
     it('should omit breakpoint classes when not configured', () => {
-      expect(getInner().className).not.toContain('md:columns');
+      expect(getBox().className).not.toContain('md:columns');
     });
   });
 
@@ -115,13 +115,13 @@ describe('TwColumnsComponent', () => {
       component.gap.set('xl');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('gap-12');
+      expect(getBox().className).toContain('gap-12');
     });
   });
 
   describe('column rule', () => {
     it('should not apply a rule by default', () => {
-      expect(getInner().style.columnRule || '').toBe('');
+      expect(getBox().style.columnRule || '').toBe('');
     });
 
     it('should resolve Tailwind color tokens through CSS variables', () => {
@@ -129,8 +129,8 @@ describe('TwColumnsComponent', () => {
       component.ruleColor.set('slate-300');
       fixture.detectChanges();
 
-      expect(getInner().style.columnRule).toContain('solid');
-      expect(getInner().style.columnRule).toContain('var(--color-slate-300)');
+      expect(getBox().style.columnRule).toContain('solid');
+      expect(getBox().style.columnRule).toContain('var(--color-slate-300)');
     });
 
     it('should pass through raw CSS colors', () => {
@@ -138,8 +138,8 @@ describe('TwColumnsComponent', () => {
       component.ruleColor.set('#ff0000');
       fixture.detectChanges();
 
-      expect(getInner().style.columnRule).toContain('dashed');
-      expect(getInner().style.columnRule).toContain('#ff0000');
+      expect(getBox().style.columnRule).toContain('dashed');
+      expect(getBox().style.columnRule).toContain('#ff0000');
     });
 
     it('should honor ruleWidth', () => {
@@ -147,7 +147,7 @@ describe('TwColumnsComponent', () => {
       component.ruleWidth.set(3);
       fixture.detectChanges();
 
-      expect(getInner().style.columnRule).toContain('3px');
+      expect(getBox().style.columnRule).toContain('3px');
     });
   });
 
@@ -156,7 +156,7 @@ describe('TwColumnsComponent', () => {
       component.avoidBreak.set(true);
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('[&>*]:break-inside-avoid');
+      expect(getBox().className).toContain('[&>*]:break-inside-avoid');
     });
   });
 
@@ -165,7 +165,48 @@ describe('TwColumnsComponent', () => {
       component.customClass.set('custom-columns-class');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('custom-columns-class');
+      expect(getBox().className).toContain('custom-columns-class');
     });
+  });
+});
+
+describe('Columns class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
+    @Component({
+      template: `<tw-columns class="tw-test-box" rule="solid"
+        ><p>a</p>
+        <p>b</p></tw-columns
+      >`,
+      standalone: true,
+      imports: [TwColumnsComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes such as `p-4 border-2`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-columns')).nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(2);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+    } finally {
+      style.remove();
+    }
   });
 });

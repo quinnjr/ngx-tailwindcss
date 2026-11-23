@@ -5,6 +5,7 @@ import {
   EventEmitter,
   inject,
   Input,
+  NgZone,
   OnChanges,
   OnDestroy,
   OnInit,
@@ -35,9 +36,11 @@ export interface InViewEvent {
 })
 export class TwInViewDirective implements OnInit, OnChanges, OnDestroy {
   private readonly el: ElementRef<HTMLElement>;
+  private readonly ngZone: NgZone;
 
   constructor() {
     this.el = inject(ElementRef);
+    this.ngZone = inject(NgZone);
   }
 
   private observer: IntersectionObserver | null = null;
@@ -92,25 +95,10 @@ export class TwInViewDirective implements OnInit, OnChanges, OnDestroy {
 
     this.observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
-          const event: InViewEvent = {
-            isIntersecting: entry.isIntersecting,
-            intersectionRatio: entry.intersectionRatio,
-            entry,
-          };
-
-          this.inView.emit(event);
-
-          if (entry.isIntersecting) {
-            this.enterView.emit(event);
-
-            if (this.inViewOnce && this.observer) {
-              this.observer.disconnect();
-              this.observer = null;
-            }
-          } else {
-            this.leaveView.emit(event);
-          }
+        // IntersectionObserver callbacks are not zone-patched; re-enter the zone so
+        // handlers trigger change detection in zone-based apps
+        this.ngZone.run(() => {
+          this.handleEntries(entries);
         });
       },
       {
@@ -120,6 +108,29 @@ export class TwInViewDirective implements OnInit, OnChanges, OnDestroy {
     );
 
     this.observer.observe(this.el.nativeElement);
+  }
+
+  private handleEntries(entries: IntersectionObserverEntry[]): void {
+    entries.forEach(entry => {
+      const event: InViewEvent = {
+        isIntersecting: entry.isIntersecting,
+        intersectionRatio: entry.intersectionRatio,
+        entry,
+      };
+
+      this.inView.emit(event);
+
+      if (entry.isIntersecting) {
+        this.enterView.emit(event);
+
+        if (this.inViewOnce && this.observer) {
+          this.observer.disconnect();
+          this.observer = null;
+        }
+      } else {
+        this.leaveView.emit(event);
+      }
+    });
   }
 
   private disconnectObserver(): void {

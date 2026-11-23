@@ -6,7 +6,12 @@
         {{ displayName() }}
       </span>
       @if (chordData()?.type) {
-        <span class="text-xs ml-1 opacity-70" [style.color]="colors().text">
+        <!-- No dimming on minimal: slate-700 at 70% is ~4.3:1 on white -->
+        <span
+          class="text-xs ml-1"
+          [class.opacity-70]="variant() !== 'minimal'"
+          [style.color]="colors().text"
+        >
           {{ chordData()!.type }}
         </span>
       }
@@ -18,6 +23,8 @@
     [attr.width]="dimensions().totalWidth"
     [attr.height]="dimensions().totalHeight - (showChordName() ? 28 : 0)"
     class="block"
+    role="img"
+    [attr.aria-label]="accessibleLabel()"
   >
     <!-- White Keys -->
     @for (key of whiteKeys(); track key.note + key.octave) {
@@ -41,7 +48,9 @@
           [attr.x]="getWhiteKeyX(key.index) + dimensions().whiteKeyWidth / 2"
           [attr.y]="dimensions().padding + dimensions().whiteKeyHeight - 4"
           text-anchor="middle"
-          [attr.fill]="colors().noteLabel"
+          [attr.fill]="
+            isNoteActive(key.note, key.octave) ? colors().noteLabelActive : colors().noteLabel
+          "
           [attr.font-size]="dimensions().whiteKeyWidth * 0.35"
           font-family="sans-serif"
         >
@@ -66,36 +75,34 @@
     }
 
     <!-- Finger position indicators -->
-    @if (chordData()) {
-      @for (note of chordData()!.notes; track note.note + note.octave) {
-        <g>
-          <!-- Finger circle -->
-          <circle
-            [attr.cx]="getFingerX(note.note, note.octave)"
-            [attr.cy]="getFingerY(isBlackKey(note.note))"
-            [attr.r]="dimensions().fingerRadius"
-            [attr.fill]="
-              highlightRoot() && note.isRoot ? colors().rootCircle : colors().fingerCircle
-            "
-            class="transition-colors duration-150"
-          />
+    @for (note of visibleNotes(); track note.note + note.octave) {
+      <g>
+        <!-- Finger circle -->
+        <circle
+          [attr.cx]="getFingerX(note.note, note.octave)"
+          [attr.cy]="getFingerY(isBlackKey(note.note))"
+          [attr.r]="dimensions().fingerRadius"
+          [attr.fill]="highlightRoot() && note.isRoot ? colors().rootCircle : colors().fingerCircle"
+          [attr.stroke]="colors().ring"
+          stroke-width="2"
+          class="transition-colors duration-150"
+        />
 
-          <!-- Finger number -->
-          @if (showFingerNumbers() && note.finger) {
-            <text
-              [attr.x]="getFingerX(note.note, note.octave)"
-              [attr.y]="getFingerY(isBlackKey(note.note)) + dimensions().fingerRadius * 0.35"
-              text-anchor="middle"
-              [attr.fill]="colors().fingerText"
-              [attr.font-size]="dimensions().fingerRadius * 1.2"
-              font-family="sans-serif"
-              font-weight="bold"
-            >
-              {{ note.finger }}
-            </text>
-          }
-        </g>
-      }
+        <!-- Finger number -->
+        @if (showFingerNumbers() && note.finger) {
+          <text
+            [attr.x]="getFingerX(note.note, note.octave)"
+            [attr.y]="getFingerY(isBlackKey(note.note)) + dimensions().fingerRadius * 0.35"
+            text-anchor="middle"
+            [attr.fill]="colors().fingerText"
+            [attr.font-size]="dimensions().fingerRadius * 1.2"
+            font-family="sans-serif"
+            font-weight="bold"
+          >
+            {{ note.finger }}
+          </text>
+        }
+      </g>
     }
   </svg>
 

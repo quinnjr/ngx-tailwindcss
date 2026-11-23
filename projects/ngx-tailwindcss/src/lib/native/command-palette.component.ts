@@ -12,9 +12,10 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 import { NativeAppPlatformService } from './platform.service';
 import { CommandItem, CommandPaletteMode } from './native.types';
 
@@ -41,6 +42,7 @@ let nextPaletteId = 0;
 })
 export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly document = inject(DOCUMENT);
 
   // Inputs
   public readonly commands = input<CommandItem[]>([]);
@@ -106,6 +108,11 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
     }));
   });
 
+  // Commands in display (grouped) order; selectedIndex indexes into this list
+  private readonly orderedCommands = computed(() =>
+    this.groupedCommands().flatMap(group => group.commands)
+  );
+
   // Flat start index per category so getGlobalIndex is O(1) per row
   private readonly groupStartIndexes = computed(() => {
     const startIndexes = new Map<string, number>();
@@ -124,11 +131,11 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   };
 
   public ngOnInit(): void {
-    document.addEventListener('keydown', this.keydownHandler);
+    this.document.addEventListener('keydown', this.keydownHandler);
   }
 
   public ngOnDestroy(): void {
-    document.removeEventListener('keydown', this.keydownHandler);
+    this.document.removeEventListener('keydown', this.keydownHandler);
   }
 
   private handleGlobalKeydown(event: KeyboardEvent): void {
@@ -142,15 +149,19 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.isOpen()) {
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) {
       this.close();
     }
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
-    const commands = this.filteredCommands();
+    const commands = this.orderedCommands();
 
     switch (event.key) {
       case 'ArrowDown': {
@@ -182,6 +193,8 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   protected clearSearch(): void {
     this.searchQuery.set('');
     this.selectedIndex.set(0);
+    // The clear button removes itself; keep focus in the search field
+    this.searchInput()?.nativeElement.focus();
   }
 
   protected selectCommand(command: CommandItem): void {

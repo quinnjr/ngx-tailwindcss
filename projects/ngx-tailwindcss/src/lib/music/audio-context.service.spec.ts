@@ -179,6 +179,231 @@ describe('AudioContextService', () => {
       const reconnected = await service.connectMediaElement(element);
       expect(reconnected.id).not.toBe(source.id);
     });
+
+    it('should reuse the media element node when reconnecting after disconnect', async () => {
+      const element = document.createElement('audio');
+      const ctx = service.getContext() as unknown as MockAudioContext;
+      ctx.createMediaElementSource.mockImplementation(() => {
+        if (ctx.createMediaElementSource.mock.calls.length > 1) {
+          throw new DOMException('already connected', 'InvalidStateError');
+        }
+        return new MockAudioNode();
+      });
+
+      const first = await service.connectMediaElement(element);
+      service.disconnectSource(first.id);
+      const second = await service.connectMediaElement(element);
+
+      expect(ctx.createMediaElementSource).toHaveBeenCalledTimes(1);
+      expect(second.node).toBe(first.node);
+    });
+  });
+
+  describe('source mute', () => {
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', MockAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should restore the pre-mute gain on unmute instead of unity', async () => {
+      const source = await service.connectMediaElement(document.createElement('audio'));
+      service.setSourceGain(source.id, 0.2);
+
+      service.setSourceMuted(source.id, true);
+      expect(source.gain!.gain.value).toBe(0);
+      // Muting twice must not overwrite the saved level with 0
+      service.setSourceMuted(source.id, true);
+
+      service.setSourceMuted(source.id, false);
+      expect(source.gain!.gain.value).toBe(0.2);
+    });
+
+    it('should let an explicit gain while muted supersede the saved level', async () => {
+      const source = await service.connectMediaElement(document.createElement('audio'));
+      service.setSourceGain(source.id, 0.2);
+      service.setSourceMuted(source.id, true);
+      service.setSourceGain(source.id, 0.7);
+
+      service.setSourceMuted(source.id, false);
+      expect(source.gain!.gain.value).toBe(0.7);
+    });
+  });
+
+  describe('microphone and context lifecycle', () => {
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', MockAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should stop microphone tracks when the source is disconnected', async () => {
+      const track = { stop: vi.fn() };
+      const stream = { getTracks: () => [track] } as unknown as MediaStream;
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createMediaStreamSource: ReturnType<typeof vi.fn>;
+      };
+      ctx.createMediaStreamSource = vi.fn(() => new MockAudioNode());
+      vi.stubGlobal('navigator', {
+        mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+      });
+
+      const source = await service.connectMicrophone();
+      expect(track.stop).not.toHaveBeenCalled();
+
+      service.disconnectSource(source.id);
+      expect(track.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop a running oscillator when its source is disconnected', async () => {
+      const oscillator = Object.assign(new MockAudioNode(), {
+        frequency: { value: 0 },
+        type: 'sine',
+        start: vi.fn(),
+        stop: vi.fn(),
+      });
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createOscillator: ReturnType<typeof vi.fn>;
+      };
+      ctx.createOscillator = vi.fn(() => oscillator);
+
+      const source = await service.connectOscillator();
+      source.start();
+      service.disconnectSource(source.id);
+
+      expect(oscillator.stop).toHaveBeenCalledTimes(1);
+      expect(oscillator.disconnect).toHaveBeenCalled();
+      expect(service.sourceCount()).toBe(0);
+    });
+
+    it('should still disconnect a never-started buffer source', async () => {
+      const bufferSource = Object.assign(new MockAudioNode(), {
+        buffer: null as AudioBuffer | null,
+        start: vi.fn(),
+        stop: vi.fn(() => {
+          throw new DOMException('not started', 'InvalidStateError');
+        }),
+      });
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        createBufferSource: ReturnType<typeof vi.fn>;
+      };
+      ctx.createBufferSource = vi.fn(() => bufferSource);
+
+      const buffer = Object.create(null) as AudioBuffer;
+      const source = await service.connectAudioBuffer(buffer);
+      expect(() => {
+        service.disconnectSource(source.id);
+      }).not.toThrow();
+
+      expect(bufferSource.disconnect).toHaveBeenCalled();
+      expect(service.sourceCount()).toBe(0);
+    });
+
+    it('should reject with the HTTP status when an audio file fails to load', async () => {
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        decodeAudioData: ReturnType<typeof vi.fn>;
+      };
+      ctx.decodeAudioData = vi.fn();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+          arrayBuffer: vi.fn(),
+        })
+      );
+
+      await expect(service.loadAudioBuffer('/missing.mp3')).rejects.toThrow(/404/);
+      expect(ctx.decodeAudioData).not.toHaveBeenCalled();
+    });
+
+    it('should forget loaded worklet modules when the context is closed', async () => {
+      vi.stubGlobal('AudioWorkletNode', class {});
+      const ctx = service.getContext() as unknown as MockAudioContext & {
+        audioWorklet: { addModule: ReturnType<typeof vi.fn> };
+      };
+      ctx.audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+
+      await service.loadWorkletModule('proc', '/proc.js');
+      expect(service.workletModules().length).toBe(1);
+
+      await service.close();
+      expect(service.workletModules().length).toBe(0);
+    });
+  });
+
+  describe('createAnalyser decibel range', () => {
+    // Mirrors the Web Audio spec: a write that leaves minDecibels >= maxDecibels
+    // throws IndexSizeError. Real nodes start at -100 / -30 dB.
+    class StrictAnalyserNode extends MockAudioNode {
+      fftSize = 2048;
+      smoothingTimeConstant = 0.8;
+      frequencyBinCount = 1024;
+      private min = -100;
+      private max = -30;
+      get minDecibels(): number {
+        return this.min;
+      }
+      set minDecibels(value: number) {
+        if (value >= this.max) throw new DOMException('min >= max', 'IndexSizeError');
+        this.min = value;
+      }
+      get maxDecibels(): number {
+        return this.max;
+      }
+      set maxDecibels(value: number) {
+        if (value <= this.min) throw new DOMException('max <= min', 'IndexSizeError');
+        this.max = value;
+      }
+    }
+
+    class StrictAudioContext extends MockAudioContext {
+      override createAnalyser = vi.fn(() => new StrictAnalyserNode());
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', StrictAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('applies a range above the node default max without throwing', () => {
+      const analyser = service.createAnalyser({ minDecibels: -20, maxDecibels: 0 });
+      expect(analyser.minDecibels).toBe(-20);
+      expect(analyser.maxDecibels).toBe(0);
+    });
+
+    it('applies the default range', () => {
+      const analyser = service.createAnalyser();
+      expect(analyser.minDecibels).toBe(-90);
+      expect(analyser.maxDecibels).toBe(-10);
+    });
+
+    it('applies a range below the node default min without throwing', () => {
+      const analyser = service.createAnalyser({ minDecibels: -140, maxDecibels: -110 });
+      expect(analyser.minDecibels).toBe(-140);
+      expect(analyser.maxDecibels).toBe(-110);
+    });
+
+    it('falls back to defaults for keys explicitly set to undefined', () => {
+      const analyser = service.createAnalyser({
+        fftSize: undefined,
+        smoothingTimeConstant: undefined,
+        minDecibels: undefined,
+        maxDecibels: undefined,
+      });
+      expect(analyser.fftSize).toBe(2048);
+      expect(analyser.smoothingTimeConstant).toBe(0.8);
+      expect(analyser.minDecibels).toBe(-90);
+      expect(analyser.maxDecibels).toBe(-10);
+    });
   });
 
   describe('signals', () => {

@@ -5,17 +5,26 @@ import {
   computed,
   ContentChild,
   effect,
+  ElementRef,
   HostListener,
   inject,
   Input,
   input,
   model,
+  OnDestroy,
   output,
   PLATFORM_ID,
   TemplateRef,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type SidebarPosition = 'left' | 'right' | 'top' | 'bottom';
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -40,16 +49,20 @@ const SIDEBAR_SIZES: Record<SidebarPosition, Record<SidebarSize, string>> = {
 @Component({
   selector: 'tw-sidebar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './sidebar.component.html',
   host: {
     '[class]': '"contents"',
   },
 })
-export class TwSidebarComponent {
+export class TwSidebarComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Element focused before the sidebar opened, restored when it closes */
+  private previouslyFocused: HTMLElement | null = null;
 
   /** Whether the sidebar is visible. Supports two-way binding via `[(visible)]`. */
   readonly visible = model(false);
@@ -91,6 +104,15 @@ export class TwSidebarComponent {
   /** Additional classes */
   readonly classOverride = input('');
 
+  /**
+   * Accessible name of the dialog when no `header` is shown. The panel lives inside
+   * the component, so attributes on the `tw-sidebar` host cannot name it.
+   */
+  readonly ariaLabel = input('');
+
+  /** Id of an element (e.g. a heading in the projected content) that names the dialog */
+  readonly ariaLabelledBy = input('');
+
   /** Show event */
   readonly onShow = output();
 
@@ -98,9 +120,6 @@ export class TwSidebarComponent {
   readonly onHide = output();
 
   @ContentChild('twSidebarFooter', { read: TemplateRef }) footerTemplate?: TemplateRef<unknown>;
-
-  /** Previous body overflow value, restored on hide so underlying scroll locks survive */
-  private previousBodyOverflow: string | null = null;
 
   protected backdropClasses = computed(() => {
     return this.twClass.merge(
@@ -194,11 +213,13 @@ export class TwSidebarComponent {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapePress(): void {
-    if (this.closeOnEscape() && this.visible()) {
-      this.hide();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapePress(event?: Event): void {
+    if (!this.closeOnEscape() || !this.visible()) return;
+    // Only the topmost open layer closes, and not when content inside already handled it
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.hide();
   }
 
   onBackdropClick(): void {
@@ -209,19 +230,55 @@ export class TwSidebarComponent {
 
   private applyShowEffects(): void {
     this.onShow.emit();
+    pushEscapeLayer(this);
+
+    if (isPlatformBrowser(this.platformId)) {
+      const active = document.activeElement;
+      this.previouslyFocused =
+        active instanceof HTMLElement && !this.elementRef.nativeElement.contains(active)
+          ? active
+          : null;
+    }
 
     if (this.modal() && isPlatformBrowser(this.platformId)) {
-      this.previousBodyOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      // Shared with other modal layers: the page unlocks once the last of them closes
+      lockBodyScroll(document, this);
     }
   }
 
   private applyHideEffects(): void {
     this.onHide.emit();
+    removeEscapeLayer(this);
+    this.releaseScrollLock();
+    this.restoreFocus();
+  }
 
-    if (this.modal() && isPlatformBrowser(this.platformId)) {
-      document.body.style.overflow = this.previousBodyOverflow ?? '';
-      this.previousBodyOverflow = null;
+  ngOnDestroy(): void {
+    // Destroyed while open (e.g. route change): don't leave the page scroll-locked
+    removeEscapeLayer(this);
+    this.releaseScrollLock();
+  }
+
+  /**
+   * Returns focus to the element that opened the sidebar, but only when focus is
+   * still inside the (now inert) panel or was lost to the body.
+   */
+  private restoreFocus(): void {
+    const target = this.previouslyFocused;
+    this.previouslyFocused = null;
+    if (!target || !isPlatformBrowser(this.platformId)) return;
+
+    const active = document.activeElement;
+    const focusLost = !active || active === document.body;
+    if (focusLost || this.elementRef.nativeElement.contains(active)) {
+      target.focus();
+    }
+  }
+
+  /** Releases this sidebar's share of the body scroll lock, if it holds one. */
+  private releaseScrollLock(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      unlockBodyScroll(document, this);
     }
   }
 

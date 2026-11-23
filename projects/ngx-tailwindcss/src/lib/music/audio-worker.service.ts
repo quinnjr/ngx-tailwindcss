@@ -132,7 +132,13 @@ export class AudioWorkerService implements OnDestroy {
    * Configure the worker service
    */
   configure(config: AudioWorkerConfig): void {
-    this.config = { ...this.config, ...config };
+    // Skip keys explicitly set to undefined (e.g. forwarded optional settings):
+    // spreading them would clobber the current values, turning timeout into an
+    // immediate 0 ms timeout and enabled into a falsy value that kills the worker
+    const definedConfig = Object.fromEntries(
+      Object.entries(config).filter(([, value]) => value !== undefined)
+    ) as AudioWorkerConfig;
+    this.config = { ...this.config, ...definedConfig };
 
     if (!this.config.enabled && this.worker) {
       this.terminate();
@@ -176,11 +182,22 @@ export class AudioWorkerService implements OnDestroy {
         this._errorCount.update(n => n + 1);
         this._lastError.set(error.message || 'Worker error');
         console.error('Audio worker error:', error);
+        // The generated dispatcher catches every handler exception, so an
+        // error event means the worker itself is broken (e.g. the blob script
+        // was blocked by CSP or failed to load). Tear it down so pending
+        // requests reject now instead of each waiting for its timeout, and
+        // isAvailable() turns false so callers use their main-thread fallback.
+        this.terminate();
       });
 
       this._isInitialized.set(true);
       return true;
     } catch (error) {
+      this.worker = null;
+      if (this.workerUrl) {
+        URL.revokeObjectURL(this.workerUrl);
+        this.workerUrl = null;
+      }
       console.error('Failed to initialize audio worker:', error);
       this._lastError.set(error instanceof Error ? error.message : 'Failed to initialize');
       return false;
@@ -352,6 +369,7 @@ export class AudioWorkerService implements OnDestroy {
         clearTimeout(oldest[1].timeoutId);
         oldest[1].reject(new Error('Request dropped due to queue overflow'));
         this.pendingRequests.delete(oldest[0]);
+        this._pendingCount.update(n => Math.max(0, n - 1));
       }
     }
 

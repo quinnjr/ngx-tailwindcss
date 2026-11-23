@@ -1,17 +1,25 @@
 import {
+  afterNextRender,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
   inject,
+  Injector,
   input,
+  OnDestroy,
   output,
   signal,
   TemplateRef,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
 
 export interface MenuItem {
   id?: string | number;
@@ -57,6 +65,7 @@ export class TwMenuComponent {
   private readonly twClass = inject(TwClassService);
   private readonly elementRef = inject(ElementRef);
   private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
 
   /** Menu items */
   readonly items = input<MenuItem[]>([]);
@@ -94,8 +103,9 @@ export class TwMenuComponent {
 
   protected itemClasses(item: MenuItem) {
     return this.twClass.merge(
-      'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
-      'focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-700',
+      // `group` lets the shortcut keep 4.5:1 on the dark hover/focus background (slate-700)
+      'group w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
+      'focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       item.disabled
         ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer',
@@ -128,11 +138,53 @@ export class TwMenuComponent {
   }
 
   onSubmenuEnter(item: MenuItem): void {
+    // The hover wrapper still receives mouseenter when its trigger button is disabled
+    if (item.disabled) return;
     this.openSubmenu.set(item);
   }
 
-  onSubmenuLeave(): void {
+  onSubmenuLeave(trigger?: HTMLElement): void {
+    // Focus inside the submenu (e.g. on an item just clicked) would be lost when it is
+    // removed: hand it back to the submenu's trigger
+    const submenu = trigger?.parentElement?.querySelector(':scope > [role="menu"]');
+    if (trigger && submenu?.contains(this.document.activeElement)) trigger.focus();
     this.openSubmenu.set(null);
+  }
+
+  /**
+   * ArrowRight / Enter / Space on a submenu trigger: open the submenu and move
+   * focus to its first enabled item (WAI-ARIA menu pattern).
+   */
+  protected openSubmenuFromKeyboard(item: MenuItem, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (item.disabled) return;
+    const trigger = event.currentTarget as HTMLElement;
+    this.openSubmenu.set(item);
+    afterNextRender(
+      () => {
+        const submenu = trigger.parentElement?.querySelector<HTMLElement>(':scope > [role="menu"]');
+        if (submenu) this.menuItemsOf(submenu)[0]?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  /** ArrowLeft / Escape inside a submenu: close it and return focus to its trigger */
+  protected closeSubmenuToTrigger(trigger: HTMLElement, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.onSubmenuLeave();
+    trigger.focus();
+  }
+
+  /** Enabled items that belong directly to `menu` (not to a nested submenu) */
+  private menuItemsOf(menu: HTMLElement): HTMLElement[] {
+    return [
+      ...menu.querySelectorAll<HTMLElement>(
+        '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+      ),
+    ].filter(el => el.parentElement?.closest('[role="menu"]') === menu);
   }
 
   onItemClick(item: MenuItem): void {
@@ -157,11 +209,13 @@ export class TwMenuComponent {
     const { key } = event;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) return;
 
-    const menuItems = [
-      ...(this.elementRef.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
-        '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
-      ),
-    ];
+    // Navigate within the (sub)menu the key was pressed in, not across all levels
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const menu =
+      (event.target as HTMLElement | null)?.closest<HTMLElement>('[role="menu"]') ??
+      host.querySelector<HTMLElement>('[role="menu"]');
+    if (!menu || !host.contains(menu)) return;
+    const menuItems = this.menuItemsOf(menu);
     if (menuItems.length === 0) return;
 
     event.preventDefault();
@@ -205,11 +259,12 @@ export class TwMenuComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './context-menu.component.html',
   host: {
-    '(document:click)': 'hide()',
-    '(document:contextmenu)': 'hide()',
+    '(document:click)': 'onDocumentDismiss($event)',
+    '(document:contextmenu)': 'onDocumentDismiss($event)',
+    '(document:keydown.escape)': 'onEscape($event)',
   },
 })
-export class TwContextMenuComponent {
+export class TwContextMenuComponent implements OnDestroy {
   readonly items = input<MenuItem[]>([]);
   readonly onSelect = output<MenuItem>();
   readonly onHide = output();
@@ -218,18 +273,72 @@ export class TwContextMenuComponent {
   protected x = signal(0);
   protected y = signal(0);
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
+
+  /** The (contextmenu or click) event that opened the menu; it still bubbles to the document. */
+  private openingEvent: Event | null = null;
+
+  /** Element focused before the menu opened, refocused when the menu closes with focus inside */
+  private returnFocusTo: HTMLElement | null = null;
+
   show(event: MouseEvent): void {
     event.preventDefault();
+    this.openingEvent = event;
+    if (!this.visible()) {
+      const active = this.document.activeElement;
+      this.returnFocusTo =
+        active instanceof HTMLElement && active !== this.document.body ? active : null;
+    }
     this.x.set(event.clientX);
     this.y.set(event.clientY);
     this.visible.set(true);
+    // Join the shared Escape stack so Escape closes only this menu, not an enclosing modal
+    pushEscapeLayer(this);
+    // Move focus into the menu (WAI-ARIA menu pattern) so a keyboard-opened menu
+    // (Shift+F10 / Menu key) can be navigated with the arrow keys
+    afterNextRender(
+      () => {
+        this.elementRef.nativeElement
+          .querySelector<HTMLElement>(
+            '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+          )
+          ?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  protected onEscape(event: Event): void {
+    if (!this.visible() || !shouldHandleEscape(this, event)) return;
+    event.preventDefault();
+    this.hide();
+  }
+
+  ngOnDestroy(): void {
+    removeEscapeLayer(this);
+  }
+
+  protected onDocumentDismiss(event: Event): void {
+    // Ignore the same event that just opened the menu, otherwise it closes immediately
+    if (event === this.openingEvent) {
+      this.openingEvent = null;
+      return;
+    }
+    this.hide();
   }
 
   hide(): void {
+    removeEscapeLayer(this);
     if (this.visible()) {
+      // Focus inside the menu would be lost when it is removed: return it to the opener
+      const focusInside = this.elementRef.nativeElement.contains(this.document.activeElement);
       this.visible.set(false);
       this.onHide.emit();
+      if (focusInside) this.returnFocusTo?.focus();
     }
+    this.returnFocusTo = null;
   }
 
   onItemSelect(item: MenuItem): void {

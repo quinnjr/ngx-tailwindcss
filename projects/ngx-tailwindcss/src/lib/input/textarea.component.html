@@ -5,7 +5,7 @@
   >
     {{ label() }}
     @if (required()) {
-      <span class="text-rose-500 ml-0.5">*</span>
+      <span class="text-rose-600 dark:text-rose-400 ml-0.5">*</span>
     }
   </label>
 }
@@ -20,6 +20,7 @@
   [required]="required()"
   [rows]="rows()"
   [attr.aria-invalid]="hasError()"
+  [attr.aria-describedby]="ariaDescribedBy()"
   [attr.minlength]="minlength()"
   [attr.maxlength]="maxlength()"
   [value]="value()"
@@ -28,15 +29,22 @@
 ></textarea>
 
 @if (hint() && !error()) {
-  <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{ hint() }}</span>
+  <span [id]="hintId()" class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{
+    hint()
+  }}</span>
 }
 
 @if (error()) {
-  <span class="block text-xs text-rose-600 mt-1.5" role="alert">{{ error() }}</span>
+  <span
+    [id]="errorId()"
+    class="block text-xs text-rose-600 dark:text-rose-400 mt-1.5"
+    role="alert"
+    >{{ error() }}</span
+  >
 }
 
 @if (showCount()) {
-  <span class="block text-xs text-slate-400 mt-1 text-right">
+  <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1 text-right">
     @if (maxlength()) {
       {{ value().length }} / {{ maxlength() }}
     } @else {

@@ -100,6 +100,16 @@ describe('TwAvatarComponent', () => {
       expect(avatarEl.textContent).toContain('JD');
     });
 
+    it('should expose alt as the accessible name of the initials fallback', () => {
+      component.src.set('');
+      component.initials.set('JD');
+      fixture.detectChanges();
+
+      const initials = avatarEl.querySelector('[role="img"]');
+      expect(initials?.getAttribute('aria-label')).toBe('User Avatar');
+      expect(initials?.textContent).toContain('JD');
+    });
+
     it('should show initials when image fails to load', () => {
       component.initials.set('JD');
       fixture.detectChanges();
@@ -193,24 +203,33 @@ describe('TwAvatarComponent', () => {
 
   describe('status', () => {
     it('should not show status indicator by default', () => {
-      const status = avatarEl.querySelector(
-        '.bg-emerald-500, .bg-rose-500, .bg-amber-500, .bg-slate-400'
-      );
+      const status = avatarEl.querySelector('span.absolute.bottom-0.right-0');
       expect(status).toBeNull();
     });
 
     it('should show online status', () => {
       component.status.set('online');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-emerald-500');
+      // emerald-500 is 2.5:1 against the white border around the dot
+      const status = avatarEl.querySelector('.bg-emerald-600');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-emerald-500');
+    });
+
+    it('should expose the status to assistive technology', () => {
+      component.status.set('busy');
+      fixture.detectChanges();
+      const status = avatarEl.querySelector('.bg-rose-500');
+      expect(status?.getAttribute('role')).toBe('img');
+      expect(status?.getAttribute('aria-label')).toBe('busy');
     });
 
     it('should show offline status', () => {
       component.status.set('offline');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-slate-400');
+      const status = avatarEl.querySelector('.bg-slate-500');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-slate-400');
     });
 
     it('should show busy status', () => {
@@ -223,14 +242,15 @@ describe('TwAvatarComponent', () => {
     it('should show away status', () => {
       component.status.set('away');
       fixture.detectChanges();
-      const status = avatarEl.querySelector('.bg-amber-500');
+      const status = avatarEl.querySelector('.bg-amber-600');
       expect(status).toBeTruthy();
+      expect(status?.className).toContain('dark:bg-amber-500');
     });
   });
 
   describe('badge', () => {
     it('should not show badge by default', () => {
-      const badge = avatarEl.querySelector('.bg-rose-500.text-white');
+      const badge = avatarEl.querySelector('.bg-rose-600.text-white');
       expect(badge).toBeNull();
     });
 
@@ -244,6 +264,12 @@ describe('TwAvatarComponent', () => {
       component.badge.set(99);
       fixture.detectChanges();
       expect(avatarEl.textContent).toContain('99');
+    });
+
+    it('should draw the badge on rose-600 (white on rose-500 is below 4.5:1)', () => {
+      component.badge.set(3);
+      fixture.detectChanges();
+      expect(avatarEl.querySelector('.bg-rose-600.text-white')?.textContent).toContain('3');
     });
   });
 
@@ -317,6 +343,14 @@ describe('TwAvatarGroupComponent', () => {
       expect(groupEl.textContent).toContain('+3');
     });
 
+    it('should count hidden projected avatars when total is not set', () => {
+      component.max.set(2);
+      fixture.detectChanges();
+      fixture.detectChanges();
+
+      expect(groupEl.textContent).toContain('+1');
+    });
+
     it('should not show overflow when total is less than max', () => {
       component.max.set(10);
       component.total.set(3);
@@ -347,6 +381,26 @@ describe('TwAvatarGroupComponent', () => {
     });
   });
 
+  describe('separating ring', () => {
+    it('should ring the rounded avatar itself, not its rectangular host', () => {
+      const avatars = fixture.debugElement.queryAll(By.directive(TwAvatarComponent));
+      for (const avatar of avatars) {
+        const host = avatar.nativeElement as HTMLElement;
+        const inner = host.querySelector('.rounded-full');
+        expect(inner?.className).toContain('ring-2');
+        expect(host.className).not.toContain('ring');
+      }
+      expect(groupEl.querySelector('div')?.className).not.toContain('ring');
+    });
+
+    it('should not ring a standalone avatar', () => {
+      const single = TestBed.createComponent(TestHostComponent);
+      single.detectChanges();
+      const inner = (single.nativeElement as HTMLElement).querySelector('.rounded-full');
+      expect(inner?.className).not.toContain('ring-2');
+    });
+  });
+
   describe('size propagation', () => {
     it('should propagate the group size to projected avatars', () => {
       component.size.set('lg');
@@ -360,5 +414,79 @@ describe('TwAvatarGroupComponent', () => {
         expect(container?.className).toContain('h-12');
       }
     });
+  });
+});
+
+describe('TwAvatarComponent image failed before listeners attach (SSR hydration)', () => {
+  function stubImage(props: {
+    complete: boolean;
+    naturalWidth: number;
+    decode?: () => Promise<void>;
+  }) {
+    const proto = HTMLImageElement.prototype;
+    const saved = ['complete', 'naturalWidth', 'decode'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => props.complete });
+    Object.defineProperty(proto, 'naturalWidth', {
+      configurable: true,
+      get: () => props.naturalWidth,
+    });
+    Object.defineProperty(proto, 'decode', { configurable: true, value: props.decode });
+    return () => {
+      for (const [key, descriptor] of saved) {
+        if (descriptor) {
+          Object.defineProperty(proto, key, descriptor);
+        } else {
+          Reflect.deleteProperty(proto, key);
+        }
+      }
+    };
+  }
+
+  async function render(): Promise<ComponentFixture<TestHostComponent>> {
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.initials.set('JD');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await Promise.resolve();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('falls back to initials when the image had already failed', async () => {
+    const restore = stubImage({
+      complete: true,
+      naturalWidth: 0,
+      decode: () => Promise.reject(new Error('broken')),
+    });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain('JD');
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps an image that had already loaded', async () => {
+    const restore = stubImage({ complete: true, naturalWidth: 64 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeTruthy();
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps an image that is still loading', async () => {
+    const restore = stubImage({ complete: false, naturalWidth: 0 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeTruthy();
+    } finally {
+      restore();
+    }
   });
 });

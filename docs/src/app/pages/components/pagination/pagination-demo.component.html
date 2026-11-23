@@ -12,7 +12,7 @@
         [totalPages]="totalPages"
         (pageChange)="onPageChange($event)">
       </tw-pagination>
-      <p class="text-sm text-slate-600">Current page: {{ currentPage }}</p>
+      <p class="text-sm text-slate-600 dark:text-slate-400">Current page: {{ currentPage }}</p>
     </div>
   </app-demo-section>
 
@@ -20,11 +20,11 @@
   <app-demo-section title="Variants" [code]="variantsCode">
     <div class="space-y-6">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Default</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Default</span>
         <tw-pagination variant="default" [totalPages]="10" [currentPage]="3"></tw-pagination>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Simple</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Simple</span>
         <tw-pagination variant="simple" [totalPages]="10" [currentPage]="3"></tw-pagination>
       </div>
     </div>
@@ -34,15 +34,15 @@
   <app-demo-section title="Sizes" [code]="sizesCode">
     <div class="space-y-6">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Small</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Small</span>
         <tw-pagination size="sm" [totalPages]="10" [currentPage]="3"></tw-pagination>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Medium</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Medium</span>
         <tw-pagination size="md" [totalPages]="10" [currentPage]="3"></tw-pagination>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Large</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Large</span>
         <tw-pagination size="lg" [totalPages]="10" [currentPage]="3"></tw-pagination>
       </div>
     </div>
@@ -52,11 +52,11 @@
   <app-demo-section title="Sibling Count" [code]="siblingCountCode">
     <div class="space-y-6">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">1 sibling on each side</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">1 sibling on each side</span>
         <tw-pagination [totalPages]="20" [currentPage]="10" [siblingCount]="1"></tw-pagination>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">2 siblings on each side</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">2 siblings on each side</span>
         <tw-pagination [totalPages]="20" [currentPage]="10" [siblingCount]="2"></tw-pagination>
       </div>
     </div>

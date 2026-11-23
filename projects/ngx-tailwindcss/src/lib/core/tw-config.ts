@@ -130,13 +130,15 @@ export const DEFAULT_TW_CONFIG: TwConfig = {
   prefix: 'tw',
   animationDuration: 200,
   useAngularAnimations: true,
+  // Status fills mirror the components' AA-contrast palette (white on 700 shades,
+  // dark text on amber since white on amber-500 is ~2.1:1)
   theme: {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
     secondary: 'bg-slate-600 hover:bg-slate-700 text-white',
-    success: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-    warning: 'bg-amber-500 hover:bg-amber-600 text-white',
+    success: 'bg-emerald-700 hover:bg-emerald-800 text-white',
+    warning: 'bg-amber-500 hover:bg-amber-400 text-amber-950',
     danger: 'bg-rose-600 hover:bg-rose-700 text-white',
-    info: 'bg-cyan-600 hover:bg-cyan-700 text-white',
+    info: 'bg-cyan-700 hover:bg-cyan-800 text-white',
     neutral: 'bg-slate-200 hover:bg-slate-300 text-slate-900',
   },
 };

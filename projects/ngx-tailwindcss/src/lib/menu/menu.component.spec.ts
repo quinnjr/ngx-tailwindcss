@@ -2,8 +2,10 @@ import { Component, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { MenuItem, TwMenuComponent } from './menu.component';
+import { MenuItem, TwContextMenuComponent, TwMenuComponent } from './menu.component';
 import { TwClassService } from '../core/tw-class.service';
+import { TwModalComponent } from '../modal/modal.component';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 @Component({
   template: `
@@ -84,6 +86,30 @@ describe('TwMenuComponent', () => {
     fixture.detectChanges();
 
     expect(component.selected).toBeNull();
+  });
+
+  it('should give items a visible keyboard focus ring', () => {
+    const item = menuItems()[0];
+    expect(item.className).toContain('focus:outline-none');
+    expect(item.className).toContain('focus-visible:ring-2');
+    expect(item.className).toContain('focus-visible:ring-blue-500');
+  });
+
+  it('should render shortcuts with WCAG AA text contrast on the white menu', () => {
+    const shortcut = menuItems()[1].querySelector<HTMLElement>('span.ml-auto')!;
+    expect(shortcut.textContent?.trim()).toBe('Ctrl+S');
+    expect(shortcut.classList).toContain('text-slate-500');
+    expect(shortcut.classList).not.toContain('text-slate-400');
+    expect(shortcut.classList).toContain('dark:text-slate-400');
+  });
+
+  it('should keep shortcut contrast on the dark hover/focus background', () => {
+    const item = menuItems()[1];
+    const shortcut = item.querySelector<HTMLElement>('span.ml-auto')!;
+    // slate-400 on the slate-700 hover/focus background is only about 4:1
+    expect(item.classList).toContain('group');
+    expect(shortcut.classList).toContain('dark:group-hover:text-slate-300');
+    expect(shortcut.classList).toContain('dark:group-focus:text-slate-300');
   });
 
   describe('visible', () => {
@@ -188,6 +214,14 @@ describe('TwMenuComponent', () => {
       fixture.detectChanges();
     });
 
+    it('should render the submenu chevron at >=3:1 contrast', () => {
+      const chevron = menuItems()[0].querySelector('svg') as SVGElement;
+      const cls = chevron.getAttribute('class') ?? '';
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+    });
+
     it('should open submenu on click (Enter equivalence)', () => {
       menuItems()[0].click();
       fixture.detectChanges();
@@ -205,5 +239,277 @@ describe('TwMenuComponent', () => {
       expect(parent.getAttribute('aria-expanded')).toBe('true');
       expect(menuItems().length).toBe(2);
     });
+
+    it('should move focus to the first enabled submenu item on ArrowRight', () => {
+      component.items.set([
+        {
+          id: 1,
+          label: 'File',
+          items: [
+            { id: 10, label: 'Disabled', disabled: true },
+            { id: 11, label: 'New' },
+            { id: 12, label: 'Open' },
+          ],
+        },
+        { id: 2, label: 'Edit' },
+      ]);
+      fixture.detectChanges();
+
+      const parent = menuItems()[0];
+      parent.focus();
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      const newItem = menuItems().find(el => el.textContent?.trim() === 'New');
+      expect(document.activeElement).toBe(newItem);
+
+      // Arrow navigation stays within the submenu
+      newItem!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      expect(document.activeElement?.textContent?.trim()).toBe('Open');
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })
+      );
+      expect(document.activeElement).toBe(newItem);
+    });
+
+    it('should close the submenu on Escape and return focus to its trigger', () => {
+      const parent = menuItems()[0];
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      );
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+
+    it('should not open the submenu of a disabled item on hover', () => {
+      component.items.set([
+        { id: 1, label: 'File', disabled: true, items: [{ id: 10, label: 'New' }] },
+      ]);
+      fixture.detectChanges();
+
+      const parent = menuItems()[0];
+      parent.parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+      fixture.detectChanges();
+
+      expect(parent.getAttribute('aria-expanded')).toBe('false');
+      expect(menuItems().length).toBe(1);
+    });
+
+    it('should return focus to the trigger when the pointer leaves with focus in the submenu', () => {
+      const parent = menuItems()[0];
+      parent.click();
+      fixture.detectChanges();
+
+      // A submenu item is clicked (focused), then the pointer leaves the submenu
+      const child = menuItems()[1];
+      child.focus();
+      parent.parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+
+    it('should not move focus when the pointer leaves with focus outside the submenu', () => {
+      const outside = document.createElement('button');
+      document.body.append(outside);
+      try {
+        menuItems()[0].parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        outside.focus();
+        menuItems()[0].parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+
+        expect(document.activeElement).toBe(outside);
+      } finally {
+        outside.remove();
+      }
+    });
+
+    it('should close the submenu on ArrowLeft and return focus to its trigger', () => {
+      const parent = menuItems()[0];
+      parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+
+      const child = menuItems()[1];
+      child.focus();
+      child.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+  });
+});
+
+@Component({
+  template: `
+    <div class="target" (contextmenu)="cm.show($event)">Right-click me</div>
+    <tw-context-menu #cm [items]="items" (onHide)="hideCount = hideCount + 1"></tw-context-menu>
+  `,
+  standalone: true,
+  imports: [TwContextMenuComponent],
+})
+class ContextMenuHostComponent {
+  items: MenuItem[] = [{ label: 'Copy' }, { label: 'Paste' }];
+  hideCount = 0;
+}
+
+describe('TwContextMenuComponent', () => {
+  let fixture: ComponentFixture<ContextMenuHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ContextMenuHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ContextMenuHostComponent);
+    fixture.detectChanges();
+  });
+
+  const openMenu = () => {
+    const target = fixture.nativeElement.querySelector('.target') as HTMLElement;
+    target.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 })
+    );
+    fixture.detectChanges();
+  };
+
+  it('should stay open after the contextmenu event bubbles to the document', () => {
+    openMenu();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeTruthy();
+    expect(fixture.componentInstance.hideCount).toBe(0);
+  });
+
+  it('should hide on a later document click', () => {
+    openMenu();
+    document.body.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.hideCount).toBe(1);
+  });
+});
+
+describe('TwContextMenuComponent dismissal', () => {
+  @Component({
+    template: `
+      <button type="button" class="more" (click)="cm.show($event)">More</button>
+      <tw-context-menu #cm [items]="items" (onHide)="hideCount = hideCount + 1"></tw-context-menu>
+    `,
+    standalone: true,
+    imports: [TwContextMenuComponent],
+  })
+  class ClickOpenHostComponent {
+    items: MenuItem[] = [{ label: 'Copy' }];
+    hideCount = 0;
+  }
+
+  let fixture: ComponentFixture<ClickOpenHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ClickOpenHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ClickOpenHostComponent);
+    fixture.detectChanges();
+  });
+
+  const open = () => {
+    (fixture.nativeElement.querySelector('.more') as HTMLButtonElement).click();
+    fixture.detectChanges();
+  };
+
+  it('should stay open when opened from a click that bubbles to the document', () => {
+    open();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeTruthy();
+    expect(fixture.componentInstance.hideCount).toBe(0);
+  });
+
+  it('should close on Escape', () => {
+    open();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.hideCount).toBe(1);
+  });
+
+  it('should move focus into the menu on open and back to the opener on Escape', () => {
+    const opener = fixture.nativeElement.querySelector('.more') as HTMLButtonElement;
+    opener.focus();
+    open();
+    const item = fixture.nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+    expect(document.activeElement).toBe(item);
+
+    // Arrow keys work because focus is inside the menu
+    item.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(item);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('should return focus to the opener after selecting an item', () => {
+    const opener = fixture.nativeElement.querySelector('.more') as HTMLButtonElement;
+    opener.focus();
+    open();
+    (fixture.nativeElement.querySelector('[role="menuitem"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe('TwContextMenuComponent inside a modal', () => {
+  @Component({
+    template: `
+      <tw-modal [open]="modalOpen()" (openChange)="modalOpen.set($event)">
+        <div class="target" (contextmenu)="cm.show($event)">Right-click me</div>
+        <tw-context-menu #cm [items]="items"></tw-context-menu>
+      </tw-modal>
+    `,
+    standalone: true,
+    imports: [TwModalComponent, TwContextMenuComponent],
+  })
+  class ContextMenuInModalHostComponent {
+    items: MenuItem[] = [{ label: 'Copy' }];
+    modalOpen = signal(true);
+  }
+
+  it('should close only the context menu on Escape, not the enclosing modal', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ContextMenuInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ContextMenuInModalHostComponent);
+    fixture.detectChanges();
+
+    document
+      .querySelector('.target')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+    expect(document.querySelector('tw-context-menu [role="menu"]')).toBeTruthy();
+
+    const escape = () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+    escape();
+    fixture.detectChanges();
+    expect(document.querySelector('tw-context-menu [role="menu"]')).toBeNull();
+    expect(fixture.componentInstance.modalOpen()).toBe(true);
+
+    escape();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.modalOpen()).toBe(false);
+    fixture.destroy();
   });
 });

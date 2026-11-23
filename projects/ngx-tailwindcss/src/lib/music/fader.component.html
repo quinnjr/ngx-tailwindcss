@@ -1,6 +1,5 @@
 <div
   [class]="containerClasses()"
-  [class]="colors().container"
   [style.width.px]="dimensions().width"
   [style.height.px]="dimensions().height"
 >
@@ -79,13 +78,7 @@
           class="absolute"
           [class.transition-all]="!effectiveReducedMotion()"
           [class.duration-75]="!effectiveReducedMotion()"
-          [style.background]="'linear-gradient(to top, rgb(34, 197, 94) 0%, rgb(34, 197, 94) 60%, rgb(234, 179, 8) 75%, rgb(239, 68, 68) 90%)'"
-          [style]="{
-            height: orientation() === 'vertical' ? peakLevel() + '%' : '100%',
-            width: orientation() === 'horizontal' ? peakLevel() + '%' : '100%',
-            bottom: orientation() === 'vertical' ? 0 : 'auto',
-            left: orientation() === 'horizontal' ? 0 : 'auto',
-          }"
+          [style]="peakFillStyle()"
         ></div>
 
         <!-- Peak hold indicator line -->
@@ -140,10 +133,8 @@
           [style]="{
             width: orientation() === 'vertical' ? '100%' : '2px',
             height: orientation() === 'vertical' ? '2px' : '100%',
-            bottom:
-              orientation() === 'vertical' ? ((0 - min()) / (max() - min())) * 100 + '%' : 'auto',
-            left:
-              orientation() === 'horizontal' ? ((0 - min()) / (max() - min())) * 100 + '%' : 'auto',
+            bottom: orientation() === 'vertical' ? trackPercent(0) + '%' : 'auto',
+            left: orientation() === 'horizontal' ? trackPercent(0) + '%' : 'auto',
           }"
         ></div>
       }
@@ -155,12 +146,8 @@
           [style]="{
             width: orientation() === 'vertical' ? '100%' : '1px',
             height: orientation() === 'vertical' ? '1px' : '100%',
-            bottom:
-              orientation() === 'vertical' ? ((-10 - min()) / (max() - min())) * 100 + '%' : 'auto',
-            left:
-              orientation() === 'horizontal'
-                ? ((-10 - min()) / (max() - min())) * 100 + '%'
-                : 'auto',
+            bottom: orientation() === 'vertical' ? trackPercent(-10) + '%' : 'auto',
+            left: orientation() === 'horizontal' ? trackPercent(-10) + '%' : 'auto',
           }"
         ></div>
       }
@@ -224,13 +211,15 @@
   @if (showValue()) {
     <div
       class="text-xs font-mono text-center min-w-[48px] px-1.5 py-1 rounded"
-      [class]="colors().text"
+      [class]="colors().valueText"
       [class.bg-slate-900]="variant() === 'channel'"
       [class.bg-slate-800]="variant() !== 'minimal' && variant() !== 'channel'"
       [class.border]="variant() === 'channel'"
       [class.border-slate-700]="variant() === 'channel'"
     >
-      {{ displayValue() }} <span class="text-[10px] opacity-70">dB</span>
+      <!-- No dimming on the chipless minimal variant: slate-700 at 70% is ~4.3:1 on white -->
+      {{ displayValue() }}
+      <span class="text-[10px]" [class.opacity-70]="variant() !== 'minimal'">dB</span>
     </div>
   }
 </div>

@@ -90,6 +90,19 @@ describe('TwSidebarComponent', () => {
     expect(component.sidebar).toBeTruthy();
   });
 
+  it('should keep the header title readable on the dark-mode panel', () => {
+    const title = panelEl().querySelector('h2') as HTMLElement;
+    expect(title.textContent).toContain('Menu');
+    expect(title.className).toContain('dark:text-slate-100');
+  });
+
+  it('should render the icon-only close button at >=3:1 contrast', () => {
+    const btn = panelEl().querySelector('button[aria-label="Close sidebar"]')!;
+    expect(btn.className).toContain('text-slate-500');
+    expect(btn.className).toContain('dark:text-slate-400');
+    expect(btn.className).not.toMatch(/(^|\s)text-slate-400/);
+  });
+
   it('should start hidden with the panel off-screen and inert', () => {
     expect(panelEl().className).toContain('-translate-x-full');
     expect(panelEl().hasAttribute('inert')).toBe(true);
@@ -151,6 +164,16 @@ describe('TwSidebarComponent', () => {
       fixture.detectChanges();
       expect(document.body.style.overflow).toBe('scroll');
     });
+
+    it('should restore body scroll when destroyed while visible', () => {
+      document.body.style.overflow = 'scroll';
+      component.visible.set(true);
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fixture.destroy();
+      expect(document.body.style.overflow).toBe('scroll');
+    });
   });
 
   describe('dismissal', () => {
@@ -185,6 +208,29 @@ describe('TwSidebarComponent', () => {
   it('should render the header text', () => {
     expect(panelEl().textContent).toContain('Menu');
   });
+
+  describe('focus management', () => {
+    it('should move focus into the modal panel on open and restore it on close', () => {
+      vi.useFakeTimers();
+      try {
+        const opener = document.createElement('button');
+        document.body.append(opener);
+        opener.focus();
+
+        component.visible.set(true);
+        fixture.detectChanges();
+        vi.runAllTimers();
+        expect(panelEl().contains(document.activeElement)).toBe(true);
+
+        component.visible.set(false);
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(opener);
+        opener.remove();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 describe('TwSidebarComponent footer projection', () => {
@@ -216,5 +262,51 @@ describe('TwSidebarComponent footer projection', () => {
     expect(attrFooter).toBeTruthy();
     expect(attrFooter.nativeElement.textContent).toContain('Attribute footer');
     document.body.style.overflow = '';
+  });
+});
+
+@Component({
+  template: `
+    <tw-sidebar [(visible)]="visible" [ariaLabel]="label()" [ariaLabelledBy]="labelledBy()">
+      <h3 id="nav-heading">Navigation</h3>
+    </tw-sidebar>
+  `,
+  standalone: true,
+  imports: [TwSidebarComponent],
+})
+class HeaderlessHostComponent {
+  visible = signal(true);
+  label = signal('');
+  labelledBy = signal('');
+}
+
+describe('TwSidebarComponent accessible name without a header', () => {
+  let fixture: ComponentFixture<HeaderlessHostComponent>;
+  const dialog = () =>
+    fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HeaderlessHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(HeaderlessHostComponent);
+  });
+
+  afterEach(() => {
+    document.body.style.overflow = '';
+  });
+
+  it('should name the dialog from the ariaLabel input', () => {
+    fixture.componentInstance.label.set('Main navigation');
+    fixture.detectChanges();
+    expect(dialog().getAttribute('aria-label')).toBe('Main navigation');
+  });
+
+  it('should name the dialog from a projected heading via ariaLabelledBy', () => {
+    fixture.componentInstance.labelledBy.set('nav-heading');
+    fixture.detectChanges();
+    expect(dialog().getAttribute('aria-labelledby')).toBe('nav-heading');
+    expect(dialog().hasAttribute('aria-label')).toBe(false);
   });
 });

@@ -6,17 +6,21 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   NgZone,
   OnChanges,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   SimpleChanges,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type WaveformVariant = 'bars' | 'line' | 'mirror' | 'gradient';
 export type WaveformColorScheme = 'blue' | 'green' | 'purple' | 'orange' | 'mono';
@@ -101,7 +105,10 @@ const COLOR_SCHEMES: Record<WaveformColorScheme, WaveformColors> = {
 export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly injector = inject(Injector);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('waveformCanvas');
+  private stopDprWatch: (() => void) | null = null;
 
   // Data inputs
   readonly audioBuffer = input<AudioBuffer | null>(null);
@@ -211,7 +218,17 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     if ((changes['audioBuffer'] || changes['peaks']) && this.mode() === 'static') {
       this.processPeaks();
     }
-    if (changes['width'] || changes['height'] || changes['variant'] || changes['colorScheme']) {
+    if (
+      changes['width'] ||
+      changes['height'] ||
+      changes['size'] ||
+      changes['barWidth'] ||
+      changes['barGap'] ||
+      changes['barRadius'] ||
+      changes['variant'] ||
+      changes['colorScheme']
+    ) {
+      // Resizing the canvas clears it, so every geometry input needs a redraw
       this.draw();
     }
     if (changes['mode']) {
@@ -228,6 +245,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     this.stopRealTimeMode();
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
@@ -311,8 +330,9 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   });
 
   protected readonly scrollbarPosition = computed(() => {
-    // Position of scrollbar thumb
-    return this.panPosition() * (100 - this.scrollbarWidth());
+    // Left edge of the thumb (%): panPosition is already the visible window's
+    // left edge as a fraction of the whole waveform
+    return this.panPosition() * 100;
   });
 
   protected readonly containerClasses = computed(() => {
@@ -323,18 +343,36 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   });
 
   protected readonly canvasClasses = computed(() => {
-    return this.twClass.merge('block', this.seekable() ? 'cursor-pointer' : '');
+    // Seekable canvas is a focusable slider: the UA focus ring is drawn outside
+    // it and clipped by the overflow-hidden container, so draw one inside
+    return this.twClass.merge(
+      'block',
+      this.seekable()
+        ? 'cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-400'
+        : ''
+    );
   });
 
   protected readonly colors = computed(() => COLOR_SCHEMES[this.colorScheme()]);
 
   // Canvas initialization
   private initCanvas(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable); with
+    // no context every draw path is a no-op
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvasEl = this.canvas()?.nativeElement;
     if (!canvasEl) return;
 
     this.ctx = canvasEl.getContext('2d');
     this.draw();
+
+    // A static waveform is only drawn on changes: redraw it at the new
+    // resolution after browser zoom or a move to a different-density screen
+    // (the realtime loop re-sizes the backing store every frame anyway)
+    this.stopDprWatch ??= watchDevicePixelRatio(() => {
+      this.draw();
+    });
   }
 
   // Process audio data into peaks
@@ -344,12 +382,15 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     const token = ++this.peakProcessToken;
 
     if (inputPeaks.length > 0) {
+      // A superseded chunked scan must not leave the loading overlay up
+      this.loading.set(false);
       this.peakData = inputPeaks;
       this.draw();
       return;
     }
 
     if (!buffer) {
+      this.loading.set(false);
       this.peakData = [];
       this.draw();
       return;
@@ -361,7 +402,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     try {
       const channelData = buffer.getChannelData(0);
       const width = this.effectiveWidth();
-      const samplesPerPixel = Math.floor(channelData.length / width);
+      // At least one sample per pixel so very short buffers still produce peaks
+      const samplesPerPixel = Math.max(1, Math.floor(channelData.length / width));
 
       // Small buffers: scan synchronously
       if (channelData.length <= 262_144) {
@@ -487,6 +529,7 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     // Get time domain data
     analyser.getByteTimeDomainData(this.timeDomainData);
 
+    this.prepareCanvas();
     const variant = this.variant();
     switch (variant) {
       case 'bars': {
@@ -549,7 +592,8 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     for (let i = 0; i < bufferLength; i++) {
       // Convert byte (0-255) to normalized (-1 to 1)
       const v = (this.timeDomainData[i] / 128 - 1) * gainValue;
-      const y = (v * h) / 2 + h / 2;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = h / 2 - (v * h) / 2;
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -704,17 +748,21 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     // In realtime mode, drawing is handled by drawRealTime loop
     if (this.mode() === 'realtime') return;
 
+    // A pending frame from earlier data must not paint over the empty state
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+
     if (!this.ctx || this.peakData.length === 0) {
       this.drawEmpty();
       return;
     }
 
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-    }
-
     this.zone.runOutsideAngular(() => {
       this.animationFrame = requestAnimationFrame(() => {
+        this.animationFrame = null;
+        this.prepareCanvas();
         const variant = this.variant();
         switch (variant) {
           case 'bars': {
@@ -738,9 +786,20 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     });
   }
 
+  /**
+   * Size the canvas backing store for the device pixel ratio and scale the
+   * context, so every draw method works in CSS pixels (effectiveWidth/Height).
+   */
+  private prepareCanvas(): void {
+    const canvasEl = this.canvas()?.nativeElement;
+    if (!canvasEl || !this.ctx) return;
+    prepareHiDpiCanvas(canvasEl, this.ctx, this.effectiveWidth(), this.effectiveHeight());
+  }
+
   private drawEmpty(): void {
     if (!this.ctx) return;
 
+    this.prepareCanvas();
     const colors = this.colors();
     this.ctx.fillStyle = colors.background;
     this.ctx.fillRect(0, 0, this.effectiveWidth(), this.effectiveHeight());
@@ -843,10 +902,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
 
     // Draw progress overlay (convert progress to view coordinates)
     const progressInView = (progress - viewStart) / viewWidth;
-    if (progressInView > 0 && progressInView < 1) {
+    // Progress past the visible window (zoomed, or at the very end) colours
+    // the whole view as played, like the bars variant
+    if (progressInView > 0) {
       this.ctx.save();
       this.ctx.beginPath();
-      this.ctx.rect(0, 0, progressInView * w, h);
+      this.ctx.rect(0, 0, Math.min(1, progressInView) * w, h);
       this.ctx.clip();
 
       this.ctx.beginPath();
@@ -915,10 +976,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
 
     // Progress fill
     const progressInView = (progress - viewStart) / viewWidth;
-    if (progressInView > 0 && progressInView < 1) {
+    // Progress past the visible window (zoomed, or at the very end) colours
+    // the whole view as played, like the bars variant
+    if (progressInView > 0) {
       this.ctx.save();
       this.ctx.beginPath();
-      this.ctx.rect(0, 0, progressInView * w, h);
+      this.ctx.rect(0, 0, Math.min(1, progressInView) * w, h);
       this.ctx.clip();
 
       this.ctx.beginPath();
@@ -1023,6 +1086,54 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.seek.emit(position);
   }
 
+  /** Keyboard seeking for the focusable (seekable) canvas */
+  onCanvasKeydown(event: KeyboardEvent): void {
+    if (!this.seekable()) return;
+
+    const current = Math.max(0, Math.min(1, this.progress()));
+    const step = event.shiftKey ? 0.1 : 0.01;
+    let next: number;
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowUp': {
+        next = current + step;
+        break;
+      }
+      case 'ArrowLeft':
+      case 'ArrowDown': {
+        next = current - step;
+        break;
+      }
+      case 'PageUp': {
+        next = current + 0.1;
+        break;
+      }
+      case 'PageDown': {
+        next = current - 0.1;
+        break;
+      }
+      case 'Home': {
+        next = 0;
+        break;
+      }
+      case 'End': {
+        next = 1;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    const target = Math.max(0, Math.min(1, next));
+    // Panning a zoomed view is otherwise pointer-only (wheel, shift/middle
+    // drag, scrollbar click), so bring the keyboard seek target into view
+    if (this.zoomLevel() > 1) {
+      this.panToPosition(target);
+    }
+    this.seek.emit(target);
+  }
+
   onMouseDown(event: MouseEvent): void {
     if (this.selectable()) {
       this.isDragging.set(true);
@@ -1117,6 +1228,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.draw();
   }
 
+  // Zoom out/in disable themselves at the zoom limits and Reset zoom removes
+  // itself once back at 100%: keep keyboard focus in the zoom controls
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
+  }
+
   resetZoom(): void {
     this.zoomLevel.set(1);
     this.panPosition.set(0);
@@ -1127,12 +1244,18 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   zoomToRegion(start: number, end: number): void {
-    const regionWidth = end - start;
-    const newZoom = Math.min(this.maxZoom(), 1 / regionWidth);
+    const lo = Math.max(0, Math.min(start, end));
+    const hi = Math.min(1, Math.max(start, end));
+    const regionWidth = hi - lo;
+    if (regionWidth <= 0) return;
+    const newZoom = Math.max(this.minZoom(), Math.min(this.maxZoom(), 1 / regionWidth));
+    // Center the region and keep the visible window inside 0..1
+    const visibleWidth = 1 / newZoom;
+    const newPan = Math.max(0, Math.min(1 - visibleWidth, lo + regionWidth / 2 - visibleWidth / 2));
     this.zoomLevel.set(newZoom);
-    this.panPosition.set(start);
+    this.panPosition.set(newPan);
     this.zoomChange.emit(newZoom);
-    this.panChange.emit(start);
+    this.panChange.emit(newPan);
     this.emitViewRange();
     this.draw();
   }
@@ -1295,10 +1418,10 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     const scrollbarEl = event.currentTarget as HTMLElement;
     const rect = scrollbarEl.getBoundingClientRect();
     const thumbWidth = this.scrollbarWidth() / 100;
-    const availableWidth = 1 - thumbWidth;
 
+    // Centre the thumb (the visible window) on the clicked point
     const relativeX = (event.clientX - rect.left) / rect.width;
-    const newPan = (relativeX - thumbWidth / 2) / (1 - thumbWidth);
+    const newPan = relativeX - thumbWidth / 2;
 
     this.setPan(Math.max(0, Math.min(1 - 1 / this.zoomLevel(), newPan)));
   }

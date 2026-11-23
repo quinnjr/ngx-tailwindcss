@@ -1,7 +1,8 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { Observable, Subject } from 'rxjs';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 export interface UpdateInfo {
   currentVersion: string;
@@ -23,7 +24,7 @@ export type UpdateStatus =
 @Injectable({
   providedIn: 'root',
 })
-export class UpdateService {
+export class UpdateService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
 
   public readonly status = signal<UpdateStatus>('idle');
@@ -36,6 +37,9 @@ export class UpdateService {
   private readonly downloadProgress$ = new Subject<UpdateProgress>();
   private readonly updateDownloaded$ = new Subject<void>();
   private readonly updateError$ = new Subject<string>();
+
+  private readonly unsubscribers: Array<() => void> = [];
+  private destroyed = false;
 
   constructor() {
     this.checkSupport();
@@ -132,29 +136,35 @@ export class UpdateService {
 
   private async setupElectronListeners(): Promise<void> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
+      // Destroyed while the bridge was resolving: don't attach listeners
+      if (this.destroyed) return;
 
-      ipcRenderer.on('update-available', (_event: unknown, info: UpdateInfo) => {
+      const listen = (channel: string, listener: (event: unknown, ...args: any[]) => void) => {
+        this.unsubscribers.push(subscribeElectronIpc(ipcRenderer, channel, listener));
+      };
+
+      listen('update-available', (_event: unknown, info: UpdateInfo) => {
         this.status.set('available');
         this.updateInfo.set(info);
         this.updateAvailable$.next(info);
       });
 
-      ipcRenderer.on('update-not-available', () => {
+      listen('update-not-available', () => {
         this.status.set('not-available');
       });
 
-      ipcRenderer.on('download-progress', (_event: unknown, progress: UpdateProgress) => {
+      listen('download-progress', (_event: unknown, progress: UpdateProgress) => {
         this.progress.set(progress);
         this.downloadProgress$.next(progress);
       });
 
-      ipcRenderer.on('update-downloaded', () => {
+      listen('update-downloaded', () => {
         this.status.set('downloaded');
         this.updateDownloaded$.next();
       });
 
-      ipcRenderer.on('update-error', (_event: unknown, error: string) => {
+      listen('update-error', (_event: unknown, error: string) => {
         this.status.set('error');
         this.error.set(error);
         this.updateError$.next(error);
@@ -162,6 +172,16 @@ export class UpdateService {
     } catch (error) {
       console.error('Failed to setup Electron updater listeners:', error);
     }
+  }
+
+  /** Remove the updater IPC listeners and complete the event streams. */
+  public ngOnDestroy(): void {
+    this.destroyed = true;
+    for (const unsubscribe of this.unsubscribers.splice(0)) unsubscribe();
+    this.updateAvailable$.complete();
+    this.downloadProgress$.complete();
+    this.updateDownloaded$.complete();
+    this.updateError$.complete();
   }
 
   private async checkTauriUpdates(): Promise<UpdateInfo | null> {
@@ -189,7 +209,7 @@ export class UpdateService {
   }
 
   private async checkElectronUpdates(): Promise<UpdateInfo | null> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     const result = (await ipcRenderer.invoke('check-for-updates')) as {
       updateAvailable?: boolean;
       currentVersion?: string;
@@ -263,7 +283,7 @@ export class UpdateService {
   }
 
   private async downloadElectronUpdate(): Promise<void> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     ipcRenderer.send('download-update');
   }
 
@@ -273,7 +293,7 @@ export class UpdateService {
   }
 
   private async installElectronUpdate(): Promise<void> {
-    const { ipcRenderer } = await dynamicImport('electron');
+    const { ipcRenderer } = await loadElectronIpc();
     ipcRenderer.send('quit-and-install');
   }
 }

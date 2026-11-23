@@ -56,7 +56,7 @@
           [class.bg-green-500]="!disabled()"
           [class.bg-gray-400]="disabled()"
           [class.hover:bg-green-600]="!disabled()"
-          [attr.aria-label]="platformService.windowState().isMaximized ? 'Restore' : 'Maximize'"
+          [attr.aria-label]="maximizeLabel()"
           [disabled]="disabled()"
           (click)="onMaximize()"
         >
@@ -109,7 +109,7 @@
         <button
           type="button"
           class="w-11 h-8 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          [attr.aria-label]="platformService.windowState().isMaximized ? 'Restore' : 'Maximize'"
+          [attr.aria-label]="maximizeLabel()"
           [disabled]="disabled()"
           (click)="onMaximize()"
         >
@@ -185,7 +185,7 @@
         <button
           type="button"
           class="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          [attr.aria-label]="platformService.windowState().isMaximized ? 'Restore' : 'Maximize'"
+          [attr.aria-label]="maximizeLabel()"
           [disabled]="disabled()"
           (click)="onMaximize()"
         >

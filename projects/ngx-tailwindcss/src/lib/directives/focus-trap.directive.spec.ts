@@ -155,3 +155,47 @@ describe('TwFocusTrapDirective', () => {
     expect(document.activeElement).toBe(middleButton);
   });
 });
+
+@Component({
+  template: `
+    <button data-testid="opener">Open</button>
+    <div [twFocusTrap]="open()" data-testid="dialog">
+      <button data-testid="inside">Inside</button>
+    </div>
+  `,
+  standalone: true,
+  imports: [TwFocusTrapDirective],
+})
+class ToggleHostComponent {
+  open = signal(false);
+}
+
+describe('TwFocusTrapDirective toggled via its input', () => {
+  it('should return focus to the opener each time the trap is deactivated', async () => {
+    const fixture = TestBed.createComponent(ToggleHostComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    document.body.append(root);
+    const opener = root.querySelector<HTMLElement>('[data-testid="opener"]')!;
+    const inside = root.querySelector<HTMLElement>('[data-testid="inside"]')!;
+
+    try {
+      for (let cycle = 0; cycle < 2; cycle++) {
+        opener.focus();
+        fixture.componentInstance.open.set(true);
+        fixture.detectChanges();
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, 0);
+        });
+        expect(document.activeElement).toBe(inside);
+
+        fixture.componentInstance.open.set(false);
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(opener);
+      }
+    } finally {
+      fixture.destroy();
+      root.remove();
+    }
+  });
+});

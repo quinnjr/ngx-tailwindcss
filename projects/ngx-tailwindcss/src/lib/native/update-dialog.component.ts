@@ -1,6 +1,18 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  HostListener,
+  inject,
+  Injector,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
+import { refocusIfLost } from './native-focus.util';
 
 export interface UpdateDialogInfo {
   currentVersion: string;
@@ -30,6 +42,13 @@ export class TwUpdateDialogComponent {
   public readonly closed = output();
 
   public readonly isOpen = signal(false);
+
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
   public readonly isDownloading = signal(false);
   public readonly downloadProgress = signal(0);
   public readonly autoUpdate = signal(true);
@@ -39,6 +58,12 @@ export class TwUpdateDialogComponent {
     this.isDownloading.set(false);
     this.downloadProgress.set(0);
     this.isOpen.set(true);
+  }
+
+  /** Escape closes a non-mandatory update dialog, like its backdrop. */
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event)) this.close();
   }
 
   public close(): void {
@@ -52,12 +77,21 @@ export class TwUpdateDialogComponent {
     this.isDownloading.set(true);
     this.downloadProgress.set(0);
     this.downloadStarted.emit();
+    // The Download button is swapped for Cancel; keep keyboard focus on the swap
+    this.refocusAction('[data-update-cancel]');
   }
 
   public cancelDownload(): void {
     this.isDownloading.set(false);
     this.downloadProgress.set(0);
     this.downloadCancelled.emit();
+    this.refocusAction('[data-update-download]');
+  }
+
+  private refocusAction(selector: string): void {
+    refocusIfLost(this.injector, () =>
+      this.elementRef.nativeElement.querySelector<HTMLElement>(selector)
+    );
   }
 
   public installUpdate(): void {

@@ -2,14 +2,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
+  linkedSignal,
   NgZone,
   numberAttribute,
   OnDestroy,
   OnInit,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -98,6 +101,40 @@ export const ACCENT_PRESETS: Record<TimeSignature, AccentPattern[]> = {
   ],
 };
 
+// Beat-dot colours. Resting shades are >= 3:1 on slate-800, black and white;
+// the current/hover shades are lighter on the dark surfaces and darker on the
+// (transparent) minimal variant's light page.
+const ACCENT_DOT_CLASSES: Record<AccentLevel, string> = {
+  none: 'bg-slate-500',
+  soft: 'bg-blue-500',
+  medium: 'bg-amber-600',
+  strong: 'bg-red-600',
+};
+const ACCENT_DOT_CURRENT: Record<AccentLevel, string> = {
+  none: 'bg-slate-400',
+  soft: 'bg-blue-400',
+  medium: 'bg-amber-400',
+  strong: 'bg-red-400',
+};
+const ACCENT_DOT_CURRENT_LIGHT: Record<AccentLevel, string> = {
+  none: 'bg-slate-700 dark:bg-slate-400',
+  soft: 'bg-blue-700 dark:bg-blue-400',
+  medium: 'bg-amber-700 dark:bg-amber-400',
+  strong: 'bg-red-700 dark:bg-red-400',
+};
+const ACCENT_DOT_HOVER: Record<AccentLevel, string> = {
+  none: 'enabled:hover:bg-slate-400',
+  soft: 'enabled:hover:bg-blue-400',
+  medium: 'enabled:hover:bg-amber-400',
+  strong: 'enabled:hover:bg-red-400',
+};
+const ACCENT_DOT_HOVER_LIGHT: Record<AccentLevel, string> = {
+  none: 'enabled:hover:bg-slate-700 dark:enabled:hover:bg-slate-400',
+  soft: 'enabled:hover:bg-blue-700 dark:enabled:hover:bg-blue-400',
+  medium: 'enabled:hover:bg-amber-700 dark:enabled:hover:bg-amber-400',
+  strong: 'enabled:hover:bg-red-700 dark:enabled:hover:bg-red-400',
+};
+
 @Component({
   selector: 'tw-metronome',
   standalone: true,
@@ -134,11 +171,28 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
 
   protected readonly isPlaying = signal(false);
   protected readonly currentBeat = signal(0);
-  protected readonly currentBpm = signal(120);
+  // Tracks the bpm input, but can be changed locally (buttons, slider, tap tempo)
+  protected readonly currentBpm = linkedSignal(() => this.bpm());
+  // Tracks the timeSignature input, but can be changed locally via the selector buttons
+  protected readonly currentTimeSignature = linkedSignal(() => this.timeSignature());
   protected readonly pendulumAngle = signal(0);
   protected readonly tapTimes = signal<number[]>([]);
-  protected readonly internalAccentPattern = signal<AccentLevel[]>([]);
-  protected readonly selectedPresetIndex = signal(0);
+  // Working accent pattern: tracks the accentPattern input (or, when none is
+  // bound, the default pattern of the current time signature) but can be edited
+  // locally (beat clicks, presets). Edits are emitted via accentPatternChange,
+  // so [(accentPattern)] two-way binding works.
+  protected readonly internalAccentPattern = linkedSignal<AccentLevel[]>(() => {
+    const custom = this.accentPattern();
+    if (custom && custom.length > 0) {
+      return [...custom];
+    }
+    return this.defaultAccentPattern(this.currentTimeSignature());
+  });
+  // -1 when the default pattern is not a preset (accentFirstBeat=false)
+  protected readonly selectedPresetIndex = linkedSignal<number>(() => {
+    this.currentTimeSignature();
+    return this.accentFirstBeat() ? 0 : -1;
+  });
   /** True when the AudioContext could not resume without a user gesture (e.g. autoStart). */
   protected readonly needsGesture = signal(false);
 
@@ -146,6 +200,8 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   protected readonly Math = Math;
 
   private audioContext: AudioContext | null = null;
+  private starting = false;
+  private destroyed = false;
 
   // Lookahead scheduling state (see https://web.dev/audio-scheduling/)
   private schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -156,13 +212,25 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   private static readonly SCHEDULER_INTERVAL_MS = 25;
   private static readonly LOOKAHEAD_SECONDS = 0.1;
 
+  constructor() {
+    // Disabling a running metronome stops it: the Start/Stop button is disabled too, so the
+    // clicks would otherwise carry on with no way to stop them
+    effect(() => {
+      if (this.disabled() && untracked(() => this.isPlaying())) {
+        untracked(() => {
+          this.stop();
+        });
+      }
+    });
+  }
+
   protected readonly beatsPerMeasure = computed(() => {
-    const sig = this.timeSignature();
+    const sig = this.currentTimeSignature();
     return parseInt(sig.split('/')[0], 10);
   });
 
   protected readonly beatUnit = computed(() => {
-    const sig = this.timeSignature();
+    const sig = this.currentTimeSignature();
     return parseInt(sig.split('/')[1], 10);
   });
 
@@ -171,13 +239,8 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return Array.from({ length: count }, (_, i) => i + 1);
   });
 
-  // Get effective accent pattern (custom > preset > legacy)
+  // Get effective accent pattern (custom/edited/preset > legacy)
   protected readonly effectiveAccentPattern = computed((): AccentLevel[] => {
-    const custom = this.accentPattern();
-    if (custom && custom.length > 0) {
-      return custom;
-    }
-
     const internal = this.internalAccentPattern();
     if (internal.length > 0) {
       return internal;
@@ -191,7 +254,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
 
   // Available presets for current time signature
   protected readonly availablePresets = computed((): AccentPattern[] => {
-    return ACCENT_PRESETS[this.timeSignature()] || [];
+    return ACCENT_PRESETS[this.currentTimeSignature()] || [];
   });
 
   // Get accent level for a specific beat (1-based)
@@ -201,27 +264,40 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return pattern[index] || 'none';
   }
 
-  // Get visual class for accent indicator
-  protected getAccentIndicatorClass(beatNum: number): string {
+  // Get visual class for accent indicator. Resting dots keep 3:1 against the
+  // dark surfaces and (minimal) a light page; the current beat and hover use a
+  // lighter shade on dark surfaces and a darker one on a light page.
+  protected getAccentIndicatorClass(beatNum: number, interactive = true): string {
     const level = this.getAccentForBeat(beatNum);
     const isCurrent = this.currentBeat() === beatNum && this.isPlaying();
+    const minimal = this.variant() === 'minimal';
 
-    const baseClasses = 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer';
+    const baseClasses = interactive
+      ? 'w-4 h-4 rounded-full transition-all duration-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
+      : 'inline-block w-4 h-4 rounded-full transition-all duration-100';
 
-    const levelClasses: Record<AccentLevel, string> = {
-      none: isCurrent ? 'bg-slate-400 scale-110' : 'bg-slate-600 hover:bg-slate-500',
-      soft: isCurrent ? 'bg-blue-400 scale-110' : 'bg-blue-600/60 hover:bg-blue-500/60',
-      medium: isCurrent ? 'bg-amber-400 scale-110' : 'bg-amber-600/70 hover:bg-amber-500/70',
-      strong: isCurrent ? 'bg-red-400 scale-125' : 'bg-red-600 hover:bg-red-500',
-    };
-
-    return `${baseClasses} ${levelClasses[level]}`;
+    if (isCurrent) {
+      const current = minimal ? ACCENT_DOT_CURRENT_LIGHT[level] : ACCENT_DOT_CURRENT[level];
+      return `${baseClasses} ${current} ${level === 'strong' ? 'scale-125' : 'scale-110'}`;
+    }
+    const rest = `${baseClasses} ${ACCENT_DOT_CLASSES[level]}`;
+    if (!interactive) return rest;
+    return `${rest} ${minimal ? ACCENT_DOT_HOVER_LIGHT[level] : ACCENT_DOT_HOVER[level]}`;
   }
 
+  /** Resting dot colours, also used by the legend */
+  protected readonly accentDotClasses = ACCENT_DOT_CLASSES;
+
+  // Whole subdivisions per beat (>= 1); shared by the interval and the beat counter
+  private readonly effectiveSubdivisions = computed(() =>
+    Math.max(1, Math.floor(this.subdivisions()) || 1)
+  );
+
   protected readonly intervalMs = computed(() => {
+    // A zero/negative/NaN tempo would stall or (negative) spin the lookahead loop forever
     const bpm = this.currentBpm();
-    const subs = this.subdivisions();
-    return 60_000 / bpm / subs;
+    const safeBpm = Number.isFinite(bpm) && bpm > 0 ? bpm : 120;
+    return 60_000 / safeBpm / this.effectiveSubdivisions();
   });
 
   protected readonly containerClasses = computed(() => {
@@ -258,42 +334,40 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
         ? 'text-lime-400'
         : variant === 'pendulum'
           ? 'text-amber-400'
-          : 'text-white';
+          : variant === 'minimal'
+            ? 'text-slate-900 dark:text-white'
+            : 'text-white';
     const sizeClass = size === 'sm' ? 'text-2xl' : size === 'lg' ? 'text-5xl' : 'text-4xl';
 
     return [base, variantClass, sizeClass].join(' ');
   });
 
-  ngOnInit(): void {
-    this.currentBpm.set(this.bpm());
-    this.initializeAccentPattern();
+  // Secondary text: slate-500 is below 4.5:1 on the dark variant surfaces; the
+  // transparent minimal variant sits on the page and follows the colour scheme
+  protected readonly mutedTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
 
+  protected readonly alertTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-400' : 'text-amber-400'
+  );
+
+  ngOnInit(): void {
     if (this.autoStart()) {
       void this.start();
     }
   }
 
-  private initializeAccentPattern(): void {
-    const custom = this.accentPattern();
-    if (custom && custom.length > 0) {
-      this.internalAccentPattern.set([...custom]);
-    } else {
-      // Use first preset for time signature
-      const presets = ACCENT_PRESETS[this.timeSignature()];
-      if (presets && presets.length > 0) {
-        this.internalAccentPattern.set([...presets[0].pattern]);
-        this.selectedPresetIndex.set(0);
-      }
-    }
-  }
-
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stop();
     void this.audioContext?.close();
   }
 
   protected async start(): Promise<void> {
-    if (this.isPlaying() || this.disabled()) return;
+    if (this.isPlaying() || this.starting || this.destroyed || this.disabled()) return;
+    // No Web Audio during SSR / in unsupported environments
+    if (typeof AudioContext === 'undefined') return;
 
     // Initialize audio context for click sounds
     this.audioContext ??= new AudioContext();
@@ -301,11 +375,17 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     // A context created without a user gesture (e.g. autoStart) starts
     // suspended — resume it, and surface a needs-gesture state if that fails.
     if (this.audioContext.state === 'suspended') {
+      // Guard the await: a second start() (double click) or a destroy while
+      // resuming must not spin up a second, unstoppable scheduler.
+      this.starting = true;
       try {
         await this.audioContext.resume();
       } catch {
         // handled below via the state check
+      } finally {
+        this.starting = false;
       }
+      if (this.destroyed || this.isPlaying() || this.disabled()) return;
       if ((this.audioContext.state as AudioContextState) !== 'running') {
         this.needsGesture.set(true);
         return;
@@ -348,10 +428,14 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     const ctx = this.audioContext;
     if (!ctx) return;
 
-    const subs = this.subdivisions();
+    const subs = this.effectiveSubdivisions();
+    const isMainBeat = this.subBeatCounter % subs === 0;
     this.subBeatCounter++;
-    const isMainBeat = subs === 1 || this.subBeatCounter % subs === 1;
-    if (!isMainBeat) return;
+    if (!isMainBeat) {
+      // Off-beat subdivision: a quieter, lower click (no beat/UI update)
+      this.playClick('none', time, true);
+      return;
+    }
 
     const beats = this.beatsPerMeasure();
     const beatNum = (this.beatCounter % beats) + 1;
@@ -449,18 +533,34 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   }
 
   protected selectTimeSignature(sig: TimeSignature): void {
+    this.currentTimeSignature.set(sig);
     this.timeSignatureChange.emit(sig);
     this.currentBeat.set(0);
     this.beatCounter = 0;
     this.subBeatCounter = 0;
 
     // Update accent pattern for new time signature
-    const presets = ACCENT_PRESETS[sig];
-    if (presets && presets.length > 0) {
-      this.internalAccentPattern.set([...presets[0].pattern]);
-      this.selectedPresetIndex.set(0);
-      this.accentPatternChange.emit(this.internalAccentPattern());
+    const pattern = this.defaultAccentPattern(sig);
+    if (pattern.length > 0) {
+      this.internalAccentPattern.set(pattern);
+      this.selectedPresetIndex.set(this.accentFirstBeat() ? 0 : -1);
+      this.accentPatternChange.emit(pattern);
     }
+  }
+
+  /**
+   * Default pattern when no accentPattern is bound: the first preset of the
+   * time signature, or (accentFirstBeat=false) no accents at all.
+   */
+  private defaultAccentPattern(sig: TimeSignature): AccentLevel[] {
+    const presets = ACCENT_PRESETS[sig];
+    if (!presets || presets.length === 0) {
+      return [];
+    }
+    if (!this.accentFirstBeat()) {
+      return presets[0].pattern.map((): AccentLevel => 'none');
+    }
+    return [...presets[0].pattern];
   }
 
   // Cycle accent level for a beat
@@ -498,7 +598,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     return [...this.effectiveAccentPattern()];
   }
 
-  private playClick(accentLevel: AccentLevel, when?: number): void {
+  private playClick(accentLevel: AccentLevel, when?: number, subdivision = false): void {
     if (!this.audioContext) return;
 
     const startTime = when ?? this.audioContext.currentTime;
@@ -523,10 +623,10 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
       strong: 0.5,
     };
 
-    oscillator.frequency.value = frequencies[accentLevel];
+    oscillator.frequency.value = subdivision ? 600 : frequencies[accentLevel];
     oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(volumes[accentLevel], startTime);
+    gainNode.gain.setValueAtTime(subdivision ? 0.1 : volumes[accentLevel], startTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.05);
 
     oscillator.start(startTime);

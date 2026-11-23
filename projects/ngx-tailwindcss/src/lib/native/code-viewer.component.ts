@@ -1,4 +1,13 @@
-import { Component, computed, effect, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -12,6 +21,8 @@ export type CodeLanguage =
   templateUrl: './code-viewer.component.html',
 })
 export class TwCodeViewerComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   public readonly code = input('');
   public readonly language = input<CodeLanguage>('text');
   public readonly filename = input('');
@@ -48,6 +59,12 @@ export class TwCodeViewerComponent {
     return matches;
   });
 
+  /** Line index of the match the previous/next buttons have navigated to */
+  public readonly currentMatchLine = computed(() => {
+    const matches = this.searchMatches();
+    return matches.length > 0 ? (matches[this.currentMatchIndex()] ?? null) : null;
+  });
+
   constructor() {
     effect(() => {
       // Reset match index when query changes
@@ -68,6 +85,7 @@ export class TwCodeViewerComponent {
     const matches = this.searchMatches();
     if (matches.length > 0) {
       this.currentMatchIndex.update(i => (i + 1) % matches.length);
+      this.scrollToCurrentMatch();
     }
   }
 
@@ -75,15 +93,30 @@ export class TwCodeViewerComponent {
     const matches = this.searchMatches();
     if (matches.length > 0) {
       this.currentMatchIndex.update(i => (i - 1 + matches.length) % matches.length);
+      this.scrollToCurrentMatch();
     }
+  }
+
+  /** Bring the current match's line into view (all lines are already rendered) */
+  private scrollToCurrentMatch(): void {
+    const line = this.currentMatchLine();
+    if (line === null) return;
+    const el = this.elementRef.nativeElement.querySelector<HTMLElement>(
+      `[data-code-line="${line}"]`
+    );
+    el?.scrollIntoView?.({ block: 'nearest' });
   }
 
   public toggleWordWrap(): void {
     this.wordWrap.update(v => !v);
   }
 
-  public copyCode(): void {
-    void navigator.clipboard.writeText(this.code());
-    this.copied.emit();
+  public async copyCode(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.code());
+      this.copied.emit();
+    } catch (error) {
+      console.error('Failed to copy code:', error);
+    }
   }
 }

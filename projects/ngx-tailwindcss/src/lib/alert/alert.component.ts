@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   EventEmitter,
   inject,
   Input,
@@ -12,9 +13,20 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type AlertVariant = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 export type AlertStyle = 'solid' | 'soft' | 'outlined' | 'accent';
+
+/** Elements that can receive keyboard focus (used to hand focus on after dismissal) */
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
 
 const ALERT_BASE_CLASSES = `
   relative flex gap-3
@@ -24,8 +36,9 @@ const ALERT_BASE_CLASSES = `
 
 const ALERT_SOLID_VARIANTS: Record<AlertVariant, string> = {
   info: 'bg-blue-600 text-white',
-  success: 'bg-emerald-600 text-white',
-  warning: 'bg-amber-500 text-white',
+  // Shades chosen so the text meets WCAG AA (4.5:1); white on amber is unreadable
+  success: 'bg-emerald-700 text-white',
+  warning: 'bg-amber-500 text-amber-950',
   danger: 'bg-rose-600 text-white',
   neutral: 'bg-slate-700 text-white',
 };
@@ -80,7 +93,7 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
     accent: 'text-emerald-600',
   },
   warning: {
-    solid: 'text-white',
+    solid: 'text-amber-950',
     soft: 'text-amber-600',
     outlined: 'text-amber-600',
     accent: 'text-amber-600',
@@ -93,9 +106,9 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
   },
   neutral: {
     solid: 'text-white',
-    soft: 'text-slate-600',
-    outlined: 'text-slate-600',
-    accent: 'text-slate-600',
+    soft: 'text-slate-600 dark:text-slate-400',
+    outlined: 'text-slate-600 dark:text-slate-400',
+    accent: 'text-slate-600 dark:text-slate-400',
   },
 };
 
@@ -133,6 +146,7 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
 })
 export class TwAlertComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Color variant */
   readonly variant = input<AlertVariant>('info');
@@ -154,6 +168,13 @@ export class TwAlertComponent {
 
   /** Additional classes */
   readonly classOverride = input('');
+
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('', { transform: twClassValue });
 
   /** Dismiss event */
   @Output() dismiss = new EventEmitter<void>();
@@ -194,6 +215,7 @@ export class TwAlertComponent {
     return this.twClass.merge(
       ALERT_BASE_CLASSES,
       styleVariants[this.alertStyle()][this.variant()],
+      this.class(),
       this.classOverride()
     );
   });
@@ -207,7 +229,7 @@ export class TwAlertComponent {
       'inline-flex items-center justify-center rounded-md p-1 -m-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
     const hoverClasses: Record<AlertStyle, string> = {
-      solid: 'hover:bg-white/20 focus-visible:ring-white',
+      solid: 'hover:bg-white/20 focus-visible:ring-current',
       soft: 'hover:bg-black/5 focus-visible:ring-current',
       outlined: 'hover:bg-black/5 focus-visible:ring-current',
       accent: 'hover:bg-black/5 focus-visible:ring-current',
@@ -217,8 +239,51 @@ export class TwAlertComponent {
   });
 
   protected onDismiss(): void {
+    const host = this.elementRef.nativeElement;
+    const hadFocus = host.contains(host.ownerDocument.activeElement);
     this.dismissed.set(true);
     this.dismiss.emit();
+    // Dismissing hides the alert, including the focused dismiss button: unless a
+    // (dismiss) handler moved focus, hand it to the next control on the page (or
+    // the previous one) instead of losing it to the document body
+    if (hadFocus && host.contains(host.ownerDocument.activeElement)) {
+      this.focusNextControlAfterDismiss();
+    }
+  }
+
+  private focusNextControlAfterDismiss(): void {
+    const host = this.elementRef.nativeElement;
+    const doc = host.ownerDocument;
+    const candidates = [...doc.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
+      el => !host.contains(el) && !el.closest('[hidden], [inert], [aria-hidden="true"]')
+    );
+    const next = candidates.filter(
+      el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    const previous = candidates
+      .filter(el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING)
+      .reverse();
+    // Skip controls that are not rendered (display:none ancestors, closed <details>):
+    // focusing them is a no-op that would leave focus to fall to the document body
+    for (const el of [...next, ...previous]) {
+      if (!this.isRendered(el)) continue;
+      el.focus();
+      if (doc.activeElement === el) return;
+    }
+  }
+
+  private isRendered(el: HTMLElement): boolean {
+    if (el.closest('details:not([open]) > :not(summary)')) return false;
+    if (typeof el.checkVisibility === 'function') {
+      return el.checkVisibility({ visibilityProperty: true });
+    }
+    const view = el.ownerDocument.defaultView;
+    for (let node: Element | null = el; node; node = node.parentElement) {
+      const style = view?.getComputedStyle(node);
+      if (style?.display === 'none') return false;
+      if (node === el && style?.visibility === 'hidden') return false;
+    }
+    return true;
   }
 
   /** Programmatically dismiss the alert */

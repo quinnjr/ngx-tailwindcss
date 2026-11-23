@@ -1,19 +1,29 @@
 import {
+  afterNextRender,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
+  ElementRef,
   HostListener,
   inject,
   input,
   output,
   PLATFORM_ID,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type ImageFit = 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
 export type ImageBorderRadius = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
@@ -89,7 +99,7 @@ export class TwImageComponent {
   protected zoomLevel = signal(1);
   protected rotation = signal(0);
 
-  private previousOverflow = '';
+  private readonly thumbnail = viewChild<ElementRef<HTMLImageElement>>('thumbnail');
 
   // Expose Math to template
   protected Math = Math;
@@ -99,6 +109,36 @@ export class TwImageComponent {
     effect(() => {
       this.src();
       this.loading.set(true);
+    });
+
+    // With SSR hydration the server-rendered <img> may finish loading (or fail) before
+    // the (load)/(error) listeners are attached; pick up that state instead of showing
+    // the placeholder (and keeping the image hidden) forever.
+    afterNextRender(() => {
+      const img = this.thumbnail()?.nativeElement;
+      if (!img?.complete || !this.loading()) return;
+      if (img.naturalWidth > 0) {
+        this.onImageLoad();
+        return;
+      }
+      const src = this.src();
+      // naturalWidth is 0 both for broken images and for some SVGs: let decode() decide
+      img.decode?.().then(
+        () => {
+          if (this.src() === src) this.onImageLoad();
+        },
+        () => {
+          if (this.src() === src) this.onImageError();
+        }
+      );
+    });
+
+    // Restore body scrolling if the component is destroyed while the preview is open
+    inject(DestroyRef).onDestroy(() => {
+      removeEscapeLayer(this);
+      if (isPlatformBrowser(this.platformId)) {
+        unlockBodyScroll(this.document, this);
+      }
     });
   }
 
@@ -124,13 +164,15 @@ export class TwImageComponent {
 
   protected containerStyles = computed(() => {
     const styles: Record<string, string> = {};
+    // Bare numbers are pixels; anything else (`10rem`, `50%`, `auto`) is a CSS length as-is
+    const toLength = (value: string) => (/^\d*\.?\d+$/.test(value.trim()) ? `${value}px` : value);
     const w = this.width();
     const h = this.height();
     if (w) {
-      styles['width'] = w.includes('px') || w.includes('%') ? w : `${w}px`;
+      styles['width'] = toLength(w);
     }
     if (h) {
-      styles['height'] = h.includes('px') || h.includes('%') ? h : `${h}px`;
+      styles['height'] = toLength(h);
     }
     return styles;
   });
@@ -159,19 +201,25 @@ export class TwImageComponent {
     );
   });
 
-  @HostListener('document:keydown.escape')
-  onEscapePress(): void {
-    if (this.previewVisible()) {
-      this.closePreview();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapePress(event?: Event): void {
+    // The preview joins the shared overlay layer stack, so Escape closes only the
+    // topmost layer (e.g. the preview, not an enclosing modal as well)
+    if (!this.previewVisible()) return;
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.closePreview();
   }
 
   onImageLoad(): void {
+    // Already settled (e.g. picked up after hydration): don't emit twice
+    if (!this.loading()) return;
     this.loading.set(false);
     this.onLoad.emit();
   }
 
   onImageError(): void {
+    if (!this.loading()) return;
     this.loading.set(false);
     this.onError.emit();
   }
@@ -192,21 +240,26 @@ export class TwImageComponent {
   }
 
   openPreview(): void {
+    if (this.previewVisible()) return;
     this.previewVisible.set(true);
     this.zoomLevel.set(1);
     this.rotation.set(0);
+    pushEscapeLayer(this);
     this.onShow.emit();
     if (isPlatformBrowser(this.platformId)) {
-      this.previousOverflow = this.document.body.style.overflow;
-      this.document.body.style.overflow = 'hidden';
+      // Shared, ref-counted lock: stays correct when stacked with a modal/sidebar
+      // that closes in a different order
+      lockBodyScroll(this.document, this);
     }
   }
 
   closePreview(): void {
+    if (!this.previewVisible()) return;
     this.previewVisible.set(false);
+    removeEscapeLayer(this);
     this.onHide.emit();
     if (isPlatformBrowser(this.platformId)) {
-      this.document.body.style.overflow = this.previousOverflow;
+      unlockBodyScroll(this.document, this);
     }
   }
 

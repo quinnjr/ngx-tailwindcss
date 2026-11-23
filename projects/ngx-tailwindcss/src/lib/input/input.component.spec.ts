@@ -185,6 +185,38 @@ describe('TwInputComponent', () => {
 
       expect(inputEl.className).toContain('border-rose-500');
     });
+
+    it('should keep the error border in dark mode for every variant', () => {
+      component.error.set('Required');
+      for (const variant of ['default', 'filled', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:border-rose-500');
+        expect(inputEl.className).not.toContain('dark:border-slate-600');
+      }
+    });
+
+    it('should keep the error border (not blue) when focused in dark mode', () => {
+      component.error.set('Required');
+      for (const variant of ['default', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:focus:border-rose-500');
+        expect(inputEl.className).not.toContain('dark:focus:border-blue-500');
+      }
+    });
+  });
+
+  describe('dark mode focus indicator', () => {
+    it('should show the focus border in dark mode for bordered variants', () => {
+      // `dark:border-slate-600` is emitted after `focus:border-blue-500` and would win
+      for (const variant of ['default', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:border-slate-600');
+        expect(inputEl.className).toContain('dark:focus:border-blue-500');
+      }
+    });
   });
 
   describe('native validation attributes', () => {
@@ -218,6 +250,17 @@ describe('TwInputComponent', () => {
     it('should not show clear button by default', () => {
       const clearBtn = fixture.debugElement.query(By.css('button[aria-label="Clear input"]'));
       expect(clearBtn).toBeNull();
+    });
+
+    it('should render the clear icon with a >=3:1 contrast colour', () => {
+      component.clearable.set(true);
+      component.input.writeValue('abc');
+      fixture.detectChanges();
+      const clearBtn = fixture.debugElement.query(By.css('button[aria-label="Clear input"]'));
+      const cls = (clearBtn.nativeElement as HTMLElement).className;
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
     });
   });
 });
@@ -341,6 +384,13 @@ describe('TwTextareaComponent', () => {
     expect(textareaEl.className).toContain('border-rose-500');
   });
 
+  it('should keep the error border in dark mode', () => {
+    component.error.set('Required');
+    fixture.detectChanges();
+    expect(textareaEl.className).toContain('dark:border-rose-500');
+    expect(textareaEl.className).not.toContain('dark:border-slate-600');
+  });
+
   describe('showCount', () => {
     it('should show count with maxlength', () => {
       component.showCount.set(true);
@@ -350,6 +400,8 @@ describe('TwTextareaComponent', () => {
       const count = fixture.debugElement.query(By.css('.text-right'));
       expect(count).toBeTruthy();
       expect(count.nativeElement.textContent).toContain('0 / 100');
+      expect(count.nativeElement.className).toContain('text-slate-500');
+      expect(count.nativeElement.className).toContain('dark:text-slate-400');
     });
 
     it('should show bare count without maxlength', () => {
@@ -456,5 +508,189 @@ describe('Input directives', () => {
       const error = fixture.debugElement.query(By.directive(TwErrorDirective)).nativeElement;
       expect(error.getAttribute('role')).toBe('alert');
     });
+  });
+});
+
+@Component({
+  template: `
+    <tw-input [formControl]="inputControl"></tw-input>
+    <tw-textarea [formControl]="textareaControl"></tw-textarea>
+  `,
+  standalone: true,
+  imports: [TwInputComponent, TwTextareaComponent, ReactiveFormsModule],
+})
+class DisabledReactiveHostComponent {
+  inputControl = new FormControl({ value: '', disabled: true });
+  textareaControl = new FormControl({ value: '', disabled: true });
+}
+
+describe('TwInputComponent / TwTextareaComponent (regressions)', () => {
+  it('should honor FormControls that start disabled', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const inputEl: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const textareaEl: HTMLTextAreaElement = fixture.nativeElement.querySelector('textarea');
+    expect(inputEl.disabled).toBe(true);
+    expect(textareaEl.disabled).toBe(true);
+
+    fixture.componentInstance.inputControl.enable();
+    fixture.componentInstance.textareaControl.enable();
+    fixture.detectChanges();
+    expect(inputEl.disabled).toBe(false);
+    expect(textareaEl.disabled).toBe(false);
+  });
+});
+
+@Component({
+  template: `<tw-input describedBy="external" error="Oops"></tw-input>`,
+  standalone: true,
+  imports: [TwInputComponent],
+})
+class DescribedByHostComponent {}
+
+describe('TwInputComponent / TwTextareaComponent aria-describedby', () => {
+  it('should describe the input by its hint, then by its error', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.hint.set('Helpful hint');
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const hintId = input.getAttribute('aria-describedby');
+    expect(hintId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`#${hintId}`).textContent).toContain('Helpful hint');
+
+    fixture.componentInstance.error.set('Bad value');
+    fixture.detectChanges();
+    const errorId = input.getAttribute('aria-describedby');
+    expect(errorId).not.toBe(hintId);
+    expect(fixture.nativeElement.querySelector(`#${errorId}`).textContent).toContain('Bad value');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+
+    fixture.componentInstance.error.set('');
+    fixture.componentInstance.hint.set('');
+    fixture.detectChanges();
+    expect(input.hasAttribute('aria-describedby')).toBe(false);
+    expect(input.getAttribute('aria-invalid')).not.toBe('true');
+  });
+
+  it('should keep an explicit describedBy alongside the error id', () => {
+    const fixture = TestBed.createComponent(DescribedByHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    const ids = input.getAttribute('aria-describedby')!.split(' ');
+    expect(ids[0]).toBe('external');
+    expect(ids.length).toBe(2);
+    expect(fixture.nativeElement.querySelector(`#${ids[1]}`).textContent).toContain('Oops');
+  });
+
+  it('should describe the textarea by its error', () => {
+    const fixture = TestBed.createComponent(TextareaHostComponent);
+    fixture.componentInstance.error.set('Too short');
+    fixture.detectChanges();
+    const textarea: HTMLTextAreaElement = fixture.nativeElement.querySelector('textarea');
+    const errorId = textarea.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`#${errorId}`).textContent).toContain('Too short');
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+  });
+});
+
+@Component({
+  template: `
+    <tw-input [variant]="variant()" [error]="error()">
+      <span twInputPrefix>@</span>
+    </tw-input>
+    <tw-input clearable></tw-input>
+  `,
+  standalone: true,
+  imports: [TwInputComponent],
+})
+class WrappedInputHostComponent {
+  variant = signal<InputVariant>('default');
+  error = signal('');
+}
+
+describe('TwInputComponent wrapper focus indicator', () => {
+  const variants: InputVariant[] = ['default', 'filled', 'outlined', 'underlined'];
+
+  for (const variant of variants) {
+    it(`should show the ${variant} focus border on the wrapper via focus-within`, () => {
+      const fixture = TestBed.createComponent(WrappedInputHostComponent);
+      fixture.componentInstance.variant.set(variant);
+      fixture.detectChanges();
+      const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+      const wrapper = input.parentElement!;
+      expect(wrapper.className).toContain('focus-within:border-blue-500');
+      expect(wrapper.className).not.toMatch(/(^|\s)focus:/);
+    });
+  }
+
+  it('should use focus-within error styles on the wrapper', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.componentInstance.error.set('Bad');
+    fixture.detectChanges();
+    const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+    expect(wrapper.className).toContain('focus-within:border-rose-500');
+    expect(wrapper.className).not.toMatch(/(^|\s)focus:/);
+  });
+
+  it('should keep the wrapper error border in dark mode', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.componentInstance.error.set('Bad');
+    fixture.detectChanges();
+    const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+    expect(wrapper.className).toContain('dark:border-rose-500');
+    expect(wrapper.className).not.toContain('dark:border-slate-600');
+  });
+
+  it('should show the wrapper focus border in dark mode', () => {
+    for (const variant of ['default', 'outlined', 'underlined'] as const) {
+      const fixture = TestBed.createComponent(WrappedInputHostComponent);
+      fixture.componentInstance.variant.set(variant);
+      fixture.detectChanges();
+      const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+      expect(wrapper.className).toContain('dark:focus-within:border-blue-500');
+    }
+  });
+
+  it('should use focus-within on the wrapper of a clearable input', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.detectChanges();
+    const inputs = fixture.nativeElement.querySelectorAll('input');
+    expect(inputs[1].parentElement.className).toContain('focus-within:ring-2');
+  });
+});
+
+@Component({
+  template: `
+    <tw-input label="Name" required error="Required"></tw-input>
+    <tw-textarea label="Bio" required error="Too short"></tw-textarea>
+    <tw-label required>Label</tw-label>
+    <tw-error>Oops</tw-error>
+  `,
+  standalone: true,
+  imports: [TwInputComponent, TwTextareaComponent, TwLabelDirective, TwErrorDirective],
+})
+class ErrorContrastHostComponent {}
+
+describe('TwInputComponent / TwTextareaComponent error text contrast', () => {
+  it('should use AA-contrast colours for the error text and required marker in both themes', () => {
+    // rose-600 is under 4.5:1 on dark surfaces and rose-500 under 4.5:1 on white
+    const fixture = TestBed.createComponent(ErrorContrastHostComponent);
+    fixture.detectChanges();
+    const errors = [...fixture.nativeElement.querySelectorAll('[role="alert"]')] as HTMLElement[];
+    expect(errors.length).toBe(3);
+    for (const error of errors) {
+      expect(error.className).toContain('text-rose-600');
+      expect(error.className).toContain('dark:text-rose-400');
+    }
+    const markers = [...fixture.nativeElement.querySelectorAll('label > span')] as HTMLElement[];
+    expect(markers.map(m => m.textContent?.trim())).toEqual(['*', '*']);
+    for (const marker of markers) {
+      expect(marker.className).toContain('text-rose-600');
+      expect(marker.className).toContain('dark:text-rose-400');
+    }
+    const label = fixture.debugElement.query(By.directive(TwLabelDirective)).nativeElement;
+    expect(label.className).toContain('after:text-rose-600');
+    expect(label.className).toContain('dark:after:text-rose-400');
   });
 });

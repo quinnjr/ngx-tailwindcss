@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type AspectRatioPreset = 'square' | 'video' | 'portrait' | 'wide' | 'ultrawide' | 'custom';
 
@@ -34,12 +35,15 @@ const RATIO_CLASSES: Record<string, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './aspect-ratio.component.html',
+  host: {
+    // The host is the ratio box itself: a static `class` attribute lands here once
+    '[class]': 'containerClasses()',
+    '[style.aspect-ratio]': 'computedRatio()',
+  },
   styles: [
     `
-      :host {
-        display: block;
-      }
-      :host ::ng-deep > div > * {
+      /* Projected children fill the ratio box */
+      :host ::ng-deep > * {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -58,10 +62,10 @@ export class TwAspectRatioComponent {
   readonly customRatio = input<number | undefined>(undefined);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly containerClasses = computed(() => {
-    const baseClasses = 'relative overflow-hidden';
+    const baseClasses = 'block relative overflow-hidden';
     const ratio = this.ratio();
 
     if (ratio === 'custom') {

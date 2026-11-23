@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwRippleDirective } from './ripple.directive';
+import { TwButtonComponent } from '../button/button.component';
 
 // jsdom does not implement the Web Animations API
 if (!Element.prototype.animate) {
@@ -34,6 +35,52 @@ class TestHostComponent {
   rippleCentered = signal(false);
 }
 
+@Component({
+  template: `<button twRipple style="position: fixed" data-testid="fixed-button">Fab</button>`,
+  standalone: true,
+  imports: [TwRippleDirective],
+})
+class FixedHostComponent {}
+
+describe('TwRippleDirective on a positioned host', () => {
+  it('should not override a non-static host position', () => {
+    const fixture = TestBed.createComponent(FixedHostComponent);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('[data-testid="fixed-button"]');
+    expect(button.style.position).toBe('fixed');
+  });
+});
+
+@Component({
+  template: `
+    <tw-button data-testid="static">Static</tw-button>
+    <tw-button class="absolute" data-testid="absolute">Absolute</tw-button>
+  `,
+  standalone: true,
+  imports: [TwButtonComponent],
+})
+class ButtonHostComponent {}
+
+describe('TwRippleDirective as a tw-button host directive', () => {
+  it('positions a static tw-button and leaves a positioned one alone', () => {
+    const style = document.createElement('style');
+    style.textContent = '.absolute { position: absolute; }';
+    document.head.append(style);
+    try {
+      const fixture = TestBed.createComponent(ButtonHostComponent);
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      const staticHost = el.querySelector<HTMLElement>('[data-testid="static"]')!;
+      const absoluteHost = el.querySelector<HTMLElement>('[data-testid="absolute"]')!;
+      expect(staticHost.style.position).toBe('relative');
+      expect(absoluteHost.style.position).toBe('');
+      expect(getComputedStyle(absoluteHost).position).toBe('absolute');
+    } finally {
+      style.remove();
+    }
+  });
+});
+
 describe('TwRippleDirective', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
@@ -58,6 +105,10 @@ describe('TwRippleDirective', () => {
 
   it('should set overflow hidden on host element', () => {
     expect(buttonNative.style.overflow).toBe('hidden');
+  });
+
+  it('should give a statically positioned host a containing block', () => {
+    expect(buttonNative.style.position).toBe('relative');
   });
 
   it('should have default ripple color', () => {
@@ -107,5 +158,16 @@ describe('TwRippleDirective', () => {
     );
 
     expect(buttonNative.querySelector('span')).toBeNull();
+  });
+
+  it('should render a single ripple for a tap (touchstart plus emulated mousedown)', () => {
+    const before = buttonNative.querySelectorAll('span').length;
+
+    buttonNative.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    buttonNative.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 })
+    );
+
+    expect(buttonNative.querySelectorAll('span').length).toBe(before + 1);
   });
 });

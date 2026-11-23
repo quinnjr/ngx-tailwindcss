@@ -5,12 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PopoverPosition, PopoverTrigger, TwPopoverComponent } from './popover.component';
 import { TwClassService } from '../core/tw-class.service';
 
+/** Reads the protected visibility state without widening the component's public API */
+const isPopoverVisible = (popover: TwPopoverComponent): boolean =>
+  (popover as unknown as { visible: () => boolean }).visible();
+
 @Component({
   template: `
     <tw-popover
       [position]="position()"
       [trigger]="trigger()"
       [header]="header()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       [showArrow]="showArrow()"
       [dismissible]="dismissible()"
       [closeOnEscape]="closeOnEscape()"
@@ -34,6 +40,8 @@ class TestHostComponent {
   position = signal<PopoverPosition>('bottom');
   trigger = signal<PopoverTrigger>('click');
   header = signal('');
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
   showArrow = signal(true);
   dismissible = signal(true);
   closeOnEscape = signal(true);
@@ -93,7 +101,7 @@ describe('TwPopoverComponent', () => {
       triggerContainer.click();
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
       expect(component.showCount).toBe(1);
     });
 
@@ -104,8 +112,32 @@ describe('TwPopoverComponent', () => {
       triggerContainer.click();
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
       expect(component.hideCount).toBe(1);
+    });
+
+    it('should move focus into the opened popover and back to the trigger on hide()', () => {
+      vi.useFakeTimers();
+      try {
+        const trigger = popoverEl.querySelector<HTMLElement>('[twPopoverTrigger]')!;
+        trigger.focus();
+        trigger.click();
+        fixture.detectChanges();
+        // Animation frame (mocked as a timeout in the test setup)
+        vi.runAllTimers();
+
+        const action = document.querySelector<HTMLElement>(
+          '[role="dialog"] [data-testid="action"]'
+        )!;
+        expect(document.activeElement).toBe(action);
+
+        // e.g. a "Done" button in the content closing the popover
+        component.popover.hide();
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(trigger);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -114,7 +146,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       const action = portal?.querySelector<HTMLButtonElement>('[data-testid="action"]');
       expect(action).toBeTruthy();
 
@@ -130,7 +162,7 @@ describe('TwPopoverComponent', () => {
       component.popover.hide();
       fixture.detectChanges();
 
-      const source = popoverEl.querySelector('.popover-content-source')!;
+      const source = popoverEl.querySelector<HTMLElement>('.popover-content-source')!;
       expect(source).toBeTruthy();
       expect(source.style.display).toBe('none');
       expect(source.querySelector('[data-testid="action"]')).toBeTruthy();
@@ -138,7 +170,7 @@ describe('TwPopoverComponent', () => {
       // Content survives a second open/close cycle
       component.popover.show();
       fixture.detectChanges();
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.querySelector('.popover-content')).toBeTruthy();
     });
   });
@@ -152,12 +184,12 @@ describe('TwPopoverComponent', () => {
       triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
 
       triggerContainer.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
 
     it('should open on focusin for hover trigger (keyboard equivalence)', () => {
@@ -168,7 +200,20 @@ describe('TwPopoverComponent', () => {
       triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
+    });
+
+    it('should close a keyboard-opened hover popover when focus leaves the trigger', () => {
+      component.trigger.set('hover');
+      fixture.detectChanges();
+
+      const triggerContainer = popoverEl.querySelector('div') as HTMLElement;
+      triggerContainer.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      fixture.detectChanges();
+      triggerContainer.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
   });
 
@@ -176,7 +221,7 @@ describe('TwPopoverComponent', () => {
     it('should show popover via show()', () => {
       component.popover.show();
       fixture.detectChanges();
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should hide popover via hide()', () => {
@@ -184,14 +229,33 @@ describe('TwPopoverComponent', () => {
       fixture.detectChanges();
       component.popover.hide();
       fixture.detectChanges();
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
     });
 
     it('should toggle popover via toggle()', () => {
       component.popover.toggle();
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
       component.popover.toggle();
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
+    });
+
+    it('should keep one working portal when hide() and show() run within one tick', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      component.popover.hide();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panels = document.querySelectorAll('[role="dialog"]');
+      expect(panels.length).toBe(1);
+      expect(panels[0].querySelector('.popover-content')).toBeTruthy();
+
+      // Escape is still registered for the reopened popover
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
     });
   });
 
@@ -206,6 +270,33 @@ describe('TwPopoverComponent', () => {
       component.popover.hide();
       expect(component.hideCount).toBe(1);
     });
+
+    it('should emit only on actual open/close transitions', () => {
+      component.popover.hide();
+      expect(component.hideCount).toBe(0);
+
+      component.popover.show();
+      component.popover.show();
+      expect(component.showCount).toBe(1);
+
+      component.popover.hide();
+      component.popover.hide();
+      expect(component.hideCount).toBe(1);
+    });
+
+    it('should apply a classOverride changed after the first open', () => {
+      component.popover.show();
+      fixture.detectChanges();
+      component.popover.hide();
+      fixture.detectChanges();
+
+      component.classOverride.set('custom-late-class');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      expect(document.querySelector('[role="dialog"]')?.classList).toContain('custom-late-class');
+    });
   });
 
   describe('escape key', () => {
@@ -217,7 +308,128 @@ describe('TwPopoverComponent', () => {
       document.dispatchEvent(event);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
+    });
+
+    it('should return focus to the trigger when Escape closes with focus inside', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+      action.focus();
+      action.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.activeElement).toBe(popoverEl.querySelector('[twPopoverTrigger]'));
+    });
+  });
+
+  describe('escape layering', () => {
+    it('should let handlers inside the content run, and stay open when they claim Escape', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      const portal = document.querySelector('[role="dialog"]');
+      const action = portal!.querySelector<HTMLElement>('[data-testid="action"]')!;
+      const inner = vi.fn((event: KeyboardEvent) => {
+        event.preventDefault();
+      });
+      action.addEventListener('keydown', inner);
+      action.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      fixture.detectChanges();
+
+      expect(inner).toHaveBeenCalled();
+      expect(isPopoverVisible(component.popover)).toBe(true);
+    });
+
+    it('should close only the topmost of nested popovers', () => {
+      const outer = TestBed.createComponent(TwPopoverComponent);
+      outer.detectChanges();
+      outer.componentInstance.show();
+      outer.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(isPopoverVisible(outer.componentInstance)).toBe(true);
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      expect(isPopoverVisible(outer.componentInstance)).toBe(false);
+      outer.destroy();
+    });
+  });
+
+  describe('ARIA semantics', () => {
+    const trigger = () => popoverEl.querySelector('[twPopoverTrigger]')!;
+
+    it('should expose click popovers as dialogs controlled by the trigger', () => {
+      expect(trigger().getAttribute('aria-haspopup')).toBe('dialog');
+      expect(trigger().getAttribute('aria-expanded')).toBe('false');
+      expect(trigger().getAttribute('aria-controls')).toBeNull();
+
+      component.header.set('Settings');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel).toBeTruthy();
+      expect(trigger().getAttribute('aria-expanded')).toBe('true');
+      expect(trigger().getAttribute('aria-controls')).toBe(panel.id);
+      const labelledBy = panel.getAttribute('aria-labelledby');
+      expect(document.querySelector(`#${labelledBy}`)?.textContent).toBe('Settings');
+
+      component.popover.hide();
+      fixture.detectChanges();
+      expect(trigger().getAttribute('aria-expanded')).toBe('false');
+      expect(trigger().getAttribute('aria-controls')).toBeNull();
+    });
+
+    it('should name a header-less dialog from the ariaLabel input', () => {
+      component.ariaLabel.set('Quick settings');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel.getAttribute('aria-label')).toBe('Quick settings');
+      expect(panel.hasAttribute('aria-labelledby')).toBe(false);
+    });
+
+    it('should name a header-less dialog from projected content via ariaLabelledBy', () => {
+      component.ariaLabelledBy.set('projected-heading');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="dialog"]')!;
+      expect(panel.getAttribute('aria-labelledby')).toBe('projected-heading');
+      expect(panel.hasAttribute('aria-label')).toBe(false);
+    });
+
+    it('should keep tooltip semantics for hover popovers', () => {
+      component.trigger.set('hover');
+      fixture.detectChanges();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panel = document.querySelector('[role="tooltip"]')!;
+      expect(panel).toBeTruthy();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(trigger().getAttribute('aria-describedby')).toBe(panel.id);
+      expect(trigger().getAttribute('aria-expanded')).toBeNull();
+
+      component.popover.hide();
+      fixture.detectChanges();
+      expect(trigger().getAttribute('aria-describedby')).toBeNull();
     });
   });
 
@@ -239,7 +451,7 @@ describe('TwPopoverComponent', () => {
       vi.advanceTimersByTime(10);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(true);
+      expect(isPopoverVisible(component.popover)).toBe(true);
     });
 
     it('should hide on mouseleave', () => {
@@ -252,7 +464,31 @@ describe('TwPopoverComponent', () => {
       vi.advanceTimersByTime(10);
       fixture.detectChanges();
 
-      expect(component.popover.visible()).toBe(false);
+      expect(isPopoverVisible(component.popover)).toBe(false);
+    });
+
+    it('should stay closed (with one portal) when it hides with focus inside', () => {
+      const triggerContainer = popoverEl.querySelector('div') as HTMLElement;
+      triggerContainer.dispatchEvent(new MouseEvent('mouseenter'));
+      vi.advanceTimersByTime(10);
+      fixture.detectChanges();
+
+      // Pointer moves into the panel and clicks its button (focus moves inside)
+      const panel = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+      triggerContainer.dispatchEvent(new MouseEvent('mouseleave'));
+      panel.dispatchEvent(new MouseEvent('mouseenter'));
+      vi.advanceTimersByTime(10);
+      panel.querySelector<HTMLElement>('[data-testid="action"]')!.focus();
+
+      // Pointer leaves the panel: the popover hides and focus returns to the trigger,
+      // which must not reopen it
+      panel.dispatchEvent(new MouseEvent('mouseleave'));
+      vi.advanceTimersByTime(10);
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(popoverEl.querySelector('[twPopoverTrigger]'));
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.querySelectorAll('[role="tooltip"]').length).toBe(0);
     });
   });
 
@@ -285,7 +521,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.textContent).not.toContain('Settings');
     });
 
@@ -295,7 +531,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.textContent).toContain('Settings');
     });
   });
@@ -307,7 +543,7 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portal = document.querySelector('[role="tooltip"]');
+      const portal = document.querySelector('[role="dialog"]');
       expect(portal?.className).toContain('custom-popover-class');
     });
   });
@@ -317,13 +553,86 @@ describe('TwPopoverComponent', () => {
       component.popover.show();
       fixture.detectChanges();
 
-      const portalsBefore = document.querySelectorAll('[role="tooltip"]').length;
+      const portalsBefore = document.querySelectorAll('[role="dialog"]').length;
       expect(portalsBefore).toBe(1);
 
       fixture.destroy();
 
-      const portalsAfter = document.querySelectorAll('[role="tooltip"]').length;
+      const portalsAfter = document.querySelectorAll('[role="dialog"]').length;
       expect(portalsAfter).toBe(0);
     });
+  });
+});
+
+describe('TwPopoverComponent Tab key', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.popover.show();
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+  });
+
+  const tab = (target: HTMLElement, shiftKey = false): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  it('should close and continue from the trigger when tabbing out of the portaled panel', () => {
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.focus();
+
+    const event = tab(action);
+    fixture.detectChanges();
+
+    // Without this, Tab would leave the panel at the end of <body> with the popover open
+    expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector('[twPopoverTrigger]'));
+  });
+
+  it('should stop on the trigger on Shift+Tab from the first focusable element', () => {
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.focus();
+
+    const event = tab(action, true);
+    fixture.detectChanges();
+
+    expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('[twPopoverTrigger]'));
+  });
+
+  it('should keep Tab within the panel from reaching document listeners (outer focus traps)', () => {
+    const extra = document.createElement('button');
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.after(extra);
+    action.focus();
+    const documentListener = vi.fn();
+    document.addEventListener('keydown', documentListener);
+
+    try {
+      tab(action);
+      expect(documentListener).not.toHaveBeenCalled();
+      expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(true);
+    } finally {
+      document.removeEventListener('keydown', documentListener);
+      extra.remove();
+    }
   });
 });

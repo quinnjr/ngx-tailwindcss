@@ -12,8 +12,8 @@
           title="Signal Present"
         ></div>
       }
-      <span class="text-slate-400">{{ channelNumber() }}</span>
-      <span class="text-white">{{ label() }}</span>
+      <span [class]="mutedTextClass()">{{ channelNumber() }}</span>
+      <span [class]="labelTextClass()">{{ label() }}</span>
     </div>
   }
 
@@ -21,6 +21,7 @@
   @if (showInputGain()) {
     <div class="flex flex-col items-center gap-1">
       <tw-volume-dial
+        [surface]="nestedSurface()"
         [ngModel]="inputGain()"
         (ngModelChange)="onInputGainChange($event)"
         [min]="-20"
@@ -28,14 +29,17 @@
         [step]="1"
         [size]="size() === 'lg' ? 'sm' : 'xs'"
         [variant]="variant() === 'vintage' ? 'vintage' : 'minimal'"
-        [disabled]="disabled()"
+        [disabled]="isDisabled()"
         [centerDetent]="true"
         [detentValue]="0"
-        label=""
+        label="Input gain"
+        unit="dB"
         [showValue]="false"
       ></tw-volume-dial>
-      <span class="text-[9px] text-slate-500 font-mono">{{ formatGain(inputGain()) }}dB</span>
-      <span class="text-[8px] text-slate-600">GAIN</span>
+      <span class="text-[9px] font-mono" [class]="mutedTextClass()"
+        >{{ formatGain(inputGain()) }}dB</span
+      >
+      <span class="text-[8px]" [class]="mutedTextClass()">GAIN</span>
     </div>
   }
 
@@ -44,14 +48,15 @@
     <button
       type="button"
       [class]="buttonSize()"
-      class="rounded-full flex items-center justify-center font-bold transition-all"
+      class="rounded-full flex items-center justify-center font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       [class.bg-red-600]="record()"
       [class.text-white]="record()"
       [class.bg-slate-700]="!record()"
-      [class.text-slate-400]="!record()"
-      [class.hover:bg-red-500]="!record()"
+      [class.text-slate-300]="!record()"
+      [class.hover:bg-red-600]="!record() && !isDisabled()"
+      [class.hover:text-white]="!record() && !isDisabled()"
       [class.animate-pulse]="record()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       (click)="toggleRecord()"
       title="Record Arm"
       aria-label="Record arm"
@@ -64,7 +69,7 @@
   <!-- Aux Send Knobs -->
   @if (showAuxSends()) {
     <div class="flex flex-col gap-1 w-full border-t border-slate-700/50 pt-2">
-      <span class="text-[8px] text-slate-500 text-center">SENDS</span>
+      <span class="text-[8px] text-center" [class]="mutedTextClass()">SENDS</span>
       <div
         class="grid gap-1"
         [class.grid-cols-2]="auxSendCount() > 2"
@@ -73,6 +78,7 @@
         @for (aux of auxSendArray(); track aux.index) {
           <div class="flex flex-col items-center">
             <tw-volume-dial
+              [surface]="nestedSurface()"
               [ngModel]="aux.value"
               (ngModelChange)="onAuxSendChange(aux.index, $event)"
               [min]="0"
@@ -80,11 +86,13 @@
               [step]="1"
               size="xs"
               [variant]="variant() === 'vintage' ? 'vintage' : 'minimal'"
-              [disabled]="disabled() || mute()"
-              label=""
+              [disabled]="isDisabled() || mute()"
+              [label]="aux.label"
               [showValue]="false"
             ></tw-volume-dial>
-            <span class="text-[8px] text-slate-500 truncate max-w-full">{{ aux.label }}</span>
+            <span class="text-[8px] truncate max-w-full" [class]="mutedTextClass()">{{
+              aux.label
+            }}</span>
           </div>
         }
       </div>
@@ -97,6 +105,7 @@
       @if (stereo()) {
         <div class="relative">
           <tw-vu-meter
+            [surface]="nestedSurface()"
             [leftValue]="meterLevel()"
             [rightValue]="meterLevelRight()"
             [stereo]="true"
@@ -111,7 +120,7 @@
               class="absolute h-0.5 bg-red-400 pointer-events-none"
               [style.left.px]="8"
               [style.width.px]="12"
-              [style.bottom.px]="peakMarkerBottom(meterPeak())"
+              [style.top.px]="peakMarkerTop(meterPeak())"
               title="Peak (L)"
             ></div>
           }
@@ -120,7 +129,7 @@
               class="absolute h-0.5 bg-red-400 pointer-events-none"
               [style.left.px]="24"
               [style.width.px]="12"
-              [style.bottom.px]="peakMarkerBottom(meterPeakRight())"
+              [style.top.px]="peakMarkerTop(meterPeakRight())"
               title="Peak (R)"
             ></div>
           }
@@ -128,6 +137,7 @@
       } @else {
         <div class="relative">
           <tw-vu-meter
+            [surface]="nestedSurface()"
             [value]="meterLevel()"
             [segmentCount]="size() === 'sm' ? 8 : 12"
             [height]="meterHeight()"
@@ -138,7 +148,7 @@
           @if (meterPeak() > 0) {
             <div
               class="absolute left-2 right-2 h-0.5 bg-red-400 pointer-events-none"
-              [style.bottom.px]="peakMarkerBottom(meterPeak())"
+              [style.top.px]="peakMarkerTop(meterPeak())"
               title="Peak"
             ></div>
           }
@@ -149,6 +159,7 @@
 
   <!-- Volume Fader / Dial -->
   <tw-volume-dial
+    [surface]="nestedSurface()"
     [ngModel]="volume()"
     (ngModelChange)="onVolumeChange($event)"
     [min]="0"
@@ -156,14 +167,15 @@
     [step]="1"
     [size]="dialSize()"
     [variant]="variant() === 'vintage' ? 'vintage' : 'modern'"
-    [disabled]="disabled() || mute()"
-    label=""
+    [disabled]="isDisabled() || mute()"
+    label="Volume"
     [showValue]="size() !== 'sm'"
   ></tw-volume-dial>
 
   <!-- Pan Control -->
   @if (showPan()) {
     <tw-volume-dial
+      [surface]="nestedSurface()"
       [ngModel]="pan()"
       (ngModelChange)="onPanChange($event)"
       [min]="-100"
@@ -171,13 +183,13 @@
       [step]="1"
       [size]="size() === 'lg' ? 'md' : 'sm'"
       [variant]="variant() === 'vintage' ? 'vintage' : 'minimal'"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       [centerDetent]="true"
       [detentValue]="0"
-      label=""
+      label="Pan"
       [showValue]="false"
     ></tw-volume-dial>
-    <span class="text-[10px] text-slate-500">PAN</span>
+    <span class="text-[10px]" [class]="mutedTextClass()">PAN</span>
   }
 
   <!-- Mute / Solo Buttons -->
@@ -186,13 +198,14 @@
       <button
         type="button"
         [class]="buttonSize()"
-        class="rounded flex items-center justify-center font-bold transition-all"
+        class="rounded flex items-center justify-center font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class.bg-amber-500]="mute()"
         [class.text-black]="mute()"
         [class.bg-slate-700]="!mute()"
-        [class.text-slate-400]="!mute()"
-        [class.hover:bg-amber-400]="!mute()"
-        [disabled]="disabled()"
+        [class.text-slate-300]="!mute()"
+        [class.hover:bg-amber-400]="!mute() && !isDisabled()"
+        [class.hover:text-black]="!mute() && !isDisabled()"
+        [disabled]="isDisabled()"
         (click)="toggleMute()"
         title="Mute"
         aria-label="Mute"
@@ -203,13 +216,14 @@
       <button
         type="button"
         [class]="buttonSize()"
-        class="rounded flex items-center justify-center font-bold transition-all"
+        class="rounded flex items-center justify-center font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class.bg-green-500]="solo()"
         [class.text-black]="solo()"
         [class.bg-slate-700]="!solo()"
-        [class.text-slate-400]="!solo()"
-        [class.hover:bg-green-400]="!solo()"
-        [disabled]="disabled()"
+        [class.text-slate-300]="!solo()"
+        [class.hover:bg-green-400]="!solo() && !isDisabled()"
+        [class.hover:text-black]="!solo() && !isDisabled()"
+        [disabled]="isDisabled()"
         (click)="toggleSolo()"
         title="Solo"
         aria-label="Solo"

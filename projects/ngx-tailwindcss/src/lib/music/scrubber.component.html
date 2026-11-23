@@ -16,31 +16,37 @@
     [attr.aria-valuenow]="currentTime()"
     [attr.aria-valuemin]="0"
     [attr.aria-valuemax]="duration()"
+    [attr.aria-valuetext]="formatTime(currentTime()) + ' of ' + formatTime(duration())"
     [attr.aria-label]="'Seek slider'"
+    [attr.aria-disabled]="disabled()"
     [attr.tabindex]="disabled() ? -1 : 0"
     (keydown)="onKeyDown($event)"
   >
-    <!-- Buffered Range -->
-    @if (showBuffered() && buffered() > 0) {
-      <div [class]="bufferedClasses()" [style.width.%]="(buffered() / duration()) * 100"></div>
-    }
-
-    <!-- Progress Fill -->
-    <div [class]="progressClasses()" [style.width.%]="progressPercent()"></div>
-
-    <!-- Chapter Markers -->
-    @if (showMarkers()) {
-      @for (marker of markers(); track marker.time) {
-        <div
-          [class]="markerClasses()"
-          [style.left.%]="(marker.time / duration()) * 100"
-          [attr.title]="marker.label"
-        ></div>
+    <!-- Fills are clipped to the rounded track; the thumb and hover previews must not be -->
+    <div class="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      <!-- Buffered Range -->
+      @if (showBuffered() && buffered() > 0) {
+        <div [class]="bufferedClasses()" [style.width.%]="(buffered() / duration()) * 100"></div>
       }
-    }
+
+      <!-- Progress Fill -->
+      <div [class]="progressClasses()" [style.width.%]="progressPercent()"></div>
+
+      <!-- Chapter Markers -->
+      @if (showMarkers()) {
+        @for (marker of markers(); track marker.time) {
+          <div
+            [class]="markerClasses()"
+            [style.background-color]="marker.color || null"
+            [style.left.%]="(marker.time / duration()) * 100"
+            [attr.title]="marker.label"
+          ></div>
+        }
+      }
+    </div>
 
     <!-- Hover Time Preview -->
-    @if (showHoverPreview() && hoverPosition() !== null && !isDragging()) {
+    @if (showHoverPreview() && !disabled() && hoverPosition() !== null && !isDragging()) {
       <div
         class="absolute top-0 bottom-0 w-px bg-white/50 pointer-events-none"
         [style.left.%]="hoverPosition()! * 100"
@@ -72,7 +78,7 @@
                   spritePosition()!.x + 'px ' + spritePosition()!.y + 'px'
                 "
                 [style.backgroundSize]="
-                  thumbnailSprite()!.frameWidth * thumbnailSprite()!.columns + 'px auto'
+                  spritePosition()!.sheetWidth + 'px ' + spritePosition()!.sheetHeight + 'px'
                 "
               ></div>
             }

@@ -1,14 +1,14 @@
-<div [class]="containerClasses()" [attr.aria-label]="'Piano keyboard'">
+<div [class]="containerClasses()" role="group" aria-label="Piano keyboard">
   <!-- MIDI Status Indicator -->
   @if (enableMidi()) {
     <div class="flex items-center gap-2 mb-2 px-2 text-xs">
       @if (connectedMidiDevice()) {
-        <span class="flex items-center gap-1 text-green-500">
+        <span class="flex items-center gap-1" [class]="midiConnectedClasses()">
           <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           MIDI: {{ connectedMidiDevice()!.name }}
         </span>
       } @else {
-        <span class="flex items-center gap-1 text-slate-500">
+        <span class="flex items-center gap-1" [class]="mutedTextClasses()">
           <span class="w-2 h-2 rounded-full bg-slate-500"></span>
           MIDI: Not connected
         </span>
@@ -18,23 +18,25 @@
 
   <div class="relative flex" [style.height.px]="height()">
     <!-- White Keys -->
-    @for (key of whiteKeys(); track key.note) {
+    @for (key of whiteKeys(); track key.midi) {
       <button
         type="button"
         [class]="whiteKeyClasses(key)"
         [style.width.px]="whiteKeyWidth()"
         [ngStyle]="getVelocityStyle(key)"
         (mousedown)="onKeyDown(key)"
-        (mouseup)="onKeyUp(key)"
-        (mouseleave)="onKeyUp(key)"
+        (mouseup)="onPointerRelease(key)"
+        (mouseleave)="onPointerRelease(key)"
         (touchstart)="onTouchStart($event, key)"
         (touchend)="onTouchEnd(key)"
+        (touchcancel)="onTouchEnd(key)"
         (keydown.enter)="onKeyboardDown($event, key)"
         (keydown.space)="onKeyboardDown($event, key)"
         (keyup.enter)="onKeyboardUp($event, key)"
         (keyup.space)="onKeyboardUp($event, key)"
         [attr.aria-label]="key.note + key.octave"
         [attr.aria-pressed]="isKeyActive(key)"
+        [disabled]="disabled()"
       >
         <!-- Velocity Indicator Bar -->
         @if (velocitySensitive() && isKeyActive(key)) {
@@ -58,7 +60,7 @@
     }
 
     <!-- Black Keys (positioned absolutely) -->
-    @for (key of blackKeys(); track key.note + key.octave) {
+    @for (key of blackKeys(); track key.midi) {
       <button
         type="button"
         [class]="blackKeyClasses(key)"
@@ -67,16 +69,18 @@
         [style.left.px]="key.position"
         [ngStyle]="getVelocityStyle(key)"
         (mousedown)="onKeyDown(key)"
-        (mouseup)="onKeyUp(key)"
-        (mouseleave)="onKeyUp(key)"
+        (mouseup)="onPointerRelease(key)"
+        (mouseleave)="onPointerRelease(key)"
         (touchstart)="onTouchStart($event, key)"
         (touchend)="onTouchEnd(key)"
+        (touchcancel)="onTouchEnd(key)"
         (keydown.enter)="onKeyboardDown($event, key)"
         (keydown.space)="onKeyboardDown($event, key)"
         (keyup.enter)="onKeyboardUp($event, key)"
         (keyup.space)="onKeyboardUp($event, key)"
         [attr.aria-label]="key.note + key.octave"
         [attr.aria-pressed]="isKeyActive(key)"
+        [disabled]="disabled()"
       >
         <!-- Velocity Indicator Bar -->
         @if (velocitySensitive() && isKeyActive(key)) {
@@ -102,7 +106,7 @@
 
   <!-- Octave Labels -->
   @if (showOctaveLabels()) {
-    <div class="flex justify-around mt-1 text-xs text-slate-500 dark:text-slate-400">
+    <div class="flex justify-around mt-1 text-xs" [class]="mutedTextClasses()">
       @for (octave of octaveRange(); track octave) {
         <span>C{{ octave }}</span>
       }
@@ -111,7 +115,7 @@
 
   <!-- Active Notes Display (for velocity visualization) -->
   @if (velocitySensitive() && getActiveNotes().length > 0) {
-    <div class="flex gap-1 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+    <div class="flex gap-1 mt-2 text-[10px]">
       @for (activeNote of getActiveNotes(); track activeNote.note + activeNote.octave) {
         <span class="px-1 py-0.5 bg-slate-800 rounded text-slate-300">
           {{ activeNote.note }}{{ activeNote.octave }}: {{ activeNote.velocity }}

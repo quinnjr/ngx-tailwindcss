@@ -6,10 +6,13 @@ import {
   HostListener,
   inject,
   Input,
+  numberAttribute,
   OnDestroy,
-  OnInit,
   Renderer2,
 } from '@angular/core';
+
+/** Window after a touchstart in which a mousedown is treated as touch-emulated */
+const EMULATED_MOUSE_THRESHOLD_MS = 800;
 
 /**
  * Adds a material-design style ripple effect to any element
@@ -25,7 +28,7 @@ import {
   selector: '[twRipple]',
   standalone: true,
   host: {
-    style: 'position: relative; overflow: hidden;',
+    style: 'overflow: hidden;',
   },
 })
 export class TwRippleDirective implements OnDestroy, AfterViewInit {
@@ -36,7 +39,7 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
   @Input() rippleColor = 'rgba(255, 255, 255, 0.4)';
 
   /** Duration of the ripple animation in milliseconds */
-  @Input() rippleDuration = 600;
+  @Input({ transform: numberAttribute }) rippleDuration = 600;
 
   /** Whether the ripple effect is disabled */
   @Input({ transform: booleanAttribute }) rippleDisabled = false;
@@ -46,6 +49,7 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
 
   private readonly activeRipples: Array<{ element: HTMLElement; animation: Animation }> = [];
   private initialized = false;
+  private lastTouchTime = 0;
 
   constructor() {
     this.el = inject(ElementRef);
@@ -54,12 +58,28 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.initialized = true;
+
+    // Ripples are absolutely positioned, so the host needs a containing block.
+    // Only promote statically positioned hosts: forcing `relative` inline would
+    // override `fixed`/`absolute`/`sticky` utility classes on the host.
+    const el = this.el.nativeElement as HTMLElement;
+    if (typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'static') {
+      this.renderer.setStyle(el, 'position', 'relative');
+    }
   }
 
   @HostListener('mousedown', ['$event'])
   @HostListener('touchstart', ['$event'])
   onInteraction(event: MouseEvent | TouchEvent): void {
     if (this.rippleDisabled || !this.initialized) return;
+
+    // A tap fires touchstart and then an emulated mousedown; ripple only once
+    const now = Date.now();
+    if (event.type === 'touchstart') {
+      this.lastTouchTime = now;
+    } else if (now - this.lastTouchTime < EMULATED_MOUSE_THRESHOLD_MS) {
+      return;
+    }
 
     this.createRipple(event);
   }

@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LogEntry, LogFilter } from './native.types';
@@ -22,7 +33,7 @@ import { LogEntry, LogFilter } from './native.types';
     class: 'tw-log-viewer block',
   },
 })
-export class TwLogViewerComponent {
+export class TwLogViewerComponent implements AfterViewChecked {
   // Inputs
   public readonly entries = input<LogEntry[]>([]);
   public readonly showSource = input(true);
@@ -47,6 +58,27 @@ export class TwLogViewerComponent {
     { value: 'error' as const, label: 'ERROR' },
     { value: 'fatal' as const, label: 'FATAL' },
   ];
+
+  private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
+  private shouldScroll = false;
+
+  constructor() {
+    // Keep the newest entry in view while auto-scroll is enabled
+    effect(() => {
+      this.filteredEntries();
+      if (this.autoScroll()) {
+        this.shouldScroll = true;
+      }
+    });
+  }
+
+  public ngAfterViewChecked(): void {
+    const el = this.scrollContainer()?.nativeElement;
+    if (this.shouldScroll && el) {
+      el.scrollTop = el.scrollHeight;
+    }
+    this.shouldScroll = false;
+  }
 
   // Computed
   protected readonly filteredEntries = computed(() => {
@@ -83,6 +115,60 @@ export class TwLogViewerComponent {
     // Filter change triggers computed update automatically
   }
 
+  /** Row last focused; with the selection, it anchors the single row tab stop. */
+  protected readonly focusedEntryId = signal<string | null>(null);
+
+  /**
+   * Roving tabindex: only one row is in the Tab order (a long log would
+   * otherwise need one Tab per entry to get past it); arrows move between rows.
+   */
+  protected readonly tabStopEntryId = computed(() => {
+    const entries = this.filteredEntries();
+    const isShown = (id: string | null | undefined) =>
+      id != null && entries.some(entry => entry.id === id);
+    const focused = this.focusedEntryId();
+    if (isShown(focused)) return focused;
+    const selected = this.selectedEntry()?.id;
+    if (isShown(selected)) return selected;
+    return entries[0]?.id ?? null;
+  });
+
+  protected onRowKeydown(entry: LogEntry, event: KeyboardEvent): void {
+    const row = event.currentTarget as HTMLElement;
+    const rows = [...(row.parentElement?.children ?? [])] as HTMLElement[];
+    const index = rows.indexOf(row);
+    let target: HTMLElement | undefined;
+    switch (event.key) {
+      case 'Enter':
+      case ' ': {
+        event.preventDefault();
+        this.selectEntry(entry);
+        return;
+      }
+      case 'ArrowDown': {
+        target = rows[index + 1];
+        break;
+      }
+      case 'ArrowUp': {
+        target = rows[index - 1];
+        break;
+      }
+      case 'Home': {
+        target = rows[0];
+        break;
+      }
+      case 'End': {
+        target = rows.at(-1);
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    target?.focus();
+  }
+
   protected selectEntry(entry: LogEntry): void {
     this.selectedEntry.set(entry);
     this.entrySelect.emit(entry);
@@ -103,7 +189,7 @@ export class TwLogViewerComponent {
     const base = 'transition-colors';
 
     if (!isActive) {
-      return `${base} bg-gray-100 dark:bg-gray-700 text-gray-400`;
+      return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300`;
     }
 
     const levelClasses: Record<LogEntry['level'], string> = {
@@ -121,7 +207,7 @@ export class TwLogViewerComponent {
     const base = 'px-1.5 py-0.5 text-xs font-medium rounded';
 
     const levelClasses: Record<LogEntry['level'], string> = {
-      debug: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
+      debug: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
       info: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
       warn: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300',
       error: 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300',

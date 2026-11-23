@@ -1,6 +1,6 @@
 <aside
   [class]="containerClasses()"
-  [style.width]="collapsed() ? collapsedWidth() + 'px' : width() + 'px'"
+  [style.width]="isCollapsed() ? collapsedWidth() + 'px' : width() + 'px'"
   role="navigation"
   [attr.aria-label]="'Sidebar navigation'"
 >
@@ -9,7 +9,7 @@
     <div
       class="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700"
     >
-      @if (!collapsed()) {
+      @if (!isCollapsed()) {
         <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{
           headerTitle()
         }}</span>
@@ -18,12 +18,12 @@
         <button
           type="button"
           class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          [attr.aria-label]="isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
           (click)="toggleCollapse()"
         >
           <svg
-            class="w-4 h-4 text-gray-500 transition-transform"
-            [class.rotate-180]="collapsed()"
+            class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform"
+            [class.rotate-180]="isCollapsed()"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -70,24 +70,27 @@
       type="button"
       class="w-full flex items-center gap-2 transition-colors rounded-md"
       [class]="getItemClasses(item, depth)"
-      [class.bg-blue-100]="item.active && !collapsed()"
-      [class.dark:bg-blue-900/30]="item.active && !collapsed()"
-      [class.bg-blue-500]="item.active && collapsed()"
+      [style.padding-left.rem]="getItemIndent(depth)"
+      [class.bg-blue-100]="item.active && !isCollapsed()"
+      [class.dark:bg-blue-900/30]="item.active && !isCollapsed()"
+      [class.bg-blue-500]="item.active && isCollapsed()"
       [class.hover:bg-gray-100]="!item.active && !item.disabled"
       [class.dark:hover:bg-gray-700/50]="!item.active && !item.disabled"
       [class.opacity-50]="item.disabled"
       [class.cursor-not-allowed]="item.disabled"
       [disabled]="item.disabled"
       [attr.aria-current]="item.active ? 'page' : undefined"
-      [attr.title]="collapsed() ? item.label : undefined"
+      [attr.title]="isCollapsed() ? item.label : undefined"
+      [attr.aria-label]="isCollapsed() ? item.label : null"
       (click)="onItemClick(item)"
     >
       <!-- Icon -->
       @if (item.icon) {
         <span
           class="flex-shrink-0 text-lg"
-          [class.text-blue-600]="item.active"
-          [class.dark:text-blue-400]="item.active"
+          [class.text-blue-600]="item.active && !isCollapsed()"
+          [class.dark:text-blue-400]="item.active && !isCollapsed()"
+          [class.text-white]="item.active && isCollapsed()"
           [class.text-gray-500]="!item.active"
           [class.dark:text-gray-400]="!item.active"
         >
@@ -96,7 +99,7 @@
       }
 
       <!-- Label -->
-      @if (!collapsed()) {
+      @if (!isCollapsed()) {
         <span
           class="flex-1 truncate text-sm"
           [class.text-blue-700]="item.active"
@@ -110,7 +113,7 @@
       }
 
       <!-- Badge -->
-      @if (item.badge && !collapsed()) {
+      @if (item.badge && !isCollapsed()) {
         <span
           class="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
         >
@@ -119,9 +122,9 @@
       }
 
       <!-- Expand/collapse arrow for items with children -->
-      @if (item.children?.length && !collapsed()) {
+      @if (item.children?.length && !isCollapsed()) {
         <svg
-          class="w-4 h-4 text-gray-400 transition-transform"
+          class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform"
           [class.rotate-90]="item.expanded"
           fill="none"
           stroke="currentColor"
@@ -133,7 +136,7 @@
     </button>
 
     <!-- Children -->
-    @if (item.children?.length && item.expanded && !collapsed()) {
+    @if (item.children?.length && item.expanded && !isCollapsed()) {
       <ul class="mt-0.5" role="group">
         @for (child of item.children; track child.id) {
           <li role="treeitem" [attr.aria-selected]="!!child.active">

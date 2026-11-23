@@ -66,7 +66,10 @@ export class TwCopyClipboardDirective {
   }
 
   private fallbackCopy(text: string): boolean {
+    // Selecting the temporary textarea moves focus; give it back afterwards
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const textarea = document.createElement('textarea');
+    textarea.setAttribute('readonly', '');
     textarea.value = text;
     textarea.style.position = 'fixed';
     textarea.style.left = '-9999px';
@@ -79,6 +82,7 @@ export class TwCopyClipboardDirective {
       return document.execCommand('copy');
     } finally {
       textarea.remove();
+      previouslyFocused?.focus?.();
     }
   }
 }

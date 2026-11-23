@@ -10,11 +10,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type CardVariant = 'elevated' | 'outlined' | 'filled' | 'ghost';
 
 const CARD_BASE_CLASSES = `
-  block
+  relative block
   rounded-xl
   transition-all duration-200
 `;
@@ -49,7 +50,7 @@ const CARD_VARIANTS: Record<CardVariant, string> = {
 export class TwCardHeaderDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly hostClass = computed(() =>
     this.twClass.merge(
@@ -72,7 +73,7 @@ export class TwCardHeaderDirective {
 export class TwCardTitleDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly hostClass = computed(() =>
     this.twClass.merge('block text-lg font-semibold text-slate-900 dark:text-white', this.class())
@@ -92,10 +93,10 @@ export class TwCardTitleDirective {
 export class TwCardSubtitleDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly hostClass = computed(() =>
-    this.twClass.merge('block text-sm text-slate-500 dark:text-slate-400 mt-1', this.class())
+    this.twClass.merge('block text-sm text-slate-500 dark:text-slate-300 mt-1', this.class())
   );
 }
 
@@ -112,7 +113,7 @@ export class TwCardSubtitleDirective {
 export class TwCardBodyDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly hostClass = computed(() => this.twClass.merge('block p-6', this.class()));
 }
@@ -130,7 +131,7 @@ export class TwCardBodyDirective {
 export class TwCardFooterDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly hostClass = computed(() =>
     this.twClass.merge(
@@ -159,7 +160,7 @@ const CARD_MEDIA_POSITIONS: Record<string, string> = {
 export class TwCardMediaDirective {
   private readonly twClass = inject(TwClassService);
 
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Position of the media (top for header image, full for background) */
   readonly position = input<'top' | 'bottom' | 'full'>('top');
@@ -187,7 +188,7 @@ export class TwCardMediaDirective {
  *     Card content goes here
  *   </tw-card-body>
  *   <tw-card-footer>
- *     <button tw-button variant="primary">Action</button>
+ *     <tw-button variant="primary">Action</tw-button>
  *   </tw-card-footer>
  * </tw-card>
  *
@@ -233,6 +234,13 @@ export class TwCardComponent {
   /** Additional classes to merge with base styles */
   readonly classOverride = input('');
 
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('', { transform: twClassValue });
+
   /** Complete class override (replaces all default classes) */
   readonly classReplace = input('');
 
@@ -264,6 +272,7 @@ export class TwCardComponent {
       baseClasses,
       variantClasses,
       conditionalClasses.join(' '),
+      this.class(),
       this.classOverride()
     );
   });
@@ -271,6 +280,9 @@ export class TwCardComponent {
   protected onKeydown(event: KeyboardEvent): void {
     if (!this.clickable()) return;
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    // Ignore keys from focusable descendants (inputs, buttons) so typing a space
+    // or pressing Enter inside them is not swallowed and does not click the card
+    if (event.target !== this.elementRef.nativeElement) return;
 
     event.preventDefault();
     (this.elementRef.nativeElement as HTMLElement).click();
@@ -296,11 +308,18 @@ export class TwCardHorizontalComponent {
 
   readonly variant = input<CardVariant>('elevated');
   readonly classOverride = input('');
+  /**
+   * Additional classes, merged over the defaults so they override conflicting ones
+   * (`class="bg-sky-700 text-white"`). Signal input so a static or bound `class`
+   * goes through the merge instead of competing with the host classes.
+   */
+  readonly class = input('', { transform: twClassValue });
 
   protected computedClasses = computed(() => {
     return this.twClass.merge(
       'flex rounded-xl overflow-hidden',
       CARD_VARIANTS[this.variant()],
+      this.class(),
       this.classOverride()
     );
   });

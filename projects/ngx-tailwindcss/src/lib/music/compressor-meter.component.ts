@@ -6,16 +6,19 @@ import {
   ElementRef,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
   OnInit,
   output,
+  PLATFORM_ID,
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type CompressorMeterVariant =
   'default' | 'minimal' | 'studio' | 'vintage' | 'light' | 'highContrast';
@@ -73,6 +76,7 @@ export const AR_TIME_PRESETS = {
 })
 export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly platformId = inject(PLATFORM_ID);
 
   // Expose Math for template use
   protected readonly Math = Math;
@@ -87,8 +91,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   readonly size = input<CompressorMeterSize>('md');
 
   // Level inputs (dB)
-  readonly inputLevel = input(0, { transform: numberAttribute }); // -60 to 0
-  readonly outputLevel = input(0, { transform: numberAttribute }); // -60 to 0
+  // Default to silence (-Infinity dB) so an unbound meter is idle rather than
+  // sitting at 0 dBFS and lighting the clip indicators at mount.
+  readonly inputLevel = input(Number.NEGATIVE_INFINITY, { transform: numberAttribute }); // -60 to 0
+  readonly outputLevel = input(Number.NEGATIVE_INFINITY, { transform: numberAttribute }); // -60 to 0
   readonly gainReduction = input(0, { transform: numberAttribute }); // 0 to -40 (negative values)
 
   // Compressor settings
@@ -124,12 +130,20 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   readonly clipInput = output();
   readonly clipOutput = output();
 
+  // Level sources: follow the bound inputs, but a programmatic
+  // setInputLevel()/setOutputLevel()/setGainReduction() wins until the
+  // corresponding input changes again (instead of being overwritten by the
+  // unchanged input on the next 50 ms tick)
+  private readonly sourceInputLevel = linkedSignal(() => this.inputLevel());
+  private readonly sourceOutputLevel = linkedSignal(() => this.outputLevel());
+  private readonly sourceGainReduction = linkedSignal(() => this.gainReduction());
+
   // Internal state
-  protected readonly internalInputLevel = signal(0);
-  protected readonly internalOutputLevel = signal(0);
+  protected readonly internalInputLevel = signal(Number.NEGATIVE_INFINITY);
+  protected readonly internalOutputLevel = signal(Number.NEGATIVE_INFINITY);
   protected readonly internalGainReduction = signal(0);
-  protected readonly inputPeakLevel = signal(0);
-  protected readonly outputPeakLevel = signal(0);
+  protected readonly inputPeakLevel = signal(Number.NEGATIVE_INFINITY);
+  protected readonly outputPeakLevel = signal(Number.NEGATIVE_INFINITY);
   protected readonly inputClip = signal(false);
   protected readonly outputClip = signal(false);
 
@@ -145,8 +159,13 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   private ctx: CanvasRenderingContext2D | null = null;
   private grHistoryCtx: CanvasRenderingContext2D | null = null;
   private envelopeCtx: CanvasRenderingContext2D | null = null;
+  // Envelope position captured when the release phase began
+  private releaseStartPosition = 0;
 
   ngOnInit(): void {
+    // A never-ending interval would keep SSR from ever becoming stable
+    if (!isPlatformBrowser(this.platformId)) return;
+
     // Update internal values periodically
     interval(50)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -161,9 +180,11 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   }
 
   private updateLevels(): void {
-    const inputLevel = this.inputLevel();
-    const outputLevel = this.outputLevel();
-    const gr = this.gainReduction();
+    // NaN (e.g. an unparsable attribute) is treated as silence
+    const inputLevel = this.sanitizeLevel(this.sourceInputLevel());
+    const outputLevel = this.sanitizeLevel(this.sourceOutputLevel());
+    const rawGr = this.sourceGainReduction();
+    const gr = Number.isFinite(rawGr) ? rawGr : 0;
     const now = Date.now();
 
     this.internalInputLevel.set(inputLevel);
@@ -182,6 +203,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       // Ending compression (release phase)
       this.isCompressing.set(false);
       this.releaseStartTime.set(now);
+      this.releaseStartPosition = this.envelopePosition();
     }
 
     // Update envelope position for visualization
@@ -199,31 +221,37 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       this.drawGrHistoryGraph();
     }
 
-    // Update peak hold
+    // Update peak hold: a new (or equal) peak restarts the hold; once the hold
+    // has expired the marker follows the level down. (Previously the marker
+    // started at 0 dB and only moved for levels above it, so it never tracked
+    // normal sub-0 dB signals, and stuck after a hold expired.)
     if (this.peakHold()) {
-      if (inputLevel > this.inputPeakLevel()) {
+      if (inputLevel >= this.inputPeakLevel() || this.inputPeakTimeout === null) {
         this.inputPeakLevel.set(inputLevel);
         if (this.inputPeakTimeout) clearTimeout(this.inputPeakTimeout);
         this.inputPeakTimeout = setTimeout(() => {
+          this.inputPeakTimeout = null;
           this.inputPeakLevel.set(this.internalInputLevel());
         }, this.peakHoldTime());
       }
 
-      if (outputLevel > this.outputPeakLevel()) {
+      if (outputLevel >= this.outputPeakLevel() || this.outputPeakTimeout === null) {
         this.outputPeakLevel.set(outputLevel);
         if (this.outputPeakTimeout) clearTimeout(this.outputPeakTimeout);
         this.outputPeakTimeout = setTimeout(() => {
+          this.outputPeakTimeout = null;
           this.outputPeakLevel.set(this.internalOutputLevel());
         }, this.peakHoldTime());
       }
     }
 
-    // Check for clipping
-    if (inputLevel >= 0) {
+    // Check for clipping: emit once per clip event (until reset), not on every tick.
+    // Silence (-Infinity) and NaN never count as a clip.
+    if (inputLevel >= 0 && !this.inputClip()) {
       this.inputClip.set(true);
       this.clipInput.emit();
     }
-    if (outputLevel >= 0) {
+    if (outputLevel >= 0 && !this.outputClip()) {
       this.outputClip.set(true);
       this.clipOutput.emit();
     }
@@ -239,6 +267,10 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     }
   }
 
+  private sanitizeLevel(level: number): number {
+    return Number.isNaN(level) ? Number.NEGATIVE_INFINITY : level;
+  }
+
   private updateEnvelopePosition(now: number, isCompressing: boolean): void {
     const settings = this.effectiveSettings();
 
@@ -252,9 +284,9 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       // Release phase - gradual fall
       const elapsed = now - this.releaseStartTime();
       const releaseProgress = Math.min(1, elapsed / settings.release);
-      // Exponential release curve
-      const startPos = this.envelopePosition();
-      this.envelopePosition.set(startPos * Math.exp(-3 * releaseProgress));
+      // Exponential release curve, decaying from the level at release start
+      // (not compounded on every tick)
+      this.envelopePosition.set(this.releaseStartPosition * Math.exp(-3 * releaseProgress));
     }
   }
 
@@ -288,6 +320,17 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     return Math.min(100, (gr / 40) * 100); // 40dB max GR range
   });
 
+  /**
+   * Gain-reduction scale labels at their real depth on the GR fill's 0..40 dB
+   * scale (top-down), so "-10" lines up with a 10 dB fill rather than being
+   * spread evenly across a padded box. End labels are kept inside the meter.
+   */
+  protected readonly grScale = [0, 10, 20, 30, 40].map(db => ({
+    label: db === 0 ? '0' : `-${db}`,
+    topPercent: (db / 40) * 100,
+    align: db === 0 ? 'top' : db === 40 ? 'bottom' : 'center',
+  }));
+
   protected readonly thresholdPercent = computed(() => {
     return this.dbToPercent(this.effectiveSettings().threshold);
   });
@@ -298,6 +341,19 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
 
   protected readonly outputPeakPercent = computed(() => {
     return this.dbToPercent(this.outputPeakLevel());
+  });
+
+  /**
+   * Level-meter scale: the top label is meterMax and the 0 dB label sits at
+   * its real height (90.9% for the default -60..+6 range). Evenly spaced
+   * labels put "0" at the vertical middle, i.e. around -27 dB.
+   */
+  protected readonly meterScale = computed(() => {
+    const max = this.meterMax();
+    return {
+      maxLabel: `${max > 0 ? '+' : ''}${max}`,
+      zeroPercent: this.meterMin() < 0 && max > 0 ? this.dbToPercent(0) : null,
+    };
   });
 
   private dbToPercent(db: number): number {
@@ -362,8 +418,9 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     this.ctx = canvas.getContext('2d');
     if (!this.ctx) return;
 
-    const { width } = canvas;
-    const { height } = canvas;
+    // Backing store sized for the device pixel ratio; drawing uses CSS pixels
+    const { width, height } = this.curveSize();
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
     const settings = this.effectiveSettings();
 
     // Clear
@@ -452,7 +509,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
 
     // Draw current input level marker
     const inputX = (this.inputMeterPercent() / 100) * width;
-    const currentOutput = this.internalOutputLevel();
+    // Clamp so silence (-Infinity) parks the marker at the bottom edge
+    const currentOutput = Math.max(minDb, Math.min(maxDb, this.internalOutputLevel()));
     const outputY = height - ((currentOutput - minDb) / range) * height;
 
     this.ctx.fillStyle = 'rgb(239, 68, 68)'; // red-500
@@ -470,8 +528,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (!this.grHistoryCtx) return;
 
     const ctx = this.grHistoryCtx;
-    const { width } = canvas;
-    const { height } = canvas;
+    const { width, height } = this.grHistorySize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     const history = this.grHistory();
 
     // Clear
@@ -493,7 +551,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       ctx.stroke();
 
       // Label
-      ctx.fillStyle = 'rgb(100, 116, 139)'; // slate-500
+      ctx.fillStyle = 'rgb(148, 163, 184)'; // slate-400 (readable on slate-800)
       ctx.font = '8px monospace';
       ctx.fillText(`${db}`, 2, y - 2);
     }
@@ -555,8 +613,8 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (!this.envelopeCtx) return;
 
     const ctx = this.envelopeCtx;
-    const { width } = canvas;
-    const { height } = canvas;
+    const { width, height } = this.envelopeSize();
+    prepareHiDpiCanvas(canvas, ctx, width, height);
     const settings = this.effectiveSettings();
 
     // Clear
@@ -579,7 +637,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     ctx.stroke();
 
     // Draw labels
-    ctx.fillStyle = 'rgb(100, 116, 139)'; // slate-500
+    ctx.fillStyle = 'rgb(148, 163, 184)'; // slate-400 (readable on slate-800)
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('ATK', attackWidth / 2, height - 4);
@@ -666,16 +724,22 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   }
 
   // Public methods
+  // Programmatic levels take precedence over the bound inputs until the input
+  // value changes; they are shown immediately and fed through the regular
+  // metering (peak hold, clip detection, GR history) on each tick.
   setInputLevel(level: number): void {
-    this.internalInputLevel.set(level);
+    this.sourceInputLevel.set(level);
+    this.internalInputLevel.set(this.sanitizeLevel(level));
   }
 
   setOutputLevel(level: number): void {
-    this.internalOutputLevel.set(level);
+    this.sourceOutputLevel.set(level);
+    this.internalOutputLevel.set(this.sanitizeLevel(level));
   }
 
   setGainReduction(gr: number): void {
-    this.internalGainReduction.set(gr);
+    this.sourceGainReduction.set(gr);
+    this.internalGainReduction.set(Number.isFinite(gr) ? gr : 0);
   }
 
   clearHistory(): void {
@@ -715,6 +779,19 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     const size = this.size();
     return { sm: 100, md: 140, lg: 180 }[size];
   });
+
+  // Meter gradients span the whole meter height (not the fill's), so a colour
+  // always marks the same level: a quiet signal stays green instead of the
+  // gradient being squeezed into the fill and showing red at its top.
+  protected readonly levelMeterBackground = computed(
+    () =>
+      `linear-gradient(to top, rgb(34, 197, 94), rgb(234, 179, 8) 70%, rgb(239, 68, 68) 90%) bottom / 100% ${this.meterHeight()}px no-repeat`
+  );
+
+  protected readonly grMeterBackground = computed(
+    () =>
+      `linear-gradient(to bottom, rgb(234, 179, 8), rgb(249, 115, 22) 60%, rgb(239, 68, 68) 90%) top / 100% ${this.meterHeight()}px no-repeat`
+  );
 
   protected readonly curveSize = computed(() => {
     const size = this.size();
@@ -783,6 +860,50 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     if (gr < 20) return 'heavy';
     return 'limiting';
   });
+
+  // Label / readout text colours that stay >= 4.5:1 against the variant's
+  // background (slate-500/600 on the dark panels were ~2.4-3:1). The minimal
+  // variant is transparent and sits on the (typically light) page background,
+  // so it uses the darker shades there and restores the light ones in dark mode
+  // (full class names are spelled out so Tailwind's source scan picks them up).
+  private textTone(light: string, dark: string, minimal: string): string {
+    const variant = this.variant();
+    if (variant === 'light') return light;
+    if (variant === 'minimal') return minimal;
+    return dark;
+  }
+
+  protected readonly labelClass = computed(() =>
+    this.textTone('text-slate-600', 'text-slate-400', 'text-slate-600 dark:text-slate-400')
+  );
+
+  protected readonly valueClass = computed(() =>
+    this.textTone('text-slate-800', 'text-slate-300', 'text-slate-800 dark:text-slate-300')
+  );
+
+  // Gain-reduction readout: the amber/orange/red 400 shades are ~1.7-2.8:1 on
+  // the light variant's white panel, so it uses the darker 700 shades there
+  protected readonly grValueClass = computed(() => {
+    const gr = Math.abs(this.internalGainReduction());
+    if (gr >= 20)
+      return this.textTone('text-red-700', 'text-red-400', 'text-red-700 dark:text-red-400');
+    if (gr >= 10)
+      return this.textTone(
+        'text-orange-700',
+        'text-orange-400',
+        'text-orange-700 dark:text-orange-400'
+      );
+    return this.textTone('text-amber-700', 'text-amber-400', 'text-amber-700 dark:text-amber-400');
+  });
+
+  // Attack/release text in the 'graph' display, readable on the light panel
+  protected readonly attackTextClass = computed(() =>
+    this.textTone('text-green-700', 'text-green-400', 'text-green-700 dark:text-green-400')
+  );
+
+  protected readonly releaseTextClass = computed(() =>
+    this.textTone('text-amber-700', 'text-amber-400', 'text-amber-700 dark:text-amber-400')
+  );
 
   // Activity color class
   protected readonly activityColorClass = computed(() => {

@@ -12,12 +12,13 @@ import {
   OnDestroy,
   output,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, NgStyle } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MusicAccessibilityService } from './accessibility.service';
-import { MobileSupportService } from './mobile-support.service';
+import { MobileSupportService, TouchTrackingState } from './mobile-support.service';
 
 export type FaderVariant = 'default' | 'studio' | 'minimal' | 'vintage' | 'channel';
 export type FaderSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -60,13 +61,16 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     // Watch for peakLevel changes
     effect(() => {
       const level = this.peakLevel();
-      this.updatePeakHold(level);
+      untracked(() => {
+        this.updatePeakHold(level);
+      });
     });
   }
 
   ngOnDestroy(): void {
     if (this.peakHoldTimeout) {
       clearTimeout(this.peakHoldTimeout);
+      this.peakHoldTimeout = null;
     }
     this.dragController?.abort();
     this.dragController = null;
@@ -137,7 +141,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   private onChange: (value: number) => void = () => {};
   private onTouched: () => void = () => {};
   private peakHoldTimeout: ReturnType<typeof setTimeout> | null = null;
-  private lastPeakLevel = 0;
+  private touchTracking: TouchTrackingState | null = null;
   private dragController: AbortController | null = null;
   private lastHapticTime = 0;
 
@@ -218,7 +222,10 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: string;
         capHighlight: string;
         capLine: string;
+        // label text: sits on the page unless the variant has a container surface
         text: string;
+        // value readout text: on its own dark chip except in minimal
+        valueText: string;
         scale: string;
         peakHold: string;
         container: string;
@@ -230,8 +237,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-slate-300 to-slate-400',
         capHighlight: 'bg-slate-200',
         capLine: 'bg-slate-500',
-        text: 'text-slate-300',
-        scale: 'text-slate-500',
+        text: 'text-slate-700 dark:text-slate-300',
+        valueText: 'text-slate-300',
+        scale: 'text-slate-500 dark:text-slate-400',
         peakHold: 'bg-red-500',
         container: '',
       },
@@ -241,8 +249,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-slate-200 to-slate-300',
         capHighlight: 'bg-white',
         capLine: 'bg-slate-400',
-        text: 'text-slate-200',
-        scale: 'text-slate-400',
+        text: 'text-slate-800 dark:text-slate-200',
+        valueText: 'text-slate-200',
+        scale: 'text-slate-600 dark:text-slate-400',
         peakHold: 'bg-red-500',
         container: '',
       },
@@ -253,7 +262,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         capHighlight: 'bg-slate-100 dark:bg-white',
         capLine: 'bg-slate-300 dark:bg-slate-500',
         text: 'text-slate-700 dark:text-slate-300',
-        scale: 'text-slate-400 dark:text-slate-500',
+        valueText: 'text-slate-700 dark:text-slate-300',
+        scale: 'text-slate-500 dark:text-slate-400',
         peakHold: 'bg-red-400',
         container: '',
       },
@@ -263,8 +273,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-amber-200 to-amber-300',
         capHighlight: 'bg-amber-100',
         capLine: 'bg-amber-600',
-        text: 'text-amber-200',
-        scale: 'text-amber-400',
+        text: 'text-amber-800 dark:text-amber-200',
+        valueText: 'text-amber-200',
+        scale: 'text-amber-700 dark:text-amber-400',
         peakHold: 'bg-red-600',
         container: '',
       },
@@ -275,7 +286,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         capHighlight: 'bg-white',
         capLine: 'bg-slate-400',
         text: 'text-slate-200',
-        scale: 'text-slate-500',
+        valueText: 'text-slate-200',
+        scale: 'text-slate-400',
         peakHold: 'bg-red-500',
         container: 'bg-slate-800 rounded-lg p-2 border border-slate-700',
       },
@@ -289,7 +301,10 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     const base = 'relative flex items-center gap-2';
     const orientationClass = orientation === 'vertical' ? 'flex-col' : 'flex-row';
     const disabled = this.isDisabled() ? 'opacity-50 cursor-not-allowed' : '';
-    return [base, orientationClass, disabled, this.classOverride()].filter(Boolean).join(' ');
+    // Variant container styling is merged here: a second [class] binding would replace these
+    return [base, orientationClass, this.colors().container, disabled, this.classOverride()]
+      .filter(Boolean)
+      .join(' ');
   });
 
   protected readonly trackClasses = computed(() => {
@@ -307,11 +322,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly fillStyle = computed(() => {
-    const value = this.internalValue();
-    const min = this.min();
-    const max = this.max();
     const orientation = this.orientation();
-    const percentage = ((value - min) / (max - min)) * 100;
+    const percentage = this.trackPercent(this.internalValue());
 
     if (orientation === 'vertical') {
       return { height: `${percentage}%`, bottom: 0 };
@@ -334,6 +346,25 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     }
     return { left: `${position}px` };
   });
+
+  /** Fraction of the track at each end that the cap centre never reaches (half a cap) */
+  private capInset(): number {
+    const { trackLength, capHeight } = this.dimensions();
+    return trackLength > capHeight ? capHeight / 2 / trackLength : 0;
+  }
+
+  /**
+   * Position (% of the track from its start) of the cap centre for a value. The cap only
+   * travels trackLength - capHeight, so the scale, zero/-10 lines and fill follow that
+   * travel: spread over the whole track, the cap's centre line at 0 dB pointed near -3 dB.
+   */
+  protected trackPercent(value: number): number {
+    const min = this.min();
+    const max = this.max();
+    const fraction = max > min ? (value - min) / (max - min) : 0;
+    const inset = this.capInset();
+    return (inset + Math.max(0, Math.min(1, fraction)) * (1 - 2 * inset)) * 100;
+  }
 
   protected readonly capClasses = computed(() => {
     const { capWidth, capHeight } = this.dimensions();
@@ -361,7 +392,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     const filteredMarks = commonMarks.filter(m => m >= min && m <= max);
 
     for (const mark of filteredMarks) {
-      const position = ((mark - min) / (max - min)) * 100;
+      const position = this.trackPercent(mark);
       marks.push({
         value: mark,
         label: mark === 0 ? '0' : mark > 0 ? `+${mark}` : `${mark}`,
@@ -379,6 +410,27 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     return value.toFixed(1);
   });
 
+  /**
+   * Peak meter fill. The green/yellow/red gradient spans the whole meter (sized to the
+   * track, anchored at its start) so a low level stays green instead of squeezing the
+   * full gradient into the lit portion, and it runs along the meter in both orientations.
+   */
+  protected readonly peakFillStyle = computed((): Record<string, string> => {
+    const vertical = this.orientation() === 'vertical';
+    const level = `${Math.max(0, Math.min(100, this.peakLevel()))}%`;
+    const length = `${this.dimensions().trackLength}px`;
+    return {
+      'background-image': `linear-gradient(to ${vertical ? 'top' : 'right'}, rgb(34, 197, 94) 0%, rgb(34, 197, 94) 60%, rgb(234, 179, 8) 75%, rgb(239, 68, 68) 90%)`,
+      'background-size': vertical ? `100% ${length}` : `${length} 100%`,
+      'background-position': vertical ? 'bottom' : 'left',
+      'background-repeat': 'no-repeat',
+      height: vertical ? level : '100%',
+      width: vertical ? '100%' : level,
+      bottom: vertical ? '0' : 'auto',
+      left: vertical ? 'auto' : '0',
+    };
+  });
+
   protected readonly peakHoldPosition = computed(() => {
     const peakLevel = this.peakHoldLevel();
     const { trackLength, capHeight } = this.dimensions();
@@ -390,9 +442,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   updatePeakHold(level: number): void {
     if (!this.peakHold()) return;
 
-    if (level > this.lastPeakLevel || level > this.peakHoldLevel()) {
+    // Only a new maximum restarts the hold; rising below the held peak must not lower it
+    if (level > this.peakHoldLevel()) {
       this.peakHoldLevel.set(level);
-      this.lastPeakLevel = level;
 
       // Clear existing timeout
       if (this.peakHoldTimeout) {
@@ -401,12 +453,13 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
       // Set decay timeout
       this.peakHoldTimeout = setTimeout(() => {
+        this.peakHoldTimeout = null;
         this.peakHoldLevel.set(this.peakLevel());
-        this.lastPeakLevel = this.peakLevel();
       }, this.peakHoldTime());
+    } else if (this.peakHoldTimeout === null) {
+      // Hold period over: the indicator follows the level down instead of sticking
+      this.peakHoldLevel.set(level);
     }
-
-    this.lastPeakLevel = level;
   }
 
   // Call this from ngOnChanges or effect to track peakLevel changes
@@ -417,7 +470,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent): void {
-    if (this.isDisabled()) return;
+    if (this.isDisabled() || !this.isAlongTrack(event.clientX, event.clientY)) return;
     this.startDrag(event.clientX, event.clientY);
     event.preventDefault();
   }
@@ -425,12 +478,14 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   @HostListener('touchstart', ['$event'])
   onTouchStart(event: TouchEvent): void {
     if (this.isDisabled()) return;
-    const touch = event.touches[0];
+    // The finger that just landed on this fader: touches[0] may be a finger
+    // already holding another control (multi-touch mixing)
+    const touch = event.changedTouches?.[0] ?? event.touches[0];
+    if (!this.isAlongTrack(touch.clientX, touch.clientY)) return;
     const guarded = this.touchGuard();
-    if (guarded) {
-      this.mobileSupport.startTouchTracking(event);
-    }
-    this.startDrag(touch.clientX, touch.clientY, guarded);
+    // Keep this gesture's start state: the service's implicit one is shared by all controls
+    this.touchTracking = guarded ? this.mobileSupport.startTouchTracking(event) : null;
+    this.startDrag(touch.clientX, touch.clientY, guarded, touch.identifier);
     event.preventDefault();
   }
 
@@ -476,29 +531,57 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
     if (handled) {
       event.preventDefault();
+      this.onTouched();
     }
   }
 
-  private startDrag(clientX: number, clientY: number, guarded = false): void {
+  /**
+   * Whether a press lands within the track's extent along the fader axis. Presses
+   * on the label, channel number or value readout (beyond the track's ends) must
+   * not jump the fader to its maximum or to -∞.
+   */
+  private isAlongTrack(clientX: number, clientY: number): boolean {
+    const rect = this.trackRef?.nativeElement.getBoundingClientRect();
+    if (!rect) return true;
+    return this.orientation() === 'vertical'
+      ? clientY >= rect.top && clientY <= rect.bottom
+      : clientX >= rect.left && clientX <= rect.right;
+  }
+
+  private startDrag(
+    clientX: number,
+    clientY: number,
+    guarded = false,
+    touchId: number | null = null
+  ): void {
     this.isDragging.set(true);
 
     // Capture the track rect once for the whole gesture
     const dragRect = this.trackRef?.nativeElement.getBoundingClientRect() ?? null;
 
     const guardPassed = (): boolean =>
-      !guarded || this.mobileSupport.validateTouchDuration(this.minTouchDuration());
+      !guarded ||
+      this.mobileSupport.validateTouchDuration(
+        this.minTouchDuration(),
+        this.touchTracking ?? undefined
+      );
 
     if (guardPassed()) {
       this.updateValueFromPosition(clientX, clientY, dragRect);
     }
 
     const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!guardPassed()) return;
-      const pos = 'touches' in e ? e.touches[0] : e;
+      // Follow only the finger that started this drag
+      const pos = 'touches' in e ? findTouch(e.touches, touchId) : e;
+      if (!pos || !guardPassed()) return;
       this.updateValueFromPosition(pos.clientX, pos.clientY, dragRect);
     };
 
-    const onUp = () => {
+    const onUp = (e: MouseEvent | TouchEvent) => {
+      // Another finger lifting (e.g. from a neighbouring fader) must not end this drag
+      if ('changedTouches' in e && touchId !== null && !findTouch(e.changedTouches, touchId)) {
+        return;
+      }
       this.isDragging.set(false);
       this.onTouched();
       this.dragController?.abort();
@@ -512,6 +595,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     document.addEventListener('mouseup', onUp, { signal: abortSignal });
     document.addEventListener('touchmove', onMove, { signal: abortSignal });
     document.addEventListener('touchend', onUp, { signal: abortSignal });
+    document.addEventListener('touchcancel', onUp, { signal: abortSignal });
   }
 
   private updateValueFromPosition(
@@ -533,6 +617,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
       percentage = (clientX - rect.left) / rect.width;
     }
 
+    // The cap centre (and the scale) spans the track minus half a cap at each end
+    const inset = this.capInset();
+    percentage = (percentage - inset) / (1 - 2 * inset);
     percentage = Math.max(0, Math.min(1, percentage));
     let value = min + percentage * (max - min);
 
@@ -549,8 +636,12 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private setValue(value: number): void {
-    const clampedValue = Math.max(this.min(), Math.min(this.max(), value));
+    const clampedValue = this.roundToStepPrecision(
+      Math.max(this.min(), Math.min(this.max(), value))
+    );
     const previousValue = this.internalValue();
+    // Nothing changed (e.g. key presses at a boundary, drag moves within one step)
+    if (clampedValue === previousValue) return;
     this.internalValue.set(clampedValue);
     this.onChange(clampedValue);
     this.valueChange.emit(clampedValue);
@@ -562,6 +653,12 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         this.label() || (this.channelNumber() ? `Channel ${this.channelNumber()}` : 'Fader');
       this.a11y.announceValueChange(labelName, clampedValue.toFixed(1), 'dB');
     }
+  }
+
+  // Strip floating-point noise (e.g. 0.1 + 0.2) so values match the step's precision
+  private roundToStepPrecision(value: number): number {
+    const decimals = this.step().toString().split('.')[1]?.length ?? 0;
+    return Number(value.toFixed(Math.min(decimals, 20)));
   }
 
   private triggerHaptics(value: number, previous: number): void {
@@ -600,7 +697,10 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected resetToDefault(): void {
+    if (this.isDisabled()) return;
     this.setValue(this.defaultValue());
+    // Commit for updateOn: 'blur' forms (the press already marked the control touched)
+    this.onTouched();
   }
 
   // ControlValueAccessor
@@ -619,4 +719,13 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   setDisabledState(isDisabled: boolean): void {
     this.cvaDisabled.set(isDisabled);
   }
+}
+
+/** The touch with the given identifier (or the first one when no identifier is tracked) */
+function findTouch(list: TouchList | undefined, id: number | null): Touch | undefined {
+  if (!list) return undefined;
+  if (id === null) return list[0];
+  // TouchList is array-like but not iterable without the dom.iterable lib
+  return Array.prototype.find.call(list, (touch: Touch) => touch.identifier === id) as
+    Touch | undefined;
 }

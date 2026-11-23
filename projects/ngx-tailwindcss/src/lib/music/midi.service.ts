@@ -158,6 +158,16 @@ export const MIDI_CC = {
 // ============================================================================
 
 /**
+ * Rounds and clamps a value to a MIDI data byte (0-127). Values outside that range
+ * would set the high bit and turn the data byte into a status byte, corrupting the
+ * message sent to the device.
+ */
+function toDataByte(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(127, Math.max(0, Math.round(value)));
+}
+
+/**
  * Service for Web MIDI API integration
  *
  * @example
@@ -200,6 +210,8 @@ export class MidiService implements OnDestroy {
   private readonly _connected = signal(false);
   private readonly _inputs = signal<Map<string, MidiDeviceInfo>>(new Map());
   private readonly _outputs = signal<Map<string, MidiDeviceInfo>>(new Map());
+  // Keyed by channel * 128 + note so the same note held on two channels is
+  // tracked independently
   private readonly _activeNotes = signal<Map<number, MidiMessage>>(new Map());
   private readonly _ccMappings = signal<Map<string, MidiCCMapping>>(new Map());
   private readonly _ccValues = signal<Map<number, number>>(new Map());
@@ -219,6 +231,10 @@ export class MidiService implements OnDestroy {
 
   // MIDI input references
   private connectedInputs: MIDIInput[] = [];
+
+  // Incremented by disconnect() so an access request still awaiting the
+  // browser's permission prompt does not reconnect a disconnected service
+  private accessGeneration = 0;
 
   // =========================================================================
   // PUBLIC SIGNALS
@@ -277,8 +293,17 @@ export class MidiService implements OnDestroy {
       return false;
     }
 
+    const generation = this.accessGeneration;
     try {
-      this._midiAccess = await navigator.requestMIDIAccess({ sysex });
+      const access = await navigator.requestMIDIAccess({ sysex });
+      // disconnect() (or destroy) ran while the request was pending: do not
+      // open the ports or attach handlers behind the caller's back
+      if (generation !== this.accessGeneration) return false;
+      // A repeated request (e.g. two components each calling requestAccess)
+      // yields a new MIDIAccess with its own port objects; release the previous
+      // one's handlers or every message would be delivered once per request.
+      this.detachAccess();
+      this._midiAccess = access;
       this._connected.set(true);
 
       // Set up device listeners. Web MIDI uses the onstatechange handler idiom
@@ -303,18 +328,8 @@ export class MidiService implements OnDestroy {
    * Disconnect from MIDI
    */
   disconnect(): void {
-    // Remove input listeners
-    for (const input of this.connectedInputs) {
-      input.onmidimessage = null;
-    }
-    this.connectedInputs = [];
-
-    // Detach the state-change handler so a later device plug-in cannot
-    // re-subscribe a disconnected service
-    if (this._midiAccess) {
-      // eslint-disable-next-line unicorn/prefer-add-event-listener -- Web MIDI API onstatechange handler idiom
-      this._midiAccess.onstatechange = null;
-    }
+    this.accessGeneration++;
+    this.detachAccess();
 
     // Clear state
     this._inputs.set(new Map());
@@ -334,6 +349,22 @@ export class MidiService implements OnDestroy {
       lastMessage: null,
       timeout: null,
     });
+  }
+
+  /** Remove this service's handlers from the current MIDIAccess and its inputs */
+  private detachAccess(): void {
+    // Remove input listeners
+    for (const input of this.connectedInputs) {
+      input.onmidimessage = null;
+    }
+    this.connectedInputs = [];
+
+    // Detach the state-change handler so a later device plug-in cannot
+    // re-subscribe a disconnected service
+    if (this._midiAccess) {
+      // eslint-disable-next-line unicorn/prefer-add-event-listener -- Web MIDI API onstatechange handler idiom
+      this._midiAccess.onstatechange = null;
+    }
   }
 
   private handleStateChange(event: Event): void {
@@ -416,13 +447,13 @@ export class MidiService implements OnDestroy {
     if (message.type === 'noteOn' && message.data2 > 0) {
       this._activeNotes.update(notes => {
         const newNotes = new Map(notes);
-        newNotes.set(message.data1, message);
+        newNotes.set(message.channel * 128 + message.data1, message);
         return newNotes;
       });
     } else if (message.type === 'noteOff' || (message.type === 'noteOn' && message.data2 === 0)) {
       this._activeNotes.update(notes => {
         const newNotes = new Map(notes);
-        newNotes.delete(message.data1);
+        newNotes.delete(message.channel * 128 + message.data1);
         return newNotes;
       });
     }
@@ -770,28 +801,28 @@ export class MidiService implements OnDestroy {
    * Send a Note On message
    */
   sendNoteOn(outputId: string, note: number, velocity: number = 127, channel: number = 0): void {
-    this.sendMessage(outputId, [0x90 | channel, note, velocity]);
+    this.sendMessage(outputId, [0x90 | (channel & 0x0f), toDataByte(note), toDataByte(velocity)]);
   }
 
   /**
    * Send a Note Off message
    */
   sendNoteOff(outputId: string, note: number, velocity: number = 0, channel: number = 0): void {
-    this.sendMessage(outputId, [0x80 | channel, note, velocity]);
+    this.sendMessage(outputId, [0x80 | (channel & 0x0f), toDataByte(note), toDataByte(velocity)]);
   }
 
   /**
    * Send a Control Change message
    */
   sendCC(outputId: string, cc: number, value: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xb0 | channel, cc, Math.round(value)]);
+    this.sendMessage(outputId, [0xb0 | (channel & 0x0f), toDataByte(cc), toDataByte(value)]);
   }
 
   /**
    * Send a Program Change message
    */
   sendProgramChange(outputId: string, program: number, channel: number = 0): void {
-    this.sendMessage(outputId, [0xc0 | channel, program]);
+    this.sendMessage(outputId, [0xc0 | (channel & 0x0f), toDataByte(program)]);
   }
 
   /**
@@ -799,10 +830,11 @@ export class MidiService implements OnDestroy {
    */
   sendPitchBend(outputId: string, value: number, channel: number = 0): void {
     // value: -8192 to 8191, centered at 0
-    const normalized = Math.round(value + 8192);
+    // Clamp to the 14-bit range so out-of-range values do not wrap around
+    const normalized = Math.min(16_383, Math.max(0, Math.round(value + 8192)));
     const lsb = normalized & 0x7f;
     const msb = (normalized >> 7) & 0x7f;
-    this.sendMessage(outputId, [0xe0 | channel, lsb, msb]);
+    this.sendMessage(outputId, [0xe0 | (channel & 0x0f), lsb, msb]);
   }
 
   /**
@@ -879,7 +911,9 @@ export class MidiService implements OnDestroy {
    * Get note info from MIDI note number
    */
   getNoteInfo(noteNumber: number): MidiNoteInfo {
-    const name = NOTE_NAMES[noteNumber % 12];
+    // Normalise the pitch class: `%` keeps the sign, so notes below 0 (e.g.
+    // getNoteNumber('C', -2)) would index NOTE_NAMES with a negative number
+    const name = NOTE_NAMES[((noteNumber % 12) + 12) % 12];
     const octave = Math.floor(noteNumber / 12) - 1;
     const frequency = 440 * 2 ** ((noteNumber - 69) / 12);
 
@@ -910,10 +944,11 @@ export class MidiService implements OnDestroy {
   }
 
   /**
-   * Convert a value from a range to raw CC (0-127)
+   * Convert a value from a range to raw CC (0-127). Values outside the range
+   * clamp to its ends; an empty range (min === max) yields 0 rather than NaN.
    */
   unmapCCValue(value: number, min: number, max: number): number {
-    return Math.round(((value - min) / (max - min)) * 127);
+    return toDataByte(((value - min) / (max - min)) * 127);
   }
 
   /**

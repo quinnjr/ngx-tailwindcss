@@ -212,7 +212,7 @@ export class NativeDemoComponent {
 
   // Terminal lines
   terminalLines: TerminalLine[] = [
-    { id: '1', content: '$ npm install ngx-tailwindcss', type: 'input', timestamp: new Date() },
+    { id: '1', content: '$ npm install @quinnjr/ngx-tailwindcss', type: 'input', timestamp: new Date() },
     { id: '2', content: 'added 127 packages in 4.2s', type: 'success', timestamp: new Date() },
     { id: '3', content: '$ ng serve', type: 'input', timestamp: new Date() },
     { id: '4', content: 'Compiling @angular/core : es2022 as esm2022', type: 'output', timestamp: new Date() },
@@ -599,13 +599,13 @@ toolbarItems: ToolbarItem[] = [
   <div panel2>Bottom Panel</div>
 </tw-resizable-panels>`,
 
-    platformService: `import { NativeAppPlatformService } from 'ngx-tailwindcss';
+    platformService: `import { NativeAppPlatformService } from '@quinnjr/ngx-tailwindcss';
 
 export class AppComponent {
   private platform = inject(NativeAppPlatformService);
 
   ngOnInit() {
-    console.log('Platform:', this.platform.getPlatform());
+    console.log('Platform:', this.platform.platform());
     console.log('Is Tauri:', this.platform.isTauri());
     console.log('Is Electron:', this.platform.isElectron());
 
@@ -616,7 +616,7 @@ export class AppComponent {
   }
 }`,
 
-    filePickerService: `import { FilePickerService } from 'ngx-tailwindcss';
+    filePickerService: `import { FilePickerService } from '@quinnjr/ngx-tailwindcss';
 
 export class FileComponent {
   private filePicker = inject(FilePickerService);
@@ -640,7 +640,7 @@ export class FileComponent {
   }
 }`,
 
-    notificationsService: `import { NativeNotificationsService } from 'ngx-tailwindcss';
+    notificationsService: `import { NativeNotificationsService } from '@quinnjr/ngx-tailwindcss';
 
 export class NotifyComponent {
   private notifications = inject(NativeNotificationsService);
@@ -649,25 +649,22 @@ export class NotifyComponent {
     await this.notifications.show({
       title: 'Download Complete',
       body: 'Your file has been downloaded.',
-      icon: '/assets/icon.png',
-      actions: [
-        { id: 'open', title: 'Open' },
-        { id: 'dismiss', title: 'Dismiss' }
-      ]
+      icon: '/assets/icon.png'
     });
   }
 }`,
 
-    updateService: `import { UpdateService } from 'ngx-tailwindcss';
+    updateService: `import { UpdateService } from '@quinnjr/ngx-tailwindcss';
 
 export class UpdateComponent {
   private updateService = inject(UpdateService);
 
   async checkForUpdates() {
     const update = await this.updateService.checkForUpdates();
-    if (update.available) {
+    if (update) {
       console.log('New version:', update.version);
-      await this.updateService.downloadAndInstall();
+      await this.updateService.downloadUpdate();
+      await this.updateService.installUpdate();
     }
   }
 }`,

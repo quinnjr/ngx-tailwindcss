@@ -117,7 +117,7 @@ describe('TwCheckboxComponent', () => {
       component.variant.set('warning');
       fixture.detectChanges();
       const input = checkboxEl.querySelector('input');
-      expect(input?.className).toContain('text-amber-500');
+      expect(input?.className).toContain('text-amber-600');
     });
 
     it('should apply danger variant', () => {
@@ -132,6 +132,22 @@ describe('TwCheckboxComponent', () => {
       fixture.detectChanges();
       const input = checkboxEl.querySelector('input');
       expect(input?.className).toContain('text-slate-600');
+    });
+
+    it('should colour the native checkbox via accent-color for every variant', () => {
+      // A native checkbox ignores `color`; only `accent-color` tints the checked box
+      const expected = {
+        primary: 'accent-blue-600',
+        secondary: 'accent-slate-600',
+        success: 'accent-emerald-600',
+        warning: 'accent-amber-600',
+        danger: 'accent-rose-600',
+      } as const;
+      for (const [variant, cls] of Object.entries(expected)) {
+        component.variant.set(variant as CheckboxVariant);
+        fixture.detectChanges();
+        expect(checkboxEl.querySelector('input')?.className).toContain(cls);
+      }
     });
   });
 
@@ -207,6 +223,23 @@ describe('TwCheckboxComponent', () => {
       fixture.detectChanges();
       component.checkbox.toggle();
       expect(component.changeEvent).toBeNull();
+    });
+
+    it('should expose the readonly state to assistive technology', () => {
+      const input = checkboxEl.querySelector('input')!;
+      expect(input.hasAttribute('aria-readonly')).toBe(false);
+      component.readonly.set(true);
+      fixture.detectChanges();
+      expect(input.getAttribute('aria-readonly')).toBe('true');
+    });
+
+    it('should not show a pointer cursor when readonly', () => {
+      const label = checkboxEl.querySelector('label')!;
+      expect(label.classList.contains('cursor-pointer')).toBe(true);
+      component.readonly.set(true);
+      fixture.detectChanges();
+      expect(label.classList.contains('cursor-pointer')).toBe(false);
+      expect(label.classList.contains('cursor-default')).toBe(true);
     });
   });
 
@@ -354,5 +387,55 @@ describe('TwCheckboxComponent with FormControl', () => {
 
     const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
     expect(input.checked).toBe(false);
+  });
+});
+
+@Component({
+  template: `<tw-checkbox [readonly]="readonly()" [indeterminate]="indeterminate()"
+    >X</tw-checkbox
+  >`,
+  standalone: true,
+  imports: [TwCheckboxComponent],
+})
+class CheckboxRegressionHostComponent {
+  readonly = signal(false);
+  indeterminate = signal(false);
+}
+
+describe('TwCheckboxComponent (regressions)', () => {
+  it('should keep the native checkbox unchecked when readonly', () => {
+    const fixture = TestBed.createComponent(CheckboxRegressionHostComponent);
+    fixture.componentInstance.readonly.set(true);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.click();
+    fixture.detectChanges();
+    expect(input.checked).toBe(false);
+  });
+
+  it('should drop aria-checked="mixed" once the user toggles an indeterminate checkbox', () => {
+    const fixture = TestBed.createComponent(CheckboxRegressionHostComponent);
+    fixture.componentInstance.indeterminate.set(true);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    expect(input.getAttribute('aria-checked')).toBe('mixed');
+    input.click();
+    fixture.detectChanges();
+    expect(input.getAttribute('aria-checked')).toBe('true');
+  });
+});
+
+@Component({
+  template: `<tw-checkbox disabled="true">X</tw-checkbox>`,
+  standalone: true,
+  imports: [TwCheckboxComponent],
+})
+class CheckboxStringAttrHostComponent {}
+
+describe('TwCheckboxComponent (round 3)', () => {
+  it('should treat disabled="true" as disabled', () => {
+    const fixture = TestBed.createComponent(CheckboxStringAttrHostComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('input').disabled).toBe(true);
   });
 });

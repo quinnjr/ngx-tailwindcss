@@ -113,10 +113,15 @@ export class HomeComponent {
   ];
 
   installCode = `# Install the library
-pnpm add ngx-tailwindcss
+pnpm add @quinnjr/ngx-tailwindcss
 
 # Configure Tailwind to scan the library
 # In your styles.css or styles.scss:
 @import "tailwindcss";
-@source "../node_modules/ngx-tailwindcss/**/*.mjs";`;
+@source "../node_modules/@quinnjr/ngx-tailwindcss/**/*.mjs";
+
+# Register an animations provider (needed by tw-modal, tw-confirm-dialog and tw-overlay)
+# In your app.config.ts:
+#   import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+#   providers: [provideAnimationsAsync()]`;
 }

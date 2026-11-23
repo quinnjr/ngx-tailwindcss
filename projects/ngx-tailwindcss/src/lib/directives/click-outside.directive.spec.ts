@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwClickOutsideDirective } from './click-outside.directive';
 
 @Component({
@@ -133,5 +133,30 @@ describe('TwClickOutsideDirective', () => {
     outsideButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(component.clickOutsideCount).toBe(0);
+  });
+
+  it('should emit once for a tap (touchstart followed by its synthesized click)', async () => {
+    await Promise.resolve();
+
+    const outsideButton = fixture.debugElement.query(By.css('[data-testid="outside-button"]'))
+      .nativeElement as HTMLElement;
+    outsideButton.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    outsideButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(component.clickOutsideCount).toBe(1);
+  });
+
+  it('should not attach a document listener when destroyed before the deferred attach', async () => {
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    const fresh = TestBed.createComponent(TestHostComponent);
+    fresh.detectChanges();
+    // Destroy before the microtask that attaches the listener runs
+    fresh.destroy();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const clickListeners = addSpy.mock.calls.filter(([type]) => type === 'click');
+    addSpy.mockRestore();
+    expect(clickListeners).toHaveLength(0);
   });
 });

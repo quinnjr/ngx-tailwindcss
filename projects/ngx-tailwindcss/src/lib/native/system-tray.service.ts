@@ -1,7 +1,8 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 export interface TrayConfig {
   icon: string;
@@ -13,8 +14,9 @@ export interface TrayConfig {
 @Injectable({
   providedIn: 'root',
 })
-export class SystemTrayService {
+export class SystemTrayService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly ngZone = inject(NgZone);
 
   public readonly isSupported = signal(false);
   public readonly isVisible = signal(false);
@@ -24,9 +26,20 @@ export class SystemTrayService {
   // Id -> action routing table for Electron menu clicks (see convertMenuForElectron)
   private readonly electronMenuActions = new Map<string, () => void>();
   private electronMenuListenerRegistered = false;
+  private unsubscribeMenuClick: (() => void) | null = null;
+  private destroyed = false;
 
   constructor() {
     this.checkSupport();
+  }
+
+  /** Remove the IPC menu-click listener (it would otherwise outlive the app). */
+  public ngOnDestroy(): void {
+    this.destroyed = true;
+    this.unsubscribeMenuClick?.();
+    this.unsubscribeMenuClick = null;
+    this.electronMenuListenerRegistered = false;
+    this.electronMenuActions.clear();
   }
 
   private checkSupport(): void {
@@ -58,9 +71,14 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-set-icon', icon);
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-set-icon', icon);
+        return true;
+      } catch (error) {
+        console.error('Failed to update Electron tray:', error);
+        return false;
+      }
     }
     return false;
   }
@@ -78,9 +96,14 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-set-tooltip', tooltip);
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-set-tooltip', tooltip);
+        return true;
+      } catch (error) {
+        console.error('Failed to update Electron tray:', error);
+        return false;
+      }
     }
     return false;
   }
@@ -99,20 +122,36 @@ export class SystemTrayService {
       return true;
     }
     if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      await this.registerElectronMenuClickListener();
-      ipcRenderer.send('tray-set-menu', this.convertMenuForElectron(menu));
-      return true;
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        await this.registerElectronMenuClickListener();
+        ipcRenderer.send('tray-set-menu', this.convertMenuForElectron(menu));
+        return true;
+      } catch (error) {
+        console.error('Failed to set Electron tray menu:', error);
+        return false;
+      }
     }
     return false;
   }
 
   public async destroy(): Promise<void> {
     if (this.platformService.isTauri() && this.trayInstance) {
+      // Dropping the JS reference alone leaves the native tray icon visible
+      const tray = this.trayInstance as { close?: () => Promise<void> };
       this.trayInstance = null;
+      try {
+        await tray.close?.();
+      } catch (error) {
+        console.error('Failed to destroy Tauri tray:', error);
+      }
     } else if (this.platformService.isElectron()) {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.send('tray-destroy');
+      try {
+        const { ipcRenderer } = await loadElectronIpc();
+        ipcRenderer.send('tray-destroy');
+      } catch (error) {
+        console.error('Failed to destroy Electron tray:', error);
+      }
     }
 
     this.electronMenuActions.clear();
@@ -143,7 +182,7 @@ export class SystemTrayService {
 
   private async createElectronTray(config: TrayConfig): Promise<boolean> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       await this.registerElectronMenuClickListener();
       await ipcRenderer.invoke('tray-create', {
@@ -162,13 +201,14 @@ export class SystemTrayService {
 
   private async buildTauriMenuItems(items: NativeMenuItem[]): Promise<unknown[]> {
     const tauriMenu = await dynamicImport('@tauri-apps/api/menu');
-    const { MenuItem, Submenu } = tauriMenu;
+    const { MenuItem, PredefinedMenuItem, Submenu } = tauriMenu;
 
     const menuItems: unknown[] = [];
 
     for (const item of items) {
       if (item.type === 'separator') {
-        menuItems.push(await MenuItem.new({ id: 'separator', text: '-', enabled: false }));
+        // A real native separator (a MenuItem would render a disabled '-' entry)
+        menuItems.push(await PredefinedMenuItem.new({ item: 'Separator' }));
       } else if (item.submenu) {
         menuItems.push(
           await Submenu.new({
@@ -217,10 +257,18 @@ export class SystemTrayService {
     if (this.electronMenuListenerRegistered) return;
 
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.on('tray-menu-click', (_event: unknown, id: unknown) => {
-        this.electronMenuActions.get(String(id))?.();
-      });
+      const { ipcRenderer } = await loadElectronIpc();
+      if (this.electronMenuListenerRegistered || this.destroyed) return;
+      this.unsubscribeMenuClick = subscribeElectronIpc(
+        ipcRenderer,
+        'tray-menu-click',
+        (_event: unknown, id: unknown) => {
+          // IPC callbacks arrive outside Angular's zone; run the action inside
+          // it so state it changes is rendered (as NativeIpcService.on does)
+          const action = this.electronMenuActions.get(String(id));
+          if (action) this.ngZone.run(action);
+        }
+      );
       this.electronMenuListenerRegistered = true;
     } catch (error) {
       console.warn('Failed to register tray menu click listener:', error);

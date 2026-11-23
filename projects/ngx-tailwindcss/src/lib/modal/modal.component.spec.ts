@@ -5,6 +5,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ModalSize,
+  TwConfirmDialogComponent,
   TwModalComponent,
   TwModalHeaderComponent,
   TwModalTitleComponent,
@@ -134,6 +135,28 @@ describe('TwModalComponent', () => {
     });
   });
 
+  describe('panelClass', () => {
+    it('should let panelClass replace the base background, radius and shadow', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+      component.modal.panelClass = 'bg-slate-900 dark:bg-black rounded-none shadow-none';
+      fixture.detectChanges();
+
+      const cls = (
+        fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement as HTMLElement
+      ).className.split(/\s+/);
+      expect(cls).toEqual(
+        expect.arrayContaining(['bg-slate-900', 'dark:bg-black', 'rounded-none', 'shadow-none'])
+      );
+      // Tailwind emits bg-white after bg-slate-900, so a leftover base class would win
+      expect(cls).not.toContain('bg-white');
+      expect(cls).not.toContain('dark:bg-slate-800');
+      expect(cls).not.toContain('rounded-xl');
+      expect(cls).not.toContain('shadow-2xl');
+      expect(cls).toContain('max-w-md');
+    });
+  });
+
   describe('close button', () => {
     it('should show close button by default', () => {
       component.isOpen.set(true);
@@ -141,6 +164,17 @@ describe('TwModalComponent', () => {
 
       const closeBtn = fixture.debugElement.query(By.css('[aria-label="Close modal"]'));
       expect(closeBtn).toBeTruthy();
+    });
+
+    it('should render the icon-only close button at >=3:1 contrast', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const cls = fixture.debugElement.query(By.css('[aria-label="Close modal"]')).nativeElement
+        .className as string;
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
     });
 
     it('should hide close button when showCloseButton is false', () => {
@@ -169,11 +203,17 @@ describe('TwModalComponent', () => {
     const containerEl = (): HTMLElement | null =>
       fixture.debugElement.query(By.css('.overflow-y-auto'))?.nativeElement ?? null;
 
+    const pressAndRelease = (down: HTMLElement, up: HTMLElement): void => {
+      down.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      up.click();
+      fixture.detectChanges();
+    };
+
     it('should close when the backdrop area is clicked', () => {
       component.isOpen.set(true);
       fixture.detectChanges();
 
-      containerEl()!.click();
+      pressAndRelease(containerEl()!, containerEl()!);
       fixture.detectChanges();
 
       expect(component.isOpen()).toBe(false);
@@ -185,11 +225,45 @@ describe('TwModalComponent', () => {
       component.isOpen.set(true);
       fixture.detectChanges();
 
-      containerEl()!.click();
-      fixture.detectChanges();
+      pressAndRelease(containerEl()!, containerEl()!);
 
       expect(component.isOpen()).toBe(true);
       expect(component.closedCount).toBe(0);
+    });
+
+    it('should not close when the press starts in the panel and ends on the backdrop', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const panel = fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement;
+      pressAndRelease(panel, containerEl()!);
+
+      expect(component.isOpen()).toBe(true);
+      expect(component.closedCount).toBe(0);
+    });
+
+    it('should not close when the press starts on the backdrop and ends in the panel', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const content = fixture.debugElement.query(By.css('[data-testid="modal-content"]'));
+      pressAndRelease(containerEl()!, content.nativeElement);
+
+      expect(component.isOpen()).toBe(true);
+    });
+
+    it('should let clicks inside the panel reach document listeners', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+
+      const listener = vi.fn();
+      document.addEventListener('click', listener);
+      const content = fixture.debugElement.query(By.css('[data-testid="modal-content"]'));
+      content.nativeElement.click();
+      document.removeEventListener('click', listener);
+
+      expect(listener).toHaveBeenCalled();
+      expect(component.isOpen()).toBe(true);
     });
 
     it('should not close when the panel itself is clicked', () => {
@@ -276,5 +350,149 @@ describe('TwModalComponent with projected title', () => {
 
     expect(title.id).toBeTruthy();
     expect(dialog.getAttribute('aria-labelledby')).toBe(title.id);
+  });
+});
+
+@Component({
+  template: `
+    <tw-modal [open]="outerOpen()" (openChange)="outerOpen.set($event)">Outer</tw-modal>
+    @if (showInner()) {
+      <tw-modal [open]="innerOpen()" (openChange)="innerOpen.set($event)">Inner</tw-modal>
+    }
+  `,
+  standalone: true,
+  imports: [TwModalComponent],
+})
+class StackedModalsHostComponent {
+  outerOpen = signal(false);
+  innerOpen = signal(false);
+  showInner = signal(true);
+}
+
+describe('TwModalComponent stacking and scroll lock', () => {
+  let fixture: ComponentFixture<StackedModalsHostComponent>;
+  let host: StackedModalsHostComponent;
+
+  beforeEach(async () => {
+    document.body.style.overflow = '';
+    await TestBed.configureTestingModule({
+      imports: [StackedModalsHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(StackedModalsHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should not touch body overflow when a closed modal is created or destroyed', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // Destroying the never-opened inner modal must not release the outer lock
+    host.showInner.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    host.outerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should close only the topmost modal on Escape', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.innerOpen()).toBe(false);
+    expect(host.outerOpen()).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.outerOpen()).toBe(false);
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should release the scroll lock when stacked modals close together', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // e.g. confirming the inner dialog also closes the outer one: the outer modal
+    // releases its lock first, while the inner one is still open
+    host.outerOpen.set(false);
+    host.innerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should keep the page locked until the last of several modals closes', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+
+    // Closing the lower modal first must not unlock while the top one is open
+    host.outerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    host.innerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
+});
+
+@Component({
+  template: `<tw-confirm-dialog [open]="true" message="Delete this item?"></tw-confirm-dialog>`,
+  standalone: true,
+  imports: [TwConfirmDialogComponent],
+})
+class ConfirmDialogHostComponent {}
+
+describe('TwConfirmDialogComponent dark mode', () => {
+  it('should keep the message and cancel button readable on the dark modal surface', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConfirmDialogHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ConfirmDialogHostComponent);
+    fixture.detectChanges();
+
+    const message = [...document.querySelectorAll('tw-modal-body p')].find(p =>
+      p.textContent?.includes('Delete this item?')
+    ) as HTMLElement;
+    expect(message.className).toContain('dark:text-slate-300');
+
+    const cancel = [...document.querySelectorAll('tw-modal-footer button')].find(
+      b => b.textContent?.trim() === 'Cancel'
+    ) as HTMLElement;
+    expect(cancel.className).toContain('dark:text-slate-200');
+    expect(cancel.className).toContain('dark:bg-slate-700');
+    fixture.destroy();
+  });
+
+  it('should offset the confirm button focus ring so it is visible against the same-hue fill', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConfirmDialogHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ConfirmDialogHostComponent);
+    fixture.detectChanges();
+
+    const confirm = [...document.querySelectorAll('tw-modal-footer button')].find(
+      b => b.textContent?.trim() === 'Confirm'
+    ) as HTMLElement;
+    expect(confirm.className).toContain('focus-visible:ring-2');
+    expect(confirm.className).toContain('focus-visible:ring-offset-2');
+    expect(confirm.className).toContain('dark:focus-visible:ring-offset-slate-800');
+    fixture.destroy();
   });
 });

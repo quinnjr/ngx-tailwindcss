@@ -7,16 +7,17 @@
   <!-- Header with Key Lock -->
   @if (showSemitones()) {
     <div class="flex items-center justify-between">
-      <span class="text-xs uppercase tracking-wider text-slate-500">Semitones</span>
+      <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Semitones</span>
       @if (showKeyLock()) {
         <button
           type="button"
-          class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+          class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class.bg-blue-600]="internalKeyLock()"
           [class.text-white]="internalKeyLock()"
           [class.bg-slate-700]="!internalKeyLock()"
-          [class.text-slate-400]="!internalKeyLock()"
-          [class.hover:bg-slate-600]="!internalKeyLock()"
+          [class.text-slate-300]="!internalKeyLock()"
+          [class.enabled:hover:bg-slate-600]="!internalKeyLock()"
+          [attr.aria-pressed]="internalKeyLock()"
           [disabled]="disabled()"
           (click)="toggleKeyLock()"
           title="Key Lock - Preserve key when changing tempo"
@@ -52,9 +53,10 @@
       <!-- Down Button -->
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+        class="w-8 h-8 rounded-full bg-slate-700 enabled:hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() <= -24"
-        (click)="onSemitonesDown()"
+        (click)="keepFocus($event); onSemitonesDown()"
+        aria-label="Semitone down"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path>
@@ -65,7 +67,6 @@
       <div
         class="min-w-[60px] text-center cursor-pointer select-none"
         [class]="semitonesValueClasses()"
-        [class]="pitchDirectionClass()"
         [class.transition-all]="animated()"
         (dblclick)="resetSemitones()"
         title="Double-click to reset"
@@ -76,9 +77,10 @@
       <!-- Up Button -->
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+        class="w-8 h-8 rounded-full bg-slate-700 enabled:hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() >= 24"
-        (click)="onSemitonesUp()"
+        (click)="keepFocus($event); onSemitonesUp()"
+        aria-label="Semitone up"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
@@ -88,14 +90,14 @@
 
     <!-- Interval Name -->
     @if (variant() !== 'minimal' && internalSemitones() !== 0) {
-      <div class="text-center text-xs text-slate-500">
+      <div class="text-center text-xs" [class]="labelClass()">
         {{ intervalName() }}
       </div>
     }
 
     <!-- Note Preview -->
     @if (showNotePreview()) {
-      <div class="text-center text-sm text-slate-400">
+      <div class="text-center text-sm" [class]="labelClass()">
         {{ referenceNote() }}{{ referenceOctave() }} →
         <span [class]="pitchDirectionClass()" class="font-medium"
           >{{ resultingNote().note }}{{ resultingNote().octave }}</span
@@ -108,7 +110,7 @@
   @if (showCents()) {
     <div class="mt-2">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-xs uppercase tracking-wider text-slate-500">Cents</span>
+        <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Cents</span>
         <span [class]="centsValueClasses()" class="text-sm">{{ centsDisplay() }} ¢</span>
       </div>
 
@@ -120,7 +122,8 @@
           min="-50"
           max="50"
           step="1"
-          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+          aria-label="Cents"
+          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style="accent-color: var(--accent-color, #3b82f6)"
           [disabled]="disabled()"
           (dblclick)="resetCents()"
@@ -140,7 +143,7 @@
         ></div>
       </div>
 
-      <div class="flex justify-between text-[10px] text-slate-600 mt-1">
+      <div class="flex justify-between text-[10px] mt-1" [class]="labelClass()">
         <span>-50</span>
         <span>0</span>
         <span>+50</span>
@@ -152,7 +155,7 @@
   @if (showPitchWheel()) {
     <div class="mt-3">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-xs uppercase tracking-wider text-slate-500">Pitch Bend</span>
+        <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Pitch Bend</span>
         <span class="text-xs font-mono" [class]="pitchDirectionClass()">
           {{ effectivePitchBend() > 0 ? '+' : '' }}{{ effectivePitchBend() | number: '1.0-0' }} ¢
         </span>
@@ -160,54 +163,87 @@
 
       @switch (pitchBendStyle()) {
         @case ('vertical') {
-          <!-- Vertical Pitch Wheel -->
-          <div
-            class="relative w-12 h-32 mx-auto bg-slate-800 rounded-lg border border-slate-600 cursor-ns-resize overflow-hidden"
-            (mousedown)="onPitchWheelDragStart($event)"
-            (touchstart)="onPitchWheelDragStart($event)"
-          >
-            <!-- Track -->
-            <div class="absolute inset-x-1 top-1 bottom-1 bg-slate-900 rounded"></div>
-
-            <!-- Center line -->
-            <div class="absolute left-1 right-1 top-1/2 h-px bg-slate-500"></div>
-
-            <!-- Bend indicator fill -->
-            @if (showBendIndicator()) {
-              <div
-                class="absolute left-1 right-1 transition-all"
-                [class.bg-amber-500/30]="internalPitchBend() > 0"
-                [class.bg-blue-500/30]="internalPitchBend() < 0"
-                [style.top]="internalPitchBend() > 0 ? pitchWheelPosition() + '%' : '50%'"
-                [style.bottom]="internalPitchBend() < 0 ? 100 - pitchWheelPosition() + '%' : '50%'"
-              ></div>
-            }
-
-            <!-- Thumb -->
+          <!-- Vertical Pitch Wheel. The +/− labels live in this wrapper: inside the
+               overflow-hidden wheel (at left-full) they were clipped away entirely -->
+          <div class="relative w-12 mx-auto">
             <div
-              class="absolute left-1 right-1 h-6 bg-gradient-to-b from-slate-500 to-slate-600 rounded shadow-lg transition-all"
-              [class.duration-100]="!isDragging()"
-              [class.from-amber-500]="internalPitchBend() > 0.1"
-              [class.to-amber-600]="internalPitchBend() > 0.1"
-              [class.from-blue-500]="internalPitchBend() < -0.1"
-              [class.to-blue-600]="internalPitchBend() < -0.1"
-              [style.top.%]="pitchWheelPosition() - 9"
+              class="relative w-12 h-32 bg-slate-800 rounded-lg border border-slate-600 cursor-ns-resize overflow-hidden touch-none"
+              [class.opacity-50]="disabled()"
+              (mousedown)="onPitchWheelDragStart($event)"
+              (touchstart)="onPitchWheelDragStart($event)"
+              (keydown)="onPitchWheelKeydown($event)"
+              role="slider"
+              [attr.tabindex]="disabled() ? -1 : 0"
+              aria-orientation="vertical"
+              aria-label="Pitch bend"
+              aria-valuemin="-1"
+              aria-valuemax="1"
+              [attr.aria-valuenow]="internalPitchBend()"
+              [attr.aria-valuetext]="
+                (effectivePitchBend() > 0 ? '+' : '') + Math.round(effectivePitchBend()) + ' cents'
+              "
+              [attr.aria-disabled]="disabled()"
             >
-              <div class="absolute inset-x-2 top-1/2 h-0.5 bg-white/50 rounded"></div>
+              <!-- Track -->
+              <div class="absolute inset-x-1 top-1 bottom-1 bg-slate-900 rounded"></div>
+
+              <!-- Center line -->
+              <div class="absolute left-1 right-1 top-1/2 h-px bg-slate-500"></div>
+
+              <!-- Bend indicator fill -->
+              @if (showBendIndicator()) {
+                <div
+                  class="absolute left-1 right-1 transition-all"
+                  [class.bg-amber-500/30]="internalPitchBend() > 0"
+                  [class.bg-blue-500/30]="internalPitchBend() < 0"
+                  [style.top]="internalPitchBend() > 0 ? pitchWheelPosition() + '%' : '50%'"
+                  [style.bottom]="
+                    internalPitchBend() < 0 ? 100 - pitchWheelPosition() + '%' : '50%'
+                  "
+                ></div>
+              }
+
+              <!-- Thumb -->
+              <div
+                class="absolute left-1 right-1 h-6 bg-gradient-to-b rounded shadow-lg transition-all"
+                [class.duration-100]="!isDragging()"
+                [class.from-slate-500]="Math.abs(internalPitchBend()) <= 0.1"
+                [class.to-slate-600]="Math.abs(internalPitchBend()) <= 0.1"
+                [class.from-amber-500]="internalPitchBend() > 0.1"
+                [class.to-amber-600]="internalPitchBend() > 0.1"
+                [class.from-blue-500]="internalPitchBend() < -0.1"
+                [class.to-blue-600]="internalPitchBend() < -0.1"
+                [style.top]="'calc(4px + ' + pitchWheelPosition() / 100 + ' * (100% - 32px))'"
+              >
+                <div class="absolute inset-x-2 top-1/2 h-0.5 bg-white/50 rounded"></div>
+              </div>
             </div>
 
             <!-- Labels -->
-            <div class="absolute left-full ml-1 top-1 text-[9px] text-slate-500">+</div>
-            <div class="absolute left-full ml-1 bottom-1 text-[9px] text-slate-500">−</div>
+            <div class="absolute left-full ml-1 top-1 text-[9px]" [class]="labelClass()">+</div>
+            <div class="absolute left-full ml-1 bottom-1 text-[9px]" [class]="labelClass()">−</div>
           </div>
         }
 
         @case ('horizontal') {
           <!-- Horizontal Pitch Slider -->
           <div
-            class="relative h-8 bg-slate-800 rounded-lg border border-slate-600 cursor-ew-resize overflow-hidden"
+            class="relative h-8 bg-slate-800 rounded-lg border border-slate-600 cursor-ew-resize overflow-hidden touch-none"
+            [class.opacity-50]="disabled()"
             (mousedown)="onPitchWheelDragStart($event)"
             (touchstart)="onPitchWheelDragStart($event)"
+            (keydown)="onPitchWheelKeydown($event)"
+            role="slider"
+            [attr.tabindex]="disabled() ? -1 : 0"
+            aria-orientation="horizontal"
+            aria-label="Pitch bend"
+            aria-valuemin="-1"
+            aria-valuemax="1"
+            [attr.aria-valuenow]="internalPitchBend()"
+            [attr.aria-valuetext]="
+              (effectivePitchBend() > 0 ? '+' : '') + Math.round(effectivePitchBend()) + ' cents'
+            "
+            [attr.aria-disabled]="disabled()"
           >
             <!-- Track -->
             <div class="absolute inset-y-1 left-1 right-1 bg-slate-900 rounded"></div>
@@ -228,11 +264,12 @@
               ></div>
             }
 
-            <!-- Thumb -->
+            <!-- Thumb: travels the inset track (4px each side, 16px wide), centred at
+                 rest; a fixed -2% offset left it off-centre and ~90% clipped at +1 -->
             <div
               class="absolute top-1 bottom-1 w-4 bg-gradient-to-r from-slate-500 to-slate-600 rounded shadow-lg transition-all"
               [class.duration-100]="!isDragging()"
-              [style.left.%]="50 + internalPitchBend() * 50 - 2"
+              [style.left]="'calc(4px + ' + (internalPitchBend() + 1) / 2 + ' * (100% - 24px))'"
             >
               <div class="absolute left-1/2 top-2 bottom-2 w-0.5 bg-white/50 rounded"></div>
             </div>
@@ -258,14 +295,7 @@
               <!-- Fill arc -->
               @if (internalPitchBend() !== 0) {
                 <path
-                  [attr.d]="
-                    'M 50 45 A 40 40 0 0 ' +
-                    (internalPitchBend() > 0 ? '1' : '0') +
-                    ' ' +
-                    (50 + internalPitchBend() * 40) +
-                    ' ' +
-                    (45 - Math.abs(internalPitchBend()) * 20)
-                  "
+                  [attr.d]="pitchBendArcPath()"
                   fill="none"
                   [attr.stroke]="
                     internalPitchBend() > 0 ? 'rgb(251, 191, 36)' : 'rgb(59, 130, 246)'
@@ -293,7 +323,7 @@
         }
       }
 
-      <div class="text-center text-[10px] text-slate-500 mt-1">
+      <div class="text-center text-[10px] mt-1" [class]="labelClass()">
         Range: ±{{ pitchBendRange() }} st
       </div>
     </div>
@@ -323,7 +353,7 @@
         <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white -translate-x-1/2"></div>
       </div>
 
-      <div class="flex justify-between text-[9px] text-slate-500 mt-1">
+      <div class="flex justify-between text-[9px] mt-1" [class]="labelClass()">
         <span>-24 st</span>
         <span>0</span>
         <span>+24 st</span>
@@ -337,7 +367,7 @@
       <div class="text-2xl font-mono font-bold" [class]="pitchDirectionClass()">
         {{ pitchPercentageDisplay() }}
       </div>
-      <div class="text-[10px] text-slate-500">PITCH</div>
+      <div class="text-[10px]" [class]="labelClass()">PITCH</div>
     </div>
   }
 
@@ -347,7 +377,7 @@
       <div class="text-lg font-mono" [class]="pitchDirectionClass()">
         {{ frequencyRatioDisplay() }}
       </div>
-      <div class="text-[10px] text-slate-500">
+      <div class="text-[10px]" [class]="labelClass()">
         {{ referenceFrequency() | number: '1.0-1' }} Hz →
         {{ outputFrequency() | number: '1.0-1' }} Hz
       </div>
@@ -357,12 +387,13 @@
   <!-- Quick Presets -->
   @if (showPresets()) {
     <div class="mt-3 pt-3 border-t border-slate-700">
-      <div class="text-xs text-slate-500 mb-2">Quick Presets</div>
+      <div class="text-xs mb-2" [class]="labelClass()">Quick Presets</div>
       <div class="flex flex-wrap gap-1 justify-center">
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-blue-600]="internalSemitones() === -12 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          [class]="presetButtonClass(-12, 'bg-blue-700')"
+          [attr.aria-pressed]="isPresetActive(-12)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveDown)"
         >
@@ -370,8 +401,9 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-blue-600]="internalSemitones() === -7 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          [class]="presetButtonClass(-7, 'bg-blue-700')"
+          [attr.aria-pressed]="isPresetActive(-7)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthDown)"
         >
@@ -379,8 +411,9 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-green-600]="internalSemitones() === 0 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          [class]="presetButtonClass(0, 'bg-green-700')"
+          [attr.aria-pressed]="isPresetActive(0)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.zero)"
         >
@@ -388,8 +421,9 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-amber-600]="internalSemitones() === 7 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          [class]="presetButtonClass(7, 'bg-amber-700')"
+          [attr.aria-pressed]="isPresetActive(7)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.fifthUp)"
         >
@@ -397,8 +431,9 @@
         </button>
         <button
           type="button"
-          class="px-2 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-          [class.bg-amber-600]="internalSemitones() === 12 && internalCents() === 0"
+          class="px-2 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          [class]="presetButtonClass(12, 'bg-amber-700')"
+          [attr.aria-pressed]="isPresetActive(12)"
           [disabled]="disabled()"
           (click)="applyPreset(PITCH_PRESETS.octaveUp)"
         >
@@ -411,7 +446,7 @@
   <!-- Total pitch display -->
   @if (showSemitones() && showCents() && variant() !== 'minimal') {
     <div class="mt-2 pt-2 border-t border-slate-700 text-center">
-      <span class="text-xs text-slate-500">Total: </span>
+      <span class="text-xs" [class]="labelClass()">Total: </span>
       <span class="text-sm font-mono" [class]="pitchDirectionClass()">
         {{ totalCents() > 0 ? '+' : '' }}{{ totalCents() }} cents
       </span>

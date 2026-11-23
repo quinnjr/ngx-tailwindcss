@@ -1,14 +1,17 @@
 import {
   AfterContentInit,
+  afterNextRender,
   Component,
   computed,
   ContentChildren,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   Input,
   QueryList,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -67,6 +70,12 @@ export class TwAvatarComponent {
   /** Internal: set by TwAvatarGroupComponent to hide avatars beyond its `max` */
   readonly hiddenInGroup = signal(false);
 
+  /**
+   * Internal: set by TwAvatarGroupComponent. The separating ring goes on the rounded avatar
+   * itself; on the (rectangular, line-height tall) host it would draw a square outline.
+   */
+  readonly inGroup = signal(false);
+
   protected srcVal = computed(() => (this._imageError() ? '' : this._src()));
   protected altVal = computed(() => this._alt());
   protected initialsVal = computed(() => this._initials());
@@ -116,6 +125,7 @@ export class TwAvatarComponent {
       textSizeClasses[sz],
       variantClasses[vari],
       baseColor,
+      this.inGroup() ? 'ring-2 ring-white dark:ring-slate-800' : '',
     ].join(' ');
   });
 
@@ -134,11 +144,12 @@ export class TwAvatarComponent {
       '2xl': 'w-4 h-4 border-2',
     };
 
+    // >= 3:1 against the white (light) / slate-800 (dark) border around the dot
     const statusColors: Record<AvatarStatus, string> = {
-      online: 'bg-emerald-500',
-      offline: 'bg-slate-400',
+      online: 'bg-emerald-600 dark:bg-emerald-500',
+      offline: 'bg-slate-500 dark:bg-slate-400',
       busy: 'bg-rose-500',
-      away: 'bg-amber-500',
+      away: 'bg-amber-600 dark:bg-amber-500',
       none: '',
     };
 
@@ -162,10 +173,26 @@ export class TwAvatarComponent {
     };
 
     return [
-      'absolute flex items-center justify-center rounded-full bg-rose-500 text-white font-medium px-1',
+      'absolute flex items-center justify-center rounded-full bg-rose-600 text-white font-medium px-1',
       sizeClasses[sz],
     ].join(' ');
   });
+
+  private readonly image = viewChild<ElementRef<HTMLImageElement>>('avatarImage');
+
+  constructor() {
+    // With SSR hydration the server-rendered <img> may fail before the (error) listener
+    // is attached; pick up that state so the initials/icon fallback still shows.
+    afterNextRender(() => {
+      const img = this.image()?.nativeElement;
+      if (!img?.complete || img.naturalWidth > 0) return;
+      const src = this._src();
+      // naturalWidth is 0 both for broken images and for some SVGs: let decode() decide
+      img.decode?.().catch(() => {
+        if (this._src() === src) this.onImageError();
+      });
+    });
+  }
 
   protected onImageError(): void {
     this._imageError.set(true);
@@ -198,6 +225,8 @@ export class TwAvatarGroupComponent implements AfterContentInit {
   protected _total = signal(0);
   protected _size = signal<AvatarSize>('md');
   protected _spacing = signal<'tight' | 'normal' | 'loose'>('normal');
+  /** Number of projected avatars; the overflow count falls back to this when `total` is unset */
+  protected _avatarCount = signal(0);
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -224,9 +253,11 @@ export class TwAvatarGroupComponent implements AfterContentInit {
 
     const max = this._max();
     const size = this._size();
+    this._avatarCount.set(this.avatars.length);
 
     this.avatars.forEach((avatar, index) => {
       avatar.size = size;
+      avatar.inGroup.set(true);
       avatar.hiddenInGroup.set(max > 0 && index >= max);
     });
   }
@@ -234,7 +265,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
   protected maxVal = computed(() => this._max());
   protected overflowVal = computed(() => {
     const mx = this._max();
-    const tot = this._total();
+    const tot = this._total() || this._avatarCount();
     return mx > 0 && tot > mx ? tot - mx : 0;
   });
 
@@ -247,11 +278,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
       loose: '-space-x-1',
     };
 
-    return [
-      'flex items-center',
-      spacingClasses[sp],
-      '[&>*]:ring-2 [&>*]:ring-white dark:[&>*]:ring-slate-800',
-    ].join(' ');
+    return ['flex items-center', spacingClasses[sp]].join(' ');
   });
 
   protected overflowClasses = computed(() => {

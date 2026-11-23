@@ -1,8 +1,4 @@
-<div
-  [class]="containerClasses()"
-  role="img"
-  [attr.aria-label]="(label() ? label() + ': ' : '') + displayText()"
->
+<div [class]="containerClasses()" role="img" [attr.aria-label]="ariaLabel()">
   @if (variant() === 'led') {
     <!-- LED Segment Display -->
     <div class="flex items-center font-mono tracking-wider">
@@ -24,7 +20,7 @@
           <span>{{ segment.value }}</span>
         </div>
         @if (segment.separator) {
-          <span [class]="separatorClasses()">:</span>
+          <span [class]="separatorClasses()">{{ segment.separator }}</span>
         }
       }
     </div>

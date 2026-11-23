@@ -16,11 +16,11 @@
             d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
           ></path>
         </svg>
-        <span class="text-slate-200 font-medium truncate" [title]="effectiveInfo().name">
+        <span class="font-medium truncate" [class]="nameClasses()" [title]="effectiveInfo().name">
           {{ effectiveInfo().name }}
         </span>
         @if (effectiveInfo().format) {
-          <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">
+          <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
             {{ effectiveInfo().format }}
           </span>
         }
@@ -40,10 +40,7 @@
       @if (codecDetails().isLossy !== null) {
         <span
           class="text-[10px] uppercase px-1.5 py-0.5 rounded"
-          [class.bg-amber-600/20]="codecDetails().isLossy"
-          [class.text-amber-400]="codecDetails().isLossy"
-          [class.bg-emerald-600/20]="!codecDetails().isLossy"
-          [class.text-emerald-400]="!codecDetails().isLossy"
+          [class]="codecDetails().isLossy ? lossyBadgeClasses() : losslessBadgeClasses()"
         >
           {{ codecDetails().isLossy ? 'Lossy' : 'Lossless' }}
         </span>
@@ -59,7 +56,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="px-2 py-1 rounded bg-slate-700/50 cursor-default"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <span [class]="valueClasses()">{{ stat.value }}</span>
           </div>
@@ -73,7 +75,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="flex items-center justify-between p-2 rounded bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <div class="flex items-center gap-2">
               @switch (stat.key) {
@@ -214,7 +221,12 @@
           @for (stat of stats(); track stat.key) {
             <div
               class="p-2 rounded bg-slate-800/50 border border-slate-700/50"
+              role="button"
+              tabindex="0"
+              [attr.aria-label]="stat.label + ': ' + stat.value"
               (click)="onStatClick(stat.key)"
+              (keydown.enter)="onStatKeydown($event, stat.key)"
+              (keydown.space)="onStatKeydown($event, stat.key)"
             >
               <div class="text-[10px] uppercase tracking-wider mb-0.5" [class]="labelClasses()">
                 {{ stat.label }}
@@ -248,7 +260,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="flex items-center justify-between cursor-default"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <span [class]="labelClasses()">{{ stat.label }}</span>
             <span [class]="valueClasses()">{{ stat.value }}</span>

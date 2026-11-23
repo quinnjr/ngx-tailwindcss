@@ -1,7 +1,7 @@
 import { Component, signal, ViewChild, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { TwCommandPaletteComponent } from './command-palette.component';
 import { NativeAppPlatformService } from './platform.service';
 import { CommandItem } from './native.types';
@@ -28,19 +28,23 @@ class TestHostComponent {
 describe('TwCommandPaletteComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
-  let copyAction: ReturnType<typeof vi.fn>;
-  let pasteAction: ReturnType<typeof vi.fn>;
+  let copyAction: Mock<() => void>;
+  let pasteAction: Mock<() => void>;
   let mockPlatformService: {
     platform: WritableSignal<'macos' | 'windows' | 'linux' | 'web'>;
     formatShortcut: (shortcut: string) => string;
   };
 
   const getOptions = (): HTMLButtonElement[] => [
-    ...fixture.nativeElement.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      '[role="option"]'
+    ),
   ];
 
   const getSearchInput = (): HTMLInputElement => {
-    const input = fixture.nativeElement.querySelector<HTMLInputElement>('input[type="text"]');
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[type="text"]'
+    );
     expect(input).toBeTruthy();
     return input!;
   };
@@ -77,8 +81,8 @@ describe('TwCommandPaletteComponent', () => {
 
     fixture = TestBed.createComponent(TestHostComponent);
     component = fixture.componentInstance;
-    copyAction = vi.fn();
-    pasteAction = vi.fn();
+    copyAction = vi.fn<() => void>();
+    pasteAction = vi.fn<() => void>();
     component.commands.set([
       { id: 'copy', label: 'Copy', action: copyAction },
       { id: 'paste', label: 'Paste', action: pasteAction },
@@ -150,5 +154,69 @@ describe('TwCommandPaletteComponent', () => {
     const options = getOptions();
     expect(options[0].getAttribute('aria-selected')).toBe('false');
     expect(options[1].getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('exposes the search input as a combobox controlling the results listbox', () => {
+    component.palette.open();
+    fixture.detectChanges();
+
+    const input = getSearchInput();
+    const listbox = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-autocomplete')).toBe('list');
+    expect(listbox.id).toBeTruthy();
+    expect(input.getAttribute('aria-controls')).toBe(listbox.id);
+    expect(input.getAttribute('aria-activedescendant')).toBe(getOptions()[0].id);
+  });
+
+  it('should run the highlighted command when categories are interleaved', () => {
+    const editAction = vi.fn();
+    const viewAction = vi.fn();
+    const undoAction = vi.fn();
+    component.commands.set([
+      { id: 'cut', label: 'Cut', category: 'Edit', action: editAction },
+      { id: 'zoom', label: 'Zoom', category: 'View', action: viewAction },
+      { id: 'undo', label: 'Undo', category: 'Edit', action: undoAction },
+    ]);
+    fixture.detectChanges();
+    component.palette.open();
+    fixture.detectChanges();
+
+    // Display order is grouped: Cut, Undo (Edit) then Zoom (View)
+    pressKey('ArrowDown');
+    expect(getOptions()[1].textContent).toContain('Undo');
+    expect(getOptions()[1].getAttribute('aria-selected')).toBe('true');
+
+    pressKey('Enter');
+
+    expect(component.selected?.id).toBe('undo');
+    expect(undoAction).toHaveBeenCalledTimes(1);
+    expect(viewAction).not.toHaveBeenCalled();
+  });
+
+  it('keeps the selected row description and shortcut chip readable', () => {
+    component.commands.set([
+      { id: 'copy', label: 'Copy', description: 'Copy text', shortcut: 'Ctrl+C', action: vi.fn() },
+      {
+        id: 'paste',
+        label: 'Paste',
+        description: 'Paste text',
+        shortcut: 'Ctrl+V',
+        action: vi.fn(),
+      },
+    ]);
+    component.palette.open();
+    fixture.detectChanges();
+    const [selected, other] = getOptions();
+    const desc = (option: HTMLElement) => option.querySelector('.text-sm')!;
+
+    expect(selected.getAttribute('aria-selected')).toBe('true');
+    expect(desc(selected).classList).not.toContain('opacity-60');
+    expect(desc(selected).classList).not.toContain('text-blue-200');
+    expect(desc(other).classList).toContain('opacity-60');
+    const kbd = selected.querySelector('kbd')!;
+    expect(kbd.classList).toContain('bg-blue-700');
+    expect(kbd.classList).not.toContain('bg-blue-400');
   });
 });

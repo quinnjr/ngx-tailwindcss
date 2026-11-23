@@ -105,7 +105,7 @@ describe('TwSwitchComponent', () => {
       component.switch.toggle();
       fixture.detectChanges();
       const track = switchEl.querySelector('button');
-      expect(track?.className).toContain('bg-amber-500');
+      expect(track?.className).toContain('bg-amber-600');
     });
 
     it('should apply danger variant colors when on', () => {
@@ -315,5 +315,34 @@ describe('TwSwitchComponent with FormControl', () => {
 
     const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
     expect(button.getAttribute('aria-checked')).toBe('false');
+  });
+});
+
+describe('TwSwitchComponent keyboard activation', () => {
+  it('should toggle exactly once for a native Space/Enter activation (keydown + click)', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button[role="switch"]');
+
+    for (const key of [' ', 'Enter']) {
+      const before = button.getAttribute('aria-checked');
+      // A browser fires keydown and then, as the button's activation behaviour, click
+      button.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      button.click();
+      fixture.detectChanges();
+      expect(button.getAttribute('aria-checked')).toBe(before === 'true' ? 'false' : 'true');
+    }
+  });
+});
+
+describe('TwSwitchComponent (round 3)', () => {
+  it('should mark the control as touched when the switch loses focus', () => {
+    const fixture = TestBed.createComponent(FormControlTestComponent);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(fixture.componentInstance.control.touched).toBe(false);
+    button.dispatchEvent(new FocusEvent('blur'));
+    expect(fixture.componentInstance.control.touched).toBe(true);
+    expect(fixture.componentInstance.control.value).toBe(false);
   });
 });

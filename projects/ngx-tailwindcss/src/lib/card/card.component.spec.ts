@@ -140,6 +140,19 @@ describe('TwCardComponent', () => {
       expect(component.clickCount).toBe(2);
     });
 
+    it('should ignore Enter/Space bubbling from descendants', () => {
+      component.clickable.set(true);
+      fixture.detectChanges();
+
+      const body = cardEl.querySelector('tw-card-body')!;
+      const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+      body.dispatchEvent(event);
+      fixture.detectChanges();
+
+      expect(component.clickCount).toBe(0);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
     it('should not dispatch click on Enter when not clickable', () => {
       cardEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       fixture.detectChanges();
@@ -259,6 +272,13 @@ describe('Card section directives', () => {
       ).nativeElement;
       expect(subtitle.className).toContain('text-sm');
     });
+
+    it('should stay readable on the dark filled card (slate-400 on slate-700 is ~4:1)', () => {
+      const subtitle = fixture.debugElement.query(
+        By.directive(TwCardSubtitleDirective)
+      ).nativeElement;
+      expect(subtitle.className).toContain('dark:text-slate-300');
+    });
   });
 
   describe('TwCardBodyDirective', () => {
@@ -321,6 +341,16 @@ describe('TwCardMediaDirective', () => {
     const media = fixture.debugElement.query(By.directive(TwCardMediaDirective)).nativeElement;
     expect(media.className).toContain('rounded-b-xl');
   });
+
+  it('should contain full-bleed media within the card (card is positioned)', () => {
+    component.position.set('full');
+    fixture.detectChanges();
+
+    const media = fixture.debugElement.query(By.directive(TwCardMediaDirective)).nativeElement;
+    const card = fixture.debugElement.query(By.directive(TwCardComponent)).nativeElement;
+    expect(media.className).toContain('absolute');
+    expect(card.className.split(/\s+/)).toContain('relative');
+  });
 });
 
 @Component({
@@ -377,5 +407,32 @@ describe('TwCardHorizontalComponent', () => {
     fixture.detectChanges();
 
     expect(cardEl.className).toContain('custom-horizontal');
+  });
+});
+
+describe('TwCardComponent class attribute', () => {
+  @Component({
+    template: `<tw-card class="bg-slate-50 shadow-lg mb-6">Static</tw-card
+      ><tw-card-horizontal class="bg-slate-50">Horizontal</tw-card-horizontal>`,
+    standalone: true,
+    imports: [TwCardComponent, TwCardHorizontalComponent],
+  })
+  class ClassHostComponent {}
+
+  it('lets a static class override the conflicting variant classes', async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+    const card = fixture.debugElement.query(By.css('tw-card')).nativeElement as HTMLElement;
+    expect(card.classList).toContain('bg-slate-50');
+    expect(card.classList).toContain('shadow-lg');
+    expect(card.classList).toContain('mb-6');
+    expect(card.classList).not.toContain('bg-white');
+    expect(card.classList).not.toContain('shadow-md');
+
+    const horizontal = fixture.debugElement.query(By.css('tw-card-horizontal'))
+      .nativeElement as HTMLElement;
+    expect(horizontal.classList).toContain('bg-slate-50');
+    expect(horizontal.classList).not.toContain('bg-white');
   });
 });

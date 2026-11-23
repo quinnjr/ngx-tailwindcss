@@ -166,7 +166,29 @@ describe('TwChipComponent', () => {
       it('should apply success solid variant', () => {
         component.variant.set('success');
         fixture.detectChanges();
-        expect(getInnerSpan().className).toContain('bg-emerald-600');
+        expect(getInnerSpan().className).toContain('bg-emerald-700');
+      });
+
+      it('should use 700-shade fills for white-text success/info solid chips (WCAG AA)', () => {
+        for (const [variant, bg] of [
+          ['success', 'bg-emerald-700'],
+          ['info', 'bg-cyan-700'],
+        ] as const) {
+          component.variant.set(variant);
+          fixture.detectChanges();
+          const cls = getInnerSpan().className;
+          expect(cls).toContain(bg);
+          expect(cls).toContain('text-white');
+          expect(cls).not.toMatch(/bg-(emerald|cyan)-600/);
+        }
+      });
+
+      it('should use dark text on the amber warning solid chip (white fails WCAG AA)', () => {
+        component.variant.set('warning');
+        fixture.detectChanges();
+        expect(getInnerSpan().className).toContain('bg-amber-500');
+        expect(getInnerSpan().className).toContain('text-amber-950');
+        expect(getInnerSpan().className).not.toContain('text-white');
       });
     });
 
@@ -179,6 +201,19 @@ describe('TwChipComponent', () => {
       it('should apply primary outline variant', () => {
         expect(getInnerSpan().className).toContain('border');
         expect(getInnerSpan().className).toContain('border-blue-600');
+      });
+
+      it('should use AA-contrast text colours for success/warning/info outline chips', () => {
+        const expected: Record<string, string> = {
+          success: 'text-emerald-700',
+          warning: 'text-amber-700',
+          info: 'text-cyan-700',
+        };
+        for (const [variant, cls] of Object.entries(expected)) {
+          component.variant.set(variant as ChipVariant);
+          fixture.detectChanges();
+          expect(getInnerSpan().className).toContain(cls);
+        }
       });
     });
   });
@@ -308,6 +343,12 @@ describe('TwChipsComponent', () => {
     expect(input?.placeholder).toBe('Add tag...');
   });
 
+  it('should give the add input a text colour matching the container background', () => {
+    const input = chipsEl.querySelector('input')!;
+    expect(input.className).toContain('text-slate-900');
+    expect(input.className).toContain('dark:text-slate-100');
+  });
+
   it('should not render input when allowAdd is false', () => {
     component.allowAdd.set(false);
     fixture.detectChanges();
@@ -357,5 +398,104 @@ describe('TwChipsComponent', () => {
       const input = chipsEl.querySelector('input');
       expect(input?.getAttribute('aria-label')).toBe('Add item');
     });
+  });
+});
+
+@Component({
+  template: `<tw-chips (valuesChange)="last = $event"></tw-chips>`,
+  standalone: true,
+  imports: [TwChipsComponent],
+})
+class UncontrolledChipsHostComponent {
+  last: string[] = [];
+}
+
+describe('TwChipsComponent (regressions)', () => {
+  it('should accumulate chips when used without a [values] binding', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    for (const v of ['A', 'B']) {
+      input.value = v;
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      fixture.detectChanges();
+    }
+    expect(fixture.componentInstance.last).toEqual(['A', 'B']);
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(2);
+  });
+});
+
+describe('TwChipsComponent (round 3)', () => {
+  it('should not add a chip for the Enter that commits an IME composition', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.value = 'にほん';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(0);
+    expect(input.value).toBe('にほん');
+  });
+
+  it('should name the remove button after the chip', () => {
+    const fixture = TestBed.createComponent(UncontrolledChipsHostComponent);
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.value = 'Angular';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+    const remove: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    expect(remove.getAttribute('aria-label')).toBe('Remove Angular');
+  });
+});
+
+describe('TwChipsComponent (round 28)', () => {
+  it('should move focus to the input when the last chip is removed by its button', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.detectChanges();
+    const buttons: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-chip button'),
+    ];
+    buttons[1].focus();
+    buttons[1].click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(1);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('input'));
+  });
+
+  it('should keep focus on a remove button when the last chip is removed and adding is off', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.componentInstance.allowAdd.set(false);
+    fixture.detectChanges();
+    const buttons: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-chip button'),
+    ];
+    buttons[1].focus();
+    buttons[1].click();
+    fixture.detectChanges();
+
+    const remaining: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(1);
+    expect(document.activeElement).toBe(remaining);
+    expect(remaining.getAttribute('aria-label')).toBe('Remove Angular');
+  });
+});
+
+describe('TwChipsComponent (round 29)', () => {
+  it('should focus the chip list when the only chip is removed and adding is off', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.componentInstance.values.set(['Angular']);
+    fixture.componentInstance.allowAdd.set(false);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    button.focus();
+    button.click();
+    fixture.detectChanges();
+
+    const list: HTMLElement = fixture.nativeElement.querySelector('[role="list"]');
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(0);
+    expect(document.activeElement).toBe(list);
+    expect(list.getAttribute('tabindex')).toBe('-1');
   });
 });

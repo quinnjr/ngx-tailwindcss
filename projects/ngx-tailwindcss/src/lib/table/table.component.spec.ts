@@ -22,6 +22,9 @@ interface Row {
       [rows]="rows()"
       [rowsPerPageOptions]="rowsPerPageOptions()"
       [trackByFn]="trackByFn"
+      [title]="title()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       (selectionChange)="onSelectionChangeSpy($event)"
       (sortChange)="onSortChangeSpy($event)"
       (pageChange)="onPageChangeSpy($event)"
@@ -56,6 +59,9 @@ class TestHostComponent {
   rows = signal(10);
   rowsPerPageOptions = signal([2, 5, 10]);
   trackByFn = (item: Row) => item.id;
+  title = signal('');
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
 
   onSelectionChangeSpy = vi.fn();
   onSortChangeSpy = vi.fn();
@@ -158,6 +164,62 @@ describe('TwTableComponent', () => {
       expect(cells[2]).toContain('Carol');
     });
 
+    it('should sort rows with missing values consistently (empty values last)', () => {
+      component.data.set([
+        { id: 1, name: 'Dave', age: 1 },
+        { id: 2, name: undefined as unknown as string, age: 2 },
+        { id: 3, name: 'Bob', age: 3 },
+        { id: 4, name: null as unknown as string, age: 4 },
+        { id: 5, name: 'Alice', age: 5 },
+        { id: 6, name: 'Carol', age: 6 },
+      ]);
+      fixture.detectChanges();
+      const order = () =>
+        bodyRows().map(row => Number(row.queryAll(By.css('td'))[1].nativeElement.textContent));
+
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      expect(order().slice(0, 4)).toEqual([5, 3, 6, 1]);
+
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      expect(order().slice(0, 4)).toEqual([1, 6, 3, 5]);
+    });
+
+    it('should sort strings alphabetically regardless of case, with natural numbers', () => {
+      component.data.set([
+        { id: 1, name: 'zoe', age: 1 },
+        { id: 2, name: 'Bob', age: 2 },
+        { id: 3, name: 'item10', age: 3 },
+        { id: 4, name: 'adam', age: 4 },
+        { id: 5, name: 'item9', age: 5 },
+      ]);
+      fixture.detectChanges();
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      const names = bodyRows().map(row =>
+        row.queryAll(By.css('td'))[0].nativeElement.textContent.trim()
+      );
+      expect(names).toEqual(['adam', 'Bob', 'item9', 'item10', 'zoe']);
+    });
+
+    it('should sort strings with a shared collator, not a per-comparison localeCompare', () => {
+      component.data.set(
+        Array.from({ length: 50 }, (_, i) => ({ id: i, name: `item${50 - i}`, age: i }))
+      );
+      fixture.detectChanges();
+      const spy = vi.spyOn(String.prototype, 'localeCompare');
+      try {
+        nameSortButton().nativeElement.click();
+        fixture.detectChanges();
+        expect(spy).not.toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+      }
+      const first = bodyRows()[0].queryAll(By.css('td'))[0].nativeElement.textContent.trim();
+      expect(first).toBe('item1');
+    });
+
     it('should not render a sort button for non-sortable columns', () => {
       component.columns.set([{ field: 'name', header: 'Name', sortable: false }]);
       fixture.detectChanges();
@@ -204,11 +266,61 @@ describe('TwTableComponent', () => {
       expect(component.table.isSelected(component.data()[1])).toBe(true);
     });
 
+    it('should not offer or apply select-all in single mode', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      expect(tableEl.query(By.css('thead input[type="checkbox"]'))).toBeNull();
+      component.table.toggleSelectAll();
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+    });
+
     it('should select and clear all displayed rows via select-all', () => {
       component.table.toggleSelectAll();
       expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith(component.data());
       component.table.toggleSelectAll();
       expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith([]);
+    });
+
+    it('should drop selected rows that leave the data from later emissions', () => {
+      const [alice, bob, carol] = component.data();
+      component.table.toggleSelection(alice);
+      component.table.toggleSelection(bob);
+
+      // e.g. "delete selected": the consumer removes the selected rows from the data
+      component.data.set([carol]);
+      fixture.detectChanges();
+
+      component.table.toggleSelection(carol);
+      expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith([carol]);
+    });
+
+    it('should not toggle selection when a row-action button is clicked', () => {
+      const action = bodyRows()[0].query(By.css('[data-testid="row-action"]'));
+      action.nativeElement.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not toggle selection when a row-action removes itself during the click', () => {
+      const action = bodyRows()[0].query(By.css('[data-testid="row-action"]'))
+        .nativeElement as HTMLElement;
+      // e.g. an Edit button swapped out (or the row deleted) before the click bubbles on
+      action.addEventListener('click', () => {
+        action.remove();
+      });
+      action.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should still toggle selection when a plain cell is clicked', () => {
+      const cell = bodyRows()[0].queryAll(By.css('td'))[1];
+      cell.nativeElement.click();
+      fixture.detectChanges();
+      expect(component.table.isSelected(component.data()[0])).toBe(true);
     });
 
     it('should apply the selected row class', () => {
@@ -283,5 +395,110 @@ describe('TwTableComponent', () => {
       component.table.goToPage(2);
       expect(component.onPageChangeSpy).toHaveBeenCalledWith({ page: 2, rows: 2 });
     });
+
+    it('should clamp the current page when the data shrinks', () => {
+      component.table.goToPage(2);
+      fixture.detectChanges();
+      expect(bodyRows()[0].nativeElement.textContent).toContain('Carol');
+
+      component.data.set([{ id: 1, name: 'Alice', age: 30 }]);
+      fixture.detectChanges();
+
+      expect(bodyRows().length).toBe(1);
+      expect(bodyRows()[0].nativeElement.textContent).toContain('Alice');
+      expect(tableEl.nativeElement.textContent).toContain('Showing 1 to 1 of 1 entries');
+    });
+
+    it('should render both ellipses when many pages are present', () => {
+      component.data.set(
+        Array.from({ length: 20 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}`, age: i }))
+      );
+      fixture.detectChanges();
+      component.table.goToPage(5);
+      fixture.detectChanges();
+
+      const pager = tableEl.nativeElement.textContent.replaceAll(/\s+/g, ' ');
+      expect(pager).toContain('Previous 1 ... 4 5 6 ... 10 Next');
+    });
+
+    it('should move focus to the current page when Next reaches the last page', () => {
+      document.body.append(fixture.nativeElement);
+      const next = tableEl
+        .queryAll(By.css('button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .find(b => b.textContent?.trim() === 'Next')!;
+
+      next.focus();
+      next.click();
+      fixture.detectChanges();
+
+      expect(next.disabled).toBe(true);
+      const current = tableEl.query(By.css('button[aria-current="page"]')).nativeElement;
+      expect(current.textContent.trim()).toBe('2');
+      expect(document.activeElement).toBe(current);
+      fixture.nativeElement.remove();
+    });
+
+    it('should expose the current page to assistive technology', () => {
+      component.table.goToPage(2);
+      fixture.detectChanges();
+
+      const current = tableEl.queryAll(By.css('button[aria-current="page"]'));
+      expect(current.length).toBe(1);
+      expect(current[0].nativeElement.textContent.trim()).toBe('2');
+    });
+
+    it('should keep 4.5:1 text contrast on the dark hover backgrounds', () => {
+      // slate-400 text on a solid slate-700 hover background is only about 4:1
+      const row = bodyRows()[0].nativeElement as HTMLElement;
+      expect(row.classList).toContain('dark:hover:bg-slate-700/50');
+      expect(row.classList).not.toContain('dark:hover:bg-slate-700');
+
+      const buttons = tableEl
+        .queryAll(By.css('button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .filter(b => b.classList.contains('dark:hover:bg-slate-700'));
+      // Previous, page 2 (non-current) and Next
+      expect(buttons.length).toBe(3);
+      for (const button of buttons) {
+        expect(button.classList).toContain('dark:hover:text-slate-200');
+      }
+    });
+  });
+});
+
+describe('TwTableComponent accessible name', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  const table = () => fixture.debugElement.query(By.css('table')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should be named by the visible title', () => {
+    fixture.componentInstance.title.set('Team members');
+    fixture.componentInstance.ariaLabel.set('ignored');
+    fixture.detectChanges();
+    const labelledBy = table().getAttribute('aria-labelledby');
+    expect(document.querySelector(`#${labelledBy}`)?.textContent?.trim()).toBe('Team members');
+    expect(table().hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('should be named by ariaLabel when there is no title', () => {
+    fixture.componentInstance.ariaLabel.set('Team members');
+    fixture.detectChanges();
+    expect(table().getAttribute('aria-label')).toBe('Team members');
+    expect(table().hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('should be named by ariaLabelledBy when there is no title', () => {
+    fixture.componentInstance.ariaLabelledBy.set('external-heading');
+    fixture.detectChanges();
+    expect(table().getAttribute('aria-labelledby')).toBe('external-heading');
   });
 });

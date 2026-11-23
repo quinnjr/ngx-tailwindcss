@@ -118,7 +118,7 @@ describe('TwAccordionComponent', () => {
       header.nativeElement.click();
       fixture.detectChanges();
 
-      const content = items[0].query(By.css('[class*="pb-4"]'));
+      const content = items[0].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeTruthy();
     });
 
@@ -134,8 +134,22 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       // First item should be closed (no content visible)
-      const firstItemContent = items[0].nativeElement.querySelector('[class*="pb-4"]');
+      const firstItemContent = items[0].nativeElement.querySelector(
+        '[role="region"]:not([hidden])'
+      );
       expect(firstItemContent).toBeNull();
+    });
+
+    it('should emit openChange(false) for an item closed by opening another', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      items[0].query(By.css('button')).nativeElement.click();
+      fixture.detectChanges();
+      expect(component.item1ChangeValue).toBe(true);
+
+      items[1].query(By.css('button')).nativeElement.click();
+      fixture.detectChanges();
+      // Keeps an `[(open)]` binding on the first item in sync
+      expect(component.item1ChangeValue).toBe(false);
     });
   });
 
@@ -157,8 +171,8 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       // Both items should have content visible
-      const firstContent = items[0].query(By.css('[class*="pb-4"]'));
-      const secondContent = items[1].query(By.css('[class*="pb-4"]'));
+      const firstContent = items[0].query(By.css('[role="region"]:not([hidden])'));
+      const secondContent = items[1].query(By.css('[role="region"]:not([hidden])'));
       expect(firstContent).toBeTruthy();
       expect(secondContent).toBeTruthy();
     });
@@ -175,7 +189,7 @@ describe('TwAccordionComponent', () => {
       fixture.detectChanges();
 
       const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
-      const content = items[1].query(By.css('[class*="pb-4"]'));
+      const content = items[1].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeTruthy();
     });
   });
@@ -188,7 +202,7 @@ describe('TwAccordionComponent', () => {
       disabledHeader.nativeElement.click();
       fixture.detectChanges();
 
-      const content = items[2].query(By.css('[class*="pb-4"]'));
+      const content = items[2].query(By.css('[role="region"]:not([hidden])'));
       expect(content).toBeNull();
     });
 
@@ -225,6 +239,28 @@ describe('TwAccordionComponent', () => {
       expect(panel.id).toBeTruthy();
       expect(header.getAttribute('aria-controls')).toBe(panel.id);
       expect(panel.getAttribute('aria-labelledby')).toBe(header.id);
+    });
+
+    it('should keep aria-controls resolvable while the item is collapsed', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      const header = items[0].query(By.css('button')).nativeElement as HTMLButtonElement;
+
+      expect(header.getAttribute('aria-expanded')).toBe('false');
+      const controlsId = header.getAttribute('aria-controls');
+      const panel = items[0].nativeElement.querySelector(`#${controlsId}`) as HTMLElement;
+      expect(panel).toBeTruthy();
+      expect(panel.hidden).toBe(true);
+    });
+
+    it('should wrap each header button in a level-3 heading by default', () => {
+      const items = fixture.debugElement.queryAll(By.directive(TwAccordionItemComponent));
+      for (const item of items) {
+        const button = item.query(By.css('button')).nativeElement as HTMLButtonElement;
+        const heading = button.parentElement!;
+        expect(heading.getAttribute('role')).toBe('heading');
+        expect(heading.getAttribute('aria-level')).toBe('3');
+        expect(heading.children.length).toBe(1);
+      }
     });
 
     it('should set aria-expanded on the header button', () => {
@@ -341,5 +377,77 @@ describe('TwAccordionItemComponent with custom header', () => {
 
   it('should not render the itemTitle alongside the custom header', () => {
     expect(itemEl.textContent).not.toContain('Fallback Title');
+  });
+});
+
+@Component({
+  template: `
+    <tw-accordion>
+      <tw-accordion-item itemTitle="First">One</tw-accordion-item>
+      <tw-accordion-item itemTitle="Second">Two</tw-accordion-item>
+    </tw-accordion>
+  `,
+  standalone: true,
+  imports: [TwAccordionComponent, TwAccordionItemComponent],
+})
+class NoValueHostComponent {}
+
+describe('TwAccordionComponent with items without a value', () => {
+  it('should start with every item collapsed when no defaultValue is set', async () => {
+    await TestBed.configureTestingModule({ imports: [NoValueHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(NoValueHostComponent);
+    fixture.detectChanges();
+
+    const headers = fixture.debugElement.queryAll(By.css('tw-accordion-item button'));
+    expect(headers.length).toBe(2);
+    for (const header of headers) {
+      expect(header.nativeElement.getAttribute('aria-expanded')).toBe('false');
+    }
+  });
+});
+
+@Component({
+  template: `
+    <tw-accordion [headingLevel]="accordionLevel()">
+      <tw-accordion-item value="a" itemTitle="A">A</tw-accordion-item>
+      <tw-accordion-item value="b" itemTitle="B">B</tw-accordion-item>
+    </tw-accordion>
+    <tw-accordion>
+      <tw-accordion-item value="c" itemTitle="C" [headingLevel]="itemLevel()">C</tw-accordion-item>
+    </tw-accordion>
+  `,
+  standalone: true,
+  imports: [TwAccordionComponent, TwAccordionItemComponent],
+})
+class HeadingLevelHostComponent {
+  accordionLevel = signal<number>(2);
+  itemLevel = signal<number>(4);
+}
+
+describe('TwAccordion headingLevel', () => {
+  let fixture: ComponentFixture<HeadingLevelHostComponent>;
+
+  const levels = () =>
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="heading"]')].map(h =>
+      h.getAttribute('aria-level')
+    );
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HeadingLevelHostComponent],
+    }).compileComponents();
+    fixture = TestBed.createComponent(HeadingLevelHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('applies the accordion level to all items and honours an item-level override', () => {
+    expect(levels()).toEqual(['2', '2', '4']);
+  });
+
+  it('updates when the level changes and falls back to 3 for out-of-range values', () => {
+    fixture.componentInstance.accordionLevel.set(5);
+    fixture.componentInstance.itemLevel.set(9);
+    fixture.detectChanges();
+    expect(levels()).toEqual(['5', '5', '3']);
   });
 });

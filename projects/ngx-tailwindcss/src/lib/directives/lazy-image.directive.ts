@@ -5,10 +5,13 @@ import {
   EventEmitter,
   inject,
   Input,
+  NgZone,
+  OnChanges,
   OnDestroy,
   OnInit,
   Output,
   Renderer2,
+  SimpleChanges,
 } from '@angular/core';
 
 export interface LazyImageEvent {
@@ -30,17 +33,22 @@ export interface LazyImageEvent {
   selector: 'img[twLazyImage]',
   standalone: true,
 })
-export class TwLazyImageDirective implements OnInit, OnDestroy {
+export class TwLazyImageDirective implements OnInit, OnChanges, OnDestroy {
   private readonly el: ElementRef<HTMLImageElement>;
   private readonly renderer: Renderer2;
+  private readonly ngZone: NgZone;
 
   constructor() {
     this.el = inject(ElementRef);
     this.renderer = inject(Renderer2);
+    this.ngZone = inject(NgZone);
   }
 
   private observer: IntersectionObserver | null = null;
   private removeNativeListeners: () => void = () => {};
+  /** Incremented per load so a superseded preload can't apply its (stale) result */
+  private loadGeneration = 0;
+  private initialized = false;
 
   /** The image source to lazy load */
   @Input({ required: true })
@@ -75,6 +83,33 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
   lazyLoaded = new EventEmitter<LazyImageEvent>();
 
   ngOnInit(): void {
+    this.initialized = true;
+    this.start();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.initialized) return;
+
+    // A new source (e.g. a reused component bound to different data) restarts loading
+    if (changes['twLazyImage']) {
+      this.stop();
+      this.toggleClasses(this.lazyLoadedClass, false);
+      this.start();
+      return;
+    }
+
+    // Loading options changed while still waiting to enter the viewport (e.g.
+    // `lazyDisabled` switched on to load eagerly) apply to that pending load
+    if (
+      this.observer &&
+      (changes['lazyDisabled'] || changes['lazyRootMargin'] || changes['lazyNative'])
+    ) {
+      this.stop();
+      this.start();
+    }
+  }
+
+  private start(): void {
     const img = this.el.nativeElement;
 
     // Set placeholder if provided
@@ -83,13 +118,7 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
     }
 
     // Add loading class
-    if (this.lazyLoadingClass) {
-      for (const cls of this.lazyLoadingClass.split(' ')) {
-        if (cls?.trim()) {
-          this.renderer.addClass(img, cls);
-        }
-      }
-    }
+    this.toggleClasses(this.lazyLoadingClass, true);
 
     // Use native lazy loading if requested; the browser defers the fetch itself
     if (this.lazyNative) {
@@ -112,12 +141,16 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
 
     this.observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            this.loadImage();
-            this.observer?.disconnect();
-            this.observer = null;
-          }
+        // IntersectionObserver callbacks are not zone-patched; load (and register the
+        // preload listeners) inside the zone so `lazyLoaded` triggers change detection
+        this.ngZone.run(() => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              this.loadImage();
+              this.observer?.disconnect();
+              this.observer = null;
+            }
+          });
         });
       },
       {
@@ -131,16 +164,25 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
   private loadImage(): void {
     const img = this.el.nativeElement;
 
+    // No Image constructor on the server (SSR): render the real source directly
+    if (typeof Image === 'undefined') {
+      this.renderer.setAttribute(img, 'src', this.twLazyImage);
+      return;
+    }
+
     // Create a new image to preload
     const tempImg = new Image();
+    const generation = ++this.loadGeneration;
 
     tempImg.addEventListener('load', () => {
+      if (generation !== this.loadGeneration) return;
       this.renderer.setAttribute(img, 'src', this.twLazyImage);
       this.applyLoadedClasses();
       this.lazyLoaded.emit({ loaded: true, src: this.twLazyImage });
     });
 
     tempImg.addEventListener('error', () => {
+      if (generation !== this.loadGeneration) return;
       this.lazyLoaded.emit({
         loaded: false,
         src: this.twLazyImage,
@@ -184,26 +226,31 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
   }
 
   private applyLoadedClasses(): void {
-    const img = this.el.nativeElement;
-
     // Remove loading class, add loaded class
-    if (this.lazyLoadingClass) {
-      this.lazyLoadingClass.split(' ').forEach(cls => {
-        if (cls) this.renderer.removeClass(img, cls);
-      });
-    }
-    if (this.lazyLoadedClass) {
-      this.lazyLoadedClass.split(' ').forEach(cls => {
-        if (cls) this.renderer.addClass(img, cls);
-      });
+    this.toggleClasses(this.lazyLoadingClass, false);
+    this.toggleClasses(this.lazyLoadedClass, true);
+  }
+
+  private toggleClasses(classes: string, add: boolean): void {
+    const img = this.el.nativeElement;
+    for (const cls of classes.split(/\s+/)) {
+      if (!cls) continue;
+      if (add) this.renderer.addClass(img, cls);
+      else this.renderer.removeClass(img, cls);
     }
   }
 
-  ngOnDestroy(): void {
+  /** Cancels the pending observer, preload and native load listeners */
+  private stop(): void {
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
+    this.loadGeneration++;
     this.removeNativeListeners();
+  }
+
+  ngOnDestroy(): void {
+    this.stop();
   }
 }

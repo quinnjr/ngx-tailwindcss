@@ -7,8 +7,11 @@ import {
   Input,
   numberAttribute,
   OnChanges,
+  OnDestroy,
+  PLATFORM_ID,
   SimpleChanges,
 } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 
 /**
  * Directive to automatically focus an element when it's rendered
@@ -24,9 +27,12 @@ import {
   selector: '[twAutoFocus]',
   standalone: true,
 })
-export class TwAutoFocusDirective implements AfterViewInit, OnChanges {
+export class TwAutoFocusDirective implements AfterViewInit, OnChanges, OnDestroy {
   private readonly el: ElementRef<HTMLElement>;
+  private readonly platformId = inject(PLATFORM_ID);
   private viewInitialized = false;
+  private focusTimer: ReturnType<typeof setTimeout> | null = null;
+  private focusFrame: number | null = null;
 
   constructor() {
     this.el = inject(ElementRef);
@@ -66,7 +72,13 @@ export class TwAutoFocusDirective implements AfterViewInit, OnChanges {
   }
 
   private scheduleFocus(): void {
+    // No DOM focus (or requestAnimationFrame / HTMLInputElement) on the server
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.cancelScheduledFocus();
+
     const focus = () => {
+      this.focusTimer = null;
+      this.focusFrame = null;
       const element = this.el.nativeElement;
 
       if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
@@ -84,10 +96,25 @@ export class TwAutoFocusDirective implements AfterViewInit, OnChanges {
     };
 
     if (this.autoFocusDelay > 0) {
-      setTimeout(focus, this.autoFocusDelay);
+      this.focusTimer = setTimeout(focus, this.autoFocusDelay);
     } else {
       // Use requestAnimationFrame for immediate but safe focus
-      requestAnimationFrame(focus);
+      this.focusFrame = requestAnimationFrame(focus);
     }
+  }
+
+  private cancelScheduledFocus(): void {
+    if (this.focusTimer !== null) {
+      clearTimeout(this.focusTimer);
+      this.focusTimer = null;
+    }
+    if (this.focusFrame !== null) {
+      cancelAnimationFrame(this.focusFrame);
+      this.focusFrame = null;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.cancelScheduledFocus();
   }
 }

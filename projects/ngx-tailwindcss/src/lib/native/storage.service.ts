@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { StorageOptions } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { isElectronIpcAvailable, loadElectronIpc } from './electron-bridge.util';
 
 // Type definitions for dynamic imports
 interface TauriStore {
@@ -53,13 +54,19 @@ export class NativeStorageService {
 
       const parsed = JSON.parse(item);
 
+      // Values written by set() are wrapped as { _value, _expires? }; anything
+      // else (written by other code) is returned as-is.
+      if (parsed === null || typeof parsed !== 'object' || !('_value' in parsed)) {
+        return parsed ?? defaultValue ?? null;
+      }
+
       // Check expiration
       if (parsed._expires && Date.now() > parsed._expires) {
         this.remove(key);
         return defaultValue ?? null;
       }
 
-      return parsed._value ?? parsed;
+      return parsed._value ?? defaultValue ?? null;
     } catch {
       return defaultValue ?? null;
     }
@@ -83,20 +90,38 @@ export class NativeStorageService {
     }
   }
 
+  // Like get/set, these are no-ops (or report "nothing stored") when Web
+  // Storage is unavailable: during SSR, or when the browser blocks access.
   public remove(key: string): void {
-    localStorage.removeItem(key);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // No localStorage (SSR / blocked)
+    }
   }
 
   public clear(): void {
-    localStorage.clear();
+    try {
+      localStorage.clear();
+    } catch {
+      // No localStorage (SSR / blocked)
+    }
   }
 
   public keys(): string[] {
-    return Object.keys(localStorage);
+    try {
+      return Object.keys(localStorage);
+    } catch {
+      return [];
+    }
   }
 
   public has(key: string): boolean {
-    return localStorage.getItem(key) !== null;
+    try {
+      return localStorage.getItem(key) !== null;
+    } catch {
+      return false;
+    }
   }
 
   // Persistent app-level storage on Tauri/Electron. NOT OS-keychain-backed;
@@ -136,10 +161,11 @@ export class NativeStorageService {
       }
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
-        const electron = await dynamicImport('electron');
-        return electron.ipcRenderer.invoke('secure-storage-get', key);
+        const electron = await loadElectronIpc();
+        // Await so an IPC rejection is caught below rather than escaping to the caller
+        return (await electron.ipcRenderer.invoke('secure-storage-get', key)) as T | null;
       } catch (error) {
         console.error('Electron secure storage error:', error);
         return null;
@@ -171,9 +197,9 @@ export class NativeStorageService {
       return;
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-set', key, value);
       } catch (error) {
         console.error('Electron secure storage error:', error);
@@ -203,9 +229,9 @@ export class NativeStorageService {
       return;
     }
 
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       try {
-        const electron = await dynamicImport('electron');
+        const electron = await loadElectronIpc();
         await electron.ipcRenderer.invoke('secure-storage-remove', key);
       } catch (error) {
         console.error('Electron secure storage error:', error);
@@ -236,11 +262,19 @@ export class NativeStorageService {
   }
 
   public removeSession(key: string): void {
-    sessionStorage.removeItem(key);
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // No sessionStorage (SSR / blocked)
+    }
   }
 
   public clearSession(): void {
-    sessionStorage.clear();
+    try {
+      sessionStorage.clear();
+    } catch {
+      // No sessionStorage (SSR / blocked)
+    }
   }
 
   // IndexedDB for larger data

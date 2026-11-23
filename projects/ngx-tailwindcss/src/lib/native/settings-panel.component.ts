@@ -61,6 +61,28 @@ export class TwSettingsPanelComponent {
 
   public readonly templates = contentChildren(TwSettingTemplateDirective);
 
+  /** Custom control template registered via `twSettingTemplate="<settingId>"`, if any. */
+  protected customTemplate(settingId: string): TemplateRef<unknown> | null {
+    return this.templates().find(t => t.settingId() === settingId)?.template ?? null;
+  }
+
+  /** Callback exposed to custom templates as `let-update="update"`. */
+  protected updateFn(setting: SettingItem): (value: unknown) => void {
+    return value => {
+      this.updateSetting(setting, value);
+    };
+  }
+
+  /** Visible text of a shortcut button: the current binding, or a prompt when unset. */
+  protected shortcutText(setting: SettingItem): string {
+    return (setting.value as string) || 'Click to set...';
+  }
+
+  /** Accessible name of a shortcut button: the setting label plus its visible binding text. */
+  protected shortcutLabel(setting: SettingItem): string {
+    return `${setting.label}: ${this.shortcutText(setting)}`;
+  }
+
   public readonly searchQuery = signal('');
   public readonly selectedCategoryId = signal<string | null>(null);
 

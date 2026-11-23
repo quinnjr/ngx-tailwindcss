@@ -1,18 +1,20 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   EventEmitter,
   inject,
   input,
+  linkedSignal,
   OnDestroy,
   Output,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type SplitterDirection = 'horizontal' | 'vertical';
@@ -63,19 +65,18 @@ const KEYBOARD_RESIZE_STEP = 2;
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './splitter.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100%;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex container itself: a static `class` attribute lands here once
+    '[class]': 'containerClasses()',
+  },
 })
-export class TwSplitterComponent implements AfterViewInit, OnDestroy {
+export class TwSplitterComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
+  /** Injected (not the global) so destroy on the server, where no global exists, is safe */
+  private readonly document = inject(DOCUMENT);
 
-  @ViewChild('container') containerRef!: ElementRef<HTMLElement>;
+  /** The host element is the flex container holding both panes and the gutter */
+  readonly containerRef = inject<ElementRef<HTMLElement>>(ElementRef);
   @ViewChild('gutter') gutterRef!: ElementRef<HTMLElement>;
 
   /** Direction of the split */
@@ -97,7 +98,7 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   readonly showGutter = input(true);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Emits when sizes change */
   @Output() sizesChange = new EventEmitter<[number, number]>();
@@ -108,7 +109,10 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   /** Emits when dragging ends */
   @Output() dragEnd = new EventEmitter<void>();
 
-  protected sizes = signal<[number, number]>([50, 50]);
+  /** Current sizes; reset whenever the `initialSizes` input changes */
+  protected sizes = linkedSignal<[number, number]>(
+    () => [...this.initialSizes()] as [number, number]
+  );
   protected isDragging = signal(false);
 
   private startPos = 0;
@@ -120,8 +124,14 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   private readonly touchMoveHandler = this.onTouchMove.bind(this);
   private readonly touchEndHandler = this.onTouchEnd.bind(this);
 
-  ngAfterViewInit(): void {
-    this.sizes.set([...this.initialSizes()] as [number, number]);
+  constructor() {
+    // Disabling the splitter mid-drag ends the drag: the disabled gutter must not keep resizing
+    effect(() => {
+      if (this.disabled() && this.isDragging()) {
+        this.endDrag();
+        this.removeListeners();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -130,7 +140,7 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
 
   protected readonly containerClasses = computed(() => {
     return this.twClass.merge(
-      'flex h-full w-full overflow-hidden',
+      'flex h-full overflow-hidden',
       this.direction() === 'horizontal' ? 'flex-row' : 'flex-col',
       this.class()
     );
@@ -151,19 +161,25 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
 
     return this.twClass.merge(
       'flex items-center justify-center flex-shrink-0 transition-colors',
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       orientationClasses,
-      this.showGutter() ? 'bg-slate-200 hover:bg-slate-300' : 'bg-transparent hover:bg-slate-200',
-      this.isDragging() ? 'bg-blue-400' : '',
+      this.showGutter()
+        ? 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'
+        : 'bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700',
+      // Hover overrides keep the drag state visible while the pointer is over the gutter
+      this.isDragging()
+        ? 'bg-blue-400 dark:bg-blue-500 hover:bg-blue-400 dark:hover:bg-blue-500'
+        : '',
       this.disabled() ? 'cursor-default pointer-events-none opacity-50' : ''
     );
   });
 
   protected readonly gutterHandleClasses = computed(() => {
     return this.twClass.merge(
-      'rounded-full bg-slate-400 transition-all',
+      // Grip stays at 3:1 against the gutter (and its hover colour) in both themes
+      'rounded-full bg-slate-500 dark:bg-slate-300 transition-all',
       this.direction() === 'horizontal' ? 'w-1 h-8' : 'h-1 w-8',
-      this.isDragging() ? 'bg-blue-600 scale-125' : ''
+      this.isDragging() ? 'bg-blue-600 dark:bg-blue-400 scale-125' : ''
     );
   });
 
@@ -173,8 +189,8 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
     if (this.disabled()) return;
     event.preventDefault();
     this.startDrag(this.direction() === 'horizontal' ? event.clientX : event.clientY);
-    document.addEventListener('mousemove', this.mouseMoveHandler);
-    document.addEventListener('mouseup', this.mouseUpHandler);
+    this.document.addEventListener('mousemove', this.mouseMoveHandler);
+    this.document.addEventListener('mouseup', this.mouseUpHandler);
   }
 
   protected onGutterTouchStart(event: TouchEvent): void {
@@ -182,8 +198,9 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
     event.preventDefault();
     const touch = event.touches[0];
     this.startDrag(this.direction() === 'horizontal' ? touch.clientX : touch.clientY);
-    document.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
-    document.addEventListener('touchend', this.touchEndHandler);
+    this.document.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
+    this.document.addEventListener('touchend', this.touchEndHandler);
+    this.document.addEventListener('touchcancel', this.touchEndHandler);
   }
 
   protected onGutterKeydown(event: KeyboardEvent): void {
@@ -304,10 +321,11 @@ export class TwSplitterComponent implements AfterViewInit, OnDestroy {
   }
 
   private removeListeners(): void {
-    document.removeEventListener('mousemove', this.mouseMoveHandler);
-    document.removeEventListener('mouseup', this.mouseUpHandler);
-    document.removeEventListener('touchmove', this.touchMoveHandler);
-    document.removeEventListener('touchend', this.touchEndHandler);
+    this.document.removeEventListener('mousemove', this.mouseMoveHandler);
+    this.document.removeEventListener('mouseup', this.mouseUpHandler);
+    this.document.removeEventListener('touchmove', this.touchMoveHandler);
+    this.document.removeEventListener('touchend', this.touchEndHandler);
+    this.document.removeEventListener('touchcancel', this.touchEndHandler);
   }
 
   /** Programmatically set sizes */

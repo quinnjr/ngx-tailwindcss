@@ -231,28 +231,28 @@ describe('TwToastComponent', () => {
 
   describe('variants', () => {
     it('should apply info variant icon color', () => {
-      const icon = toastEl.querySelector('[class*="text-blue-500"]');
+      const icon = toastEl.querySelector('[class*="text-blue-600"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply success variant icon color', () => {
       component.variant.set('success');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-emerald-500"]');
+      const icon = toastEl.querySelector('[class*="text-emerald-700"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply warning variant icon color', () => {
       component.variant.set('warning');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-amber-500"]');
+      const icon = toastEl.querySelector('[class*="text-amber-700"]');
       expect(icon).toBeTruthy();
     });
 
     it('should apply danger variant icon color', () => {
       component.variant.set('danger');
       fixture.detectChanges();
-      const icon = toastEl.querySelector('[class*="text-rose-500"]');
+      const icon = toastEl.querySelector('[class*="text-rose-600"]');
       expect(icon).toBeTruthy();
     });
   });
@@ -262,6 +262,16 @@ describe('TwToastComponent', () => {
       component.title.set('Important');
       fixture.detectChanges();
       expect(toastEl.textContent).toContain('Important');
+    });
+
+    it('should keep title and message readable on the dark-mode background', () => {
+      component.title.set('Important');
+      fixture.detectChanges();
+      const texts = [...toastEl.querySelectorAll('p')];
+      expect(texts.length).toBe(2);
+      for (const text of texts) {
+        expect(text.className).toMatch(/dark:text-slate-(100|200|300)/);
+      }
     });
   });
 
@@ -334,6 +344,23 @@ describe('TwToastComponent', () => {
       expect(toastEl.querySelector('[role="alert"]')).toBeTruthy();
     });
 
+    it('should not use sub-3:1 status icon colours (500 shades on white)', () => {
+      for (const variant of ['info', 'success', 'warning', 'danger'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        const icon = toastEl.querySelector('svg')!.parentElement!;
+        expect(icon.className).not.toMatch(/(^|\s)text-(emerald|amber)-500/);
+        expect(icon.className).toMatch(/dark:text-\w+-400/);
+      }
+    });
+
+    it('should render the icon-only dismiss button at >=3:1 contrast', () => {
+      const dismissBtn = toastEl.querySelector('button[aria-label="Dismiss notification"]')!;
+      expect(dismissBtn.className).toContain('text-slate-500');
+      expect(dismissBtn.className).toContain('dark:text-slate-400');
+      expect(dismissBtn.className).not.toMatch(/(^|\s)text-slate-400/);
+    });
+
     it('should label the dismiss button', () => {
       const dismissBtn = toastEl.querySelector('button[aria-label="Dismiss notification"]');
       expect(dismissBtn).toBeTruthy();
@@ -387,6 +414,102 @@ describe('TwToastContainerComponent', () => {
     expect(service.toasts().length).toBe(0);
   });
 
+  describe('focus on dismiss', () => {
+    const dismissButtons = () =>
+      fixture.debugElement
+        .queryAll(By.css('button[aria-label="Dismiss notification"]'))
+        .map(b => b.nativeElement as HTMLButtonElement);
+
+    beforeEach(() => {
+      document.body.append(fixture.nativeElement);
+    });
+
+    afterEach(() => {
+      fixture.nativeElement.remove();
+    });
+
+    it('should move focus to the next toast when the focused close button dismisses its toast', () => {
+      service.show({ message: 'Toast 1', duration: 0 });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const [first, second] = dismissButtons();
+
+      first.focus();
+      first.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(1);
+      expect(document.activeElement).toBe(second);
+    });
+
+    it('should return focus to where it came from when the last toast is dismissed', () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Toast 1', duration: 0 });
+      fixture.detectChanges();
+      const [close] = dismissButtons();
+
+      opener.focus();
+      close.focus();
+      close.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(0);
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+
+    it('should keep focus when an auto-dismiss timer removes the focused toast', async () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Undo?', duration: 5, action: { label: 'Undo', onClick: () => {} } });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const action = fixture.debugElement
+        .queryAll(By.css('tw-toast button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .find(b => b.textContent?.trim() === 'Undo')!;
+
+      opener.focus();
+      action.focus();
+      await new Promise<void>(resolve => {
+        setTimeout(resolve, 20);
+      });
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(1);
+      expect(document.activeElement).toBe(dismissButtons()[0]);
+
+      service.dismissAll();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+
+    it('should return focus to the origin after dismissing toasts one after another', () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Toast 1', duration: 0 });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const [first] = dismissButtons();
+
+      opener.focus();
+      first.focus();
+      first.click();
+      fixture.detectChanges();
+      const [second] = dismissButtons();
+      expect(document.activeElement).toBe(second);
+
+      second.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(0);
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+  });
+
   describe('position classes', () => {
     it('should apply top-right position by default', () => {
       const container = fixture.debugElement.query(By.css('[class*="fixed"]'));
@@ -408,5 +531,18 @@ describe('TwToastContainerComponent', () => {
       expect(container.nativeElement.className).toContain('top-4');
       expect(container.nativeElement.className).toContain('left-4');
     });
+  });
+});
+
+describe('TwToastContainerComponent keyframes', () => {
+  it('should register the toast-in keyframes unscoped so the toast animation class resolves', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwToastContainerComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwToastContainerComponent);
+    fixture.detectChanges();
+
+    const css = [...document.querySelectorAll('style')].map(s => s.textContent ?? '').join('\n');
+    expect(css).toMatch(/@keyframes\s+toast-in\s*\{/);
   });
 });

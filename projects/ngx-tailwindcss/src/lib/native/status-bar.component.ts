@@ -24,10 +24,25 @@ import { StatusBarItem } from './native.types';
 export class TwStatusBarComponent {
   // Inputs
   public readonly items = input<StatusBarItem[]>([]);
+  /**
+   * Visual style: `default` is the accent-coloured (blue) bar; `minimal` is a
+   * neutral gray bar with a top border that blends into the surrounding chrome.
+   */
   public readonly variant = input<'default' | 'minimal'>('default');
 
   // Outputs
   public readonly itemClick = output<StatusBarItem>();
+
+  protected readonly containerClasses = computed(() => {
+    const base = 'flex items-center justify-between h-6 px-2 text-xs select-none';
+    return this.variant() === 'minimal'
+      ? `${base} bg-gray-100 text-gray-700 border-t border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700`
+      : `${base} bg-blue-600 text-white`;
+  });
+
+  protected readonly buttonHoverClass = computed(() =>
+    this.variant() === 'minimal' ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'hover:bg-white/20'
+  );
 
   // Computed - sort items by position and priority
   protected readonly leftItems = computed(() =>

@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { splitShortcut } from './shortcut-keys.util';
 
 export type ShortcutDisplayVariant = 'default' | 'compact' | 'inline';
 export type ShortcutDisplayPlatform = 'mac' | 'windows' | 'linux' | 'auto';
@@ -40,6 +41,7 @@ export class TwShortcutDisplayComponent {
       ArrowLeft: '←',
       ArrowRight: '→',
       Space: '␣',
+      Plus: '+',
     },
     windows: {
       Meta: 'Win',
@@ -62,13 +64,16 @@ export class TwShortcutDisplayComponent {
       ArrowLeft: '←',
       ArrowRight: '→',
       Space: 'Space',
+      // Spelled out so it can't be mistaken for the separator
+      Plus: 'Plus',
     },
   };
 
   private readonly detectedPlatform = computed((): 'mac' | 'windows' => {
-    if (this.platform() !== 'auto') {
-      return this.platform() as 'mac' | 'windows';
-    }
+    const platform = this.platform();
+    if (platform === 'mac') return 'mac';
+    // Linux uses the same textual key names as Windows (there is no 'linux' symbol table)
+    if (platform === 'windows' || platform === 'linux') return 'windows';
     if (typeof navigator !== 'undefined') {
       const ua = navigator.userAgent.toLowerCase();
       if (ua.includes('mac')) return 'mac';
@@ -79,15 +84,15 @@ export class TwShortcutDisplayComponent {
   public readonly formattedKeys = computed(() => {
     let keysArray = this.keys();
     if (keysArray.length === 0 && this.shortcut()) {
-      keysArray = this.shortcut()
-        .split('+')
-        .map(k => k.trim());
+      // `ctrl++` is Ctrl and the plus key
+      keysArray = splitShortcut(this.shortcut());
     }
 
     const platform = this.detectedPlatform();
     const symbols = this.keySymbols[platform];
 
-    return keysArray.map(key => {
+    return keysArray.map(rawKey => {
+      const key = rawKey === '+' ? 'Plus' : rawKey;
       const normalizedKey = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
       return symbols[normalizedKey] || symbols[key] || key.toUpperCase();
     });
@@ -119,7 +124,7 @@ export class TwShortcutDisplayComponent {
         return `${baseClasses} px-1 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded`;
       }
       case 'inline': {
-        return `${baseClasses} px-1 text-xs text-slate-500`;
+        return `${baseClasses} px-1 text-xs text-slate-500 dark:text-slate-400`;
       }
       default: {
         return `${baseClasses} px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-sm`;

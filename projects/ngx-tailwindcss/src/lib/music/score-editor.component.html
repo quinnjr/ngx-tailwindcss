@@ -1,6 +1,7 @@
 <div
   class="score-editor"
   [class.print-mode]="variant() === 'print'"
+  role="group"
   aria-label="Musical score editor"
 >
   <!-- Toolbar -->
@@ -26,18 +27,20 @@
         <button
           type="button"
           class="toolbar-btn"
-          [disabled]="!canUndo()"
-          (click)="undo()"
+          [disabled]="!editable() || !canUndo()"
+          (click)="keepFocus($event); undo()"
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
           <span class="icon">↩</span>
         </button>
         <button
           type="button"
           class="toolbar-btn"
-          [disabled]="!canRedo()"
-          (click)="redo()"
+          [disabled]="!editable() || !canRedo()"
+          (click)="keepFocus($event); redo()"
           title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo"
         >
           <span class="icon">↪</span>
         </button>
@@ -52,6 +55,8 @@
             type="button"
             class="toolbar-btn duration-btn"
             [class.active]="currentDuration() === dur"
+            [attr.aria-pressed]="currentDuration() === dur"
+            [attr.aria-label]="dur | titlecase"
             (click)="currentDuration.set(dur)"
             [title]="dur | titlecase"
           >
@@ -68,6 +73,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'sharp'"
+          [attr.aria-pressed]="currentAccidental() === 'sharp'"
+          aria-label="Sharp"
           (click)="currentAccidental.set(currentAccidental() === 'sharp' ? null : 'sharp')"
           title="Sharp"
         >
@@ -77,6 +84,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'flat'"
+          [attr.aria-pressed]="currentAccidental() === 'flat'"
+          aria-label="Flat"
           (click)="currentAccidental.set(currentAccidental() === 'flat' ? null : 'flat')"
           title="Flat"
         >
@@ -86,6 +95,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="currentAccidental() === 'natural'"
+          [attr.aria-pressed]="currentAccidental() === 'natural'"
+          aria-label="Natural"
           (click)="currentAccidental.set(currentAccidental() === 'natural' ? null : 'natural')"
           title="Natural"
         >
@@ -101,6 +112,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="isDotted()"
+          [attr.aria-pressed]="isDotted()"
+          aria-label="Dotted"
           (click)="toggleDotted()"
           title="Dotted"
         >
@@ -110,6 +123,8 @@
           type="button"
           class="toolbar-btn"
           [class.active]="isRest()"
+          [attr.aria-pressed]="isRest()"
+          aria-label="Rest"
           (click)="toggleRest()"
           title="Rest"
         >
@@ -126,6 +141,8 @@
             type="button"
             class="toolbar-btn voice-btn"
             [class.active]="currentVoice() === voice"
+            [attr.aria-pressed]="currentVoice() === voice"
+            [attr.aria-label]="'Voice ' + voice"
             [style.--voice-color]="voiceColors[voice]"
             (click)="setVoice(voice)"
             title="Voice {{ voice }}"
@@ -137,11 +154,30 @@
 
       <div class="toolbar-spacer"></div>
 
+      <!-- Lyrics -->
+      @if (showLyricsEditor()) {
+        <div class="toolbar-group">
+          <button
+            #lyricsToggle
+            type="button"
+            class="toolbar-btn"
+            [class.active]="editingLyrics()"
+            [attr.aria-pressed]="editingLyrics()"
+            [disabled]="!editable() || !selectedPart()"
+            (click)="editingLyrics() ? editingLyrics.set(false) : openLyricsEditor()"
+            title="Edit lyrics of the selected part"
+          >
+            <span class="label">Lyrics</span>
+          </button>
+        </div>
+      }
+
       <!-- Transpose -->
       <div class="toolbar-group">
         <button
           type="button"
           class="toolbar-btn"
+          [disabled]="!editable()"
           (click)="showTransposeDialog.set(true)"
           title="Transpose"
         >
@@ -161,8 +197,10 @@
           <button
             type="button"
             class="add-part-btn"
+            [disabled]="!editable()"
             (click)="showPartDialog.set(true)"
             title="Add Part"
+            aria-label="Add part"
           >
             +
           </button>
@@ -185,6 +223,8 @@
                   type="button"
                   class="part-btn"
                   [class.active]="part.muted"
+                  [attr.aria-pressed]="part.muted"
+                  [attr.aria-label]="'Mute ' + part.name"
                   (click)="updatePart(part.id, { muted: !part.muted }); $event.stopPropagation()"
                   title="Mute"
                 >
@@ -194,6 +234,8 @@
                   type="button"
                   class="part-btn"
                   [class.active]="part.solo"
+                  [attr.aria-pressed]="part.solo"
+                  [attr.aria-label]="'Solo ' + part.name"
                   (click)="updatePart(part.id, { solo: !part.solo }); $event.stopPropagation()"
                   title="Solo"
                 >
@@ -202,9 +244,10 @@
                 <button
                   type="button"
                   class="part-btn delete"
-                  (click)="removePart(part.id); $event.stopPropagation()"
-                  [disabled]="parts().length <= 1"
+                  (click)="keepFocus($event, 'part'); removePart(part.id); $event.stopPropagation()"
+                  [disabled]="!editable() || parts().length <= 1"
                   title="Remove"
+                  [attr.aria-label]="'Remove ' + part.name"
                 >
                   ×
                 </button>
@@ -215,7 +258,11 @@
 
         <!-- Part presets -->
         <div class="part-presets">
-          <select (change)="addPart($any($event.target).value); $any($event.target).value = ''">
+          <select
+            aria-label="Add instrument"
+            [disabled]="!editable()"
+            (change)="addPart($any($event.target).value); $any($event.target).value = ''"
+          >
             <option value="">Add instrument...</option>
             <optgroup label="Keyboard">
               <option value="piano-treble">Piano (Treble)</option>
@@ -294,7 +341,7 @@
               [clef]="part.clef"
               [keySignature]="keySignature()"
               [timeSignature]="timeSignature()"
-              [measures]="measures()"
+              [measures]="measureCount()"
               [width]="width() - 120"
               [height]="staffHeight()"
               [lineSpacing]="lineSpacing()"
@@ -305,17 +352,16 @@
               [showVoiceColors]="true"
               (notesChanged)="onPartNotesChanged(part.id, $event)"
               (click)="selectPart(part.id)"
+              (focusin)="selectPart(part.id)"
             ></tw-note-input>
 
             <!-- Lyrics -->
             @if (showLyricsEditor() && part.lyrics.length > 0) {
               <div class="lyrics-row">
                 @for (lyric of getLyricsForPart(part.id); track lyric.id) {
-                  <span
-                    class="lyric-syllable"
-                    [style.left.px]="130 + lyric.measure * 150 + lyric.beat * 30"
-                    >{{ lyric.text }}</span
-                  >
+                  <span class="lyric-syllable" [style.left.px]="lyricX(lyric)">{{
+                    lyric.text
+                  }}</span>
                 }
               </div>
             }
@@ -329,11 +375,29 @@
 
   <!-- Add Part Dialog -->
   @if (showPartDialog()) {
-    <div class="dialog-overlay" (click)="showPartDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showPartDialog.set(false)"
+      (keydown.escape)="showPartDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add part"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Add Part</h3>
-          <button type="button" class="close-btn" (click)="showPartDialog.set(false)">×</button>
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showPartDialog.set(false)"
+          >
+            ×
+          </button>
         </div>
         <div class="dialog-content">
           <div class="preset-grid">
@@ -341,6 +405,7 @@
               <button
                 type="button"
                 class="preset-btn"
+                [disabled]="!editable()"
                 (click)="addPart(preset); showPartDialog.set(false)"
               >
                 {{ INSTRUMENT_PRESETS[preset].name }}
@@ -354,11 +419,27 @@
 
   <!-- Transpose Dialog -->
   @if (showTransposeDialog()) {
-    <div class="dialog-overlay" (click)="showTransposeDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showTransposeDialog.set(false)"
+      (keydown.escape)="showTransposeDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Transpose"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Transpose</h3>
-          <button type="button" class="close-btn" (click)="showTransposeDialog.set(false)">
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showTransposeDialog.set(false)"
+          >
             ×
           </button>
         </div>
@@ -394,6 +475,7 @@
             <button
               type="button"
               class="btn-primary"
+              [disabled]="!editable()"
               (click)="transposeSelectedPart(transposeAmount()); showTransposeDialog.set(false)"
             >
               Transpose Selected
@@ -401,6 +483,7 @@
             <button
               type="button"
               class="btn-primary"
+              [disabled]="!editable()"
               (click)="transposeAll(transposeAmount()); showTransposeDialog.set(false)"
             >
               Transpose All
@@ -413,11 +496,29 @@
 
   <!-- Export Dialog -->
   @if (showExportDialog()) {
-    <div class="dialog-overlay" (click)="showExportDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showExportDialog.set(false)"
+      (keydown.escape)="showExportDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export score"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Export Score</h3>
-          <button type="button" class="close-btn" (click)="showExportDialog.set(false)">×</button>
+          <button
+            type="button"
+            class="close-btn"
+            aria-label="Close"
+            (click)="showExportDialog.set(false)"
+          >
+            ×
+          </button>
         </div>
         <div class="dialog-content">
           <div class="export-options">
@@ -448,6 +549,15 @@
               <span class="export-label">ABC Notation</span>
               <span class="export-desc">Text format</span>
             </button>
+            <button
+              type="button"
+              class="export-btn"
+              (click)="downloadExport('pdf'); showExportDialog.set(false)"
+            >
+              <span class="export-icon">🖨</span>
+              <span class="export-label">PDF</span>
+              <span class="export-desc">Printable page (image)</span>
+            </button>
           </div>
         </div>
       </div>
@@ -458,11 +568,28 @@
   @if (showLyricsEditor() && editingLyrics()) {
     <div class="lyrics-editor-panel">
       <div class="panel-header">
-        <span>Lyrics Editor</span>
-        <button type="button" (click)="editingLyrics.set(false)">×</button>
+        <span id="lyrics-editor-title">Lyrics Editor ({{ selectedPart()?.name }})</span>
+        <div class="lyrics-actions">
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="!editable()"
+            (click)="keepFocus($event, 'lyrics'); applyLyrics(); editingLyrics.set(false)"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            aria-label="Close lyrics editor"
+            (click)="keepFocus($event, 'lyrics'); editingLyrics.set(false)"
+          >
+            ×
+          </button>
+        </div>
       </div>
       <textarea
         class="lyrics-input"
+        aria-labelledby="lyrics-editor-title"
         [ngModel]="currentLyricText()"
         (ngModelChange)="currentLyricText.set($event)"
         placeholder="Enter lyrics here...&#10;Use hyphens for syllables: Hel-lo world"

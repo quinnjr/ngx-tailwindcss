@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { dynamicImport } from './dynamic-import.util';
+import { isElectronIpcAvailable, loadElectronIpc } from './electron-bridge.util';
 
 export interface NativeFileFilter {
   name: string;
@@ -38,7 +39,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.openFileTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.openFileElectron(options);
     }
     return this.openFileWeb(options);
@@ -48,7 +49,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.saveFileTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.saveFileElectron(options);
     }
     return this.saveFileWeb(options);
@@ -58,7 +59,7 @@ export class FilePickerService {
     if (this.platformService.isTauri()) {
       return this.selectDirectoryTauri(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.selectDirectoryElectron(options);
     }
     return this.selectDirectoryWeb();
@@ -86,10 +87,11 @@ export class FilePickerService {
       const paths = Array.isArray(result) ? result : [result];
       return paths.map(path => ({
         path: typeof path === 'string' ? path : path.path,
+        // Split on both separators so Windows paths yield just the file name
         name:
           typeof path === 'string'
-            ? path.split('/').pop() || path
-            : path.name || path.path.split('/').pop() || '',
+            ? path.split(/[/\\]/).pop() || path
+            : path.name || path.path.split(/[/\\]/).pop() || '',
       }));
     } catch (error) {
       console.error('Tauri file picker error:', error);
@@ -101,7 +103,7 @@ export class FilePickerService {
     options: NativeOpenFileOptions
   ): Promise<FilePickerResult[] | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-open-dialog', {
         title: options.title,
@@ -193,7 +195,7 @@ export class FilePickerService {
 
   private async saveFileElectron(options: NativeSaveFileOptions): Promise<string | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-save-dialog', {
         title: options.title,
@@ -238,7 +240,7 @@ export class FilePickerService {
 
   private async selectDirectoryElectron(options: NativeOpenFileOptions): Promise<string | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
 
       const result = await ipcRenderer.invoke('show-open-dialog', {
         title: options.title,

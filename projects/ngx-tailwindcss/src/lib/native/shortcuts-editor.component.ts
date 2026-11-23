@@ -1,6 +1,21 @@
-import { Component, computed, HostListener, input, output, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  HostListener,
+  inject,
+  Injector,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { trackNativeEscapeLayer } from './native-escape-layer.util';
 
 export interface ShortcutBinding {
   id: string;
@@ -34,6 +49,55 @@ export class TwShortcutsEditorComponent {
   public readonly recordedKeys = signal<string[]>([]);
   public readonly conflictWarning = signal<string | null>(null);
 
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
+  /**
+   * Starting or ending a recording swaps the focused control out of the DOM;
+   * once rendered, move focus to its replacement (if focus was not moved
+   * elsewhere) so keyboard users keep their place.
+   */
+  private refocus(find: (host: HTMLElement) => HTMLElement | null | undefined): void {
+    afterNextRender(
+      () => {
+        const host = this.elementRef.nativeElement;
+        const active = host.ownerDocument.activeElement;
+        if (active && active !== host.ownerDocument.body) return;
+        find(host)?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  constructor() {
+    // While recording, Escape cancels the recording only, not an enclosing dialog
+    trackNativeEscapeLayer(this, () => this.editingId() !== null);
+
+    // A recording whose row is filtered out (category/search changed with the
+    // mouse) or removed would keep swallowing every key invisibly and silently
+    // rebind a hidden shortcut; cancel it instead.
+    effect(() => {
+      const id = this.editingId();
+      if (id !== null && !this.filteredShortcuts().some(s => s.id === id)) {
+        untracked(() => {
+          this.cancelEdit();
+        });
+      }
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      this.clearSaveTimer();
+    });
+  }
+
+  private clearSaveTimer(): void {
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+  }
+
   public readonly categories = computed(() => {
     const cats = new Set<string>();
     this.shortcuts().forEach(s => {
@@ -63,6 +127,19 @@ export class TwShortcutsEditorComponent {
     event.preventDefault();
     event.stopPropagation();
 
+    // A bare Escape cancels recording (focus is lost when recording starts,
+    // so this is the only keyboard way out); Shift+Escape etc. still record
+    if (
+      event.key === 'Escape' &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey
+    ) {
+      this.cancelEdit();
+      return;
+    }
+
     const keys: string[] = [];
     if (event.metaKey) keys.push('Meta');
     if (event.ctrlKey) keys.push('Ctrl');
@@ -85,8 +162,11 @@ export class TwShortcutsEditorComponent {
 
       this.recordedKeys.set(keys);
 
-      // Save after a short delay
-      setTimeout(() => {
+      // Save after a short delay; a newer keypress or cancel supersedes it, so a
+      // stale timer can't save another recording (or another shortcut's).
+      this.clearSaveTimer();
+      this.saveTimer = setTimeout(() => {
+        this.saveTimer = null;
         if (this.editingId() && !this.conflictWarning()) {
           this.saveEdit();
         }
@@ -95,12 +175,23 @@ export class TwShortcutsEditorComponent {
   }
 
   public startEdit(shortcut: ShortcutBinding): void {
+    this.clearSaveTimer();
     this.editingId.set(shortcut.id);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);
+    this.refocus(host => host.querySelector<HTMLElement>('[data-shortcut-recording]'));
   }
 
   public cancelEdit(): void {
+    this.clearSaveTimer();
+    const id = this.editingId();
+    if (id !== null) {
+      this.refocus(host =>
+        [...host.querySelectorAll<HTMLElement>('[data-shortcut-edit]')].find(
+          el => el.dataset['shortcutEdit'] === id
+        )
+      );
+    }
     this.editingId.set(null);
     this.recordedKeys.set([]);
     this.conflictWarning.set(null);
@@ -140,19 +231,27 @@ export class TwShortcutsEditorComponent {
       ArrowRight: '→',
       Tab: '⇥',
       ' ': 'Space',
+      // Spelled out off macOS so it can't be mistaken for the '+' separator
+      '+': platform === 'mac' ? '+' : 'Plus',
     };
     return keyMap[key] || key.toUpperCase();
   }
 
   private findConflict(keys: string[]): ShortcutBinding | null {
-    const keysStr = keys.sort().join('+');
+    // Compare case-insensitively (a recorded 's' must clash with a stored
+    // 'S'), on sorted copies: sorting in place would reorder the recorded keys
+    const normalize = (list: string[]) =>
+      list
+        .map(key => key.toLowerCase())
+        .sort()
+        .join('+');
+    const keysStr = normalize(keys);
     const editingId = this.editingId();
 
     return (
       this.shortcuts().find(s => {
         if (s.id === editingId) return false;
-        const existingKeysStr = [...s.keys].sort().join('+');
-        return existingKeysStr === keysStr;
+        return normalize(s.keys) === keysStr;
       }) || null
     );
   }

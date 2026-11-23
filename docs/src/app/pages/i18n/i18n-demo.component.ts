@@ -170,7 +170,7 @@ export class I18nDemoComponent {
   // Code examples
   setupCode = `// app.config.ts
 import { ApplicationConfig } from '@angular/core';
-import { provideTwTranslations, provideTwLocale } from 'ngx-tailwindcss';
+import { provideTwTranslations, provideTwLocale } from '@quinnjr/ngx-tailwindcss';
 
 // Spanish translations
 const spanishTranslations = {
@@ -204,7 +204,7 @@ export const appConfig: ApplicationConfig = {
   ],
 };`;
 
-  serviceCode = `import { TwI18nService } from 'ngx-tailwindcss';
+  serviceCode = `import { TwI18nService } from '@quinnjr/ngx-tailwindcss';
 
 @Component({...})
 export class MyComponent {

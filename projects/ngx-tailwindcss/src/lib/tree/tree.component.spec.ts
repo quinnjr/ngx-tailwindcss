@@ -13,6 +13,8 @@ import { TwClassService } from '../core/tw-class.service';
       [indentSize]="indentSize()"
       [propagateSelectionDown]="propagateSelectionDown()"
       [propagateSelectionUp]="propagateSelectionUp()"
+      [ariaLabel]="ariaLabel()"
+      [ariaLabelledBy]="ariaLabelledBy()"
       (onNodeSelect)="onNodeSelectSpy($event)"
       (onNodeUnselect)="onNodeUnselectSpy($event)"
       (onNodeExpand)="onNodeExpandSpy($event)"
@@ -51,6 +53,8 @@ class TestHostComponent {
   indentSize = signal(24);
   propagateSelectionDown = signal(true);
   propagateSelectionUp = signal(true);
+  ariaLabel = signal('');
+  ariaLabelledBy = signal('');
 
   onNodeSelectSpy = vi.fn();
   onNodeUnselectSpy = vi.fn();
@@ -85,6 +89,14 @@ describe('TwTreeComponent', () => {
     expect(treeEl.nativeElement.textContent).toContain('Documents');
     expect(treeEl.nativeElement.textContent).toContain('Pictures');
     expect(treeEl.nativeElement.textContent).toContain('Downloads');
+  });
+
+  it('should pair hard-coded text colours with dark-mode variants', () => {
+    const row = treeEl.query(By.css('[data-tw-tree-row]')).nativeElement as HTMLElement;
+    const label = row.querySelector<HTMLElement>('span.select-none')!;
+    expect(row.className).toContain('dark:hover:bg-slate-700');
+    expect(label.className).toContain('text-slate-700');
+    expect(label.className).toContain('dark:text-slate-300');
   });
 
   describe('expand/collapse', () => {
@@ -123,6 +135,14 @@ describe('TwTreeComponent', () => {
       const nodes = component.nodes();
       expect(nodes[0].expanded).toBe(false);
       expect(nodes[1].expanded).toBe(false);
+    });
+
+    it('should keep the toggle chevron at 3:1 on its dark hover background', () => {
+      const toggle = treeEl.query(By.css('button[aria-label="Expand"]'))
+        .nativeElement as HTMLButtonElement;
+      // slate-400 on the slate-600 hover background is below 3:1
+      expect(toggle.classList).toContain('dark:hover:bg-slate-600');
+      expect(toggle.classList).toContain('dark:hover:text-slate-200');
     });
   });
 
@@ -230,6 +250,40 @@ describe('TwTreeComponent', () => {
         expect(component.onNodeSelectSpy).not.toHaveBeenCalled();
       }
     });
+
+    it('should not expand a disabled parent from its chevron or the arrow keys', () => {
+      component.nodes.set([
+        { key: 'd', label: 'Locked', disabled: true, children: [{ key: 'd-1', label: 'Child' }] },
+      ]);
+      fixture.detectChanges();
+      const item = () => treeEl.query(By.css('[role="treeitem"]')).nativeElement as HTMLElement;
+
+      item().querySelector('button')!.click();
+      fixture.detectChanges();
+      expect(item().getAttribute('aria-expanded')).toBe('false');
+
+      item().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+      expect(item().getAttribute('aria-expanded')).toBe('false');
+      expect(treeEl.queryAll(By.css('[role="treeitem"]')).length).toBe(1);
+      expect(component.onNodeExpandSpy).not.toHaveBeenCalled();
+    });
+
+    it('should disable the checkbox of a disabled node so it cannot visibly toggle', () => {
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      const item = treeEl
+        .queryAll(By.css('[role="treeitem"]'))
+        .find(el => el.nativeElement.getAttribute('aria-label') === 'Disabled Node')!;
+      const checkbox = item.query(By.css('input[type="checkbox"]'))
+        .nativeElement as HTMLInputElement;
+      expect(checkbox.disabled).toBe(true);
+      checkbox.click();
+      fixture.detectChanges();
+      expect(checkbox.checked).toBe(false);
+      expect(item.nativeElement.getAttribute('aria-checked')).toBe('false');
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('clearSelection', () => {
@@ -257,6 +311,23 @@ describe('TwTreeComponent', () => {
       const updated = treeEl.queryAll(By.css('.cursor-pointer'));
       expect(updated[2].nativeElement.className).toContain('bg-blue-50');
       expect(updated[0].nativeElement.className).not.toContain('bg-blue-50');
+    });
+
+    it('should keep the selected background while the node is hovered', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      treeEl.queryAll(By.css('.cursor-pointer'))[2].nativeElement.click();
+      fixture.detectChanges();
+
+      const cls = (
+        treeEl.queryAll(By.css('.cursor-pointer'))[2].nativeElement as HTMLElement
+      ).className.split(/\s+/);
+      // The unselected hover:bg-slate-100 would otherwise hide the selection under the pointer
+      expect(cls).toEqual(
+        expect.arrayContaining(['hover:bg-blue-100', 'dark:hover:bg-blue-900/50'])
+      );
+      expect(cls).not.toContain('hover:bg-slate-100');
+      expect(cls).not.toContain('dark:hover:bg-slate-700');
     });
   });
 
@@ -344,7 +415,7 @@ describe('TwTreeComponent', () => {
   });
 
   describe('keyboard navigation', () => {
-    const rows = () => treeEl.queryAll(By.css('.cursor-pointer'));
+    const rows = () => treeEl.queryAll(By.css('[role="treeitem"]'));
     const pressKey = (row: DebugElement, key: string) => {
       row.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       fixture.detectChanges();
@@ -376,6 +447,19 @@ describe('TwTreeComponent', () => {
       pressKey(nodeRows[0], 'ArrowLeft');
       expect(component.onNodeCollapseSpy).toHaveBeenCalled();
       expect(component.nodes()[0].expanded).toBe(false);
+    });
+
+    it('should move focus to the first/last visible node with Home/End', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      const nodeRows = rows();
+      const end = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+      nodeRows[1].nativeElement.dispatchEvent(end);
+      fixture.detectChanges();
+      expect(end.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(nodeRows.at(-1)!.nativeElement);
+
+      pressKey(nodeRows.at(-1)!, 'Home');
+      expect(document.activeElement).toBe(nodeRows[0].nativeElement);
     });
 
     it('should select with Enter', () => {
@@ -410,5 +494,168 @@ describe('TwTreeComponent', () => {
       expect(group).toBeTruthy();
       expect(group.nativeElement.textContent).toContain('Work');
     });
+  });
+
+  describe('regressions', () => {
+    const rows = () => treeEl.queryAll(By.css('[role="treeitem"]'));
+    const focusedLabel = () => (document.activeElement as HTMLElement).getAttribute('aria-label');
+    const pressKey = (row: DebugElement, key: string) => {
+      row.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      fixture.detectChanges();
+    };
+
+    it('should keep a tabbable treeitem after the focused node is collapsed away', () => {
+      const tabbable = () =>
+        rows()
+          .filter(r => r.nativeElement.getAttribute('tabindex') === '0')
+          .map(r => r.nativeElement.getAttribute('aria-label'));
+
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      rows()[1].nativeElement.focus(); // focus Work
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Work']);
+
+      component.tree.toggleNode(component.nodes()[0]); // collapse Documents
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Documents']);
+
+      pressKey(rows()[0], 'ArrowRight');
+      rows()[1].nativeElement.focus();
+      component.tree.collapseAll();
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Documents']);
+
+      component.nodes.set([{ key: 'x', label: 'Fresh' }]);
+      fixture.detectChanges();
+      expect(tabbable()).toEqual(['Fresh']);
+    });
+
+    it('should re-render when expandAll/collapseAll are called programmatically', () => {
+      component.tree.expandAll();
+      fixture.detectChanges();
+      expect(treeEl.nativeElement.textContent).toContain('Work');
+      expect(treeEl.nativeElement.textContent).toContain('Vacation');
+
+      component.tree.collapseAll();
+      fixture.detectChanges();
+      expect(treeEl.nativeElement.textContent).not.toContain('Work');
+    });
+
+    it('should move focus in DOM order when several nodes are expanded', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[3], 'ArrowRight'); // expand Pictures
+      const labels = rows().map(r => r.nativeElement.getAttribute('aria-label'));
+      expect(labels.slice(0, 6)).toEqual([
+        'Documents',
+        'Work',
+        'Personal',
+        'Pictures',
+        'Vacation',
+        'Family',
+      ]);
+
+      pressKey(rows()[0], 'ArrowDown');
+      expect(focusedLabel()).toBe('Work');
+
+      pressKey(rows()[3], 'ArrowDown');
+      expect(focusedLabel()).toBe('Vacation');
+    });
+
+    it('should move focus to the parent with ArrowLeft on a child node', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], 'ArrowLeft'); // on Work
+      expect(focusedLabel()).toBe('Documents');
+    });
+
+    it('should focus the treeitem element itself, carrying level and state', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[0], 'ArrowDown');
+
+      const active = document.activeElement as HTMLElement;
+      expect(active.getAttribute('role')).toBe('treeitem');
+      expect(active.getAttribute('aria-label')).toBe('Work');
+      expect(active.getAttribute('aria-level')).toBe('2');
+      expect(active.getAttribute('aria-selected')).toBe('false');
+      expect(rows()[0].nativeElement.getAttribute('aria-level')).toBe('1');
+      expect(rows()[0].nativeElement.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should not let a child keydown also act on its ancestor treeitems', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], 'ArrowLeft'); // Work -> focus parent; must not collapse Documents
+      expect(component.nodes()[0].expanded).toBe(true);
+    });
+
+    it('should expose tri-state aria-checked and toggle with Space in checkbox mode', () => {
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      expect(rows()[0].nativeElement.getAttribute('aria-selected')).toBeNull();
+      expect(rows()[0].nativeElement.getAttribute('aria-checked')).toBe('false');
+
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      pressKey(rows()[1], ' '); // check Work
+      expect(rows()[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+      expect(rows()[0].nativeElement.getAttribute('aria-checked')).toBe('mixed');
+
+      // Checkboxes stay out of the tab order (roving tabindex lives on treeitems)
+      const checkbox = treeEl.query(By.css('input[type="checkbox"]')).nativeElement;
+      expect(checkbox.getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('should hand focus to the treeitem after a click on its toggle or checkbox', () => {
+      const toggle = rows()[0].query(By.css('button')).nativeElement as HTMLButtonElement;
+      toggle.focus(); // what a mouse press on the button does in most browsers
+      toggle.click();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(rows()[0].nativeElement);
+
+      // Arrow keys work right away from the clicked row
+      pressKey(rows()[0], 'ArrowDown');
+      expect(focusedLabel()).toBe('Work');
+
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      const checkbox = rows()[1].query(By.css('input[type="checkbox"]'))
+        .nativeElement as HTMLInputElement;
+      checkbox.focus();
+      checkbox.click();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(rows()[1].nativeElement);
+      expect(rows()[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+    });
+  });
+});
+
+describe('TwTreeComponent accessible name', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  const tree = () =>
+    fixture.debugElement.query(By.css('[role="tree"]')).nativeElement as HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('should have no name attributes by default', () => {
+    expect(tree().hasAttribute('aria-label')).toBe(false);
+    expect(tree().hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('should name the tree from the ariaLabel input', () => {
+    fixture.componentInstance.ariaLabel.set('Files');
+    fixture.detectChanges();
+    expect(tree().getAttribute('aria-label')).toBe('Files');
+  });
+
+  it('should name the tree from the ariaLabelledBy input', () => {
+    fixture.componentInstance.ariaLabelledBy.set('files-heading');
+    fixture.detectChanges();
+    expect(tree().getAttribute('aria-labelledby')).toBe('files-heading');
   });
 });

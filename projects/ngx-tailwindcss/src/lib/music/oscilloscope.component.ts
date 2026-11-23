@@ -10,10 +10,12 @@ import {
   numberAttribute,
   OnChanges,
   OnDestroy,
+  PLATFORM_ID,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type OscilloscopeVariant = 'default' | 'retro' | 'neon' | 'minimal';
 export type OscilloscopeTriggerMode = 'auto' | 'normal' | 'single';
@@ -32,6 +34,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   @ViewChild('canvas', { static: true }) private readonly canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private stopDprWatch: (() => void) | null = null;
 
   readonly analyserNode = input<AnalyserNode | undefined>(undefined);
   readonly width = input(400, { transform: numberAttribute });
@@ -62,6 +66,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: string;
         line: string;
         centerLine: string;
+        // Canvas text (labels, "No Signal"): >= 4.5:1 on the background
+        text: string;
         glow?: string;
       }
     > = {
@@ -70,12 +76,14 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#1E3A5F',
         line: '#22D3EE',
         centerLine: '#334155',
+        text: '#22D3EE',
       },
       retro: {
         background: '#0A1A0A',
         grid: '#1A3A1A',
         line: '#00FF00',
         centerLine: '#0A2A0A',
+        text: '#00FF00',
         glow: '#00FF0066',
       },
       neon: {
@@ -83,6 +91,7 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#2A0A2A',
         line: '#FF00FF',
         centerLine: '#1A001A',
+        text: '#FF00FF',
         glow: '#FF00FF66',
       },
       minimal: {
@@ -90,6 +99,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#E2E8F0',
         line: '#3B82F6',
         centerLine: '#CBD5E1',
+        // blue-600: the blue-500 trace colour is only ~3.7:1 on white
+        text: '#2563EB',
       },
     };
 
@@ -102,14 +113,30 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.ctx = this.canvasRef.nativeElement.getContext('2d');
     this.setupAnalyser();
     this.restartDraw();
+    // The no-signal frame is static: redraw it at the new resolution after
+    // browser zoom or a move to a different-density screen. A frozen 'single'
+    // sweep is kept as captured.
+    this.stopDprWatch = watchDevicePixelRatio(() => {
+      if (!this.singleFrozen) {
+        this.restartDraw();
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['analyserNode']) {
       this.setupAnalyser();
+    }
+    // Switching the trigger mode (e.g. back to 'single' after 'auto') arms a
+    // fresh sweep instead of re-freezing on a stale capture
+    if (changes['triggerMode'] && !changes['triggerMode'].firstChange) {
+      this.singleFrozen = false;
     }
     // Restart the loop: covers late-bound analysers and redraws the static
     // no-signal frame after size/variant changes
@@ -119,6 +146,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
@@ -131,6 +160,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       // caller's shared analyser (fftSize is left untouched).
       this.dataArray = new Uint8Array(analyser.fftSize);
     }
+    // A held 'single' capture belongs to the previous source: re-arm
+    this.singleFrozen = false;
   }
 
   /** Re-arm a frozen 'single' trigger sweep and resume drawing. */
@@ -159,20 +190,15 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     const width = this.width();
     const height = this.height();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
-    }
+    // Size the backing store for the device pixel ratio; drawing below uses CSS pixels
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
 
     const analyser = this.analyserNode();
     const colors = this.colors();
 
     // Clear and draw background
     this.ctx.fillStyle = colors.background;
-    this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    this.ctx.fillRect(0, 0, this.width(), this.height());
 
     // Draw grid
     if (this.showGrid()) {
@@ -184,8 +210,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       this.ctx.strokeStyle = colors.centerLine;
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
-      this.ctx.moveTo(0, canvas.height / 2);
-      this.ctx.lineTo(canvas.width, canvas.height / 2);
+      this.ctx.moveTo(0, this.height() / 2);
+      this.ctx.lineTo(this.width(), this.height() / 2);
       this.ctx.stroke();
     }
 
@@ -199,7 +225,11 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       this.animationFrameId = null;
       return;
     }
-    analyser.getByteTimeDomainData(this.dataArray);
+    // A held 'single' capture is redrawn (e.g. after a display input changes)
+    // from the captured samples, not replaced by live data
+    if (!(this.singleFrozen && this.triggerMode() === 'single')) {
+      analyser.getByteTimeDomainData(this.dataArray);
+    }
     const triggered = this.drawWaveform();
 
     // Draw labels
@@ -224,7 +254,6 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawGrid(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
     this.ctx.strokeStyle = colors.grid;
@@ -233,20 +262,20 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     // Vertical lines
     const vLines = 10;
     for (let i = 0; i <= vLines; i++) {
-      const x = (canvas.width / vLines) * i;
+      const x = (this.width() / vLines) * i;
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, canvas.height);
+      this.ctx.lineTo(x, this.height());
       this.ctx.stroke();
     }
 
     // Horizontal lines
     const hLines = 8;
     for (let i = 0; i <= hLines; i++) {
-      const y = (canvas.height / hLines) * i;
+      const y = (this.height() / hLines) * i;
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(canvas.width, y);
+      this.ctx.lineTo(this.width(), y);
       this.ctx.stroke();
     }
   }
@@ -254,7 +283,6 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawWaveform(): boolean {
     if (!this.ctx || !this.dataArray) return false;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
     const bufferLength = this.dataArray.length;
     const gain = this.gain();
@@ -273,7 +301,7 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
 
     this.ctx.beginPath();
 
-    const sliceWidth = (canvas.width / bufferLength) * timeScale;
+    const sliceWidth = (this.width() / bufferLength) * timeScale;
     let x = 0;
 
     // Find trigger point for stable display
@@ -290,9 +318,10 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       }
     }
 
-    for (let i = triggerIndex; i < bufferLength && x < canvas.width; i++) {
+    for (let i = triggerIndex; i < bufferLength && x < this.width(); i++) {
       const v = (this.dataArray[i] / 128 - 1) * gain;
-      const y = (v * canvas.height) / 2 + canvas.height / 2;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = this.height() / 2 - (v * this.height()) / 2;
 
       if (i === triggerIndex) {
         this.ctx.moveTo(x, y);
@@ -314,44 +343,47 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
   private drawFlatLine(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
     this.ctx.strokeStyle = `${colors.line}40`; // Faded
     this.ctx.lineWidth = this.lineWidth();
     this.ctx.beginPath();
-    this.ctx.moveTo(0, canvas.height / 2);
-    this.ctx.lineTo(canvas.width, canvas.height / 2);
+    this.ctx.moveTo(0, this.height() / 2);
+    this.ctx.lineTo(this.width(), this.height() / 2);
     this.ctx.stroke();
 
-    // "No signal" text
-    this.ctx.fillStyle = `${colors.line}80`;
+    // "No signal" text: full strength (the half-transparent trace colour was
+    // ~1.9-4.1:1 on the variant backgrounds)
+    this.ctx.fillStyle = colors.text;
     this.ctx.font = '12px monospace';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('No Signal', canvas.width / 2, canvas.height / 2 - 20);
+    this.ctx.fillText('No Signal', this.width() / 2, this.height() / 2 - 20);
   }
 
   private drawLabels(): void {
     if (!this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
     const colors = this.colors();
 
-    this.ctx.fillStyle = colors.line;
+    this.ctx.fillStyle = colors.text;
     this.ctx.font = '10px monospace';
     this.ctx.textAlign = 'left';
 
     // Time labels derived from the actual buffer length and sample rate
-    this.ctx.fillText('0ms', 4, canvas.height - 4);
+    this.ctx.fillText('0ms', 4, this.height() - 4);
     this.ctx.textAlign = 'right';
     const sampleRate = this.analyserNode()?.context.sampleRate ?? 44_100;
     const sampleCount = this.dataArray?.length ?? 1024;
-    const timeMs = (sampleCount / sampleRate) * 1000 * this.timeScale();
-    this.ctx.fillText(`${timeMs.toFixed(1)}ms`, canvas.width - 4, canvas.height - 4);
+    // timeScale > 1 zooms in (fewer samples span the width), so divide
+    const timeMs = (sampleCount / sampleRate / this.timeScale()) * 1000;
+    this.ctx.fillText(`${timeMs.toFixed(1)}ms`, this.width() - 4, this.height() - 4);
 
-    // Amplitude labels
+    // Amplitude labels: the trace is multiplied by gain, so the top/bottom
+    // edges are a sample amplitude of ±1/gain (gain 2 → ±0.5), not ±1
+    const gain = this.gain();
+    const edge = gain > 0 ? Math.round((1 / gain) * 100) / 100 : 1;
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('+1', 4, 12);
-    this.ctx.fillText('-1', 4, canvas.height - 12);
+    this.ctx.fillText(`+${edge}`, 4, 12);
+    this.ctx.fillText(`-${edge}`, 4, this.height() - 12);
   }
 }

@@ -20,6 +20,12 @@ import { CommonModule, DOCUMENT } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { TwFocusTrapDirective } from '../directives/focus-trap.directive';
 import { animate, style, transition, trigger } from '@angular/animations';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
@@ -145,8 +151,6 @@ export class TwModalComponent implements OnDestroy {
   @Output() closed = new EventEmitter<void>();
   @Output() openChange = new EventEmitter<boolean>();
 
-  private previousOverflow = '';
-
   /** Projected title, used as the default aria-labelledby target */
   protected readonly modalTitle = contentChild<TwModalTitleComponent>(
     forwardRef(() => TwModalTitleComponent)
@@ -159,6 +163,10 @@ export class TwModalComponent implements OnDestroy {
       const isOpen = this._open();
       if (isOpen) {
         this.lockScroll();
+        if (previousOpen !== true) {
+          // Open modals join the shared layer stack; only the topmost reacts to Escape
+          pushEscapeLayer(this);
+        }
         // Emit only on an actual closed -> open transition,
         // not when the component is constructed already open
         if (previousOpen === false) {
@@ -166,6 +174,7 @@ export class TwModalComponent implements OnDestroy {
         }
       } else {
         this.unlockScroll();
+        removeEscapeLayer(this);
       }
       previousOpen = isOpen;
     });
@@ -173,11 +182,14 @@ export class TwModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.unlockScroll();
+    removeEscapeLayer(this);
   }
 
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKey(event: Event): void {
-    if (this._open() && this._closeOnEscape()) {
+    // With stacked layers only the topmost one closes, and not when content inside
+    // the modal already handled the key
+    if (this._open() && this._closeOnEscape() && shouldHandleEscape(this, event)) {
       event.preventDefault();
       this.closeModal();
     }
@@ -205,18 +217,27 @@ export class TwModalComponent implements OnDestroy {
     );
   });
 
-  /**
-   * Returns only the size and custom panel classes (not base styling)
-   * Base styling with dark: variants is in the template for Tailwind JIT detection
-   */
-  protected readonly sizeAndCustomClasses = computed(() => {
-    return this.twClass.merge(MODAL_SIZES[this._size()], this._panelClass());
-  });
+  /** Whether the current pointer press started outside the panel (on the backdrop) */
+  private pointerDownOnBackdrop = false;
 
-  protected onBackdropClick(): void {
+  protected onBackdropPointerDown(event: Event): void {
+    this.pointerDownOnBackdrop = this.isOutsidePanel(event.target);
+  }
+
+  protected onBackdropClick(event?: Event): void {
+    const startedOnBackdrop = this.pointerDownOnBackdrop;
+    this.pointerDownOnBackdrop = false;
+    // Both the press and the release must land outside the panel: selecting text
+    // inside the panel and releasing over the backdrop must not close the modal
+    if (!startedOnBackdrop || (event && !this.isOutsidePanel(event.target))) return;
     if (this._closeOnBackdropClick()) {
       this.closeModal();
     }
+  }
+
+  private isOutsidePanel(target: EventTarget | null): boolean {
+    const panel = this.modalPanel?.nativeElement as HTMLElement | undefined;
+    return !(target instanceof Node && panel?.contains(target));
   }
 
   closeModal(): void {
@@ -230,13 +251,16 @@ export class TwModalComponent implements OnDestroy {
     this.openChange.emit(true);
   }
 
+  /**
+   * The lock is shared with other modal layers: the page unlocks once the last of
+   * them closes, whatever order they close in.
+   */
   private lockScroll(): void {
-    this.previousOverflow = this.document.body.style.overflow;
-    this.document.body.style.overflow = 'hidden';
+    lockBodyScroll(this.document, this);
   }
 
   private unlockScroll(): void {
-    this.document.body.style.overflow = this.previousOverflow;
+    unlockBodyScroll(this.document, this);
   }
 }
 
@@ -390,7 +414,7 @@ export class TwConfirmDialogComponent {
     };
 
     return this.twClass.merge(
-      'inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus-visible:ring-2 disabled:opacity-50',
+      'inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 disabled:opacity-50',
       variants[this._variant()]
     );
   });

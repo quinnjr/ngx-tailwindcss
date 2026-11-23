@@ -3,7 +3,7 @@
     @for (item of itemsValue(); track $index; let last = $last; let first = $first) {
       <li class="flex items-center">
         @if (!first) {
-          <span [class]="separatorClasses()">
+          <span [class]="separatorClasses()" aria-hidden="true">
             @switch (separatorValue()) {
               @case ('chevron') {
                 <svg
@@ -41,11 +41,23 @@
           </span>
         }
         @if (item.icon) {
-          <span
-            class="mr-1 inline-flex items-center [&_svg]:w-4 [&_svg]:h-4"
-            aria-hidden="true"
-            [innerHTML]="item.icon"
-          ></span>
+          @if (iconTemplate(item.icon); as iconTpl) {
+            <span
+              data-tw-breadcrumb-icon
+              class="mr-1 inline-flex items-center [&_svg]:w-4 [&_svg]:h-4"
+              aria-hidden="true"
+            >
+              <ng-container *ngTemplateOutlet="iconTpl"></ng-container>
+            </span>
+          } @else {
+            <!-- Strings are sanitized; SafeHtml values from DomSanitizer pass through -->
+            <span
+              data-tw-breadcrumb-icon
+              class="mr-1 inline-flex items-center [&_svg]:w-4 [&_svg]:h-4"
+              aria-hidden="true"
+              [innerHTML]="item.icon"
+            ></span>
+          }
         }
         @if (last) {
           <span [class]="currentClasses()" aria-current="page">

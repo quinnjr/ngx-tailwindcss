@@ -2,8 +2,8 @@
   <!-- Canvas for EQ visualization -->
   <canvas
     #canvas
-    [attr.width]="width()"
-    [attr.height]="height()"
+    [style.width.px]="width()"
+    [style.height.px]="height()"
     class="block"
     [class.cursor-pointer]="interactive()"
     [class.cursor-grab]="interactive() && !isDragging()"
@@ -12,38 +12,48 @@
     aria-label="Parametric EQ frequency response curve"
   ></canvas>
 
-  <!-- Band selector buttons -->
+  <!-- Band selector buttons: each band has an enable switch and a select button -->
   <div class="flex items-center justify-center gap-1 mt-2 flex-wrap">
     @for (band of bands(); track band.id) {
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-all"
-        [class.opacity-100]="band.enabled"
-        [class.opacity-40]="!band.enabled"
+      <div
+        class="flex items-center rounded text-xs font-medium transition-all"
         [class.ring-2]="selectedBandId() === band.id"
-        [class.ring-white]="selectedBandId() === band.id"
-        [style.backgroundColor]="band.color"
-        [style.color]="'white'"
-        (click)="selectBand(band)"
-        (dblclick)="toggleBand(band)"
-        (keydown)="onBandKeydown($event, band)"
-        [title]="band.enabled ? 'Double-click to disable' : 'Double-click to enable'"
-        [attr.aria-label]="bandAriaLabel(band)"
-        [attr.aria-pressed]="selectedBandId() === band.id"
+        [class.ring-white]="selectedBandId() === band.id && variant() !== 'light'"
+        [class.ring-slate-900]="selectedBandId() === band.id && variant() === 'light'"
+        [style.backgroundColor]="chipColors(band).background"
+        [style.color]="chipColors(band).text"
       >
-        <span
-          class="w-2 h-2 rounded-full"
-          [class.bg-white]="band.enabled"
-          [class.bg-transparent]="!band.enabled"
-          [class.border]="!band.enabled"
-          [class.border-white]="!band.enabled"
-        ></span>
-        <span
-          >{{
-            band.frequency >= 1000 ? (band.frequency / 1000).toFixed(1) + 'k' : band.frequency
-          }}Hz</span
+        <button
+          type="button"
+          role="switch"
+          class="flex items-center self-stretch pl-2 pr-1 rounded-l"
+          [attr.aria-checked]="band.enabled"
+          [attr.aria-label]="bandToggleLabel(band)"
+          [title]="band.enabled ? 'Disable band' : 'Enable band'"
+          [disabled]="!interactive()"
+          (click)="toggleBand(band)"
         >
-      </button>
+          <span
+            class="w-2 h-2 rounded-full"
+            [class.bg-current]="band.enabled"
+            [class.bg-transparent]="!band.enabled"
+            [class.border]="!band.enabled"
+            [class.border-current]="!band.enabled"
+          ></span>
+        </button>
+        <button
+          type="button"
+          class="pl-1 pr-2 py-1 rounded-r"
+          (click)="selectBand(band)"
+          (dblclick)="toggleBand(band)"
+          (keydown)="onBandKeydown($event, band)"
+          title="Select band • Arrow keys adjust gain/frequency • Page Up/Down adjust Q • Double-click to enable/disable"
+          [attr.aria-label]="bandAriaLabel(band)"
+          [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
+        >
+          {{ bandButtonLabel(band) }}
+        </button>
+      </div>
     }
   </div>
 
@@ -51,12 +61,12 @@
   @if (selectedBandId()) {
     @for (band of bands(); track band.id) {
       @if (band.id === selectedBandId()) {
-        <div class="mt-3 p-3 bg-slate-800/50 rounded-lg">
+        <div class="mt-3 p-3 rounded-lg" [class]="panelClasses().panel">
           <div class="grid grid-cols-3 gap-3 text-xs">
             <!-- Frequency -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Frequency</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Frequency</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{
                   band.frequency >= 1000
                     ? (band.frequency / 1000).toFixed(2) + ' kHz'
@@ -67,23 +77,24 @@
 
             <!-- Gain -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Gain</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Gain</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{ band.gain > 0 ? '+' : '' }}{{ band.gain.toFixed(1) }} dB
               </div>
             </div>
 
             <!-- Q -->
             <div class="space-y-1">
-              <label class="text-slate-400 block">Q</label>
-              <div class="text-white font-mono">
+              <label class="block" [class]="panelClasses().label">Q</label>
+              <div class="font-mono" [class]="panelClasses().value">
                 {{ band.q.toFixed(2) }}
               </div>
             </div>
           </div>
 
-          <div class="mt-2 text-[10px] text-slate-500">
-            Drag node to adjust • Shift+drag for Q • Double-click to reset
+          <div class="mt-2 text-[10px]" [class]="panelClasses().label">
+            Drag node to adjust • Shift+drag (or Page Up/Down on a band) for Q • Double-click node
+            to reset • Use the dot switch to enable/disable a band
           </div>
         </div>
       }

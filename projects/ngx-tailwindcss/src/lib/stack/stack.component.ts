@@ -1,6 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type StackDirection = 'vertical' | 'horizontal' | 'vertical-reverse' | 'horizontal-reverse';
 export type StackSpacing = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
@@ -67,13 +75,10 @@ const JUSTIFY_CLASSES: Record<StackJustify, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwStackComponent {
   private readonly twClass = inject(TwClassService);
@@ -91,13 +96,13 @@ export class TwStackComponent {
   readonly justify = input<StackJustify>('start');
 
   /** Whether items should wrap */
-  readonly wrap = input(false);
+  readonly wrap = input(false, { transform: booleanAttribute });
 
   /** Whether to take full width */
-  readonly fullWidth = input(false);
+  readonly fullWidth = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(
@@ -122,13 +127,10 @@ export class TwStackComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './v-stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwVStackComponent {
   private readonly twClass = inject(TwClassService);
@@ -136,7 +138,7 @@ export class TwVStackComponent {
   readonly spacing = input<StackSpacing>('md');
   readonly align = input<StackAlign>('stretch');
   readonly justify = input<StackJustify>('start');
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(
@@ -158,13 +160,10 @@ export class TwVStackComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './h-stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwHStackComponent {
   private readonly twClass = inject(TwClassService);
@@ -172,8 +171,8 @@ export class TwHStackComponent {
   readonly spacing = input<StackSpacing>('md');
   readonly align = input<StackAlign>('center');
   readonly justify = input<StackJustify>('start');
-  readonly wrap = input(false);
-  readonly class = input('');
+  readonly wrap = input(false, { transform: booleanAttribute });
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stackClasses = computed(() => {
     return this.twClass.merge(

@@ -18,9 +18,9 @@ export type RatingVariant = 'primary' | 'warning' | 'danger';
 export type RatingSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const RATING_VARIANTS: Record<RatingVariant, { filled: string; empty: string }> = {
-  primary: { filled: 'text-blue-500', empty: 'text-slate-300 dark:text-slate-600' },
-  warning: { filled: 'text-amber-400', empty: 'text-slate-300 dark:text-slate-600' },
-  danger: { filled: 'text-rose-500', empty: 'text-slate-300 dark:text-slate-600' },
+  primary: { filled: 'text-blue-500', empty: 'text-slate-500' },
+  warning: { filled: 'text-amber-600 dark:text-amber-400', empty: 'text-slate-500' },
+  danger: { filled: 'text-rose-500', empty: 'text-slate-500' },
 };
 
 const RATING_SIZES: Record<RatingSize, string> = {
@@ -90,6 +90,8 @@ export class TwRatingComponent implements ControlValueAccessor {
   private onTouchedFn: () => void = () => {};
 
   protected value = signal(0);
+  /** Per-instance prefix so half-star gradient ids are unique in the document */
+  protected readonly gradientIdPrefix = `tw-rating-half-${Math.random().toString(36).slice(2, 9)}`;
   protected hoverValue = signal<number | null>(null);
   protected starsArray = computed(() => Array.from({ length: this.stars() }, () => 0));
   protected containerClasses = computed(() => {
@@ -100,11 +102,27 @@ export class TwRatingComponent implements ControlValueAccessor {
     );
   });
 
-  /** Value currently displayed: the hovered value while hovering, otherwise the selected value */
-  protected currentValue = computed(() => this.hoverValue() ?? this.value());
+  /**
+   * Value currently displayed: the hovered value while hovering, otherwise the selected value.
+   * A hover preview is ignored once disabled/readonly: disabled buttons may never get the
+   * `mouseleave` that clears it, which would leave a value that was never chosen on show.
+   */
+  protected currentValue = computed(() =>
+    this.isDisabled() || this.readonly() ? this.value() : (this.hoverValue() ?? this.value())
+  );
 
   /** Index of the star that participates in the roving tabindex */
   protected activeStarIndex = computed(() => Math.max(0, Math.ceil(this.value()) - 1));
+
+  /**
+   * Accessible name of a star. The checked star of a half-step value announces that
+   * value (e.g. "2.5 stars") so screen readers do not report the rounded-up star.
+   */
+  protected starLabel(index: number): string {
+    const value = this.value();
+    const isHalfActive = index === this.activeStarIndex() && !Number.isInteger(value);
+    return `${isHalfActive ? value : index + 1} stars`;
+  }
 
   protected starClasses(index: number) {
     const variant = RATING_VARIANTS[this.variant()];
@@ -130,11 +148,14 @@ export class TwRatingComponent implements ControlValueAccessor {
 
     let newValue = index + 1;
 
-    // With allowHalf, clicking the left half of a star selects a half step
-    if (this.allowHalf() && event) {
-      const target = event.currentTarget as HTMLElement | null;
-      const width = target?.getBoundingClientRect().width ?? 0;
-      if (width > 0 && event.offsetX < width / 2) {
+    // With allowHalf, clicking the left half of a star selects a half step.
+    // Keyboard activation (Enter/Space) fires a click with detail 0 and no
+    // meaningful pointer position, so it always selects the whole star.
+    if (this.allowHalf() && event && event.detail !== 0) {
+      // Measure against the star button itself: offsetX is relative to the clicked
+      // element, which is usually the inner <svg>/<path>, not the button
+      const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect();
+      if (rect && rect.width > 0 && event.clientX - rect.left < rect.width / 2) {
         newValue = index + 0.5;
       }
     }
@@ -183,6 +204,11 @@ export class TwRatingComponent implements ControlValueAccessor {
     this.value.set(newValue);
     this.onChangeFn(newValue);
     this.change.emit(newValue);
+
+    // Roving tabindex: move focus to the star that is now tabbable
+    const group = (event.currentTarget as HTMLElement | null)?.parentElement;
+    const stars = group?.querySelectorAll<HTMLElement>('[role="radio"]');
+    stars?.[this.activeStarIndex()]?.focus();
   }
 
   onStarHover(index: number): void {
@@ -199,9 +225,22 @@ export class TwRatingComponent implements ControlValueAccessor {
     this.blur.emit(event);
   }
 
+  /**
+   * Clear button handler: the button is removed once the value is 0, so move focus
+   * to the (now tabbable) first star instead of dropping it to the document body.
+   */
+  protected onClearClick(event: Event): void {
+    const group = (event.currentTarget as HTMLElement | null)?.parentElement;
+    this.clear();
+    group?.querySelector<HTMLElement>('[role="radio"]')?.focus();
+  }
+
   clear(): void {
     this.value.set(0);
     this.onChangeFn(0);
+    // The clear button is removed once the value is 0, so it never blurs; mark the
+    // control touched here so `updateOn: 'blur'` form controls commit the cleared value
+    this.onTouchedFn();
     this.change.emit(0);
   }
 

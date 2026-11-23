@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -23,6 +24,23 @@ const PAGE_SIZE_CLASSES: Record<PaginationSize, string> = {
   md: 'w-9 h-9 text-sm',
   lg: 'w-11 h-11 text-base',
 };
+
+/**
+ * If `from` (the button that changed page) has become disabled while focused, or focus
+ * already fell to the body, move focus to the current page button in the same group,
+ * else to the first enabled button there.
+ */
+function refocusFromDisabledButton(from: HTMLButtonElement): void {
+  const group = from.parentElement;
+  if (!from.disabled || !from.isConnected || !group) return;
+  const doc = from.ownerDocument;
+  const active = doc.activeElement;
+  if (active && active !== from && active !== doc.body) return;
+  (
+    group.querySelector<HTMLElement>('button[aria-current="page"]') ??
+    group.querySelector<HTMLElement>('button:not([disabled])')
+  )?.focus();
+}
 
 @Component({
   selector: 'tw-pagination',
@@ -59,8 +77,24 @@ export class TwPaginationComponent {
 
   @Output() pageChange = new EventEmitter<number>();
 
+  /** Focused button whose activation requested the pending page change */
+  private refocusFrom: HTMLButtonElement | null = null;
+
+  constructor() {
+    // Reaching the first/last page disables the Previous/Next (First/Last) button that
+    // got there, and a disabled button drops focus to the body: hand it to the current
+    // page (or the nearest enabled button) instead
+    afterRenderEffect(() => {
+      this._currentPage();
+      const from = this.refocusFrom;
+      this.refocusFrom = null;
+      if (from) refocusFromDisabledButton(from);
+    });
+  }
+
   protected _currentPage = signal(1);
-  protected _totalPages = signal(1);
+  /** 0 = not bound, in which case the count is derived from totalItems/itemsPerPage */
+  protected _totalPages = signal(0);
   protected _totalItems = signal(0);
   protected _itemsPerPage = signal(10);
   protected _siblingCount = signal(1);
@@ -77,7 +111,7 @@ export class TwPaginationComponent {
     const itemsPerPage = this._itemsPerPage();
 
     if (totalPages > 0) return totalPages;
-    if (totalItems > 0) return Math.ceil(totalItems / itemsPerPage);
+    if (totalItems > 0 && itemsPerPage > 0) return Math.ceil(totalItems / itemsPerPage);
     return 1;
   });
 
@@ -120,8 +154,13 @@ export class TwPaginationComponent {
     return ['1', LEFT_ELLIPSIS, ...middleRange.map(String), RIGHT_ELLIPSIS, String(total)];
   });
 
-  protected goToPage(page: number): void {
+  protected goToPage(page: number, event?: Event): void {
     if (page >= 1 && page <= this.totalPagesValue() && page !== this._currentPage()) {
+      const button = event?.currentTarget;
+      this.refocusFrom =
+        button instanceof HTMLButtonElement && button === button.ownerDocument.activeElement
+          ? button
+          : null;
       this.pageChange.emit(page);
     }
   }

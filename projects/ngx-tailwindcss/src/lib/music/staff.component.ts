@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type ClefType = 'treble' | 'bass' | 'alto' | 'tenor' | 'percussion';
 export type StaffVariant = 'default' | 'printed' | 'handwritten' | 'minimal';
@@ -19,6 +21,15 @@ interface KeySignatureInfo {
   flats: number;
   positions: number[]; // Line positions for accidentals
 }
+
+// Key signature positions above are for treble clef; shift (in half-spaces) for other clefs
+const KEY_SIGNATURE_CLEF_OFFSETS: Record<ClefType, number> = {
+  treble: 0,
+  bass: 2,
+  alto: 1,
+  tenor: -1,
+  percussion: 0,
+};
 
 const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   C: { sharps: 0, flats: 0, positions: [] },
@@ -35,8 +46,59 @@ const KEY_SIGNATURES: Record<KeySignature, KeySignatureInfo> = {
   Ab: { sharps: 0, flats: 4, positions: [4, 1, 5, 2] },
   Db: { sharps: 0, flats: 5, positions: [4, 1, 5, 2, 6] },
   Gb: { sharps: 0, flats: 6, positions: [4, 1, 5, 2, 6, 3] },
-  Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 0] },
+  Cb: { sharps: 0, flats: 7, positions: [4, 1, 5, 2, 6, 3, 7] },
 };
+
+// Order in which sharps / flats are added to a key signature
+const KEY_SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const KEY_FLAT_ORDER = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+
+/**
+ * Semitone alteration the key signature applies to a note letter (C-B): +1 for a sharped
+ * letter, -1 for a flatted one, 0 otherwise. E.g. ('G', 'F') -> 1, ('Bb', 'E') -> -1.
+ */
+export function getKeySignatureAlteration(key: KeySignature, noteName: string): number {
+  const info = KEY_SIGNATURES[key] ?? KEY_SIGNATURES.C;
+  if (KEY_SHARP_ORDER.slice(0, info.sharps).includes(noteName)) return 1;
+  if (KEY_FLAT_ORDER.slice(0, info.flats).includes(noteName)) return -1;
+  return 0;
+}
+
+export interface StaffLayoutOptions {
+  width: number;
+  measures: number;
+  keySignature: KeySignature;
+  showClef?: boolean;
+  showKeySignature?: boolean;
+  /** Whether a time signature is drawn (shown and not null) */
+  showTimeSignature?: boolean;
+}
+
+/** Horizontal space taken by a key signature's accidentals in tw-staff */
+export function getStaffKeySignatureWidth(key: KeySignature): number {
+  const info = KEY_SIGNATURES[key];
+  const count = info.sharps || info.flats;
+  return count * 12 + 10;
+}
+
+/**
+ * Where tw-staff starts its first measure and how wide each measure is. Components that
+ * place notes over a tw-staff must use this so notes line up with its bar lines.
+ */
+export function getStaffLayout(options: StaffLayoutOptions): {
+  contentStartX: number;
+  measureWidth: number;
+} {
+  const { width, measures, keySignature } = options;
+  const clefWidth = options.showClef === false ? 0 : 50;
+  const keyWidth = options.showKeySignature === false ? 0 : getStaffKeySignatureWidth(keySignature);
+  const timeWidth = options.showTimeSignature === false ? 0 : 30;
+  const availableWidth = width - clefWidth - keyWidth - timeWidth - 20; // padding
+  return {
+    contentStartX: 10 + clefWidth + keyWidth + timeWidth,
+    measureWidth: availableWidth / Math.max(1, measures),
+  };
+}
 
 // SVG paths for musical symbols
 const CLEF_PATHS = {
@@ -59,6 +121,8 @@ const CLEF_PATHS = {
   },
 })
 export class TwStaffComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly clef = input<ClefType>('treble');
   readonly keySignature = input<KeySignature>('C');
   readonly timeSignature = input<StaffTimeSignature | null>('4/4');
@@ -74,6 +138,27 @@ export class TwStaffComponent {
   readonly showEndBarLine = input(true);
   readonly grandStaff = input(false); // Show treble + bass (piano)
   readonly classOverride = input('');
+  /** Accessible name of the drawn staff; derived from clef, key and time signature when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
+
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const clef = this.clef();
+    const parts = [
+      this.grandStaff() ? 'Grand staff' : `${clef[0].toUpperCase()}${clef.slice(1)} staff`,
+    ];
+    if (this.showKeySignature()) {
+      const key = this.keySignature();
+      const accidental = key[1] === '#' ? ' sharp' : key[1] === 'b' ? ' flat' : '';
+      parts.push(`key of ${key[0]}${accidental} major`);
+    }
+    const time = this.timeSignature();
+    if (this.showTimeSignature() && time) {
+      parts.push(time === 'C' ? 'common time' : time === 'C|' ? 'cut time' : `${time} time`);
+    }
+    return parts.join(', ');
+  });
 
   // Computed measurements
   protected readonly staffTop = computed(() => {
@@ -88,21 +173,22 @@ export class TwStaffComponent {
     return Array.from({ length: 5 }, (_, i) => top + i * spacing);
   });
 
-  protected readonly measureWidth = computed(() => {
-    const width = this.width();
-    const clefWidth = this.showClef() ? 50 : 0;
-    const keyWidth = this.showKeySignature() ? this.keySignatureWidth() : 0;
-    const timeWidth = this.showTimeSignature() && this.timeSignature() ? 30 : 0;
-    const availableWidth = width - clefWidth - keyWidth - timeWidth - 20; // padding
-    return availableWidth / this.measures();
-  });
+  private readonly layout = computed(() =>
+    getStaffLayout({
+      width: this.width(),
+      measures: this.measures(),
+      keySignature: this.keySignature(),
+      showClef: this.showClef(),
+      showKeySignature: this.showKeySignature(),
+      showTimeSignature: this.showTimeSignature() && !!this.timeSignature(),
+    })
+  );
 
-  protected readonly keySignatureWidth = computed(() => {
-    const key = this.keySignature();
-    const info = KEY_SIGNATURES[key];
-    const count = info.sharps || info.flats;
-    return count * 12 + 10;
-  });
+  protected readonly measureWidth = computed(() => this.layout().measureWidth);
+
+  protected readonly keySignatureWidth = computed(() =>
+    getStaffKeySignatureWidth(this.keySignature())
+  );
 
   protected readonly barLinePositions = computed(() => {
     const measures = this.measures();
@@ -117,13 +203,7 @@ export class TwStaffComponent {
     return positions;
   });
 
-  protected readonly contentStartX = computed(() => {
-    let x = 10; // Left padding
-    if (this.showClef()) x += 50;
-    if (this.showKeySignature()) x += this.keySignatureWidth();
-    if (this.showTimeSignature() && this.timeSignature()) x += 30;
-    return x;
-  });
+  protected readonly contentStartX = computed(() => this.layout().contentStartX);
 
   protected readonly colors = computed(() => {
     const variant = this.variant();
@@ -168,7 +248,7 @@ export class TwStaffComponent {
       handwritten: 'bg-[#FDF6E3] shadow-inner',
       minimal: 'bg-transparent',
     };
-    return [base, variantClasses[variant], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[variant], this.classOverride());
   });
 
   protected readonly clefPath = computed(() => {
@@ -216,11 +296,21 @@ export class TwStaffComponent {
     const spacing = this.lineSpacing();
     const top = this.staffTop();
 
+    const tenor = this.clef() === 'tenor';
+
     return positions.slice(0, count).map((pos, i) => ({
       x: startX + i * 12,
       y: top + pos * (spacing / 2),
+      // Extra shift on the main staff only. Tenor clef: the shifted G# would sit on the
+      // ledger-line position above the staff, so engravers write it an octave lower (G#3)
+      clefShift: tenor && isSharp && i === 2 ? 7 * (spacing / 2) : 0,
       type: isSharp ? 'sharp' : 'flat',
     }));
+  });
+
+  // Vertical shift of the key signature for the main staff's clef
+  protected readonly keySignatureClefOffset = computed(() => {
+    return KEY_SIGNATURE_CLEF_OFFSETS[this.clef()] * (this.lineSpacing() / 2);
   });
 
   protected readonly timeSignaturePosition = computed(() => {

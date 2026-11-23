@@ -102,7 +102,11 @@ export class TwTitleBarComponent {
     return [base, paddingClasses[platform] || 'px-2', variantClasses[variant]].join(' ');
   });
 
-  protected onDoubleClick(): void {
+  protected onDoubleClick(event?: MouseEvent): void {
+    // Rapid clicks on a window control (e.g. minimize) must not also maximize
+    const target = event?.target as HTMLElement | null;
+    if (target?.closest?.('button, a, input, select, textarea')) return;
+
     this.doubleClick.emit();
     void this.platformService.maximize();
   }

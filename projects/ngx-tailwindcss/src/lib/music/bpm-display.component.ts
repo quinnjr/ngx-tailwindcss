@@ -1,20 +1,25 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
+  effect,
+  ElementRef,
   inject,
+  Injector,
   input,
+  linkedSignal,
   numberAttribute,
   OnDestroy,
-  OnInit,
   output,
+  PLATFORM_ID,
   signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type BpmDisplayVariant =
   'default' | 'minimal' | 'led' | 'digital' | 'analog' | 'light' | 'highContrast';
@@ -53,8 +58,11 @@ export const BPM_RANGES = {
     class: 'inline-block',
   },
 })
-export class TwBpmDisplayComponent implements OnInit, OnDestroy {
-  private readonly destroyRef = inject(DestroyRef);
+export class TwBpmDisplayComponent implements OnDestroy {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly injector = inject(Injector);
+  private readonly editInput = viewChild<ElementRef<HTMLInputElement>>('editInput');
+  private readonly valueDisplay = viewChild<ElementRef<HTMLElement>>('valueDisplay');
 
   // Configuration
   readonly variant = input<BpmDisplayVariant>('default');
@@ -88,65 +96,57 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
   readonly syncChange = output<boolean>();
 
   // Internal state
-  protected readonly internalBpm = signal(120);
-  protected readonly isSynced = signal(false);
+  // Track the inputs, but allow local changes (buttons, tap, slider, sync toggle)
+  protected readonly internalBpm = linkedSignal(() => this.bpm());
+  protected readonly isSynced = linkedSignal(() => this.syncEnabled());
   protected readonly tapTimes = signal<number[]>([]);
   protected readonly isEditing = signal(false);
-  protected readonly editValue = signal('120');
+  // type="number" + ngModel yields numbers (or null when cleared)
+  protected readonly editValue = signal<string | number | null>('120');
   protected readonly beatActive = signal(false);
 
-  private beatInterval: ReturnType<typeof setInterval> | null = null;
   private beatFlashTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  constructor() {
+    // Beat indicator: (re)started whenever the tempo or the toggle changes.
+    // Browser-only so SSR rendering can become stable.
+    effect(onCleanup => {
+      if (!this.isBrowser || !this.showBeatIndicator()) return;
+      const bpm = this.internalBpm();
+      if (!(bpm > 0)) return;
+
+      const beatInterval = setInterval(
+        () => {
+          this.beatActive.set(true);
+          if (this.beatFlashTimeout) clearTimeout(this.beatFlashTimeout);
+          this.beatFlashTimeout = setTimeout(() => {
+            this.beatActive.set(false);
+          }, 100);
+        },
+        (60 / bpm) * 1000
+      );
+      onCleanup(() => {
+        clearInterval(beatInterval);
+      });
+    });
+
+    // Disabling (or making read-only) while the tempo editor is open discards the edit: the
+    // input would otherwise stay live and commit a new tempo on Enter/blur
+    effect(() => {
+      if ((this.disabled() || !this.editable()) && untracked(() => this.isEditing())) {
+        untracked(() => {
+          this.isEditing.set(false);
+          this.editValue.set(this.internalBpm().toString());
+        });
+      }
+    });
+  }
+
   ngOnDestroy(): void {
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-      this.beatInterval = null;
-    }
     if (this.beatFlashTimeout) {
       clearTimeout(this.beatFlashTimeout);
       this.beatFlashTimeout = null;
     }
-  }
-
-  ngOnInit(): void {
-    // Sync with input
-    this.internalBpm.set(this.bpm());
-    this.isSynced.set(this.syncEnabled());
-
-    interval(100)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        if (!this.isEditing()) {
-          this.internalBpm.set(this.bpm());
-          this.isSynced.set(this.syncEnabled());
-        }
-      });
-
-    // Start beat indicator if enabled
-    if (this.showBeatIndicator()) {
-      this.startBeatIndicator();
-    }
-  }
-
-  private startBeatIndicator(): void {
-    this.updateBeatInterval();
-  }
-
-  private updateBeatInterval(): void {
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-    }
-
-    const bpm = this.internalBpm();
-    const intervalMs = (60 / bpm) * 1000;
-
-    this.beatInterval = setInterval(() => {
-      this.beatActive.set(true);
-      this.beatFlashTimeout = setTimeout(() => {
-        this.beatActive.set(false);
-      }, 100);
-    }, intervalMs);
   }
 
   // BPM controls
@@ -158,8 +158,9 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
 
   protected onSliderChange(event: Event): void {
     if (this.disabled() || !this.editable()) return;
-    const value = parseInt((event.target as HTMLInputElement).value, 10);
-    this.setBpm(value);
+    // parseFloat: the slider step may be fractional
+    const value = Number.parseFloat((event.target as HTMLInputElement).value);
+    if (!Number.isNaN(value)) this.setBpm(value);
   }
 
   protected incrementBpm(amount: number): void {
@@ -246,10 +247,18 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     if (this.disabled() || !this.editable()) return;
     this.isEditing.set(true);
     this.editValue.set(this.internalBpm().toString());
+    // Move focus into the editor so keyboard users can type (and blur commits)
+    afterNextRender(() => this.editInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
   protected finishEditing(): void {
-    const value = Number.parseInt(this.editValue(), 10);
+    // Enter/Escape already ended editing; the blur from removing the input must not re-commit
+    if (!this.isEditing()) return;
+    if (this.disabled() || !this.editable()) {
+      this.isEditing.set(false);
+      return;
+    }
+    const value = Number.parseFloat(String(this.editValue()));
     if (!Number.isNaN(value)) {
       this.setBpm(value);
     }
@@ -259,10 +268,22 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
   protected onEditKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       this.finishEditing();
+      this.restoreDisplayFocus();
     } else if (event.key === 'Escape') {
       this.isEditing.set(false);
       this.editValue.set(this.internalBpm().toString());
+      this.restoreDisplayFocus();
     }
+  }
+
+  // Step/halve/double buttons disable themselves at the tempo limits: keep keyboard focus in the group
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
+  }
+
+  // Keyboard commit/cancel removes the focused input: return focus to the value display
+  private restoreDisplayFocus(): void {
+    afterNextRender(() => this.valueDisplay()?.nativeElement.focus(), { injector: this.injector });
   }
 
   private setBpm(value: number): void {
@@ -271,10 +292,6 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     const clamped = Math.max(this.minBpm(), Math.min(this.maxBpm(), rounded));
     this.internalBpm.set(clamped);
     this.bpmChange.emit(clamped);
-
-    if (this.showBeatIndicator()) {
-      this.updateBeatInterval();
-    }
   }
 
   // Public methods
@@ -328,6 +345,16 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     return ((current - min) / (max - min)) * 100;
   });
 
+  /**
+   * CSS left/width for a slider percentage, following the native thumb's centre: the
+   * (default 16px) thumb only travels the track minus its own width, so plain percentages
+   * put the fill end, value bubble and scale marks up to 8px off the thumb near the ends.
+   */
+  protected sliderOffset(percent: number): string {
+    const fraction = Math.max(0, Math.min(1, percent / 100));
+    return `calc(8px + ${fraction} * (100% - 16px))`;
+  }
+
   // Slider marks for common tempo points
   protected readonly sliderMarks = computed(() => {
     const min = this.minBpm();
@@ -352,10 +379,12 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
   // Sync status indicator
   protected readonly syncStatusClass = computed(() => {
     const status = this.syncStatus();
+    // Status glyphs need 3:1 on their badge: slate-400 on slate-600 and white on
+    // green-500 were ~2.9:1 and ~2.3:1
     return {
-      disconnected: 'bg-slate-600 text-slate-400',
+      disconnected: 'bg-slate-600 text-slate-300',
       searching: 'bg-yellow-500 text-yellow-900 animate-pulse',
-      synced: 'bg-green-500 text-white',
+      synced: 'bg-green-600 text-white',
       master: 'bg-blue-500 text-white',
     }[status];
   });
@@ -394,7 +423,8 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
       minimal: 'bg-transparent p-2',
       led: 'bg-black border border-slate-600 p-4',
       digital: 'bg-slate-900 border border-slate-600 p-4',
-      analog: 'bg-gradient-to-b from-amber-900/30 to-slate-900 border border-amber-800/50 p-4',
+      // Opaque: a translucent top let a light page show through behind the amber text
+      analog: 'bg-gradient-to-b from-amber-950 to-slate-900 border border-amber-800/50 p-4',
       light: 'bg-white border border-slate-200 shadow-sm p-4',
       highContrast: 'bg-black border-2 border-white p-4',
     };
@@ -439,11 +469,13 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     const variant = this.variant();
 
     const variantClasses: Record<BpmDisplayVariant, string> = {
-      default: 'text-slate-500',
+      // At least 4.5:1 on each variant's surface (the old slate-500 and translucent
+      // tints were ~3-4:1 on the dark displays)
+      default: 'text-slate-400',
       minimal: 'text-slate-600 dark:text-slate-400',
-      led: 'text-red-400/60',
-      digital: 'text-cyan-500/60',
-      analog: 'text-amber-600/80',
+      led: 'text-red-400',
+      digital: 'text-cyan-500',
+      analog: 'text-amber-500',
       light: 'text-slate-500',
       highContrast: 'text-white',
     };
@@ -451,18 +483,48 @@ export class TwBpmDisplayComponent implements OnInit, OnDestroy {
     return ['text-xs uppercase tracking-wider', variantClasses[variant]].join(' ');
   });
 
+  /** Secondary text (tempo marking, slider scale) readable on each variant's surface */
+  protected readonly mutedTextClasses = computed(() => {
+    const variantClasses: Record<BpmDisplayVariant, string> = {
+      default: 'text-slate-400',
+      minimal: 'text-slate-600 dark:text-slate-400',
+      led: 'text-slate-400',
+      digital: 'text-slate-400',
+      analog: 'text-amber-500',
+      light: 'text-slate-500',
+      highContrast: 'text-slate-300',
+    };
+    return variantClasses[this.variant()];
+  });
+
+  /** Slider fill and value bubble colours; the bubble text contrasts with its fill */
+  protected readonly sliderAccentClasses = computed(() => {
+    const variantClasses: Record<BpmDisplayVariant, { fill: string; bubble: string }> = {
+      default: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
+      minimal: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
+      // white on red-500 was ~3.8:1
+      led: { fill: 'bg-red-500', bubble: 'bg-red-600 text-white' },
+      digital: { fill: 'bg-cyan-500', bubble: 'bg-cyan-500 text-slate-950' },
+      analog: { fill: 'bg-amber-500', bubble: 'bg-amber-500 text-slate-950' },
+      light: { fill: 'bg-blue-600', bubble: 'bg-blue-600 text-white' },
+      highContrast: { fill: 'bg-yellow-400', bubble: 'bg-yellow-400 text-slate-950' },
+    };
+    return variantClasses[this.variant()];
+  });
+
   protected readonly buttonClasses = computed(() => {
     const variant = this.variant();
 
     const variantClasses: Record<BpmDisplayVariant, string> = {
-      default: 'bg-slate-700 hover:bg-slate-600 text-white',
+      default: 'bg-slate-700 enabled:hover:bg-slate-600 text-white',
       minimal:
-        'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white',
-      led: 'bg-slate-800 hover:bg-slate-700 text-red-400 border border-red-900/50',
-      digital: 'bg-slate-800 hover:bg-slate-700 text-cyan-400',
-      analog: 'bg-amber-900/50 hover:bg-amber-800/50 text-amber-300 border border-amber-700/50',
-      light: 'bg-blue-600 hover:bg-blue-700 text-white',
-      highContrast: 'bg-white hover:bg-yellow-400 text-black border-2 border-white',
+        'bg-slate-200 dark:bg-slate-700 enabled:hover:bg-slate-300 dark:enabled:hover:bg-slate-600 text-slate-800 dark:text-white',
+      led: 'bg-slate-800 enabled:hover:bg-slate-700 text-red-400 border border-red-900/50',
+      digital: 'bg-slate-800 enabled:hover:bg-slate-700 text-cyan-400',
+      analog:
+        'bg-amber-900/50 enabled:hover:bg-amber-800/50 text-amber-300 border border-amber-700/50',
+      light: 'bg-blue-600 enabled:hover:bg-blue-700 text-white',
+      highContrast: 'bg-white enabled:hover:bg-yellow-400 text-black border-2 border-white',
     };
 
     return [

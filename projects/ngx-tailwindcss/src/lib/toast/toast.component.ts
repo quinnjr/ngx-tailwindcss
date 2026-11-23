@@ -2,9 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  ElementRef,
+  inject,
   Injectable,
   Input,
   signal,
+  ViewEncapsulation,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
@@ -117,14 +121,43 @@ export class TwToastService {
   }
 }
 
+/**
+ * Element focus came from when it entered each toast (keyed by toast host), so it
+ * can be handed back on dismissal. Weakly held: removed toasts are collected.
+ */
+const toastFocusOrigins = new WeakMap<Element, HTMLElement>();
+
+/**
+ * Where focus should go when the toast `host` (which holds focus) is removed: the first
+ * button of the nearest following, else preceding, toast that is not also being removed,
+ * else back where focus came from.
+ */
+function focusTargetAfterRemoval(
+  host: Element,
+  isRemoved: (toast: Element) => boolean = () => false
+): HTMLElement | null {
+  for (const step of ['nextElementSibling', 'previousElementSibling'] as const) {
+    for (let el = host[step]; el; el = el[step]) {
+      if (el.tagName !== 'TW-TOAST' || isRemoved(el)) continue;
+      const button = el.querySelector<HTMLElement>('button');
+      if (button) return button;
+    }
+  }
+  const origin = toastFocusOrigins.get(host);
+  return origin?.isConnected ? origin : null;
+}
+
 @Component({
   selector: 'tw-toast',
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toast.component.html',
+  host: { '(focusin)': 'onFocusIn($event)' },
 })
 export class TwToastComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   @Input() set variant(value: ToastVariant) {
     this._variant.set(value);
   }
@@ -170,18 +203,43 @@ export class TwToastComponent {
     const variant = this._variant();
 
     const variantClasses: Record<ToastVariant, string> = {
-      info: 'text-blue-500',
-      success: 'text-emerald-500',
-      warning: 'text-amber-500',
-      danger: 'text-rose-500',
-      neutral: 'text-slate-500',
+      info: 'text-blue-600 dark:text-blue-400',
+      success: 'text-emerald-700 dark:text-emerald-400',
+      warning: 'text-amber-700 dark:text-amber-400',
+      danger: 'text-rose-600 dark:text-rose-400',
+      neutral: 'text-slate-500 dark:text-slate-400',
     };
 
     return ['flex-shrink-0', variantClasses[variant]].join(' ');
   });
 
+  protected onFocusIn(event: FocusEvent): void {
+    const from = event.relatedTarget;
+    const host = this.elementRef.nativeElement;
+    if (!(from instanceof HTMLElement) || host.contains(from)) return;
+    // Focus handed over from another toast (Tab or dismissal hand-off) keeps that
+    // toast's origin, so the chain still ends where focus originally came from
+    const fromToast = from.closest('tw-toast');
+    const inherited = fromToast ? toastFocusOrigins.get(fromToast) : undefined;
+    const origin = fromToast ? inherited : from;
+    if (origin) {
+      toastFocusOrigins.set(host, origin);
+    }
+  }
+
   protected onDismiss(): void {
+    const host = this.elementRef.nativeElement;
+    // Dismissing removes the focused close button: move focus to a neighbouring
+    // toast (or back where it came from) rather than losing it to the body
+    const target = host.contains(host.ownerDocument.activeElement)
+      ? this.focusAfterDismiss()
+      : null;
     this.dismiss();
+    target?.focus();
+  }
+
+  private focusAfterDismiss(): HTMLElement | null {
+    return focusTargetAfterRemoval(this.elementRef.nativeElement);
   }
 }
 
@@ -191,6 +249,9 @@ export class TwToastComponent {
   imports: [CommonModule, TwToastComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toast-container.component.html',
+  // Unencapsulated: emulated encapsulation renames @keyframes, but the toast's
+  // global Tailwind class `animate-[toast-in_...]` references the plain name
+  encapsulation: ViewEncapsulation.None,
   styles: [
     `
       @keyframes toast-in {
@@ -211,10 +272,26 @@ export class TwToastContainerComponent {
   protected toasts;
   protected position;
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   constructor(toastService: TwToastService) {
     this.toastService = toastService;
     this.toasts = this.toastService.toasts;
     this.position = this.toastService.position;
+
+    // A toast removed while it holds focus (auto-dismiss timer, eviction, dismissAll,
+    // service.dismiss) would drop focus to the body. This view effect runs before the
+    // template removes the toast, so hand focus to a surviving toast or the origin first.
+    effect(() => {
+      const ids = new Set(this.toasts().map(t => t.id));
+      const container = this.elementRef.nativeElement;
+      const active = container.ownerDocument?.activeElement;
+      const toast = active?.closest?.('tw-toast[data-toast-id]');
+      if (!toast || !container.contains(toast)) return;
+      const isRemoved = (el: Element) => !ids.has(el.getAttribute('data-toast-id') ?? '');
+      if (!isRemoved(toast)) return;
+      focusTargetAfterRemoval(toast, isRemoved)?.focus();
+    });
   }
 
   protected containerClasses = computed(() => {

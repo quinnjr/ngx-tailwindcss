@@ -101,6 +101,19 @@ export class AudioContextService implements OnDestroy {
   private readonly elementSourceIds = new WeakMap<HTMLMediaElement, string>();
   private readonly sourceElements = new Map<string, HTMLMediaElement>();
 
+  // A media element can be wrapped by createMediaElementSource() only once per
+  // AudioContext (a second call throws InvalidStateError), and once wrapped its
+  // output is routed exclusively through the graph. Cache the node so an
+  // element can be reconnected after disconnectSource().
+  private mediaElementNodes = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+
+  // Streams opened by the service itself (connectMicrophone) that must be
+  // stopped when their source is disconnected so the microphone is released.
+  private readonly ownedStreams = new Map<string, MediaStream>();
+
+  // Gain each muted source had before setSourceMuted(id, true), restored on unmute
+  private readonly mutedGains = new Map<string, number>();
+
   /** Current audio context state */
   readonly state = this._state.asReadonly();
 
@@ -173,6 +186,10 @@ export class AudioContextService implements OnDestroy {
       this.disconnectAll();
       await this._audioContext.close();
       this._audioContext = null;
+      // Worklet modules and media element nodes belong to the closed context;
+      // a new context created by getContext() must load/create them again.
+      this._workletModules.set(new Map());
+      this.mediaElementNodes = new WeakMap();
       this._state.set('closed');
     }
   }
@@ -219,7 +236,8 @@ export class AudioContextService implements OnDestroy {
     }
 
     const id = this.generateSourceId('element');
-    const source = ctx.createMediaElementSource(element);
+    const source = this.mediaElementNodes.get(element) ?? ctx.createMediaElementSource(element);
+    this.mediaElementNodes.set(element, source);
     const analyser = this.createAnalyser(config);
     const gain = ctx.createGain();
 
@@ -310,7 +328,14 @@ export class AudioContextService implements OnDestroy {
    */
   async connectMicrophone(config: AudioNodeConfig = {}): Promise<ConnectedSource> {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    return this.connectMediaStream(stream, config);
+    try {
+      const source = await this.connectMediaStream(stream, config);
+      this.ownedStreams.set(source.id, stream);
+      return source;
+    } catch (error) {
+      for (const track of stream.getTracks()) track.stop();
+      throw error;
+    }
   }
 
   // =========================================================================
@@ -377,6 +402,13 @@ export class AudioContextService implements OnDestroy {
   async loadAudioBuffer(url: string): Promise<AudioBuffer> {
     const ctx = this.getContext();
     const response = await fetch(url);
+    if (!response.ok) {
+      // Otherwise the error page body is handed to decodeAudioData, which
+      // fails with an opaque EncodingError instead of the HTTP status
+      throw new Error(
+        `Failed to load audio from ${url}: ${response.status} ${response.statusText}`
+      );
+    }
     const arrayBuffer = await response.arrayBuffer();
     return ctx.decodeAudioData(arrayBuffer);
   }
@@ -526,11 +558,25 @@ export class AudioContextService implements OnDestroy {
     const ctx = this.getContext();
     const analyser = ctx.createAnalyser();
 
-    const mergedConfig = { ...DEFAULT_ANALYSER_CONFIG, ...config };
+    // Skip keys explicitly set to undefined (e.g. forwarded optional inputs):
+    // spreading them would overwrite the defaults, and writing undefined to
+    // fftSize / smoothingTimeConstant throws (IndexSizeError / TypeError)
+    const definedConfig = Object.fromEntries(
+      Object.entries(config).filter(([, value]) => value !== undefined)
+    ) as AudioNodeConfig;
+    const mergedConfig = { ...DEFAULT_ANALYSER_CONFIG, ...definedConfig };
     analyser.fftSize = mergedConfig.fftSize!;
     analyser.smoothingTimeConstant = mergedConfig.smoothingTimeConstant!;
-    analyser.minDecibels = mergedConfig.minDecibels!;
-    analyser.maxDecibels = mergedConfig.maxDecibels!;
+    // Setting minDecibels >= the node's current maxDecibels (or the reverse)
+    // throws IndexSizeError, so order the writes so the range stays valid
+    // throughout (e.g. raising the range above the node's default -30 max)
+    if (mergedConfig.minDecibels! >= analyser.maxDecibels) {
+      analyser.maxDecibels = mergedConfig.maxDecibels!;
+      analyser.minDecibels = mergedConfig.minDecibels!;
+    } else {
+      analyser.minDecibels = mergedConfig.minDecibels!;
+      analyser.maxDecibels = mergedConfig.maxDecibels!;
+    }
 
     return analyser;
   }
@@ -673,6 +719,16 @@ export class AudioContextService implements OnDestroy {
     const source = this._sources().get(id);
     if (!source) return;
 
+    // A started oscillator/buffer source keeps rendering (and stays alive)
+    // even once disconnected from the graph; stop it so it is released
+    if (source.type === 'oscillator' || source.type === 'buffer') {
+      try {
+        (source.node as AudioScheduledSourceNode).stop();
+      } catch {
+        // Never started (stop() before start() throws InvalidStateError)
+      }
+    }
+
     try {
       source.node.disconnect();
       source.analyser?.disconnect();
@@ -692,6 +748,14 @@ export class AudioContextService implements OnDestroy {
       this.elementSourceIds.delete(element);
       this.sourceElements.delete(id);
     }
+
+    this.mutedGains.delete(id);
+
+    const stream = this.ownedStreams.get(id);
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      this.ownedStreams.delete(id);
+    }
   }
 
   /**
@@ -710,15 +774,34 @@ export class AudioContextService implements OnDestroy {
   setSourceGain(id: string, gain: number): void {
     const source = this._sources().get(id);
     if (source?.gain) {
+      // An explicit gain supersedes the level saved by a pending mute
+      this.mutedGains.delete(id);
       source.gain.gain.value = Math.max(0, Math.min(2, gain));
     }
   }
 
   /**
-   * Mute/unmute a source
+   * Mute/unmute a source. Unmuting restores the gain the source had when it
+   * was muted (not unity, which would jump e.g. a 0.2 level up to 1).
    */
   setSourceMuted(id: string, muted: boolean): void {
-    this.setSourceGain(id, muted ? 0 : 1);
+    const source = this._sources().get(id);
+    if (!source?.gain) return;
+
+    if (muted) {
+      if (this.mutedGains.has(id)) return;
+      const previous = source.gain.gain.value;
+      this.setSourceGain(id, 0);
+      this.mutedGains.set(id, previous);
+    } else {
+      const saved = this.mutedGains.get(id);
+      if (saved !== undefined) {
+        this.setSourceGain(id, saved);
+      } else if (source.gain.gain.value === 0) {
+        // Not muted via this method (or a gain was set since): only lift silence
+        this.setSourceGain(id, 1);
+      }
+    }
   }
 
   // =========================================================================

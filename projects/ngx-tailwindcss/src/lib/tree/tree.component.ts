@@ -1,17 +1,17 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   ElementRef,
   EventEmitter,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   Output,
-  QueryList,
   signal,
   TemplateRef,
-  ViewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
@@ -57,8 +57,8 @@ interface TreeNodeViewState {
 })
 export class TwTreeComponent {
   private readonly twClass = inject(TwClassService);
-
-  @ViewChildren('treeNodeRow') private readonly nodeRows!: QueryList<ElementRef<HTMLElement>>;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Tree nodes */
   readonly nodes = input<TreeNode[]>([]);
@@ -78,6 +78,15 @@ export class TwTreeComponent {
   /** Additional classes */
   readonly classOverride = input('');
 
+  /**
+   * Accessible name of the tree. The `role="tree"` element lives inside the component,
+   * so attributes on the `tw-tree` host cannot name it.
+   */
+  readonly ariaLabel = input('');
+
+  /** Id of an element (e.g. a visible heading) that names the tree */
+  readonly ariaLabelledBy = input('');
+
   /** Node select event */
   @Output() onNodeSelect = new EventEmitter<TreeNode>();
 
@@ -96,8 +105,14 @@ export class TwTreeComponent {
   /** Selection is held as a Set internally for O(1) lookups; emitted as an array. */
   protected selection = signal<ReadonlySet<TreeNode>>(new Set());
 
-  /** Node currently owning the roving tabindex. */
-  protected readonly focusedNode = signal<TreeNode | null>(null);
+  /**
+   * Node currently owning the roving tabindex. Reset when `nodes` is replaced, so a
+   * node from the old tree can't leave the new tree without any tabbable item.
+   */
+  protected readonly focusedNode = linkedSignal<TreeNode[], TreeNode | null>({
+    source: this.nodes,
+    computation: () => null,
+  });
 
   protected containerClasses = computed(() => {
     return this.twClass.merge('py-2', this.classOverride());
@@ -126,14 +141,19 @@ export class TwTreeComponent {
         indeterminate: total > 0 && selectedCount > 0 && selectedCount < total,
         nodeClass: this.twClass.merge(
           'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
-          'hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
-          selected ? 'bg-blue-50' : '',
+          'hover:bg-slate-100 dark:hover:bg-slate-700',
+          // Hover overrides keep the selection visible while the pointer is over the row
+          selected
+            ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+            : '',
           node.disabled ? 'opacity-50 cursor-not-allowed' : '',
           node.styleClass || ''
         ),
         labelClass: this.twClass.merge(
           'text-sm select-none',
-          node.disabled ? 'text-slate-400' : 'text-slate-700'
+          node.disabled
+            ? 'text-slate-400 dark:text-slate-500'
+            : 'text-slate-700 dark:text-slate-300'
         ),
       });
       return { total, selectedCount };
@@ -202,9 +222,25 @@ export class TwTreeComponent {
   }
 
   onCheckboxChange(node: TreeNode, event: Event): void {
+    this.setChecked(node, (event.target as HTMLInputElement).checked);
+  }
+
+  /** aria-selected for single/multiple selection; omitted otherwise. */
+  protected ariaSelected(node: TreeNode): boolean | null {
+    const mode = this.selectionMode();
+    return mode === 'single' || mode === 'multiple' ? this.isSelected(node) : null;
+  }
+
+  /** aria-checked (tri-state) for checkbox selection; omitted otherwise. */
+  protected ariaChecked(node: TreeNode): 'true' | 'false' | 'mixed' | null {
+    if (this.selectionMode() !== 'checkbox') return null;
+    if (this.isIndeterminate(node)) return 'mixed';
+    return this.isSelected(node) ? 'true' : 'false';
+  }
+
+  private setChecked(node: TreeNode, checked: boolean): void {
     if (node.disabled) return;
 
-    const { checked } = event.target as HTMLInputElement;
     const next = new Set(this.selection());
 
     if (checked) {
@@ -223,12 +259,33 @@ export class TwTreeComponent {
 
   toggleNode(node: TreeNode): void {
     node.expanded = !node.expanded;
+    // Collapsing hides the focused descendant: hand the roving tabindex to the
+    // collapsed node so the tree stays reachable with Tab
+    if (!node.expanded) this.ensureFocusedNodeVisible(node);
+    // Node objects are mutated in place, so the OnPush view must be marked explicitly
+    // (programmatic calls do not originate from a template event in this view)
+    this.cdr.markForCheck();
 
     if (node.expanded) {
       this.onNodeExpand.emit(node);
     } else {
       this.onNodeCollapse.emit(node);
     }
+  }
+
+  /** Expand/collapse chevron: a disabled node does not toggle (matching a click on its row) */
+  protected onToggleClick(node: TreeNode, event: Event): void {
+    event.stopPropagation();
+    if (!node.disabled) this.toggleNode(node);
+    this.focusOwningItem(event);
+  }
+
+  /**
+   * A click on the row's (tabindex=-1) toggle or checkbox focuses that control, which
+   * has no focus indicator and ignores the tree's arrow keys: hand focus to its treeitem.
+   */
+  protected focusOwningItem(event: Event): void {
+    (event.currentTarget as HTMLElement).closest<HTMLElement>('[role="treeitem"]')?.focus();
   }
 
   protected nodeTabIndex(node: TreeNode): number {
@@ -241,6 +298,9 @@ export class TwTreeComponent {
   }
 
   protected onNodeKeydown(event: KeyboardEvent, node: TreeNode): void {
+    // Keydown bubbles through ancestor treeitems; only the focused item handles it
+    if (event.target !== event.currentTarget) return;
+
     switch (event.key) {
       case 'ArrowDown': {
         event.preventDefault();
@@ -254,22 +314,55 @@ export class TwTreeComponent {
         this.focusNodeAt(visible, Math.max(visible.indexOf(node) - 1, 0));
         break;
       }
+      case 'Home': {
+        // Prevented so the page doesn't scroll away from the focused tree
+        event.preventDefault();
+        this.focusNodeAt(this.getVisibleNodes(), 0);
+        break;
+      }
+      case 'End': {
+        event.preventDefault();
+        const visible = this.getVisibleNodes();
+        this.focusNodeAt(visible, visible.length - 1);
+        break;
+      }
       case 'ArrowRight': {
         event.preventDefault();
         if (node.children?.length && !node.expanded) {
-          this.toggleNode(node);
+          // A disabled node does not expand (matching a click on its row)
+          if (!node.disabled) this.toggleNode(node);
+        } else if (node.children?.length) {
+          // Already expanded: move to the first child
+          const visible = this.getVisibleNodes();
+          this.focusNodeAt(visible, visible.indexOf(node) + 1);
         }
         break;
       }
       case 'ArrowLeft': {
         event.preventDefault();
-        if (node.children?.length && node.expanded) {
+        if (node.children?.length && node.expanded && !node.disabled) {
           this.toggleNode(node);
+        } else {
+          // Collapsed or leaf: move to the parent node
+          const parent = this.parentMap().get(node);
+          if (parent) {
+            const visible = this.getVisibleNodes();
+            this.focusNodeAt(visible, visible.indexOf(parent));
+          }
         }
         break;
       }
-      case 'Enter':
       case ' ': {
+        event.preventDefault();
+        if (this.selectionMode() === 'checkbox') {
+          // Space toggles the item's checkbox (the checkbox itself is not focusable)
+          this.setChecked(node, !this.isSelected(node));
+        } else {
+          this.onNodeClick(node);
+        }
+        break;
+      }
+      case 'Enter': {
         event.preventDefault();
         this.onNodeClick(node);
         break;
@@ -281,7 +374,10 @@ export class TwTreeComponent {
     const target = visible[index];
     if (!target) return;
     this.focusedNode.set(target);
-    this.nodeRows?.get(index)?.nativeElement.focus();
+    // Query treeitems in DOM order: a @ViewChildren QueryList over the recursive
+    // template outlet is ordered by view insertion, not by visual position
+    const items = this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[role="treeitem"]');
+    items[index]?.focus();
   }
 
   /** Nodes currently rendered, in DOM order (visible and all ancestors expanded). */
@@ -363,6 +459,7 @@ export class TwTreeComponent {
       });
     };
     expandNodes(this.nodes());
+    this.cdr.markForCheck();
   }
 
   /** Collapse all nodes */
@@ -376,6 +473,16 @@ export class TwTreeComponent {
       });
     };
     collapseNodes(this.nodes());
+    this.ensureFocusedNodeVisible(null);
+    this.cdr.markForCheck();
+  }
+
+  /** Moves the roving tabindex to `fallback` (or the first root) if its node got hidden. */
+  private ensureFocusedNodeVisible(fallback: TreeNode | null): void {
+    const focused = this.focusedNode();
+    if (focused && !this.getVisibleNodes().includes(focused)) {
+      this.focusedNode.set(fallback);
+    }
   }
 
   /** Get selected nodes */

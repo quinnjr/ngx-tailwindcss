@@ -6,12 +6,15 @@ import {
   inject,
   Input,
   NgZone,
+  OnChanges,
   OnDestroy,
   OnInit,
   Output,
   PLATFORM_ID,
+  SimpleChanges,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { splitShortcut } from '../native/shortcut-keys.util';
 
 export interface KeyboardShortcutEvent {
   key: string;
@@ -36,7 +39,7 @@ export interface KeyboardShortcutEvent {
   selector: '[twKeyboardShortcut]',
   standalone: true,
 })
-export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
+export class TwKeyboardShortcutDirective implements OnInit, OnChanges, OnDestroy {
   private readonly ngZone: NgZone;
   private readonly platformId: object;
   private readonly el: ElementRef<HTMLElement>;
@@ -77,9 +80,11 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     if (this.shortcutDisabled) return;
 
     const shortcut = this.twKeyboardShortcut.toLowerCase();
-    const parts = shortcut.split('+').map(p => p.trim());
+    // `ctrl++` binds the plus key (a plain split on '+' would yield an empty key)
+    const parts = splitShortcut(shortcut);
 
-    const key = parts.at(-1);
+    const lastPart = parts.at(-1);
+    const key = lastPart === 'plus' ? '+' : lastPart;
     const modifiers = new Set(parts.slice(0, -1));
 
     const metaRequired = modifiers.has('meta') || modifiers.has('cmd');
@@ -92,12 +97,28 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     const shiftPressed = keyEvent.shiftKey;
     const metaPressed = keyEvent.metaKey;
 
-    const keyMatches = keyEvent.key.toLowerCase() === key || keyEvent.code.toLowerCase() === key;
+    // Synthetic keydown events (e.g. Chrome autofill) carry no key/code
+    const eventKey = keyEvent.key ?? '';
+    // Option (macOS), AltGr and non-Latin layouts change `event.key` (Option+S types
+    // 'ß', a Cyrillic layout 'ы'), so fall back to the physical key for letters and
+    // digits. A layout typing a different ASCII character there (AZERTY 'a' at KeyQ)
+    // means a different shortcut.
+    const physicalMatches =
+      !!key &&
+      /^[\da-z]$/.test(key) &&
+      !/^[ -~]$/.test(eventKey) &&
+      keyEvent.code?.toLowerCase() === (/\d/.test(key) ? `digit${key}` : `key${key}`);
+    const keyMatches =
+      eventKey.toLowerCase() === key || keyEvent.code?.toLowerCase() === key || physicalMatches;
+
+    // A shifted symbol such as '?' or '+' already encodes Shift in `event.key`
+    // (e.g. '?' is Shift+/ on US layouts), so an unrequested Shift is allowed there
+    const shiftEncodedInKey = key?.length === 1 && !/^[\da-z ]$/.test(key);
 
     const modifiersMatch =
       ctrlRequired === ctrlPressed &&
       altRequired === altPressed &&
-      shiftRequired === shiftPressed &&
+      (shiftRequired === shiftPressed || (shiftEncodedInKey && !shiftRequired)) &&
       (metaRequired ? metaPressed : true);
 
     if (keyMatches && modifiersMatch) {
@@ -121,16 +142,32 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
+    this.attachListener();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Switching between global and element-scoped listening moves the listener
+    if (!this.listenTarget || !changes['shortcutGlobal']) return;
+
+    this.detachListener();
+    this.attachListener();
+  }
+
+  private attachListener(): void {
     this.ngZone.runOutsideAngular(() => {
       this.listenTarget = this.shortcutGlobal ? document : this.el.nativeElement;
       this.listenTarget.addEventListener('keydown', this.keydownHandler);
     });
   }
 
-  ngOnDestroy(): void {
+  private detachListener(): void {
     if (this.listenTarget) {
       this.listenTarget.removeEventListener('keydown', this.keydownHandler);
       this.listenTarget = null;
     }
+  }
+
+  ngOnDestroy(): void {
+    this.detachListener();
   }
 }

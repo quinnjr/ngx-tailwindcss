@@ -69,7 +69,7 @@ export class AccessibilityDemoComponent {
   }
 
   // Code examples
-  ariaServiceCode = `import { TwAriaService } from 'ngx-tailwindcss';
+  ariaServiceCode = `import { TwAriaService } from '@quinnjr/ngx-tailwindcss';
 
 @Component({...})
 export class MyComponent {
@@ -187,9 +187,9 @@ import {
   TwAriaModalDirective,     // Modal dialogs
   TwAriaHaspopupDirective,  // Popup menus
   TwAriaLiveDirective,      // Live regions
-} from 'ngx-tailwindcss';`;
+} from '@quinnjr/ngx-tailwindcss';`;
 
-  ariaUtilsCode = `import { AriaUtils } from 'ngx-tailwindcss';
+  ariaUtilsCode = `import { AriaUtils } from '@quinnjr/ngx-tailwindcss';
 
 // Generate unique IDs for ARIA relationships
 const descriptionId = AriaUtils.generateId('desc'); // 'desc-a1b2c3d'

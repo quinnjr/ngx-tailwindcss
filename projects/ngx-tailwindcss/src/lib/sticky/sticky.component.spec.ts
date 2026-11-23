@@ -48,6 +48,11 @@ describe('TwStickyComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should not wrap the sticky element in a block host (which would prevent sticking)', () => {
+    const host = fixture.debugElement.query(By.directive(TwStickyComponent)).nativeElement;
+    expect(getComputedStyle(host).display).toBe('contents');
+  });
+
   it('should render projected content', () => {
     expect(stickyDiv().textContent).toContain('Sticky content');
   });

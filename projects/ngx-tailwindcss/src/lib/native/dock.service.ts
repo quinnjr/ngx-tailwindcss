@@ -1,22 +1,35 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { NativeMenuItem } from './native.types';
 import { dynamicImport } from './dynamic-import.util';
+import { loadElectronIpc, subscribeElectronIpc } from './electron-bridge.util';
 
 @Injectable({
   providedIn: 'root',
 })
-export class DockService {
+export class DockService implements OnDestroy {
   private readonly platformService = inject(NativeAppPlatformService);
+  private readonly ngZone = inject(NgZone);
 
   public readonly isSupported = signal(false);
 
   // Id -> action routing table for Electron dock menu clicks (see convertMenuForElectron)
   private readonly electronMenuActions = new Map<string, () => void>();
   private electronMenuListenerRegistered = false;
+  private unsubscribeMenuClick: (() => void) | null = null;
+  private destroyed = false;
 
   constructor() {
     this.checkSupport();
+  }
+
+  /** Remove the IPC menu-click listener (it would otherwise outlive the app). */
+  public ngOnDestroy(): void {
+    this.destroyed = true;
+    this.unsubscribeMenuClick?.();
+    this.unsubscribeMenuClick = null;
+    this.electronMenuListenerRegistered = false;
+    this.electronMenuActions.clear();
   }
 
   private checkSupport(): void {
@@ -33,7 +46,7 @@ export class DockService {
       console.warn('Dock badge not directly supported in Tauri, consider using notifications');
     } else if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('set-dock-badge', text);
       } catch (error) {
         console.error('Failed to set Electron dock badge:', error);
@@ -54,7 +67,7 @@ export class DockService {
   public async setProgress(progress: number): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         // Progress should be between 0 and 1, or -1 to clear
         const normalizedProgress = progress < 0 ? -1 : Math.min(1, Math.max(0, progress / 100));
         ipcRenderer.send('set-progress', normalizedProgress);
@@ -78,7 +91,7 @@ export class DockService {
   public async bounce(type: 'informational' | 'critical' = 'informational'): Promise<number> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         return await ipcRenderer.invoke('dock-bounce', type);
       } catch (error) {
         console.error('Failed to bounce Electron dock:', error);
@@ -95,7 +108,7 @@ export class DockService {
   public async cancelBounce(id: number): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('cancel-dock-bounce', id);
       } catch (error) {
         console.error('Failed to cancel Electron dock bounce:', error);
@@ -111,7 +124,7 @@ export class DockService {
   public async setMenu(items: NativeMenuItem[]): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         await this.registerElectronMenuClickListener();
         ipcRenderer.send('set-dock-menu', this.convertMenuForElectron(items));
       } catch (error) {
@@ -126,7 +139,7 @@ export class DockService {
   public async show(): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('show-dock');
       } catch (error) {
         console.error('Failed to show Electron dock:', error);
@@ -140,7 +153,7 @@ export class DockService {
   public async hide(): Promise<void> {
     if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('hide-dock');
       } catch (error) {
         console.error('Failed to hide Electron dock:', error);
@@ -162,7 +175,7 @@ export class DockService {
       }
     } else if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('flash-frame', flash);
       } catch (error) {
         console.error('Failed to flash Electron frame:', error);
@@ -179,10 +192,18 @@ export class DockService {
     if (this.electronMenuListenerRegistered) return;
 
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
-      ipcRenderer.on('dock-menu-click', (_event: unknown, id: unknown) => {
-        this.electronMenuActions.get(String(id))?.();
-      });
+      const { ipcRenderer } = await loadElectronIpc();
+      if (this.electronMenuListenerRegistered || this.destroyed) return;
+      this.unsubscribeMenuClick = subscribeElectronIpc(
+        ipcRenderer,
+        'dock-menu-click',
+        (_event: unknown, id: unknown) => {
+          // IPC callbacks arrive outside Angular's zone; run the action inside
+          // it so state it changes is rendered (as NativeIpcService.on does)
+          const action = this.electronMenuActions.get(String(id));
+          if (action) this.ngZone.run(action);
+        }
+      );
       this.electronMenuListenerRegistered = true;
     } catch (error) {
       console.warn('Failed to register dock menu click listener:', error);

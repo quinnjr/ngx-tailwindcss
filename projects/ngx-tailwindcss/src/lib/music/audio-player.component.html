@@ -15,6 +15,8 @@
   (error)="onAudioError()"
   (loadstart)="onAudioLoadStart()"
   (canplay)="onAudioCanPlay()"
+  (loadedmetadata)="onAudioCanPlay()"
+  (suspend)="onAudioCanPlay()"
   preload="metadata"
 ></audio>
 
@@ -74,14 +76,22 @@
           [duration]="duration()"
           [buffered]="buffered()"
           [showTime]="false"
-          (seek)="onSeek($event)"
+          (seek)="onSeekTime($event)"
         ></tw-scrubber>
 
         <!-- Time Display -->
         @if (showTime()) {
           <div class="flex items-center justify-between text-xs" [class]="textClasses().time">
-            <tw-time-display [value]="currentTime()" variant="minimal"></tw-time-display>
-            <tw-time-display [value]="duration()" variant="minimal"></tw-time-display>
+            <tw-time-display
+              [value]="currentTime()"
+              variant="minimal"
+              [showTotal]="false"
+            ></tw-time-display>
+            <tw-time-display
+              [value]="duration()"
+              variant="minimal"
+              [showTotal]="false"
+            ></tw-time-display>
           </div>
         }
 
@@ -92,23 +102,29 @@
             [looping]="isLooping()"
             variant="modern"
             size="md"
-            [showRewind]="false"
-            [showFastForward]="false"
+            [showRewind]="true"
+            [showFastForward]="true"
+            [showSkipButtons]="false"
+            rewindLabel="Back 10 seconds"
+            fastForwardLabel="Forward 10 seconds"
             [showLoop]="true"
             (play)="onPlay()"
             (pause)="onPause()"
             (stop)="onStop()"
-            (skipBackward)="onSkipBackward()"
-            (skipForward)="onSkipForward()"
-            (toggleLoop)="toggleLoop()"
+            (rewind)="onSkipBackward()"
+            (fastForward)="onSkipForward()"
+            (loopToggle)="toggleLoop()"
           ></tw-transport>
 
           @if (showVolume()) {
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                class="p-2 rounded hover:bg-slate-700 transition-colors"
+                class="p-2 rounded transition-colors"
+                [class]="iconButtonHoverClass()"
                 (click)="toggleMute()"
+                [attr.aria-label]="isMuted() ? 'Unmute' : 'Mute'"
+                [attr.aria-pressed]="isMuted()"
               >
                 @if (isMuted()) {
                   <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -130,8 +146,9 @@
                 max="1"
                 step="0.01"
                 [value]="internalVolume()"
-                (input)="onVolumeChange($any($event.target).value)"
+                (input)="onVolumeChange(+$any($event.target).value)"
                 class="w-20 h-1 accent-blue-500"
+                aria-label="Volume"
               />
             </div>
           }
@@ -163,9 +180,17 @@
 
             @if (showTime()) {
               <div class="text-xs" [class]="textClasses().time">
-                <tw-time-display [value]="currentTime()" variant="minimal"></tw-time-display>
+                <tw-time-display
+                  [value]="currentTime()"
+                  variant="minimal"
+                  [showTotal]="false"
+                ></tw-time-display>
                 <span class="mx-1">/</span>
-                <tw-time-display [value]="duration()" variant="minimal"></tw-time-display>
+                <tw-time-display
+                  [value]="duration()"
+                  variant="minimal"
+                  [showTotal]="false"
+                ></tw-time-display>
               </div>
             }
           </div>
@@ -176,7 +201,7 @@
             [buffered]="buffered()"
             [showTime]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
 
           <div class="flex items-center justify-between">
@@ -185,21 +210,27 @@
               [looping]="isLooping()"
               variant="compact"
               size="sm"
-              [showRewind]="false"
-              [showFastForward]="false"
+              [showRewind]="true"
+              [showFastForward]="true"
+              [showSkipButtons]="false"
+              rewindLabel="Back 10 seconds"
+              fastForwardLabel="Forward 10 seconds"
               [showLoop]="false"
               (play)="onPlay()"
               (pause)="onPause()"
               (stop)="onStop()"
-              (skipBackward)="onSkipBackward()"
-              (skipForward)="onSkipForward()"
+              (rewind)="onSkipBackward()"
+              (fastForward)="onSkipForward()"
             ></tw-transport>
 
             @if (showVolume()) {
               <button
                 type="button"
-                class="p-1 rounded hover:bg-slate-700 transition-colors"
+                class="p-1 rounded transition-colors"
+                [class]="iconButtonHoverClass()"
                 (click)="toggleMute()"
+                [attr.aria-label]="isMuted() ? 'Unmute' : 'Mute'"
+                [attr.aria-pressed]="isMuted()"
               >
                 @if (isMuted()) {
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -228,6 +259,7 @@
           type="button"
           class="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white"
           (click)="isPlaying() ? onPause() : onPlay()"
+          [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
         >
           @if (isPlaying()) {
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -253,7 +285,7 @@
             [showTime]="false"
             [showHoverPreview]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
         </div>
 
@@ -276,6 +308,7 @@
             'bg-slate-700 hover:bg-slate-600 text-white': isPlaying(),
           }"
           (click)="isPlaying() ? onPause() : onPlay()"
+          [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
         >
           @if (isPlaying()) {
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -298,7 +331,7 @@
             [showTime]="false"
             [showHoverPreview]="false"
             variant="thin"
-            (seek)="onSeek($event)"
+            (seek)="onSeekTime($event)"
           ></tw-scrubber>
         </div>
       </div>

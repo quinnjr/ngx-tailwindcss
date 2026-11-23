@@ -11,11 +11,13 @@ import {
   linkedSignal,
   NgZone,
   OnChanges,
+  PLATFORM_ID,
   SimpleChanges,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type SpectrumVariant = 'bars' | 'line' | 'gradient' | 'mirror';
 export type SpectrumColorScheme =
@@ -88,6 +90,7 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
   private readonly twClass = inject(TwClassService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('spectrumCanvas');
 
   // Data inputs
@@ -217,6 +220,9 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering / rAF loop during SSR
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.initCanvas();
     this.startAnimation();
   }
@@ -244,12 +250,18 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
       if (smoothing !== undefined) {
         analyser.smoothingTimeConstant = smoothing;
       }
+      // Setting minDecibels >= the node's current maxDecibels (or the reverse)
+      // throws IndexSizeError, so write max first when raising the range
       const minDb = this.minDecibels();
+      const maxDb = this.maxDecibels();
+      const maxFirst = minDb !== undefined && minDb >= analyser.maxDecibels;
+      if (maxFirst && maxDb !== undefined) {
+        analyser.maxDecibels = maxDb;
+      }
       if (minDb !== undefined) {
         analyser.minDecibels = minDb;
       }
-      const maxDb = this.maxDecibels();
-      if (maxDb !== undefined) {
+      if (!maxFirst && maxDb !== undefined) {
         analyser.maxDecibels = maxDb;
       }
       this.dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -262,6 +274,9 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
 
       // Calculate bin to bar mapping based on frequency scale
       this.calculateBinMapping(analyser.frequencyBinCount);
+    } else {
+      // A stale analyser mapping would mis-bin static frequencyData
+      this.binToBarMapping = [];
     }
   }
 
@@ -352,6 +367,12 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
     const w = this.effectiveWidth();
     const h = this.effectiveHeight();
     const variant = this.variant();
+
+    // Size the backing store for the device pixel ratio; drawing uses CSS pixels
+    const canvasEl = this.canvas()?.nativeElement;
+    if (canvasEl) {
+      prepareHiDpiCanvas(canvasEl, this.ctx, w, h);
+    }
 
     // Clear canvas
     const bgColor = this.backgroundColor() || '#0f172a';
@@ -510,9 +531,14 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
 
     this.ctx.beginPath();
 
-    const step = w / (data.length - 1);
-    for (const [i, datum] of data.entries()) {
-      const value = datum / 255;
+    // With an analyser, plot through the frequency-scaled bar mapping so the
+    // line honours frequencyScale/minFrequency/maxFrequency like the other
+    // variants (and lines up with the labels); raw bins span 0..Nyquist linearly.
+    const useMapping = this.binToBarMapping.length > 0;
+    const pointCount = useMapping ? this.barCount() : data.length;
+    const step = pointCount > 1 ? w / (pointCount - 1) : 0;
+    for (let i = 0; i < pointCount; i++) {
+      const value = useMapping ? this.getBarValue(data, i) : data[i] / 255;
       const x = i * step;
       const y = h - value * h;
 

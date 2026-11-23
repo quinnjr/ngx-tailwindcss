@@ -34,8 +34,8 @@ describe('TwBleedComponent', () => {
   let component: TestHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -58,25 +58,25 @@ describe('TwBleedComponent', () => {
 
   describe('horizontal bleed', () => {
     it('should apply negative horizontal margins for preset amounts', () => {
-      expect(getInner().style.marginLeft).toBe('-2rem');
-      expect(getInner().style.marginRight).toBe('-2rem');
+      expect(getBox().style.marginLeft).toBe('-2rem');
+      expect(getBox().style.marginRight).toBe('-2rem');
     });
 
     it('should update margins when amount changes', () => {
       component.amount.set('lg');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toBe('-4rem');
-      expect(getInner().style.marginRight).toBe('-4rem');
+      expect(getBox().style.marginLeft).toBe('-4rem');
+      expect(getBox().style.marginRight).toBe('-4rem');
     });
 
     it('should apply viewport-based margins and width for amount="full"', () => {
       component.amount.set('full');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toMatch(/calc\((-50vw \+ 50%|50% - 50vw)\)/);
-      expect(getInner().style.marginRight).toMatch(/calc\((-50vw \+ 50%|50% - 50vw)\)/);
-      expect(getInner().style.width).toBe('100vw');
+      expect(getBox().style.marginLeft).toMatch(/calc\((-50vw \+ 50%|50% - 50vw)\)/);
+      expect(getBox().style.marginRight).toMatch(/calc\((-50vw \+ 50%|50% - 50vw)\)/);
+      expect(getBox().style.width).toBe('100vw');
     });
   });
 
@@ -85,26 +85,26 @@ describe('TwBleedComponent', () => {
       component.direction.set('left');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toBe('-2rem');
-      expect(getInner().style.marginRight || '').toBe('');
+      expect(getBox().style.marginLeft).toBe('-2rem');
+      expect(getBox().style.marginRight || '').toBe('');
     });
 
     it('should only bleed right for direction="right"', () => {
       component.direction.set('right');
       fixture.detectChanges();
 
-      expect(getInner().style.marginRight).toBe('-2rem');
-      expect(getInner().style.marginLeft || '').toBe('');
+      expect(getBox().style.marginRight).toBe('-2rem');
+      expect(getBox().style.marginLeft || '').toBe('');
     });
 
     it('should bleed vertically as well for direction="all"', () => {
       component.direction.set('all');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toBe('-2rem');
-      expect(getInner().style.marginRight).toBe('-2rem');
-      expect(getInner().style.marginTop).toBe('-2rem');
-      expect(getInner().style.marginBottom).toBe('-2rem');
+      expect(getBox().style.marginLeft).toBe('-2rem');
+      expect(getBox().style.marginRight).toBe('-2rem');
+      expect(getBox().style.marginTop).toBe('-2rem');
+      expect(getBox().style.marginBottom).toBe('-2rem');
     });
   });
 
@@ -113,8 +113,8 @@ describe('TwBleedComponent', () => {
       component.preservePadding.set(true);
       fixture.detectChanges();
 
-      expect(getInner().style.paddingLeft).toBe('2rem');
-      expect(getInner().style.paddingRight).toBe('2rem');
+      expect(getBox().style.paddingLeft).toBe('2rem');
+      expect(getBox().style.paddingRight).toBe('2rem');
     });
 
     it('should preserve padding for amount="full"', () => {
@@ -122,8 +122,8 @@ describe('TwBleedComponent', () => {
       component.preservePadding.set(true);
       fixture.detectChanges();
 
-      expect(getInner().style.paddingLeft).toMatch(/calc\((50vw - 50%|-50% \+ 50vw)\)/);
-      expect(getInner().style.paddingRight).toMatch(/calc\((50vw - 50%|-50% \+ 50vw)\)/);
+      expect(getBox().style.paddingLeft).toMatch(/calc\((50vw - 50%|-50% \+ 50vw)\)/);
+      expect(getBox().style.paddingRight).toMatch(/calc\((50vw - 50%|-50% \+ 50vw)\)/);
     });
   });
 
@@ -132,8 +132,8 @@ describe('TwBleedComponent', () => {
       component.customAmount.set('3rem');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toBe('-3rem');
-      expect(getInner().style.marginRight).toBe('-3rem');
+      expect(getBox().style.marginLeft).toBe('-3rem');
+      expect(getBox().style.marginRight).toBe('-3rem');
     });
 
     it('should take precedence over amount="full"', () => {
@@ -141,9 +141,36 @@ describe('TwBleedComponent', () => {
       component.customAmount.set('3rem');
       fixture.detectChanges();
 
-      expect(getInner().style.marginLeft).toBe('-3rem');
-      expect(getInner().style.marginRight).toBe('-3rem');
-      expect(getInner().style.width || '').toBe('');
+      expect(getBox().style.marginLeft).toBe('-3rem');
+      expect(getBox().style.marginRight).toBe('-3rem');
+      expect(getBox().style.width || '').toBe('');
+    });
+
+    it('should negate var() custom amounts with calc() instead of a "-" prefix', () => {
+      component.direction.set('all');
+      component.customAmount.set('var(--gutter)');
+      fixture.detectChanges();
+
+      const styles = (
+        component.bleed as unknown as { bleedStyles: () => Record<string, string> }
+      ).bleedStyles();
+      for (const side of ['marginLeft', 'marginRight', 'marginTop', 'marginBottom']) {
+        expect(styles[side]).toBe('calc(-1 * var(--gutter))');
+      }
+    });
+
+    it('should negate calc() custom amounts with calc()', () => {
+      component.direction.set('left');
+      component.customAmount.set('calc(1rem + 2px)');
+      component.preservePadding.set(true);
+      fixture.detectChanges();
+
+      const styles = (
+        component.bleed as unknown as { bleedStyles: () => Record<string, string> }
+      ).bleedStyles();
+      expect(styles['marginLeft']).toBe('calc(-1 * calc(1rem + 2px))');
+      expect(styles['paddingLeft']).toBe('calc(1rem + 2px)');
+      expect(getBox().style.marginLeft).not.toBe('');
     });
   });
 
@@ -152,8 +179,46 @@ describe('TwBleedComponent', () => {
       component.customClass.set('custom-bleed-class');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('relative');
-      expect(getInner().className).toContain('custom-bleed-class');
+      expect(getBox().className).toContain('relative');
+      expect(getBox().className).toContain('custom-bleed-class');
     });
+  });
+});
+
+describe('Bleed class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
+    @Component({
+      template: `<tw-bleed class="tw-test-box"><p>a</p></tw-bleed>`,
+      standalone: true,
+      imports: [TwBleedComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes such as `p-4 border-2`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-bleed')).nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+    } finally {
+      style.remove();
+    }
   });
 });

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, Input, signal } from '@angular/core';
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  Input,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export type ProgressSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -11,13 +18,27 @@ const PROGRESS_SIZE_CLASSES: Record<ProgressSize, string> = {
   lg: 'h-4',
 };
 
+/**
+ * Bar fill, >= 3:1 against the track (slate-200, or slate-700 in dark mode, where
+ * the light-mode fills were 1.4-2.2:1 and the lighter 400/500 shades are used)
+ */
 const PROGRESS_VARIANT_CLASSES: Record<ProgressVariant, string> = {
-  primary: 'bg-blue-600',
-  secondary: 'bg-slate-600',
-  success: 'bg-emerald-600',
+  primary: 'bg-blue-600 dark:bg-blue-400',
+  secondary: 'bg-slate-600 dark:bg-slate-400',
+  success: 'bg-emerald-700 dark:bg-emerald-500',
   warning: 'bg-amber-500',
-  danger: 'bg-rose-600',
-  info: 'bg-cyan-600',
+  danger: 'bg-rose-600 dark:bg-rose-400',
+  info: 'bg-cyan-700 dark:bg-cyan-500',
+};
+
+/** Text colour of the value shown inside the bar, >= 4.5:1 on that bar's colour */
+const PROGRESS_INSIDE_TEXT_CLASSES: Record<ProgressVariant, string> = {
+  primary: 'text-white dark:text-slate-900',
+  secondary: 'text-white dark:text-slate-900',
+  success: 'text-white dark:text-slate-900',
+  warning: 'text-amber-950',
+  danger: 'text-white dark:text-slate-900',
+  info: 'text-white dark:text-slate-900',
 };
 
 const CIRCULAR_STROKE_COLORS: Record<ProgressVariant, string> = {
@@ -26,7 +47,8 @@ const CIRCULAR_STROKE_COLORS: Record<ProgressVariant, string> = {
   success: '#059669',
   warning: '#f59e0b',
   danger: '#e11d48',
-  info: '#0891b2',
+  // cyan-700 like the linear bar: cyan-600 was 2.99:1 against the slate-200 track
+  info: '#0e7490',
 };
 
 @Component({
@@ -80,25 +102,35 @@ export class TwProgressComponent {
   @Input() set label(val: string) {
     this._label.set(val);
   }
-  @Input() set showValue(val: boolean) {
+  @Input({ transform: booleanAttribute }) set showValue(val: boolean) {
     this._showValue.set(val);
   }
   @Input() set labelPosition(val: 'top' | 'bottom' | 'inside') {
     this._labelPosition.set(val);
   }
-  @Input() set striped(val: boolean) {
+  @Input({ transform: booleanAttribute }) set striped(val: boolean) {
     this._striped.set(val);
   }
-  @Input() set animated(val: boolean) {
+  @Input({ transform: booleanAttribute }) set animated(val: boolean) {
     this._animated.set(val);
   }
-  @Input() set indeterminate(val: boolean) {
+  @Input({ transform: booleanAttribute }) set indeterminate(val: boolean) {
     this._indeterminate.set(val);
+  }
+  /** Accessible name for the progressbar without rendering a visible caption (overrides `label` as the name) */
+  @Input() set ariaLabel(val: string | null | undefined) {
+    this._ariaLabel.set(val ?? '');
+  }
+  /** Id(s) of element(s) that name the progressbar, e.g. visible text placed next to it */
+  @Input() set ariaLabelledBy(val: string | null | undefined) {
+    this._ariaLabelledBy.set(val ?? '');
   }
 
   protected _value = signal(0);
   protected _max = signal(100);
   protected _size = signal<ProgressSize>('md');
+  protected _ariaLabel = signal('');
+  protected _ariaLabelledBy = signal('');
   protected _variant = signal<ProgressVariant>('primary');
   protected _label = signal('');
   protected _showValue = signal(false);
@@ -107,9 +139,14 @@ export class TwProgressComponent {
   protected _animated = signal(false);
   protected _indeterminate = signal(false);
 
-  protected valueNum = computed(() => this._value());
+  /** Value clamped to [0, max] so aria-valuenow stays within aria-valuemin/aria-valuemax */
+  protected valueNum = computed(() =>
+    Math.min(Math.max(this._value(), 0), Math.max(this._max(), 0))
+  );
   protected maxNum = computed(() => this._max());
   protected labelText = computed(() => this._label());
+  protected accessibleLabel = computed(() => this._ariaLabel() || this._label() || null);
+  protected labelledBy = computed(() => this._ariaLabelledBy() || null);
   protected showValueFlag = computed(() => this._showValue());
   protected labelPositionVal = computed(() => this._labelPosition());
   protected indeterminateFlag = computed(() => this._indeterminate());
@@ -122,6 +159,10 @@ export class TwProgressComponent {
   });
 
   protected containerClasses = computed(() => 'w-full');
+
+  protected insideValueClasses = computed(
+    () => `text-xs font-medium ${PROGRESS_INSIDE_TEXT_CLASSES[this._variant()]}`
+  );
 
   protected trackClasses = computed(() => {
     const size = this._size();
@@ -220,14 +261,18 @@ export class TwProgressCircularComponent {
   @Input() set variant(val: ProgressVariant) {
     this._variant.set(val);
   }
-  @Input() set showValue(val: boolean) {
+  @Input({ transform: booleanAttribute }) set showValue(val: boolean) {
     this._showValue.set(val);
   }
-  @Input() set indeterminate(val: boolean) {
+  @Input({ transform: booleanAttribute }) set indeterminate(val: boolean) {
     this._indeterminate.set(val);
   }
   @Input() set thickness(val: number) {
     this._thickness.set(val);
+  }
+  /** Accessible name for the progressbar (applied as aria-label on the element carrying the role) */
+  @Input() set label(val: string) {
+    this._label.set(val);
   }
 
   protected _value = signal(0);
@@ -237,13 +282,18 @@ export class TwProgressCircularComponent {
   protected _showValue = signal(false);
   protected _indeterminate = signal(false);
   protected _thickness = signal(4);
+  protected _label = signal('');
 
   protected sizeValue = computed(() => this._size());
-  protected valueNum = computed(() => this._value());
+  /** Value clamped to [0, max] so aria-valuenow stays within aria-valuemin/aria-valuemax */
+  protected valueNum = computed(() =>
+    Math.min(Math.max(this._value(), 0), Math.max(this._max(), 0))
+  );
   protected maxNum = computed(() => this._max());
   protected showValueFlag = computed(() => this._showValue());
   protected indeterminateFlag = computed(() => this._indeterminate());
   protected strokeWidth = computed(() => this._thickness());
+  protected labelText = computed(() => this._label());
 
   // Circle with radius 15.9155 has circumference of ~100
   private readonly CIRCUMFERENCE = 100;

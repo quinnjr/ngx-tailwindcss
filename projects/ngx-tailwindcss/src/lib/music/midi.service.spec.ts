@@ -128,6 +128,52 @@ describe('MidiService', () => {
       expect(outputs.length).toBe(1);
       expect(outputs[0].name).toBe('Test MIDI Output');
     });
+
+    it('should not deliver messages twice after a repeated access request', async () => {
+      await service.requestAccess();
+      const firstAccess = mockMidiAccess;
+      // Each request yields a new MIDIAccess with its own port objects
+      const secondAccess = createMockMIDIAccess();
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        value: vi.fn().mockResolvedValue(secondAccess),
+        writable: true,
+        configurable: true,
+      });
+      await service.requestAccess();
+
+      const received = vi.fn();
+      service.onNoteOn(received);
+      firstAccess._mockInput.simulateMessage([0x90, 60, 100]);
+      secondAccess._mockInput.simulateMessage([0x90, 60, 100]);
+
+      expect(received).toHaveBeenCalledTimes(1);
+      expect(firstAccess.onstatechange).toBeNull();
+      expect(secondAccess.onstatechange).not.toBeNull();
+    });
+
+    it('should not connect when disconnect() runs while the request is pending', async () => {
+      let grant!: (access: typeof mockMidiAccess) => void;
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        value: vi.fn(
+          () =>
+            new Promise<typeof mockMidiAccess>(resolve => {
+              grant = resolve;
+            })
+        ),
+        writable: true,
+        configurable: true,
+      });
+
+      const pending = service.requestAccess();
+      service.disconnect();
+      grant(mockMidiAccess);
+
+      expect(await pending).toBe(false);
+      expect(service.connected()).toBe(false);
+      expect(service.inputs().length).toBe(0);
+      expect(mockMidiAccess.onstatechange).toBeNull();
+      expect(mockMidiAccess._mockInput.onmidimessage).toBeNull();
+    });
   });
 
   describe('disconnect', () => {
@@ -249,6 +295,21 @@ describe('MidiService', () => {
 
       const activeNotes = service.activeNotes();
       expect(activeNotes.length).toBe(0);
+    });
+
+    it('should track the same note on different channels independently', async () => {
+      await service.requestAccess();
+
+      mockMidiAccess._mockInput.simulateMessage([0x90, 60, 100]); // ch 0
+      mockMidiAccess._mockInput.simulateMessage([0x91, 60, 90]); // ch 1
+      expect(service.activeNotes().length).toBe(2);
+
+      mockMidiAccess._mockInput.simulateMessage([0x80, 60, 0]); // off on ch 0
+
+      const activeNotes = service.activeNotes();
+      expect(activeNotes.length).toBe(1);
+      expect(activeNotes[0].channel).toBe(1);
+      expect(activeNotes[0].data1).toBe(60);
     });
   });
 
@@ -440,6 +501,39 @@ describe('MidiService', () => {
       expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xb0, 123, 0]);
     });
 
+    it('should clamp out-of-range pitch bend values instead of wrapping', async () => {
+      await service.requestAccess();
+
+      service.sendPitchBend('output-1', 8192, 0);
+      service.sendPitchBend('output-1', -9000, 0);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0x7f, 0x7f]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xe0, 0, 0]);
+    });
+
+    it('should clamp data bytes to 0-127 so they never set the status bit', async () => {
+      await service.requestAccess();
+
+      service.sendCC('output-1', MIDI_CC.VOLUME, 200, 0);
+      service.sendNoteOn('output-1', 130, 300, 0);
+      service.sendNoteOff('output-1', -5, Number.NaN, 0);
+      service.sendProgramChange('output-1', 128, 0);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xb0, MIDI_CC.VOLUME, 127]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x90, 127, 127]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x80, 0, 0]);
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0xc0, 127]);
+    });
+
+    it('should keep out-of-range channels within the status byte nibble', async () => {
+      await service.requestAccess();
+
+      // Channel 32 must not turn a Note On (0x90) into a Control Change (0xB0)
+      service.sendNoteOn('output-1', 60, 100, 32);
+
+      expect(mockMidiAccess._mockOutput.sentMessages).toContainEqual([0x90, 60, 100]);
+    });
+
     it('should look up outputs by id and ignore unknown output ids', async () => {
       await service.requestAccess();
 
@@ -473,6 +567,23 @@ describe('MidiService', () => {
       expect(service.unmapCCValue(0, 0, 100)).toBe(0);
       expect(service.unmapCCValue(100, 0, 100)).toBe(127);
       expect(service.unmapCCValue(50, 0, 100)).toBe(64);
+    });
+
+    it('should keep unmapped CC values within 0-127', () => {
+      expect(service.unmapCCValue(150, 0, 100)).toBe(127);
+      expect(service.unmapCCValue(-20, 0, 100)).toBe(0);
+      // An empty range would divide by zero (NaN / Infinity)
+      expect(service.unmapCCValue(5, 5, 5)).toBe(0);
+      expect(service.unmapCCValue(6, 5, 5)).toBe(0);
+    });
+
+    it('should name notes below MIDI 0', () => {
+      expect(service.getNoteInfo(-1)).toMatchObject({ name: 'B', octave: -2 });
+      expect(service.getNoteInfo(service.getNoteNumber('C', -2))).toMatchObject({
+        number: -12,
+        name: 'C',
+        octave: -2,
+      });
     });
 
     it('should export mappings to JSON', () => {

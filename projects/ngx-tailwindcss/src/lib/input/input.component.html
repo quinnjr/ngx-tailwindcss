@@ -5,7 +5,7 @@
   >
     {{ label() }}
     @if (required()) {
-      <span class="text-rose-500 ml-0.5">*</span>
+      <span class="text-rose-600 dark:text-rose-400 ml-0.5">*</span>
     }
   </label>
 }
@@ -25,7 +25,7 @@
     [readonly]="readonly()"
     [required]="required()"
     [attr.aria-invalid]="hasError()"
-    [attr.aria-describedby]="describedBy() || null"
+    [attr.aria-describedby]="ariaDescribedBy()"
     [attr.autocomplete]="autocomplete() || null"
     [attr.inputmode]="inputmode() || null"
     [attr.pattern]="pattern() || null"
@@ -47,7 +47,7 @@
   @if (clearable() && value() && !_disabled() && !readonly()) {
     <button
       type="button"
-      class="flex items-center justify-center w-5 h-5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+      class="flex items-center justify-center w-5 h-5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
       (click)="clear()"
       aria-label="Clear input"
     >
@@ -59,11 +59,18 @@
 </div>
 
 @if (hint() && !error()) {
-  <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{ hint() }}</span>
+  <span [id]="hintId()" class="block text-xs text-slate-500 dark:text-slate-400 mt-1.5">{{
+    hint()
+  }}</span>
 }
 
 @if (error()) {
-  <span class="block text-xs text-rose-600 mt-1.5" role="alert">{{ error() }}</span>
+  <span
+    [id]="errorId()"
+    class="block text-xs text-rose-600 dark:text-rose-400 mt-1.5"
+    role="alert"
+    >{{ error() }}</span
+  >
 }
 
 <ng-content select="tw-hint, [twHint], tw-error, [twError]"></ng-content>

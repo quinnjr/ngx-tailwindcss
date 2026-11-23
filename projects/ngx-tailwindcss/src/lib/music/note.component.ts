@@ -2,10 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
+import { type ClefType, getKeySignatureAlteration, type KeySignature } from './staff.component';
 
 export type NoteDuration = 'whole' | 'half' | 'quarter' | 'eighth' | 'sixteenth' | 'thirtysecond';
 export type NoteAccidental = 'sharp' | 'flat' | 'natural' | 'doubleSharp' | 'doubleFlat' | null;
@@ -34,13 +37,161 @@ export interface NoteData {
   name: NoteName;
   octave: number;
   duration: NoteDuration;
+  /**
+   * The accidental *written* in front of the note, following standard notation: when absent
+   * (null/undefined) the note takes its pitch from the key signature and from any accidental
+   * written earlier in the same measure on the same staff position (letter + octave). E.g. in
+   * G major an F with no accidental sounds F#; write `'natural'` for F natural.
+   * Rendering, playback/export (MIDI, MusicXML `<alter>`) and transposition all resolve
+   * pitches this way; use {@link createAccidentalContext} to do the same.
+   */
   accidental?: NoteAccidental;
+  /** A rest of `duration`; name/octave only set where it is drawn, accidental is ignored */
+  isRest?: boolean;
   dotted?: boolean;
   doubleDotted?: boolean;
   tied?: boolean;
   stemDirection?: StemDirection;
   tuplet?: TupletConfig;
   beam?: BeamConfig;
+}
+
+/** Note name/octave on the middle staff line of each clef (where rests are drawn) */
+export const CLEF_MIDDLE_LINE_NOTE: Record<ClefType, { name: NoteName; octave: number }> = {
+  treble: { name: 'B', octave: 4 },
+  bass: { name: 'D', octave: 3 },
+  alto: { name: 'C', octave: 4 },
+  tenor: { name: 'A', octave: 3 },
+  percussion: { name: 'B', octave: 4 },
+};
+
+/** Semitone alteration of each written accidental */
+export const ACCIDENTAL_ALTERATION: Record<Exclude<NoteAccidental, null>, number> = {
+  sharp: 1,
+  flat: -1,
+  natural: 0,
+  doubleSharp: 2,
+  doubleFlat: -2,
+};
+
+/**
+ * Resolves written accidentals (see {@link NoteData.accidental}) to sounding alterations for
+ * one staff. Feed it the notes of each measure in time order and call `nextMeasure()` at
+ * every bar line.
+ */
+export interface AccidentalContext {
+  /**
+   * Sounding alteration in semitones (-2..2) of a written note. An explicit accidental is
+   * remembered for the rest of the measure. Rests resolve to 0 and change nothing.
+   */
+  resolve(note: Pick<NoteData, 'name' | 'octave' | 'accidental' | 'isRest'>): number;
+  /**
+   * The accidental to write for a note that should sound with `alteration`: null when the
+   * key signature / earlier accidentals already imply it. The result is remembered like
+   * `resolve()` does.
+   */
+  spell(name: NoteName, octave: number, alteration: number): NoteAccidental;
+  /** Start a new measure (accidentals from the previous one no longer apply) */
+  nextMeasure(): void;
+}
+
+/** Written accidental for a semitone alteration (-2..2) */
+export const ACCIDENTAL_FOR_ALTERATION: Record<number, Exclude<NoteAccidental, null>> = {
+  [-2]: 'doubleFlat',
+  [-1]: 'flat',
+  0: 'natural',
+  1: 'sharp',
+  2: 'doubleSharp',
+};
+
+export function createAccidentalContext(keySignature: KeySignature): AccidentalContext {
+  const measureAccidentals = new Map<string, number>();
+  const implied = (name: NoteName, octave: number): number =>
+    measureAccidentals.get(`${name}${octave}`) ?? getKeySignatureAlteration(keySignature, name);
+
+  return {
+    resolve(note) {
+      if (note.isRest) return 0;
+      if (note.accidental) {
+        const alteration = ACCIDENTAL_ALTERATION[note.accidental];
+        measureAccidentals.set(`${note.name}${note.octave}`, alteration);
+        return alteration;
+      }
+      return implied(note.name, note.octave);
+    },
+    spell(name, octave, alteration) {
+      if (implied(name, octave) === alteration) return null;
+      measureAccidentals.set(`${name}${octave}`, alteration);
+      return ACCIDENTAL_FOR_ALTERATION[alteration] ?? null;
+    },
+    nextMeasure() {
+      measureAccidentals.clear();
+    },
+  };
+}
+
+const NATURAL_PITCH_CLASS: Record<NoteName, number> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+};
+const SHARP_SPELLINGS: Array<[NoteName, number]> = [
+  ['C', 0],
+  ['C', 1],
+  ['D', 0],
+  ['D', 1],
+  ['E', 0],
+  ['F', 0],
+  ['F', 1],
+  ['G', 0],
+  ['G', 1],
+  ['A', 0],
+  ['A', 1],
+  ['B', 0],
+];
+const FLAT_SPELLINGS: Array<[NoteName, number]> = [
+  ['C', 0],
+  ['D', -1],
+  ['D', 0],
+  ['E', -1],
+  ['E', 0],
+  ['F', 0],
+  ['G', -1],
+  ['G', 0],
+  ['A', -1],
+  ['A', 0],
+  ['B', -1],
+  ['B', 0],
+];
+
+/**
+ * Spell a MIDI pitch as a letter, octave and sounding alteration. The key signature's own
+ * letters are used when the pitch belongs to the key (F# in G major, Cb in Gb major);
+ * otherwise `preferFlats` (default: whether the key has flats) chooses sharps or flats.
+ */
+export function spellMidiPitch(
+  midi: number,
+  keySignature: KeySignature = 'C',
+  preferFlats?: boolean
+): { name: NoteName; octave: number; alteration: number } {
+  const pitchClass = ((midi % 12) + 12) % 12;
+  const names = Object.keys(NATURAL_PITCH_CLASS) as NoteName[];
+  const keyLetter = names.find(
+    n =>
+      (((NATURAL_PITCH_CLASS[n] + getKeySignatureAlteration(keySignature, n)) % 12) + 12) % 12 ===
+      pitchClass
+  );
+  const useFlats = preferFlats ?? names.some(n => getKeySignatureAlteration(keySignature, n) < 0);
+  const [name, alteration] = keyLetter
+    ? [keyLetter, getKeySignatureAlteration(keySignature, keyLetter)]
+    : (useFlats ? FLAT_SPELLINGS : SHARP_SPELLINGS)[pitchClass];
+  // Octave of the written letter (Cb5 sounds as B4, B#3 as C4)
+  const octave = Math.floor((midi - NATURAL_PITCH_CLASS[name] - alteration) / 12) - 1;
+  return { name, octave, alteration };
 }
 
 // Unicode musical symbols
@@ -82,8 +233,20 @@ const NOTE_POSITIONS: Record<NoteName, number> = {
   B: 6,
 };
 
+// Diatonic steps to add so that the clef's bottom-line note lands on position 0
+// (treble: E4, bass: G2, alto: F3, tenor: D3)
+const CLEF_POSITION_OFFSETS: Record<ClefType, number> = {
+  treble: 0,
+  bass: 12,
+  alto: 6,
+  tenor: 8,
+  percussion: 0,
+};
+
 @Component({
-  selector: 'tw-note',
+  // Inside an <svg> (e.g. projected into tw-staff) use the attribute form on an SVG group,
+  // <svg:g twNote ...>: an unknown <tw-note> element there is not rendered by browsers.
+  selector: 'tw-note, g[twNote]',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './note.component.html',
@@ -93,6 +256,8 @@ const NOTE_POSITIONS: Record<NoteName, number> = {
   },
 })
 export class TwNoteComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Note properties
   readonly name = input<NoteName>('C');
   readonly octave = input(4, { transform: numberAttribute });
@@ -101,6 +266,7 @@ export class TwNoteComponent {
   readonly dotted = input(false);
   readonly doubleDotted = input(false);
   readonly isRest = input(false);
+  readonly clef = input<ClefType>('treble');
 
   // Display options
   readonly stemDirection = input<StemDirection>('auto');
@@ -112,6 +278,11 @@ export class TwNoteComponent {
   readonly highlighted = input(false);
   readonly color = input<string>('#1E293B');
   readonly highlightColor = input<string>('#3B82F6');
+  /**
+   * Draw a ring around the note while its host is keyboard-focused. For a host the parent
+   * makes focusable (tabindex) and marks with the Tailwind `group/note` class.
+   */
+  readonly focusRing = input(false);
   readonly size = input(24, { transform: numberAttribute }); // Note head size
   readonly lineSpacing = input(10, { transform: numberAttribute });
 
@@ -152,7 +323,7 @@ export class TwNoteComponent {
 
     // Position 0 = E4 (bottom line), positive = up, negative = down
     // Treble staff: E4=0, G4=2, B4=4 (lines), F4=1, A4=3, C5=5, D5=6, E5=7 (top line)
-    const position = basePosition + octaveOffset - 2; // Adjust so E4 = 0
+    const position = basePosition + octaveOffset - 2 + CLEF_POSITION_OFFSETS[this.clef()]; // Adjust so E4 = 0
 
     // Y increases downward, so higher positions = lower Y
     return staffTop + (4 - position / 2) * spacing;
@@ -178,28 +349,17 @@ export class TwNoteComponent {
     const bottomLine = staffTop + spacing * 4;
 
     const lines: number[] = [];
+    // Tolerance for floating point drift when stepping by line spacing
+    const epsilon = spacing / 4;
 
-    // Lines above staff
-    if (y < staffTop - spacing) {
-      for (let lineY = staffTop - spacing; lineY >= y; lineY -= spacing) {
-        lines.push(lineY);
-      }
+    // Lines above staff (A5 and higher in treble clef)
+    for (let lineY = staffTop - spacing; lineY >= y - epsilon; lineY -= spacing) {
+      lines.push(lineY);
     }
 
-    // Lines below staff
-    if (y > bottomLine + spacing) {
-      for (let lineY = bottomLine + spacing; lineY <= y; lineY += spacing) {
-        lines.push(lineY);
-      }
-    }
-
-    // Line at middle C (between staffs)
-    if (
-      y >= bottomLine &&
-      y <= bottomLine + spacing &&
-      Math.abs(y - bottomLine - spacing / 2) < 2
-    ) {
-      lines.push(bottomLine + spacing);
+    // Lines below staff (C4 and lower in treble clef)
+    for (let lineY = bottomLine + spacing; lineY <= y + epsilon; lineY += spacing) {
+      lines.push(lineY);
     }
 
     return lines;
@@ -270,7 +430,7 @@ export class TwNoteComponent {
 
   protected readonly containerClasses = computed(() => {
     const base = 'relative';
-    return [base, this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, this.classOverride());
   });
 
   // Helper to get dot positions
@@ -279,11 +439,11 @@ export class TwNoteComponent {
     const x = this.x();
     const size = this.size();
 
-    if (this.dotted()) {
+    // A double-dotted note may also have `dotted` set; draw each dot only once
+    if (this.dotted() || this.doubleDotted()) {
       dots.push(x + size * 0.7);
     }
     if (this.doubleDotted()) {
-      dots.push(x + size * 0.7);
       dots.push(x + size);
     }
     return dots;

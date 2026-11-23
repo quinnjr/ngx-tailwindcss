@@ -81,8 +81,28 @@ describe('TwBadgeComponent', () => {
       component.variant.set('success');
       fixture.detectChanges();
 
-      expect(badgeEl.className).toContain('bg-emerald-600');
+      expect(badgeEl.className).toContain('bg-emerald-700');
       expect(badgeEl.className).not.toContain('bg-slate-200');
+    });
+
+    it('should use AA-contrast text on solid warning, success and info badges', () => {
+      component.variant.set('warning');
+      fixture.detectChanges();
+      // white on amber-500 is ~2.2:1
+      expect(badgeEl.className).toContain('text-amber-950');
+      expect(badgeEl.className).not.toContain('text-white');
+
+      component.variant.set('info');
+      fixture.detectChanges();
+      expect(badgeEl.className).toContain('bg-cyan-700');
+    });
+
+    it('should use AA-contrast text on outline warning badges', () => {
+      component.badgeStyle.set('outline');
+      component.variant.set('warning');
+      fixture.detectChanges();
+      expect(badgeEl.className).toContain('text-amber-700');
+      expect(badgeEl.className).not.toContain('text-amber-600');
     });
   });
 
@@ -255,5 +275,26 @@ describe('TwBadgeGroupComponent', () => {
     it('should apply flex-wrap', () => {
       expect(groupEl.className).toContain('flex-wrap');
     });
+  });
+});
+
+describe('TwBadgeComponent class attribute', () => {
+  @Component({
+    template: `<tw-badge class="bg-sky-100 text-sky-800 mt-1">Static</tw-badge>`,
+    standalone: true,
+    imports: [TwBadgeComponent],
+  })
+  class ClassHostComponent {}
+
+  it('lets a static class override the conflicting variant colours', async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+    const badge = fixture.debugElement.query(By.css('tw-badge')).nativeElement as HTMLElement;
+    expect(badge.classList).toContain('bg-sky-100');
+    expect(badge.classList).toContain('text-sky-800');
+    expect(badge.classList).toContain('mt-1');
+    expect(badge.classList).not.toContain('bg-slate-200');
+    expect(badge.classList).not.toContain('text-slate-800');
   });
 });

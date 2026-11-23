@@ -11,7 +11,10 @@ import {
   PLATFORM_ID,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
+import { pushEscapeLayer, removeEscapeLayer, shouldHandleEscape } from './escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from './scroll-lock';
 
 export type OverlayBlur = 'none' | 'sm' | 'md' | 'lg';
 export type OverlayOpacity = 'light' | 'medium' | 'dark' | 'solid';
@@ -98,44 +101,50 @@ export class TwOverlayComponent implements OnDestroy {
   readonly zIndex = input(50);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   /** Emits when overlay should close */
   readonly close = output();
 
-  private previousOverflow = '';
-  private scrollLocked = false;
-
   constructor() {
+    // Visible overlays join the shared layer stack; only the topmost reacts to Escape
+    effect(() => {
+      if (this.visible()) {
+        pushEscapeLayer(this);
+      } else {
+        removeEscapeLayer(this);
+      }
+    });
+
     // Lock/unlock body scroll while visible when lockScroll is enabled
     effect(() => {
       const shouldLock = this.visible() && this.lockScroll();
 
       if (!isPlatformBrowser(this.platformId)) return;
 
-      if (shouldLock && !this.scrollLocked) {
-        this.previousOverflow = this.document.body.style.overflow;
-        this.document.body.style.overflow = 'hidden';
-        this.scrollLocked = true;
-      } else if (!shouldLock && this.scrollLocked) {
-        this.document.body.style.overflow = this.previousOverflow;
-        this.scrollLocked = false;
+      // Shared with other modal layers: the page unlocks once the last of them closes
+      if (shouldLock) {
+        lockBodyScroll(this.document, this);
+      } else {
+        unlockBodyScroll(this.document, this);
       }
     });
   }
 
   ngOnDestroy(): void {
-    if (this.scrollLocked && isPlatformBrowser(this.platformId)) {
-      this.document.body.style.overflow = this.previousOverflow;
-      this.scrollLocked = false;
+    removeEscapeLayer(this);
+    if (isPlatformBrowser(this.platformId)) {
+      unlockBodyScroll(this.document, this);
     }
   }
 
-  @HostListener('document:keydown.escape')
-  onEscapeKey(): void {
-    if (this.visible() && this.closeOnEscape()) {
-      this.close.emit();
-    }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(event?: Event): void {
+    if (!this.visible() || !this.closeOnEscape()) return;
+    // Only the topmost open layer closes, and not when content inside already handled it
+    if (event && !shouldHandleEscape(this, event)) return;
+    event?.preventDefault();
+    this.close.emit();
   }
 
   protected readonly overlayClasses = computed(() => {
@@ -149,8 +158,19 @@ export class TwOverlayComponent implements OnDestroy {
     );
   });
 
+  /** Whether the current pointer press started on the overlay itself (not its content) */
+  private pointerDownOnOverlay = false;
+
+  protected onOverlayPointerDown(event: Event): void {
+    this.pointerDownOnOverlay = event.target === event.currentTarget;
+  }
+
   protected onOverlayClick(event: MouseEvent): void {
-    if (this.closeOnClick() && event.target === event.currentTarget) {
+    const startedOnOverlay = this.pointerDownOnOverlay;
+    this.pointerDownOnOverlay = false;
+    // A press inside the content released over the overlay dispatches its click on
+    // the overlay (the common ancestor): only close when both ends hit the overlay
+    if (this.closeOnClick() && startedOnOverlay && event.target === event.currentTarget) {
       this.close.emit();
     }
   }

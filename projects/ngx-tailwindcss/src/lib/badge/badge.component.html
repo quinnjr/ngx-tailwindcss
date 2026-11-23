@@ -7,7 +7,7 @@
 @if (_removable()) {
   <button
     type="button"
-    class="ml-1 -mr-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-black/10 focus:outline-none transition-colors"
+    class="ml-1 -mr-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-current transition-colors"
     (click)="onRemoveClick($event)"
     aria-label="Remove"
   >

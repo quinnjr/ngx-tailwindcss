@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type ColumnsCount = 1 | 2 | 3 | 4 | 5 | 6 | 'auto';
 export type ColumnsGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -110,13 +111,11 @@ const TAILWIND_COLOR_TOKEN = /^[a-z]+-\d{2,3}$/;
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './columns.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'columnsClasses()',
+    '[style]': 'columnsStyles()',
+  },
 })
 export class TwColumnsComponent {
   private readonly twClass = inject(TwClassService);
@@ -152,10 +151,10 @@ export class TwColumnsComponent {
   readonly avoidBreak = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly columnsClasses = computed(() => {
-    const classes = [COLUMNS_CLASSES[String(this.count())], GAP_CLASSES[this.gap()]];
+    const classes = ['block', COLUMNS_CLASSES[String(this.count())], GAP_CLASSES[this.gap()]];
 
     // Responsive columns
     const countSm = this.countSm();

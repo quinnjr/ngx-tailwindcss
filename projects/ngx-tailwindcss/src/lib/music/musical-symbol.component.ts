@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 // ==================== TYPES ====================
 
@@ -128,10 +130,12 @@ const ARTICULATION_SYMBOLS: Record<
 
 const ORNAMENT_SYMBOLS: Record<OrnamentType, { symbol: string; text?: string }> = {
   trill: { symbol: 'tr', text: 'tr' },
-  mordent: { symbol: '𝆖' },
-  invertedMordent: { symbol: '𝆗' },
-  turn: { symbol: '𝆗' },
-  invertedTurn: { symbol: '𝆘' },
+  // Unicode has no single mordent code points; fall back to a wavy line (with a vertical
+  // stroke for the lower mordent). U+1D196 is 'tr', U+1D197 TURN, U+1D198 INVERTED TURN.
+  mordent: { symbol: '∿⃒' },
+  invertedMordent: { symbol: '∿' },
+  turn: { symbol: '\u{1D197}' },
+  invertedTurn: { symbol: '\u{1D198}' },
   shake: { symbol: '~' },
   graceNote: { symbol: '♪' },
   appoggiatura: { symbol: '♪' },
@@ -188,6 +192,8 @@ const PEDAL_SYMBOLS: Record<PedalType, { symbol?: string; text?: string }> = {
   },
 })
 export class TwMusicalSymbolComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Symbol type inputs
   readonly category = input<SymbolCategory>('dynamic');
   readonly dynamic = input<DynamicType | null>(null);
@@ -329,7 +335,7 @@ export class TwMusicalSymbolComponent {
 
   protected readonly containerClasses = computed(() => {
     const base = 'relative';
-    return [base, this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, this.classOverride());
   });
 
   // SVG dimensions for container

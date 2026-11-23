@@ -216,6 +216,7 @@ describe('TwMultiSelectComponent', () => {
 
     it('should move the active option with arrows and expose aria-activedescendant', () => {
       keydown('ArrowDown');
+      keydown('ArrowDown'); // Select All row
       keydown('ArrowDown');
 
       const activeId = trigger.getAttribute('aria-activedescendant');
@@ -235,10 +236,45 @@ describe('TwMultiSelectComponent', () => {
 
     it('should toggle the active option with Enter', () => {
       keydown('ArrowDown');
+      keydown('ArrowDown'); // Select All row
       keydown('ArrowDown');
       keydown('Enter');
 
       expect(component.lastSelection).toEqual(['apple']);
+    });
+
+    it('should reach and toggle the Select All row from the keyboard', () => {
+      keydown('ArrowDown');
+      keydown('ArrowDown');
+
+      const selectAll = selectAllEl()!;
+      expect(selectAll.id).toBeTruthy();
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+
+      keydown('Enter');
+      expect(component.lastSelection).toEqual(['apple', 'banana', 'cherry']);
+      expect(selectAll.getAttribute('aria-selected')).toBe('true');
+
+      keydown(' ');
+      expect(component.lastSelection).toEqual([]);
+      expect(selectAll.getAttribute('aria-selected')).toBe('false');
+
+      // Wraps from the first option back up to Select All, and Home lands on it
+      keydown('ArrowDown');
+      keydown('ArrowUp');
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+      keydown('End');
+      keydown('Home');
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+    });
+
+    it('should skip the Select All row when it is hidden', () => {
+      component.showSelectAll.set(false);
+      fixture.detectChanges();
+      keydown('ArrowDown');
+      keydown('ArrowDown');
+
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(optionEls()[0].id);
     });
 
     it('should close on Escape', () => {
@@ -295,5 +331,497 @@ describe('TwMultiSelectComponent', () => {
 
       expect(optionEls()[1].getAttribute('aria-disabled')).toBe('true');
     });
+  });
+});
+
+@Component({
+  template: `<tw-multiselect
+    label="Fruits"
+    [options]="options"
+    [formControl]="control"
+  ></tw-multiselect>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class DisabledReactiveHostComponent {
+  options: MultiSelectOption[] = [{ label: 'Apple', value: 'apple' }];
+  control = new FormControl<unknown[]>({ value: [], disabled: true });
+}
+
+describe('TwMultiSelectComponent (regressions)', () => {
+  it('should honor a FormControl that starts disabled', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.disabled).toBe(true);
+
+    fixture.componentInstance.control.enable();
+    fixture.detectChanges();
+    expect(trigger.disabled).toBe(false);
+  });
+
+  it('should associate the label with the trigger button', () => {
+    const fixture = TestBed.createComponent(DisabledReactiveHostComponent);
+    fixture.detectChanges();
+    const label: HTMLLabelElement = fixture.nativeElement.querySelector('label');
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.id).toBeTruthy();
+    expect(label.htmlFor).toBe(trigger.id);
+  });
+});
+
+@Component({
+  template: `<tw-multiselect [options]="options" [formControl]="control"></tw-multiselect>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class ClearButtonHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  control = new FormControl<unknown[]>(['apple']);
+}
+
+describe('TwMultiSelectComponent clear button', () => {
+  it('should not nest the clear button inside the trigger button', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    expect(clear).toBeTruthy();
+    expect(clear.parentElement?.closest('button')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('button button').length).toBe(0);
+  });
+
+  it('should render the clear icon and chevron with >=3:1 contrast colours', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const clear: HTMLElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    const chevron = fixture.nativeElement.querySelector('[aria-haspopup] svg') as SVGElement;
+    for (const cls of [clear.className, chevron.getAttribute('class') ?? '']) {
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+    }
+  });
+
+  it('should clear the selection without opening the dropdown and refocus the trigger', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    clear.focus();
+    clear.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+    fixture.nativeElement.remove();
+  });
+
+  it('should not hijack Enter pressed on the clear button while an option is active', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    clear.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(fixture.componentInstance.control.value).toEqual(['apple']);
+  });
+});
+
+describe('TwMultiSelectComponent (round 3)', () => {
+  it('should claim Escape while open so enclosing overlays stay open', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    trigger.dispatchEvent(event);
+    fixture.detectChanges();
+    expect(event.defaultPrevented).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+
+    const closedEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    trigger.dispatchEvent(closedEvent);
+    expect(closedEvent.defaultPrevented).toBe(false);
+  });
+});
+
+@Component({
+  template: `
+    <form (submit)="submitted = true; $event.preventDefault()">
+      <tw-multiselect [options]="options" [filter]="true"></tw-multiselect>
+      <button type="submit">Save</button>
+    </form>
+  `,
+  standalone: true,
+  imports: [TwMultiSelectComponent],
+})
+class FilterInFormHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  submitted = false;
+}
+
+describe('TwMultiSelectComponent (round 4)', () => {
+  it('should not let Enter in the filter input submit the enclosing form', () => {
+    const fixture = TestBed.createComponent(FilterInFormHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const filterInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[aria-label="Search options"]'
+    );
+    // No active option yet: Enter has nothing to toggle
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    filterInput.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+@Component({
+  template: ` <tw-multiselect [options]="options" [formControl]="control"></tw-multiselect> `,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class LockedSelectionHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana', disabled: true },
+    { label: 'Cherry', value: 'cherry' },
+  ];
+  control = new FormControl<unknown[]>(['banana']);
+}
+
+describe('TwMultiSelectComponent (round 5)', () => {
+  it('should keep selections on disabled options when using Select All', () => {
+    const fixture = TestBed.createComponent(LockedSelectionHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const selectAll = [...fixture.nativeElement.querySelectorAll('[role="option"]')].find(
+      (el: HTMLElement) => el.textContent?.includes('Select All')
+    ) as HTMLElement;
+
+    selectAll.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual(['banana', 'apple', 'cherry']);
+
+    selectAll.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual(['banana']);
+  });
+});
+
+@Component({
+  template: `
+    <tw-multiselect
+      [options]="options"
+      [formControl]="control"
+      [maxSelections]="2"
+    ></tw-multiselect>
+  `,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class LockedSelectionMaxHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana', disabled: true },
+    { label: 'Cherry', value: 'cherry' },
+  ];
+  control = new FormControl<unknown[]>(['banana']);
+}
+
+describe('TwMultiSelectComponent (round 6)', () => {
+  it('should count locked selections toward maxSelections for Select All', () => {
+    const fixture = TestBed.createComponent(LockedSelectionMaxHostComponent);
+    fixture.detectChanges();
+    const multiselect = fixture.debugElement.children[0]
+      .componentInstance as TwMultiSelectComponent;
+
+    // Only one enabled option fits next to the locked selection, so Select All is hidden
+    fixture.nativeElement.querySelector('[aria-haspopup]').click();
+    fixture.detectChanges();
+    const selectAll = [...fixture.nativeElement.querySelectorAll('[role="option"]')].find(
+      (el: HTMLElement) => el.textContent?.includes('Select All')
+    );
+    expect(selectAll).toBeUndefined();
+
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual(['banana', 'apple']);
+    expect(multiselect.isAllSelected()).toBe(true);
+
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual(['banana']);
+  });
+});
+
+@Component({
+  template: ` <tw-multiselect [options]="options" variant="filled"></tw-multiselect> `,
+  standalone: true,
+  imports: [TwMultiSelectComponent],
+})
+class FilledHostComponent {
+  options: MultiSelectOption[] = [{ label: 'Apple', value: 'apple' }];
+}
+
+describe('TwMultiSelectComponent (round 12)', () => {
+  it('should set a readable text colour on the filled trigger', () => {
+    const fixture = TestBed.createComponent(FilledHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    expect(trigger.className).toContain('bg-slate-100');
+    expect(trigger.className).toContain('text-slate-900');
+    expect(trigger.className).toContain('dark:text-slate-100');
+  });
+});
+
+describe('TwMultiSelectComponent (round 16)', () => {
+  it('should show the filter input focus border in dark mode', () => {
+    const fixture = TestBed.createComponent(FilterInFormHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const filterInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[aria-label="Search options"]'
+    );
+    // `dark:border-slate-600` would otherwise beat `focus:border-blue-500` in dark mode
+    expect(filterInput.className).toContain('dark:focus:border-blue-500');
+  });
+});
+
+describe('TwMultiSelectComponent (round 19)', () => {
+  it('should close the dropdown when focus moves outside the component', () => {
+    const fixture = TestBed.createComponent(FilledHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    // Clicks on non-focusable options blur to nothing: the dropdown stays open
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    outside.remove();
+  });
+});
+
+describe('TwMultiSelectComponent (round 21)', () => {
+  it('should expose the trigger as a combobox so aria-activedescendant is announced', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.getAttribute('role')).toBe('combobox');
+    // Unlabelled: named by its displayed value text
+    const labelledBy = trigger.getAttribute('aria-labelledby');
+    expect(trigger.querySelector(`[id="${labelledBy}"]`)?.textContent?.trim()).toBe(
+      'Select options'
+    );
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`[id="${activeId}"]`)?.getAttribute('role')).toBe(
+      'option'
+    );
+  });
+});
+
+@Component({
+  template: ` <tw-multiselect [options]="options" [formControl]="control"></tw-multiselect>
+    <button id="outside" type="button">Outside</button>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class BlurUpdateHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  control = new FormControl<unknown[]>([], { updateOn: 'blur' });
+}
+
+describe('TwMultiSelectComponent (round 22)', () => {
+  it('should commit updateOn blur values when focus leaves the component', () => {
+    const fixture = TestBed.createComponent(BlurUpdateHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('[role="option"]:not(.border-b)') as HTMLElement).click();
+    fixture.detectChanges();
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+
+    const outside = fixture.nativeElement.querySelector('#outside');
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    expect(fixture.componentInstance.control.value).toEqual(['apple']);
+    expect(fixture.componentInstance.control.touched).toBe(true);
+  });
+});
+
+describe('TwMultiSelectComponent (round 25)', () => {
+  it('should scroll the keyboard-active option into view', () => {
+    const scrolled: string[] = [];
+    const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id);
+    };
+    try {
+      const fixture = TestBed.createComponent(TestHostComponent);
+      fixture.detectChanges();
+      const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+      const press = (key: string): void => {
+        trigger.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+        );
+        fixture.detectChanges();
+      };
+
+      press('ArrowDown'); // opens
+      press('End');
+      const activeId = trigger.getAttribute('aria-activedescendant');
+      expect(activeId).toBeTruthy();
+      expect(scrolled.at(-1)).toBe(activeId);
+    } finally {
+      if (original) {
+        Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+      } else {
+        delete (Element.prototype as Partial<Element>).scrollIntoView;
+      }
+    }
+  });
+});
+
+describe('TwMultiSelectComponent (round 28)', () => {
+  it('should not emit both the selected and the active background on one option', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const press = (key: string): void => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+
+    press('ArrowDown'); // opens
+    press('End');
+    press('Enter'); // selects the active (last) option
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    const option: HTMLElement = fixture.nativeElement.querySelector(`[id="${activeId}"]`);
+    expect(option.getAttribute('aria-selected')).toBe('true');
+    expect(option.classList).toContain('bg-slate-100');
+    expect(option.classList).toContain('dark:bg-slate-700');
+    expect(option.classList).not.toContain('bg-blue-50');
+    expect(option.classList).not.toContain('dark:bg-blue-900/30');
+
+    press('ArrowUp'); // selected option is no longer active
+    expect(option.classList).toContain('bg-blue-50');
+    expect(option.classList).toContain('dark:bg-blue-900/30');
+    expect(option.classList).not.toContain('bg-slate-100');
+  });
+});
+
+describe('TwMultiSelectComponent (round 30)', () => {
+  it('should cancel mousedown on options and Select All so clicking keeps focus', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.focus();
+    trigger.click();
+    fixture.detectChanges();
+
+    const rows: HTMLElement[] = [...fixture.nativeElement.querySelectorAll('[role="option"]')];
+    expect(rows.length).toBe(4); // Select All + 3 options
+    for (const row of rows) {
+      const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      row.dispatchEvent(mousedown);
+      expect(mousedown.defaultPrevented).toBe(true);
+    }
+
+    rows[1].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.lastSelection).toEqual(['apple']);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
+describe('TwMultiSelectComponent (round 32)', () => {
+  it('should close the dropdown when the form control is disabled while it is open', () => {
+    const fixture = TestBed.createComponent(ReactiveHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('[role="option"]').length).toBeGreaterThan(0);
+
+    fixture.componentInstance.control.disable();
+    fixture.detectChanges();
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('[role="option"]')).toBeNull();
+    const multiselect = fixture.debugElement.query(By.directive(TwMultiSelectComponent))
+      .componentInstance as TwMultiSelectComponent;
+    multiselect.toggleOption({ label: 'Apple', value: 'apple' });
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+  });
+});
+
+describe('TwMultiSelectComponent (round 33)', () => {
+  it('should draw unchecked checkbox borders with at least 3:1 contrast (WCAG 1.4.11)', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+
+    const boxes: HTMLElement[] = [
+      ...fixture.nativeElement.querySelectorAll('[role="option"] > div.border-2'),
+    ];
+    expect(boxes.length).toBe(4); // Select All + 3 options
+    for (const box of boxes) {
+      expect(box.classList).toContain('border-slate-500');
+      expect(box.classList).toContain('dark:border-slate-400');
+      expect(box.classList).not.toContain('border-slate-300');
+      expect(box.classList).not.toContain('dark:border-slate-500');
+    }
   });
 });

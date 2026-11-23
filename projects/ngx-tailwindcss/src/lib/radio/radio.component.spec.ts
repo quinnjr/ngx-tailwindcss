@@ -220,7 +220,7 @@ describe('TwRadioButtonComponent', () => {
       component.variant.set('warning');
       fixture.detectChanges();
       const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
-      expect(radioInput.nativeElement.className).toContain('text-amber-500');
+      expect(radioInput.nativeElement.className).toContain('text-amber-600');
     });
 
     it('should apply danger variant', () => {
@@ -228,6 +228,23 @@ describe('TwRadioButtonComponent', () => {
       fixture.detectChanges();
       const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
       expect(radioInput.nativeElement.className).toContain('text-rose-600');
+    });
+
+    it('should colour the native radio via accent-color for every variant', () => {
+      // A native radio ignores `color`; only `accent-color` tints the selected dot
+      const expected = {
+        primary: 'accent-blue-600',
+        secondary: 'accent-slate-600',
+        success: 'accent-emerald-600',
+        warning: 'accent-amber-600',
+        danger: 'accent-rose-600',
+      } as const;
+      for (const [variant, cls] of Object.entries(expected)) {
+        component.variant.set(variant as RadioVariant);
+        fixture.detectChanges();
+        const radioInput = fixture.debugElement.query(By.css('input[type="radio"]'));
+        expect(radioInput.nativeElement.className).toContain(cls);
+      }
     });
   });
 
@@ -344,5 +361,124 @@ describe('TwRadioGroupComponent with FormControl', () => {
     radioInputs.forEach(radio => {
       expect(radio.nativeElement.disabled).toBe(true);
     });
+  });
+});
+
+@Component({
+  template: `
+    <tw-radio-group [formControl]="control">
+      <div><tw-radio-button value="a" label="A"></tw-radio-button></div>
+      <div><tw-radio-button value="b" label="B"></tw-radio-button></div>
+    </tw-radio-group>
+  `,
+  standalone: true,
+  imports: [TwRadioGroupComponent, TwRadioButtonComponent, ReactiveFormsModule],
+})
+class WrappedRadioHostComponent {
+  control = new FormControl('a');
+}
+
+describe('TwRadioGroupComponent (regressions)', () => {
+  it('should manage radio buttons nested inside wrapper elements', () => {
+    const fixture = TestBed.createComponent(WrappedRadioHostComponent);
+    fixture.detectChanges();
+    const inputs: HTMLInputElement[] = [
+      ...fixture.nativeElement.querySelectorAll('input[type="radio"]'),
+    ];
+    expect(inputs[0].checked).toBe(true);
+    expect(inputs[0].name).toBeTruthy();
+    expect(inputs[0].name).toBe(inputs[1].name);
+
+    inputs[1].click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toBe('b');
+  });
+});
+
+@Component({
+  template: `
+    <tw-radio-group [formControl]="outer">
+      <tw-radio-button value="a" label="A"></tw-radio-button>
+      <tw-radio-group [formControl]="inner">
+        <tw-radio-button value="x" label="X"></tw-radio-button>
+        <tw-radio-button value="y" label="Y"></tw-radio-button>
+      </tw-radio-group>
+      <tw-radio-button value="b" label="B"></tw-radio-button>
+    </tw-radio-group>
+  `,
+  standalone: true,
+  imports: [TwRadioGroupComponent, TwRadioButtonComponent, ReactiveFormsModule],
+})
+class NestedGroupsHostComponent {
+  outer = new FormControl('a');
+  inner = new FormControl('y');
+}
+
+describe('TwRadioGroupComponent (nested groups)', () => {
+  it('should not take over radios that belong to a nested radio group', () => {
+    const fixture = TestBed.createComponent(NestedGroupsHostComponent);
+    fixture.detectChanges();
+    const [a, x, y, b]: HTMLInputElement[] = [
+      ...fixture.nativeElement.querySelectorAll('input[type="radio"]'),
+    ];
+    expect(a.name).toBe(b.name);
+    expect(x.name).toBe(y.name);
+    expect(x.name).not.toBe(a.name);
+    expect(a.checked).toBe(true);
+    expect(y.checked).toBe(true);
+
+    x.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.inner.value).toBe('x');
+    expect(fixture.componentInstance.outer.value).toBe('a');
+
+    b.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.outer.value).toBe('b');
+    expect(fixture.componentInstance.inner.value).toBe('x');
+  });
+
+  it('should only mark the group whose own radio lost focus as touched', () => {
+    const fixture = TestBed.createComponent(NestedGroupsHostComponent);
+    fixture.detectChanges();
+    const [a, x]: HTMLInputElement[] = [
+      ...fixture.nativeElement.querySelectorAll('input[type="radio"]'),
+    ];
+    const { outer, inner } = fixture.componentInstance;
+
+    x.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(inner.touched).toBe(true);
+    expect(outer.touched).toBe(false);
+
+    a.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(outer.touched).toBe(true);
+  });
+});
+
+@Component({
+  template: `
+    <h3 id="shipping-heading">Shipping</h3>
+    <tw-radio-group ariaLabelledby="shipping-heading">
+      <tw-radio-button value="a" label="A"></tw-radio-button>
+    </tw-radio-group>
+    <tw-radio-group ariaLabel="Payment">
+      <tw-radio-button value="b" label="B"></tw-radio-button>
+    </tw-radio-group>
+  `,
+  standalone: true,
+  imports: [TwRadioGroupComponent, TwRadioButtonComponent],
+})
+class NamedGroupHostComponent {}
+
+describe('TwRadioGroupComponent (round 21)', () => {
+  it('should give the radiogroup an accessible name', () => {
+    const fixture = TestBed.createComponent(NamedGroupHostComponent);
+    fixture.detectChanges();
+    const groups = [
+      ...fixture.nativeElement.querySelectorAll('[role="radiogroup"]'),
+    ] as HTMLElement[];
+    expect(groups[0].getAttribute('aria-labelledby')).toBe('shipping-heading');
+    expect(groups[0].getAttribute('aria-label')).toBeNull();
+    expect(groups[1].getAttribute('aria-label')).toBe('Payment');
   });
 });

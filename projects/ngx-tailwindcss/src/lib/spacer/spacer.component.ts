@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type SpacerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'auto';
 
@@ -76,20 +77,12 @@ const JUSTIFY_CLASSES: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './spacer.component.html',
   host: {
-    // Reflect the axis onto the host element so `[axis]` property bindings
-    // match the `:host([axis='horizontal'])` style below, not just static usage.
+    // Reflect the axis onto the host element so `[axis]` property bindings are visible in the DOM
     '[attr.axis]': 'axis()',
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'spacerClasses()',
+    'aria-hidden': 'true',
   },
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-      :host([axis='horizontal']) {
-        display: inline-block;
-      }
-    `,
-  ],
 })
 export class TwSpacerComponent {
   private readonly twClass = inject(TwClassService);
@@ -102,15 +95,15 @@ export class TwSpacerComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected spacerClasses = computed(() => {
-    const sizeClass =
-      this.axis() === 'horizontal' ? HORIZONTAL_SIZES[this.size()] : VERTICAL_SIZES[this.size()];
+    const horizontal = this.axis() === 'horizontal';
+    const sizeClass = horizontal ? HORIZONTAL_SIZES[this.size()] : VERTICAL_SIZES[this.size()];
 
-    return this.twClass.merge(sizeClass, this.class());
+    return this.twClass.merge(horizontal ? 'inline-block' : 'block', sizeClass, this.class());
   });
 }
 
@@ -132,13 +125,10 @@ export class TwSpacerComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './wrap.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'wrapClasses()',
+  },
 })
 export class TwWrapComponent {
   private readonly twClass = inject(TwClassService);
@@ -154,9 +144,9 @@ export class TwWrapComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected wrapClasses = computed(() => {
     return this.twClass.merge(

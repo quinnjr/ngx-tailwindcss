@@ -113,6 +113,45 @@ describe('TwAlertComponent', () => {
       expect(alertEl.className).toContain('bg-blue-600');
       expect(alertEl.className).toContain('text-white');
     });
+
+    it('should use dark text on the solid warning alert', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('warning');
+      fixture.detectChanges();
+
+      // white on amber-500 is ~2.2:1
+      expect(alertEl.className).toContain('text-amber-950');
+      expect(alertEl.className).not.toContain('text-white');
+      expect(alertEl.querySelector('[aria-hidden="true"]')?.className).toContain('text-amber-950');
+    });
+
+    it('should use an AA-contrast background on the solid success alert', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('success');
+      fixture.detectChanges();
+      expect(alertEl.className).toContain('bg-emerald-700');
+    });
+
+    it('should ring the solid dismiss button in the text colour (white is ~2.2:1 on amber)', () => {
+      component.alertStyle.set('solid');
+      component.variant.set('warning');
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const btn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      expect(btn.className).toContain('focus-visible:ring-current');
+      expect(btn.className).not.toContain('ring-white');
+    });
+
+    it('should lighten the neutral icon in dark mode (slate-600 on slate-800 is ~1.9:1)', () => {
+      component.variant.set('neutral');
+      for (const style of ['soft', 'outlined', 'accent'] as const) {
+        component.alertStyle.set(style);
+        fixture.detectChanges();
+        expect(alertEl.querySelector('[aria-hidden="true"]')?.className).toContain(
+          'dark:text-slate-400'
+        );
+      }
+    });
   });
 
   describe('icon', () => {
@@ -148,7 +187,7 @@ describe('TwAlertComponent', () => {
       component.dismissible.set(true);
       fixture.detectChanges();
 
-      const dismissBtn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
       dismissBtn.click();
       fixture.detectChanges();
 
@@ -159,11 +198,75 @@ describe('TwAlertComponent', () => {
       component.dismissible.set(true);
       fixture.detectChanges();
 
-      const dismissBtn = alertEl.querySelector('button[aria-label="Dismiss"]')!;
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
       dismissBtn.click();
       fixture.detectChanges();
 
       expect(alertEl.className).toContain('hidden');
+    });
+
+    it('should move focus to the next control instead of losing it when dismissed', () => {
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(after);
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(after);
+      after.remove();
+    });
+
+    it('should skip unrendered controls (closed <details>, display:none) when moving focus', () => {
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const details = document.createElement('details');
+      details.innerHTML = '<summary tabindex="-1">More</summary><button>Inside</button>';
+      const hiddenWrap = document.createElement('div');
+      hiddenWrap.style.display = 'none';
+      hiddenWrap.innerHTML = '<button>Hidden</button>';
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(details, hiddenWrap, after);
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(after);
+      details.remove();
+      hiddenWrap.remove();
+      after.remove();
+    });
+
+    it('should not override focus moved by a (dismiss) handler', () => {
+      const target = document.createElement('button');
+      target.textContent = 'Target';
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(after);
+      document.body.append(target);
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      fixture.debugElement
+        .query(By.directive(TwAlertComponent))
+        .componentInstance.dismiss.subscribe(() => {
+          target.focus();
+        });
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(target);
+      target.remove();
+      after.remove();
     });
   });
 
@@ -262,5 +365,35 @@ describe('Alert sub-components', () => {
       By.directive(TwAlertDescriptionComponent)
     ).nativeElement;
     expect(desc.className).toContain('text-sm');
+  });
+});
+
+describe('TwAlertComponent class attribute', () => {
+  @Component({
+    template: `<tw-alert class="bg-sky-50 text-sky-800 border-sky-200 mb-6" dismissible
+      >Static</tw-alert
+    >`,
+    standalone: true,
+    imports: [TwAlertComponent],
+  })
+  class ClassHostComponent {}
+
+  it('lets a static class override the conflicting variant colours', async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+    const alert = fixture.debugElement.query(By.css('tw-alert')).nativeElement as HTMLElement;
+    expect(alert.classList).toContain('bg-sky-50');
+    expect(alert.classList).toContain('text-sky-800');
+    expect(alert.classList).toContain('border-sky-200');
+    expect(alert.classList).toContain('mb-6');
+    expect(alert.classList).not.toContain('bg-blue-50');
+    expect(alert.classList).not.toContain('text-blue-800');
+    expect(alert.classList).not.toContain('border-blue-200');
+
+    fixture.debugElement.query(By.directive(TwAlertComponent)).componentInstance.dismissAlert();
+    fixture.detectChanges();
+    expect(alert.classList).toContain('hidden');
+    expect(alert.classList).not.toContain('mb-6');
   });
 });

@@ -71,13 +71,13 @@
   description="Square buttons with just an icon."
   [code]="iconOnlyCode">
   <div class="flex flex-wrap items-center gap-3">
-    <tw-button variant="primary" [iconOnly]="true" size="sm">
+    <tw-button variant="primary" [iconOnly]="true" size="sm" aria-label="Add">
       <fa-icon [icon]="icons.plus" twButtonIcon></fa-icon>
     </tw-button>
-    <tw-button variant="secondary" [iconOnly]="true">
+    <tw-button variant="secondary" [iconOnly]="true" aria-label="Like">
       <fa-icon [icon]="icons.heart" twButtonIcon></fa-icon>
     </tw-button>
-    <tw-button variant="ghost" [iconOnly]="true" size="lg">
+    <tw-button variant="ghost" [iconOnly]="true" size="lg" aria-label="Settings">
       <fa-icon [icon]="icons.gear" twButtonIcon></fa-icon>
     </tw-button>
   </div>
@@ -91,6 +91,23 @@
     <tw-button variant="primary" [fullWidth]="true">Full Width Primary</tw-button>
     <tw-button variant="outline" [fullWidth]="true">Full Width Outline</tw-button>
   </div>
+</app-demo-section>
+
+<app-demo-section
+  title="Form Buttons"
+  description="type=&quot;submit&quot; submits and type=&quot;reset&quot; resets the enclosing form (default type is &quot;button&quot;). A submit tw-button also enables implicit submission: pressing Enter in a field submits the form."
+  [code]="formCode">
+  <form class="flex flex-wrap items-center gap-3" (submit)="onFormSubmit($event)">
+    <input
+      name="demo"
+      value="Press Enter here"
+      aria-label="Demo field"
+      class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+    />
+    <tw-button type="submit" variant="primary">Submit</tw-button>
+    <tw-button type="reset" variant="outline">Reset</tw-button>
+    <span class="text-sm text-slate-600 dark:text-slate-400">Submitted {{ submitCount() }} time(s)</span>
+  </form>
 </app-demo-section>
 
 <app-demo-section

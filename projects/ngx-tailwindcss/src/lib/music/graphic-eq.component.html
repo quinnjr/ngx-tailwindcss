@@ -12,13 +12,16 @@
     <div class="flex items-center gap-2">
       <!-- Preset Dropdown -->
       @if (showPresets() && showPresetDropdown()) {
-        <div class="relative">
+        <!-- Escape closes the menu and returns focus to its toggle -->
+        <div class="relative" (keydown.escape)="onPresetMenuEscape(presetToggle)">
           <button
+            #presetToggle
             type="button"
             class="text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-white/10 transition-colors"
             [class]="colors().label"
+            [attr.aria-expanded]="showPresetMenu()"
             (click)="togglePresetMenu()"
-            [disabled]="disabled()"
+            [disabled]="isDisabled()"
           >
             <span>Presets</span>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +47,7 @@
                 <input
                   type="text"
                   placeholder="Search presets..."
-                  class="w-full px-2 py-1 text-xs rounded bg-white/10 border-0 outline-none"
+                  class="w-full px-2 py-1 text-xs rounded bg-white/10 border-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   [class]="colors().value"
                   [value]="presetSearchQuery()"
                   (input)="onPresetSearch($event)"
@@ -52,12 +55,12 @@
               </div>
 
               <!-- Preset Categories -->
-              @for (category of presetCategories(); track category) {
+              @for (category of menuCategories(); track category) {
                 @if (presetsByCategory().get(category); as categoryPresets) {
                   @if (categoryPresets.length > 0) {
                     <div class="py-1">
                       <div
-                        class="px-3 py-1 text-[10px] uppercase tracking-wider opacity-50"
+                        class="px-3 py-1 text-[10px] uppercase tracking-wider"
                         [class]="colors().label"
                       >
                         {{ categoryNames[category] }}
@@ -68,12 +71,14 @@
                           class="w-full px-3 py-1.5 text-left text-xs hover:bg-white/10 transition-colors flex items-center justify-between"
                           [class]="colors().value"
                           [class.bg-white/5]="isPresetActive(preset)"
-                          (click)="applyPreset(preset)"
+                          [attr.aria-pressed]="isPresetActive(preset)"
+                          (click)="onPresetMenuSelect(preset, presetToggle)"
                         >
                           <div>
                             <div class="font-medium">{{ preset.name }}</div>
                             @if (preset.description) {
-                              <div class="text-[10px] opacity-60">{{ preset.description }}</div>
+                              <!-- opacity-80: at 60% the description was ~3.4-4.5:1 (minimal/light/neon) -->
+                              <div class="text-[10px] opacity-80">{{ preset.description }}</div>
                             }
                           </div>
                           @if (isPresetActive(preset)) {
@@ -104,7 +109,7 @@
         class="text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors"
         [class]="colors().label"
         (click)="resetAll()"
-        [disabled]="disabled()"
+        [disabled]="isDisabled()"
       >
         Reset
       </button>
@@ -119,10 +124,13 @@
           type="button"
           class="text-[10px] px-2 py-1 rounded transition-colors"
           [class]="
-            isPresetActive(preset) ? colors().fill + ' text-white' : 'bg-white/10 ' + colors().label
+            isPresetActive(preset)
+              ? colors().fill + ' ' + colors().onFill
+              : 'bg-white/10 ' + colors().label
           "
-          (click)="applyPreset(preset)"
-          [disabled]="disabled()"
+          [attr.aria-pressed]="isPresetActive(preset)"
+          (click)="onPresetClick(preset)"
+          [disabled]="isDisabled()"
         >
           {{ preset.name }}
         </button>
@@ -130,8 +138,9 @@
     </div>
   }
 
-  <!-- EQ Container -->
-  <div class="relative">
+  <!-- EQ Container: ml-8 reserves the gutter the gain scale (-left-8) sits in,
+       keeping it inside the panel rather than overflowing its p-4 padding -->
+  <div class="relative ml-8">
     <!-- Curve Overlay -->
     @if (showCurve()) {
       <svg
@@ -195,15 +204,14 @@
           fill="none"
           [attr.stroke]="colors().curve"
           stroke-width="2"
+          vector-effect="non-scaling-stroke"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
 
         <!-- Filled area under curve -->
         <path
-          [attr.d]="
-            curvePath() + ' L 100 ' + sliderHeight() / 2 + ' L 0 ' + sliderHeight() / 2 + ' Z'
-          "
+          [attr.d]="curvePath() + ' L 100 ' + zeroLineY() + ' L 0 ' + zeroLineY() + ' Z'"
           [attr.fill]="colors().curve"
           fill-opacity="0.1"
         />
@@ -211,9 +219,10 @@
     }
 
     <!-- Sliders -->
-    <div class="flex items-end justify-center gap-1">
+    <!-- Equal-width columns so each slider sits under its response-curve point -->
+    <div class="flex items-end">
       @for (band of bands(); track band.frequency; let i = $index) {
-        <div class="flex flex-col items-center">
+        <div class="flex flex-1 min-w-0 flex-col items-center">
           <!-- Slider Track -->
           <div
             class="relative rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -227,19 +236,19 @@
             (keydown)="onBandKeydown($event, i)"
             [title]="'Double-click to reset ' + band.label"
             role="slider"
-            [attr.tabindex]="interactive() && !disabled() ? 0 : -1"
+            [attr.tabindex]="interactive() && !isDisabled() ? 0 : -1"
             aria-orientation="vertical"
             [attr.aria-label]="band.label + ' band gain'"
             [attr.aria-valuemin]="minGain()"
             [attr.aria-valuemax]="maxGain()"
             [attr.aria-valuenow]="band.gain"
             [attr.aria-valuetext]="(band.gain > 0 ? '+' : '') + band.gain.toFixed(1) + ' dB'"
-            [attr.aria-disabled]="disabled()"
+            [attr.aria-disabled]="isDisabled()"
           >
             <!-- Center line (0 dB) -->
             <div
               class="absolute left-0 right-0 h-px bg-white/30"
-              [style.top.px]="sliderHeight() / 2"
+              [style.top.px]="zeroLineY()"
             ></div>
 
             <!-- Fill -->
@@ -268,9 +277,13 @@
           @if (showValues()) {
             <span
               class="text-[9px] font-mono mt-1 min-w-[24px] text-center"
-              [class]="colors().value"
-              [class.text-green-400]="band.gain > 0 && variant() !== 'minimal'"
-              [class.text-red-400]="band.gain < 0 && variant() !== 'minimal'"
+              [class]="
+                band.gain > 0
+                  ? colors().positive
+                  : band.gain < 0
+                    ? colors().negative
+                    : colors().value
+              "
             >
               {{ band.gain > 0 ? '+' : '' }}{{ band.gain.toFixed(1) }}
             </span>
@@ -296,11 +309,9 @@
       [class]="colors().label"
       [style.height.px]="sliderHeight()"
     >
-      <span>+{{ maxGain() }}</span>
-      <span class="opacity-50">+6</span>
-      <span>0</span>
-      <span class="opacity-50">-6</span>
-      <span>{{ minGain() }}</span>
+      @for (label of gainScaleLabels(); track $index) {
+        <span>{{ label }}</span>
+      }
     </div>
   </div>
 
@@ -311,13 +322,10 @@
         <div class="w-3 h-0.5 rounded" [style.background]="colors().curve"></div>
         <span>Response Curve</span>
       </div>
+      <!-- Boosts and cuts share the fill colour (above / below the 0 dB line) -->
       <div class="flex items-center gap-1">
         <div class="w-2 h-2 rounded-full" [class]="colors().fill"></div>
-        <span>Boost</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <div class="w-2 h-2 rounded-full" [class]="colors().slider"></div>
-        <span>Cut</span>
+        <span>Boost / Cut</span>
       </div>
     </div>
   }

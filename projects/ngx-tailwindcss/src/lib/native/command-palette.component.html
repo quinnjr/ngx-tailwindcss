@@ -32,6 +32,10 @@
           type="text"
           class="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
           [placeholder]="placeholder()"
+          role="combobox"
+          aria-expanded="true"
+          aria-autocomplete="list"
+          [attr.aria-controls]="paletteId + '-listbox'"
           [attr.aria-activedescendant]="
             filteredCommands().length ? paletteId + '-option-' + selectedIndex() : null
           "
@@ -44,9 +48,14 @@
           <button
             type="button"
             class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="Clear search"
             (click)="clearSearch()"
           >
-            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 16 16">
+            <svg
+              class="w-4 h-4 text-gray-500 dark:text-gray-400"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+            >
               <path
                 d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
               />
@@ -54,14 +63,19 @@
           </button>
         }
         <kbd
-          class="hidden sm:inline-flex px-2 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400"
+          class="hidden sm:inline-flex px-2 py-0.5 text-xs font-mono bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300"
         >
           ESC
         </kbd>
       </div>
 
       <!-- Results -->
-      <div class="max-h-80 overflow-y-auto" role="listbox" aria-label="Commands">
+      <div
+        class="max-h-80 overflow-y-auto"
+        role="listbox"
+        aria-label="Commands"
+        [attr.id]="paletteId + '-listbox'"
+      >
         @if (filteredCommands().length === 0) {
           <div class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
             @if (searchQuery()) {
@@ -107,8 +121,8 @@
                   <div class="truncate font-medium">{{ command.label }}</div>
                   @if (command.description) {
                     <div
-                      class="truncate text-sm opacity-60"
-                      [class.text-blue-200]="selectedIndex() === getGlobalIndex(group.category, i)"
+                      class="truncate text-sm"
+                      [class.opacity-60]="selectedIndex() !== getGlobalIndex(group.category, i)"
                     >
                       {{ command.description }}
                     </div>
@@ -119,11 +133,14 @@
                 @if (command.shortcut) {
                   <kbd
                     class="hidden sm:inline-flex px-2 py-0.5 text-xs font-mono rounded"
-                    [class.bg-blue-400]="selectedIndex() === getGlobalIndex(group.category, i)"
+                    [class.bg-blue-700]="selectedIndex() === getGlobalIndex(group.category, i)"
                     [class.text-white]="selectedIndex() === getGlobalIndex(group.category, i)"
                     [class.bg-gray-100]="selectedIndex() !== getGlobalIndex(group.category, i)"
                     [class.dark:bg-gray-700]="selectedIndex() !== getGlobalIndex(group.category, i)"
-                    [class.text-gray-500]="selectedIndex() !== getGlobalIndex(group.category, i)"
+                    [class.text-gray-600]="selectedIndex() !== getGlobalIndex(group.category, i)"
+                    [class.dark:text-gray-300]="
+                      selectedIndex() !== getGlobalIndex(group.category, i)
+                    "
                   >
                     {{ formatShortcut(command.shortcut) }}
                   </kbd>
@@ -140,12 +157,21 @@
       >
         <div class="flex items-center gap-3">
           <span class="flex items-center gap-1">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">↑</kbd>
-            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">↓</kbd>
+            <kbd
+              class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300"
+              >↑</kbd
+            >
+            <kbd
+              class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300"
+              >↓</kbd
+            >
             to navigate
           </span>
           <span class="flex items-center gap-1">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">↵</kbd>
+            <kbd
+              class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300"
+              >↵</kbd
+            >
             to select
           </span>
         </div>

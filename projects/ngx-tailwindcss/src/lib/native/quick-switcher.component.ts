@@ -12,6 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
 
 let nextSwitcherId = 0;
 
@@ -50,9 +51,12 @@ export class TwQuickSwitcherComponent {
   public readonly selectedIndex = signal(0);
 
   public readonly recentItems = computed(() => {
-    const ids = this.recentItemIds();
-    return this.items()
-      .filter(item => ids.includes(item.id))
+    // Keep `recentItemIds` order (most recent first), not `items` order, so
+    // the five shown are the five most recent
+    const byId = new Map(this.items().map(item => [item.id, item]));
+    return this.recentItemIds()
+      .map(id => byId.get(id))
+      .filter((item): item is QuickSwitcherItem => item !== undefined)
       .slice(0, 5);
   });
 
@@ -73,6 +77,8 @@ export class TwQuickSwitcherComponent {
   });
 
   constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+
     effect(() => {
       if (this.isOpen()) {
         setTimeout(() => {
@@ -94,8 +100,7 @@ export class TwQuickSwitcherComponent {
 
     switch (event.key) {
       case 'Escape': {
-        this.close();
-        event.preventDefault();
+        if (claimNativeEscape(this, event)) this.close();
         break;
       }
       case 'ArrowDown': {
@@ -109,6 +114,9 @@ export class TwQuickSwitcherComponent {
         break;
       }
       case 'Enter': {
+        // A focused button (an option, Clear search) activates itself: don't
+        // hijack its Enter for whichever option happens to be highlighted
+        if (event.target instanceof HTMLButtonElement) return;
         const item = this.filteredItems()[this.selectedIndex()];
         if (item) {
           this.selectItem(item);

@@ -18,6 +18,7 @@ function makeTouchEvent(type: string, x: number = 0, y: number = 0): TouchEvent 
     <button
       twTouchGuard
       [requireLongPress]="requireLongPress()"
+      [cooldownMs]="cooldownMs()"
       (guardedClick)="clicks.push($event)"
       (longPress)="longPresses.push($event)"
     >
@@ -29,8 +30,21 @@ function makeTouchEvent(type: string, x: number = 0, y: number = 0): TouchEvent 
 })
 class TestHostComponent {
   readonly requireLongPress = signal(false);
+  readonly cooldownMs = signal(100);
   readonly clicks: Array<MouseEvent | TouchEvent> = [];
   readonly longPresses: TouchEvent[] = [];
+}
+
+@Component({
+  template: `
+    <div id="a" twTouchGuard [cooldownMs]="0" (guardedDragStart)="dragStarts.push('a')"></div>
+    <div id="b" twTouchGuard [cooldownMs]="0" (guardedDragStart)="dragStarts.push('b')"></div>
+  `,
+  standalone: true,
+  imports: [TwTouchGuardDirective],
+})
+class MultiTouchHostComponent {
+  readonly dragStarts: string[] = [];
 }
 
 describe('TwTouchGuardDirective', () => {
@@ -82,6 +96,28 @@ describe('TwTouchGuardDirective', () => {
     });
   });
 
+  describe('compatibility mouse events after touch', () => {
+    it('should not emit guardedClick twice for one tap when the cooldown is disabled', () => {
+      vi.useFakeTimers();
+      component.cooldownMs.set(0);
+      fixture.detectChanges();
+
+      // A tap fires touchstart/touchend followed by emulated mousedown/mouseup
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart'));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend'));
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(component.clicks.length).toBe(1);
+
+      // A genuine mouse click well after the touch is still handled
+      vi.advanceTimersByTime(2000);
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(component.clicks.length).toBe(2);
+    });
+  });
+
   describe('requireLongPress (touch)', () => {
     beforeEach(() => {
       component.requireLongPress.set(true);
@@ -122,6 +158,43 @@ describe('TwTouchGuardDirective', () => {
       expect(component.longPresses.length).toBe(0);
       expect(component.clicks.length).toBe(0);
     });
+
+    it('should cancel the long press and touch feedback on touchcancel', () => {
+      vi.useFakeTimers();
+
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      expect(buttonEl.classList.contains('tw-touch-active')).toBe(true);
+      buttonEl.dispatchEvent(makeTouchEvent('touchcancel', 0, 0));
+      vi.advanceTimersByTime(600);
+
+      expect(component.longPresses.length).toBe(0);
+      expect(buttonEl.classList.contains('tw-touch-active')).toBe(false);
+    });
+  });
+
+  describe('drag guarding', () => {
+    it('should not emit drag events when the drag start is blocked by the cooldown', () => {
+      const directive = fixture.debugElement
+        .query(By.directive(TwTouchGuardDirective))
+        .injector.get(TwTouchGuardDirective);
+      const events: string[] = [];
+      directive.guardedDragStart.subscribe(() => events.push('start'));
+      directive.guardedDrag.subscribe(() => events.push('drag'));
+      directive.guardedDragEnd.subscribe(() => events.push('end'));
+
+      // A tap consumes the action and starts the cooldown window
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart'));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend'));
+      expect(component.clicks.length).toBe(1);
+
+      // Immediate drag is within the cooldown and must be ignored entirely
+      buttonEl.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchmove', 30, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchmove', 40, 0));
+      buttonEl.dispatchEvent(makeTouchEvent('touchend', 40, 0));
+
+      expect(events).toEqual([]);
+    });
   });
 
   describe('requireLongPress (mouse)', () => {
@@ -150,6 +223,36 @@ describe('TwTouchGuardDirective', () => {
       expect(component.clicks.length).toBe(1);
       // The longPress output stays touch-only
       expect(component.longPresses.length).toBe(0);
+    });
+  });
+
+  describe('mouse buttons', () => {
+    it('should not emit guardedClick for a right-click', () => {
+      buttonEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 2 }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 2 }));
+
+      expect(component.clicks.length).toBe(0);
+    });
+  });
+
+  describe('concurrent touches on two guarded controls', () => {
+    it('should measure each drag from its own touch start', () => {
+      const multi = TestBed.createComponent(MultiTouchHostComponent);
+      multi.detectChanges();
+      const a = multi.nativeElement.querySelector('#a') as HTMLElement;
+      const b = multi.nativeElement.querySelector('#b') as HTMLElement;
+
+      a.dispatchEvent(makeTouchEvent('touchstart', 0, 0));
+      // A second finger lands on control B far away
+      b.dispatchEvent(makeTouchEvent('touchstart', 200, 0));
+      // Finger on A moves only 3px: below the 10px drag threshold
+      a.dispatchEvent(makeTouchEvent('touchmove', 3, 0));
+
+      expect(multi.componentInstance.dragStarts).toEqual([]);
+
+      // A real drag on B is still recognized relative to B's start
+      b.dispatchEvent(makeTouchEvent('touchmove', 230, 0));
+      expect(multi.componentInstance.dragStarts).toEqual(['b']);
     });
   });
 });

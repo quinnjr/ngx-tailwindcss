@@ -22,6 +22,13 @@ export type AccordionVariant = 'default' | 'bordered' | 'separated';
 
 let nextAccordionItemId = 0;
 
+const DEFAULT_HEADING_LEVEL = 3;
+
+function normalizeHeadingLevel(value: number | string | null | undefined): number {
+  const level = Math.trunc(Number(value));
+  return Number.isFinite(level) && level >= 1 && level <= 6 ? level : DEFAULT_HEADING_LEVEL;
+}
+
 /**
  * Marks projected content as the custom header of an accordion item,
  * replacing the plain-text `itemTitle`.
@@ -54,6 +61,10 @@ export class TwAccordionItemComponent {
   @Input() set variant(value: AccordionVariant) {
     this._variant.set(value);
   }
+  /** Level (1–6) of the heading wrapping the header button; defaults to 3. */
+  @Input() set headingLevel(value: number | string) {
+    this._headingLevel.set(normalizeHeadingLevel(value));
+  }
 
   @Output() openChange = new EventEmitter<boolean>();
 
@@ -64,6 +75,7 @@ export class TwAccordionItemComponent {
   protected _disabled = signal(false);
   protected _value = signal('');
   protected _variant = signal<AccordionVariant>('default');
+  protected _headingLevel = signal(DEFAULT_HEADING_LEVEL);
 
   protected readonly itemId = `tw-accordion-item-${nextAccordionItemId++}`;
   protected readonly headerId = `${this.itemId}-header`;
@@ -83,8 +95,11 @@ export class TwAccordionItemComponent {
     this.openChange.emit(this._open());
   }
 
-  setOpen(open: boolean): void {
+  setOpen(open: boolean, emit = false): void {
+    if (this._open() === open) return;
     this._open.set(open);
+    // Notify `[(open)]` bindings when the change is not driven by the parent's input
+    if (emit) this.openChange.emit(open);
   }
 
   getValue(): string {
@@ -147,12 +162,17 @@ export class TwAccordionComponent implements AfterContentInit {
   @Input() set defaultValue(value: string | string[]) {
     this._defaultValue.set(value);
   }
+  /** Heading level (1–6) applied to every item's header; items keep their own when unset. */
+  @Input() set headingLevel(value: number | string) {
+    this._headingLevel.set(normalizeHeadingLevel(value));
+  }
 
   @ContentChildren(TwAccordionItemComponent) items!: QueryList<TwAccordionItemComponent>;
 
   protected _allowMultiple = signal(false);
   protected _variant = signal<AccordionVariant>('default');
   protected _defaultValue = signal<string | string[]>('');
+  protected _headingLevel = signal<number | null>(null);
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly initializedItems = new WeakSet<TwAccordionItemComponent>();
@@ -163,6 +183,11 @@ export class TwAccordionComponent implements AfterContentInit {
     effect(() => {
       const variant = this._variant();
       this.items?.forEach(item => (item.variant = variant));
+    });
+
+    effect(() => {
+      const level = this._headingLevel();
+      if (level !== null) this.items?.forEach(item => (item.headingLevel = level));
     });
 
     this.destroyRef.onDestroy(() => {
@@ -188,12 +213,16 @@ export class TwAccordionComponent implements AfterContentInit {
 
     this.items.forEach(item => {
       item.variant = this._variant();
+      const level = this._headingLevel();
+      if (level !== null) item.headingLevel = level;
 
       // Only apply default-open state the first time an item is seen
       if (!this.initializedItems.has(item)) {
         this.initializedItems.add(item);
 
-        if (defaults.includes(item.getValue())) {
+        // Items without a value never match: the empty default must not open them all
+        const value = item.getValue();
+        if (value && defaults.includes(value)) {
           item.setOpen(true);
         }
       }
@@ -203,7 +232,7 @@ export class TwAccordionComponent implements AfterContentInit {
           if (isOpen && !this._allowMultiple()) {
             this.items.forEach(other => {
               if (other !== item) {
-                other.setOpen(false);
+                other.setOpen(false, true);
               }
             });
           }

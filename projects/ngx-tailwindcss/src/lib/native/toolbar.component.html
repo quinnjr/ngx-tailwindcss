@@ -12,9 +12,11 @@
           <button
             type="button"
             [class]="getButtonClasses(item)"
-            [attr.aria-label]="item.tooltip || item.label"
+            [attr.aria-label]="itemAriaLabel(item)"
             [attr.title]="item.tooltip || item.label"
             [disabled]="item.disabled"
+            aria-haspopup="true"
+            [attr.aria-expanded]="openDropdownId() === item.id"
             (click)="toggleDropdown(item)"
           >
             @if (item.icon) {
@@ -30,8 +32,9 @@
             </svg>
           </button>
 
-          @if (openDropdownId === item.id && item.items?.length) {
+          @if (openDropdownId() === item.id && item.items?.length) {
             <div
+              data-toolbar-dropdown
               class="absolute top-full left-0 mt-1 py-1 min-w-32 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
             >
               @for (subItem of item.items; track subItem.id) {
@@ -62,9 +65,9 @@
           [class]="getButtonClasses(item)"
           [class.bg-blue-100]="item.active"
           [class.dark:bg-blue-900/50]="item.active"
-          [class.text-blue-600]="item.active"
+          [class.text-blue-700]="item.active"
           [class.dark:text-blue-400]="item.active"
-          [attr.aria-label]="item.tooltip || item.label"
+          [attr.aria-label]="itemAriaLabel(item)"
           [attr.title]="item.tooltip || item.label"
           [attr.aria-pressed]="item.active"
           [disabled]="item.disabled"
@@ -82,7 +85,7 @@
         <button
           type="button"
           [class]="getButtonClasses(item)"
-          [attr.aria-label]="item.tooltip || item.label"
+          [attr.aria-label]="itemAriaLabel(item)"
           [attr.title]="item.tooltip || item.label"
           [disabled]="item.disabled"
           (click)="onItemClick(item)"

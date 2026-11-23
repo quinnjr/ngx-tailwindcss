@@ -1,4 +1,4 @@
-<div [class]="containerClasses()" aria-label="Guitar tablature">
+<div [class]="containerClasses()" role="group" aria-label="Guitar tablature">
   <svg
     [attr.width]="width()"
     [attr.height]="height()"
@@ -25,6 +25,7 @@
           [attr.y]="getStaffLineY(3) + staffLineSpacing() * 0.5"
           [attr.font-size]="staffLineSpacing() * 5"
           [attr.fill]="colors().text"
+          [class]="minimalRoleClasses().text"
           font-family="serif"
           class="select-none"
         >
@@ -58,13 +59,13 @@
           />
         }
 
-        @for (beat of beats(); track beat) {
+        @for (beat of getBeatPositions(measure); track beat) {
           @for (note of getNoteAtBeat(measure, beat); track $index) {
             @if (autoCalculateNotes() || note.noteName) {
               <!-- Calculate note data -->
               @let noteData =
                 autoCalculateNotes() && typeof note.fret === 'number'
-                  ? calculateNoteFromFret(note.string, note.fret)
+                  ? calculatedNotes()[measureIndex]?.[beat]?.[$index]
                   : note.noteName
                     ? { note: note.noteName, octave: note.octave || 4, accidental: note.accidental }
                     : null;
@@ -194,6 +195,7 @@
           x="15"
           [attr.y]="getStringY($index + 1) + 4"
           [attr.fill]="colors().text"
+          [class]="minimalRoleClasses().text"
           font-size="12"
           font-weight="bold"
           text-anchor="middle"
@@ -208,10 +210,11 @@
         x="15"
         [attr.y]="tabTop() - 8"
         [attr.fill]="colors().text"
+        [class]="minimalRoleClasses().text"
         font-size="10"
         font-weight="bold"
         text-anchor="middle"
-        class="select-none opacity-60"
+        class="select-none opacity-80"
       >
         TAB
       </text>
@@ -232,14 +235,36 @@
     <!-- Measures -->
     @for (measure of measures(); track $index; let measureIndex = $index) {
       <g [class.cursor-pointer]="interactive()" (click)="onMeasureClick(measureIndex)">
+        <!-- Keyboard access to measureClick: a focus target behind the notes (a sibling of the
+             note targets, so interactive elements are never nested) -->
+        @if (interactive()) {
+          <rect
+            class="outline-none focus-visible:stroke-blue-500"
+            [attr.x]="getMeasureX(measureIndex) + 2"
+            [attr.y]="getStringY(1) - 10"
+            [attr.width]="measureWidth() - 4"
+            [attr.height]="getStringY(stringCount()) - getStringY(1) + 20"
+            rx="3"
+            fill="transparent"
+            stroke="none"
+            stroke-width="2"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="'Measure ' + (measureIndex + 1)"
+            (keydown.enter)="activateMeasure($event, measureIndex)"
+            (keydown.space)="activateMeasure($event, measureIndex)"
+          />
+        }
+
         <!-- Measure Number -->
         @if (showMeasureNumbers()) {
           <text
             [attr.x]="getMeasureX(measureIndex) + 5"
             y="12"
             [attr.fill]="colors().text"
+            [class]="minimalRoleClasses().text"
             font-size="10"
-            class="select-none opacity-50"
+            class="select-none opacity-80"
           >
             {{ measureIndex + 1 }}
           </text>
@@ -258,19 +283,28 @@
         }
 
         <!-- Notes in this measure -->
-        @for (beat of beats(); track beat) {
+        @for (beat of getBeatPositions(measure); track beat) {
           @for (note of getNoteAtBeat(measure, beat); track $index) {
             <g
+              class="group outline-none"
               [class.cursor-pointer]="interactive()"
+              [attr.tabindex]="interactive() ? 0 : null"
+              [attr.role]="interactive() ? 'button' : null"
+              [attr.aria-label]="interactive() ? getNoteLabel(measureIndex, beat, note) : null"
+              (keydown.enter)="activateNote($event, measureIndex, beat, note)"
+              (keydown.space)="activateNote($event, measureIndex, beat, note)"
               (click)="onNoteClick(measureIndex, beat, note); $event.stopPropagation()"
             >
-              <!-- Note background (for readability) -->
+              <!-- Note background (for readability); outlined while the note has keyboard focus -->
               <rect
+                class="group-focus-visible:stroke-blue-500"
                 [attr.x]="getBeatX(measureIndex, beat) - 6"
                 [attr.y]="getStringY(note.string) - 7"
                 width="12"
                 height="14"
                 [attr.fill]="colors().background"
+                stroke="none"
+                stroke-width="2"
               />
 
               <!-- Fret Number -->
@@ -293,6 +327,7 @@
                   [attr.x]="getBeatX(measureIndex, beat) + 10"
                   [attr.y]="getStringY(note.string) + 2"
                   [attr.fill]="colors().technique"
+                  [class]="minimalRoleClasses().technique"
                   font-size="10"
                   font-weight="bold"
                   class="select-none"
@@ -311,6 +346,7 @@
                       ' q 5 -8 10 0'
                     "
                     [attr.stroke]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     stroke-width="1.5"
                     fill="none"
                   />
@@ -318,6 +354,7 @@
                     [attr.x]="getBeatX(measureIndex, beat) + 20"
                     [attr.y]="getStringY(note.string) - 6"
                     [attr.fill]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     font-size="9"
                     class="select-none"
                   >
@@ -333,6 +370,7 @@
                     [attr.x2]="getBeatX(measureIndex, beat) + 20"
                     [attr.y2]="getStringY(note.string) - 4"
                     [attr.stroke]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     stroke-width="1.5"
                   />
                 }
@@ -369,9 +407,10 @@
         [attr.x]="width() / 2"
         [attr.y]="height() / 2"
         [attr.fill]="colors().text"
+        [class]="minimalRoleClasses().text"
         font-size="14"
         text-anchor="middle"
-        class="select-none opacity-50"
+        class="select-none opacity-80"
       >
         No tablature data
       </text>

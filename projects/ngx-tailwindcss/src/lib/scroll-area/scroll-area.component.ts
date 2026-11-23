@@ -6,9 +6,9 @@ import {
   ElementRef,
   inject,
   input,
-  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type ScrollAreaDirection = 'vertical' | 'horizontal' | 'both';
@@ -55,72 +55,77 @@ const SCROLLBAR_CLASSES: Record<ScrollAreaScrollbar, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './scroll-area.component.html',
+  host: {
+    // The host is the scroll container itself: a static `class` attribute lands here once
+    '[class]': 'scrollAreaClasses()',
+    '[style.height]': 'height()',
+    '[style.maxHeight]': 'maxHeight()',
+    '[style.width]': 'width()',
+    '[style.maxWidth]': 'maxWidth()',
+  },
   styles: [
     `
-      :host {
-        display: block;
-      }
-
       /* Custom scrollbar styles */
-      .scroll-area-styled::-webkit-scrollbar {
+      :host(.scroll-area-styled)::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
 
-      .scroll-area-styled::-webkit-scrollbar-track {
+      :host(.scroll-area-styled)::-webkit-scrollbar-track {
         background: transparent;
         border-radius: 4px;
       }
 
-      .scroll-area-styled::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+      /* Thumb colours keep 3:1 against light (and, for the dark variant, dark) surfaces */
+      :host(.scroll-area-styled)::-webkit-scrollbar-thumb {
+        background: #64748b;
         border-radius: 4px;
         transition: background 0.2s;
       }
 
-      .scroll-area-styled::-webkit-scrollbar-thumb:hover {
-        background: rgba(100, 116, 139, 0.8);
+      :host(.scroll-area-styled)::-webkit-scrollbar-thumb:hover {
+        background: #475569;
       }
 
-      .scroll-area-styled::-webkit-scrollbar-corner {
+      :host(.scroll-area-styled)::-webkit-scrollbar-corner {
         background: transparent;
       }
 
       /* Dark mode scrollbar */
-      .scroll-area-dark::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.4);
+      :host(.scroll-area-dark)::-webkit-scrollbar-thumb {
+        background: #94a3b8;
       }
 
-      .scroll-area-dark::-webkit-scrollbar-thumb:hover {
-        background: rgba(148, 163, 184, 0.7);
+      :host(.scroll-area-dark)::-webkit-scrollbar-thumb:hover {
+        background: #cbd5e1;
       }
 
       /* Thin scrollbar variant */
-      .scroll-area-thin::-webkit-scrollbar {
+      :host(.scroll-area-thin)::-webkit-scrollbar {
         width: 4px;
         height: 4px;
       }
 
       /* Hide scrollbar until hover */
-      .scroll-area-hover::-webkit-scrollbar-thumb {
+      :host(.scroll-area-hover)::-webkit-scrollbar-thumb {
         background: transparent;
       }
 
-      .scroll-area-hover:hover::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+      :host(.scroll-area-hover:hover)::-webkit-scrollbar-thumb {
+        background: #64748b;
       }
 
       /* Always visible scrollbar */
-      .scroll-area-always::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.5);
+      :host(.scroll-area-always)::-webkit-scrollbar-thumb {
+        background: #64748b;
       }
 
       /* Hidden scrollbar */
-      .scroll-area-hidden::-webkit-scrollbar {
+      :host(.scroll-area-hidden)::-webkit-scrollbar {
         display: none;
       }
 
-      .scroll-area-hidden {
+      :host(.scroll-area-hidden) {
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
@@ -130,7 +135,8 @@ const SCROLLBAR_CLASSES: Record<ScrollAreaScrollbar, string> = {
 export class TwScrollAreaComponent {
   private readonly twClass = inject(TwClassService);
 
-  @ViewChild('scrollContainer') scrollContainerRef!: ElementRef<HTMLElement>;
+  /** The host element is the scroll container */
+  readonly scrollContainerRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Scroll direction */
   readonly direction = input<ScrollAreaDirection>('vertical');
@@ -160,11 +166,11 @@ export class TwScrollAreaComponent {
   readonly smooth = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected scrollAreaClasses = computed(() => {
     return this.twClass.merge(
-      'scroll-area-styled',
+      'block scroll-area-styled',
       OVERFLOW_CLASSES[this.direction()],
       SCROLLBAR_CLASSES[this.scrollbar()],
       this.thin() ? 'scroll-area-thin' : '',

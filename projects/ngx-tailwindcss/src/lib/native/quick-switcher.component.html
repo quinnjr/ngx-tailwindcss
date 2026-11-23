@@ -4,15 +4,18 @@
   role="dialog"
   aria-modal="true"
   aria-label="Quick switcher"
-  (click)="onBackdropClick($event)"
 >
-  <!-- Backdrop -->
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <!-- Backdrop: it covers the whole overlay, so it must own the close click -->
+  <div
+    class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+    (click)="onBackdropClick($event)"
+  ></div>
 
-  <!-- Switcher Panel -->
+  <!-- Switcher Panel: the overlay is hidden rather than destroyed, so the trap
+       is toggled with it to return focus to the opener on close -->
   <div
     class="relative w-full max-w-xl bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
-    twFocusTrap
+    [twFocusTrap]="isOpen()"
     [focusTrapAutoFocus]="false"
     (click)="$event.stopPropagation()"
   >
@@ -32,6 +35,10 @@
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQuery.set($event)"
         [placeholder]="placeholder()"
+        role="combobox"
+        aria-expanded="true"
+        aria-autocomplete="list"
+        [attr.aria-controls]="switcherId + '-listbox'"
         [attr.aria-activedescendant]="
           filteredItems().length ? switcherId + '-option-' + selectedIndex() : null
         "
@@ -39,10 +46,17 @@
       />
       @if (searchQuery()) {
         <button
-          (click)="searchQuery.set('')"
+          type="button"
+          aria-label="Clear search"
+          (click)="searchQuery.set(''); searchInput.focus()"
           class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
         >
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-4 h-4 text-slate-500 dark:text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -55,9 +69,14 @@
     </div>
 
     <!-- Results List -->
-    <div class="max-h-80 overflow-y-auto" role="listbox" aria-label="Results">
+    <div
+      class="max-h-80 overflow-y-auto"
+      role="listbox"
+      aria-label="Results"
+      [attr.id]="switcherId + '-listbox'"
+    >
       @if (filteredItems().length === 0) {
-        <div class="px-4 py-8 text-center text-slate-500">
+        <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
           @if (searchQuery()) {
             <p>No results found for "{{ searchQuery() }}"</p>
           } @else {
@@ -68,7 +87,9 @@
         <!-- Recent Items -->
         @if (recentItems().length > 0 && !searchQuery()) {
           <div class="px-3 py-2">
-            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide px-2 py-1">
+            <div
+              class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide px-2 py-1"
+            >
               Recent
             </div>
             @for (item of recentItems(); track item.id; let i = $index) {
@@ -86,7 +107,7 @@
                   class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700"
                 >
                   <svg
-                    class="w-4 h-4 text-slate-500"
+                    class="w-4 h-4 text-slate-500 dark:text-slate-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -104,7 +125,9 @@
                     {{ item.label }}
                   </div>
                   @if (item.path) {
-                    <div class="text-xs text-slate-500 truncate">{{ item.path }}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {{ item.path }}
+                    </div>
                   }
                 </div>
               </button>
@@ -192,7 +215,7 @@
                     }
                     @default {
                       <svg
-                        class="w-4 h-4 text-slate-500"
+                        class="w-4 h-4 text-slate-500 dark:text-slate-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -212,13 +235,13 @@
                     {{ item.label }}
                   </div>
                   @if (item.description || item.path) {
-                    <div class="text-xs text-slate-500 truncate">
+                    <div class="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {{ item.description || item.path }}
                     </div>
                   }
                 </div>
                 <span
-                  class="flex-shrink-0 text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 capitalize"
+                  class="flex-shrink-0 text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 capitalize"
                 >
                   {{ item.type }}
                 </span>
@@ -231,19 +254,28 @@
 
     <!-- Footer -->
     <div
-      class="flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-xs text-slate-500"
+      class="flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-xs text-slate-500 dark:text-slate-400"
     >
       <div class="flex items-center gap-4">
         <span class="flex items-center gap-1">
-          <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↑↓</kbd>
+          <kbd
+            class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+            >↑↓</kbd
+          >
           Navigate
         </span>
         <span class="flex items-center gap-1">
-          <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">↵</kbd>
+          <kbd
+            class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+            >↵</kbd
+          >
           Select
         </span>
         <span class="flex items-center gap-1">
-          <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">esc</kbd>
+          <kbd
+            class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+            >esc</kbd
+          >
           Close
         </span>
       </div>

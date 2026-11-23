@@ -1,8 +1,10 @@
 import {
+  afterRenderEffect,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   forwardRef,
   HostListener,
@@ -13,6 +15,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
@@ -146,12 +149,21 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   private readonly _disabled = signal(false);
 
   protected readonly listboxId = `tw-select-listbox-${Math.random().toString(36).slice(2)}`;
+  /** Id of the displayed value; names the combobox when there is no label */
+  protected readonly valueId = `${this.listboxId}-value`;
 
   private onChangeFn: (value: any) => void = () => {};
   private onTouchedFn: () => void = () => {};
   private positionListener: (() => void) | null = null;
 
   protected isDisabled = computed(() => this.disabled() || this._disabled());
+
+  /** Ids of the rendered hint/error text, used for aria-describedby */
+  protected readonly hintId = computed(() => `${this.inputId()}-hint`);
+  protected readonly errorId = computed(() => `${this.inputId()}-error`);
+  protected readonly ariaDescribedBy = computed(() =>
+    this.error() ? this.errorId() : this.hint() ? this.hintId() : null
+  );
 
   protected allOptions = computed(() => {
     if (this.groups().length > 0) {
@@ -170,10 +182,31 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     return this.options().filter(opt => opt.label.toLowerCase().includes(filterVal));
   });
 
+  /** Options reachable by keyboard, in display order (flattened across groups) */
+  protected navigableOptions = computed(() => {
+    if (this.groups().length > 0) {
+      return this.filteredGroups().flatMap(g => g.options);
+    }
+    return this.filteredOptions();
+  });
+
   protected activeDescendantId = computed(() => {
     const index = this.activeIndex();
-    if (!this.isOpen() || index < 0 || index >= this.filteredOptions().length) return null;
+    if (!this.isOpen() || index < 0 || index >= this.navigableOptions().length) return null;
     return `${this.listboxId}-option-${index}`;
+  });
+
+  /**
+   * Keeps the keyboard-active option visible: focus stays on the trigger
+   * (aria-activedescendant), so the listbox does not scroll by itself.
+   */
+  private readonly scrollActiveOptionIntoView = afterRenderEffect(() => {
+    const id = this.activeDescendantId();
+    if (!id) return;
+    const option = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      `[id="${id}"]`
+    );
+    option?.scrollIntoView?.({ block: 'nearest' });
   });
 
   protected filteredGroups = computed(() => {
@@ -208,6 +241,14 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       hasError
         ? 'border-rose-500 focus:ring-rose-500 focus:border-rose-500'
         : 'border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 dark:hover:border-slate-500',
+      this.variant() === 'filled'
+        ? this.twClass.merge(
+            'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800',
+            hasError
+              ? ''
+              : 'border-transparent dark:border-transparent hover:border-transparent dark:hover:border-transparent'
+          )
+        : '',
       this.isDisabled()
         ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900'
         : 'cursor-pointer',
@@ -226,7 +267,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
 
   protected chevronClasses = computed(() => {
     return this.twClass.merge(
-      'w-5 h-5 text-slate-400 transition-transform duration-200 flex-shrink-0 ml-2',
+      'w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform duration-200 flex-shrink-0 ml-2',
       this.isOpen() ? 'rotate-180' : ''
     );
   });
@@ -265,12 +306,31 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700',
       !isSelected && isActive ? 'bg-slate-100 dark:bg-slate-700' : '',
+      // The selected option keeps its selected colours, so mark keyboard focus with a ring
+      isSelected && isActive ? 'ring-2 ring-inset ring-blue-500' : '',
       option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
     );
   }
 
+  constructor() {
+    // Disabling the select (input or forms API) while it is open closes the dropdown,
+    // so its options cannot change the value of a disabled control
+    effect(() => {
+      if (this.isDisabled()) {
+        untracked(() => {
+          this.closeDropdown();
+        });
+      }
+    });
+  }
+
   ngOnDestroy(): void {
     this.detachPositionListeners();
+  }
+
+  /** Index of an option within navigableOptions(), used for option ids and active state */
+  protected optionIndex(option: SelectOption): number {
+    return this.navigableOptions().indexOf(option);
   }
 
   isSelected(option: SelectOption): boolean {
@@ -280,23 +340,31 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   toggleDropdown(): void {
     if (this.isDisabled()) return;
 
-    const willOpen = !this.isOpen();
-    if (willOpen) {
-      this.openDropdown();
-    } else {
+    if (this.isOpen()) {
       this.closeDropdown();
+    } else {
+      this.openDropdown();
     }
-    this.onToggle.emit(willOpen);
   }
 
   selectOption(option: SelectOption): void {
-    if (option.disabled) return;
+    if (option.disabled || this.isDisabled()) return;
 
     this.selectedValue.set(option.value);
     this.onChangeFn(option.value);
     this.onChange.emit(option);
     this.closeDropdown();
     this.onTouchedFn();
+  }
+
+  /**
+   * Option click handler: clicking an option focuses it and selecting closes the
+   * dropdown, which removes that option, so return focus to the trigger.
+   */
+  protected onOptionClick(option: SelectOption): void {
+    if (option.disabled) return;
+    this.selectOption(option);
+    this.triggerButton?.nativeElement.focus();
   }
 
   onFilterInput(event: Event): void {
@@ -310,9 +378,10 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        if (this.isOpen() && event.key === 'Enter') {
-          const active = this.filteredOptions()[this.activeIndex()];
-          if (active) {
+        // APG select-only combobox: when open, Enter/Space select the active option and close
+        if (this.isOpen()) {
+          const active = this.navigableOptions()[this.activeIndex()];
+          if (active && !active.disabled) {
             this.selectOption(active);
             break;
           }
@@ -321,7 +390,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
         break;
       }
       case 'Escape': {
-        this.closeDropdown();
+        // Claim Escape only while open so an enclosing modal/overlay stays open
+        if (this.isOpen()) {
+          event.preventDefault();
+          this.closeDropdown();
+        }
         break;
       }
       case 'ArrowDown': {
@@ -343,15 +416,49 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
       case 'Home': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.filteredOptions().length > 0 ? 0 : -1);
+          this.activeIndex.set(this.navigableOptions().findIndex(option => !option.disabled));
         }
         break;
       }
       case 'End': {
         if (this.isOpen()) {
           event.preventDefault();
-          this.activeIndex.set(this.filteredOptions().length - 1);
+          const options = this.navigableOptions();
+          let index = options.length - 1;
+          while (index >= 0 && options[index].disabled) index--;
+          this.activeIndex.set(index);
         }
+        break;
+      }
+    }
+  }
+
+  /** Keyboard handling while focus is in the filter input */
+  onFilterKeydown(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'ArrowDown': {
+        event.preventDefault();
+        this.moveActiveIndex(1);
+        break;
+      }
+      case 'ArrowUp': {
+        event.preventDefault();
+        this.moveActiveIndex(-1);
+        break;
+      }
+      case 'Enter': {
+        event.preventDefault();
+        const active = this.navigableOptions()[this.activeIndex()];
+        if (active && !active.disabled) {
+          this.selectOption(active);
+          this.triggerButton?.nativeElement.focus();
+        }
+        break;
+      }
+      case 'Escape': {
+        event.preventDefault();
+        this.closeDropdown();
+        this.triggerButton?.nativeElement.focus();
         break;
       }
     }
@@ -369,13 +476,28 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     this.closeDropdown();
   }
 
+  /**
+   * Closes the dropdown when keyboard focus moves to an element outside the component
+   * (e.g. Tab), so the open layer does not linger over the page. A null relatedTarget
+   * (clicks on non-focusable content) is left to the document click handler.
+   */
+  @HostListener('focusout', ['$event'])
+  onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget as Node | null;
+    if (this.isOpen() && next && !this.elementRef.nativeElement.contains(next)) {
+      this.closeDropdown();
+    }
+  }
+
   private openDropdown(): void {
+    if (this.isOpen()) return;
     this.isOpen.set(true);
+    this.onToggle.emit(true);
+    const options = this.navigableOptions();
+    const selectedIndex = options.findIndex(option => this.isSelected(option));
+    // Start on the selected option, else the first enabled one
     this.activeIndex.set(
-      Math.max(
-        0,
-        this.filteredOptions().findIndex(option => this.isSelected(option))
-      )
+      selectedIndex >= 0 ? selectedIndex : options.findIndex(option => !option.disabled)
     );
     this.updateDropdownPosition();
     this.attachPositionListeners();
@@ -389,6 +511,8 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private closeDropdown(): void {
+    // Every close path (toggle, selection, Escape, outside click) reports onToggle(false)
+    if (this.isOpen()) this.onToggle.emit(false);
     this.isOpen.set(false);
     this.filterValue.set('');
     this.activeIndex.set(-1);
@@ -396,7 +520,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private moveActiveIndex(delta: number): void {
-    const options = this.filteredOptions();
+    const options = this.navigableOptions();
     if (options.length === 0) return;
 
     let index = this.activeIndex();
@@ -449,6 +573,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     window.removeEventListener('scroll', this.positionListener, { capture: true });
     window.removeEventListener('resize', this.positionListener);
     this.positionListener = null;
+  }
+
+  /** Marks the control as touched when focus leaves the trigger */
+  onTriggerBlur(): void {
+    this.onTouchedFn();
   }
 
   // ControlValueAccessor implementation

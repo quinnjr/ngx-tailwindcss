@@ -13,11 +13,11 @@
   <app-demo-section title="Variants" [code]="variantsCode">
     <div class="space-y-6">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Default</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Default</span>
         <tw-table [data]="users" [columns]="columns" variant="default"></tw-table>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Striped</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Striped</span>
         <tw-table [data]="users" [columns]="columns" variant="striped"></tw-table>
       </div>
     </div>
@@ -27,15 +27,15 @@
   <app-demo-section title="Sizes" [code]="sizesCode">
     <div class="space-y-6">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Small</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Small</span>
         <tw-table [data]="users" [columns]="columns" size="sm"></tw-table>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Medium</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Medium</span>
         <tw-table [data]="users" [columns]="columns" size="md"></tw-table>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Large</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Large</span>
         <tw-table [data]="users" [columns]="columns" size="lg"></tw-table>
       </div>
     </div>
@@ -50,7 +50,7 @@
       selectionMode="multiple"
       (selectionChange)="onSelectionChange($event)"
     ></tw-table>
-    <p class="mt-3 text-sm text-slate-600">
+    <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
       Selected: {{ selectedUsers.length }}
       {{ selectedUsers.length === 1 ? 'row' : 'rows' }}
     </p>

@@ -91,6 +91,10 @@ export class TwChannelStripComponent implements ControlValueAccessor {
   protected readonly inputGain = signal(0); // -20 to +20 dB
   protected readonly auxSends = signal<number[]>([0, 0, 0, 0]); // Up to 4 aux sends
 
+  // Disabled state set imperatively via setDisabledState (forms API)
+  private readonly cvaDisabled = signal(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
+
   // Signal present detection
   protected readonly signalPresent = computed(() => {
     const level = this.stereo()
@@ -138,6 +142,14 @@ export class TwChannelStripComponent implements ControlValueAccessor {
       .join(' ');
   });
 
+  // The non-minimal strips are always dark, so the nested dials and meters are told so:
+  // following the page scheme they rendered light-mode text (volume readout, meter
+  // scale, L/R labels) on the dark strip. An explicit input works whatever the
+  // consumer's dark-mode strategy, unlike scoping the `dark:` variant with a class.
+  protected readonly nestedSurface = computed(() =>
+    this.variant() === 'minimal' ? 'auto' : 'dark'
+  );
+
   protected readonly buttonSize = computed(() => {
     const size = this.size();
     return size === 'sm'
@@ -159,6 +171,17 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     return [base, sizeClass].join(' ');
   });
 
+  // Text colours readable on the strip surface: the dark variants need a light
+  // grey (slate-500/600 fall below 4.5:1 on slate-800/900), while the transparent
+  // minimal strip sits on the page and follows the colour scheme
+  protected readonly labelTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-900 dark:text-white' : 'text-white'
+  );
+
+  protected readonly mutedTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
   protected readonly auxKnobSize = computed(() => {
     return this.size() === 'lg' ? 'sm' : 'xs';
   });
@@ -169,11 +192,13 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     return size === 'sm' ? 60 : size === 'lg' ? 100 : 80;
   });
 
-  // Peak marker offsets (px from the meter container's bottom edge; the
-  // vu-meter has 8px internal padding)
-  protected peakMarkerBottom(peak: number): number {
+  // Peak marker offsets (px from the meter's top edge; the led vu-meter has a
+  // 1px border and 8px padding). Measured from the top: below the meter the vu-meter
+  // renders more rows (e.g. the stereo L/R labels), so its bottom edge is not
+  // the meter's. The 2px marker is centred on the level.
+  protected peakMarkerTop(peak: number): number {
     const clamped = Math.max(0, Math.min(100, peak));
-    return 8 + this.meterHeight() * (clamped / 100);
+    return 9 + this.meterHeight() * (1 - clamped / 100) - 1;
   }
 
   protected onVolumeChange(value: number): void {
@@ -237,14 +262,15 @@ export class TwChannelStripComponent implements ControlValueAccessor {
       solo: this.solo(),
       record: this.record(),
       inputGain: this.inputGain(),
-      auxSends: auxSendValues.slice(0, this.auxSendCount()).map((value, i) => ({
+      auxSends: Array.from({ length: this.auxSendCount() }, (_, i) => ({
         id: `aux-${i}`,
         label: auxSendLabels[i] || `Aux ${i + 1}`,
-        value,
+        value: auxSendValues[i] ?? 0,
       })),
     };
     this.stateChange.emit(state);
     this.onChange(state);
+    this.onTouched();
   }
 
   // ControlValueAccessor
@@ -270,7 +296,7 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState?(isDisabled: boolean): void {
-    // Disabled state is managed via input
+  setDisabledState(isDisabled: boolean): void {
+    this.cvaDisabled.set(isDisabled);
   }
 }

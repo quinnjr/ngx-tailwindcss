@@ -13,20 +13,44 @@
   <app-demo-section title="Separators" [code]="separatorsCode">
     <div class="space-y-4">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Slash (default)</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Slash</span>
         <tw-breadcrumb [items]="items" separator="slash"></tw-breadcrumb>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Chevron</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Chevron (default)</span>
         <tw-breadcrumb [items]="items" separator="chevron"></tw-breadcrumb>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Arrow</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Arrow</span>
         <tw-breadcrumb [items]="items" separator="arrow"></tw-breadcrumb>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Dot</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Dot</span>
         <tw-breadcrumb [items]="items" separator="dot"></tw-breadcrumb>
+      </div>
+    </div>
+  </app-demo-section>
+
+  <!-- Icons -->
+  <app-demo-section
+    title="Icons"
+    description="An item's icon accepts a TemplateRef (recommended for inline SVG), a SafeHtml value created with DomSanitizer.bypassSecurityTrustHtml, or a plain string, which is sanitized (Angular strips &lt;svg&gt; from strings). Icons are aria-hidden."
+    [code]="iconsCode">
+    <div class="space-y-4">
+      <ng-template #homeIcon>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10h14V10" />
+        </svg>
+      </ng-template>
+      <div>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">TemplateRef</span>
+        <tw-breadcrumb
+          [items]="[{ label: 'Home', href: '/', icon: homeIcon }, { label: 'Components', href: '/components' }, { label: 'Breadcrumb' }]"
+        ></tw-breadcrumb>
+      </div>
+      <div>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">SafeHtml (DomSanitizer)</span>
+        <tw-breadcrumb [items]="safeHtmlItems"></tw-breadcrumb>
       </div>
     </div>
   </app-demo-section>
@@ -35,15 +59,15 @@
   <app-demo-section title="Sizes" [code]="sizesCode">
     <div class="space-y-4">
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Small</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Small</span>
         <tw-breadcrumb [items]="items" size="sm"></tw-breadcrumb>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Medium</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Medium</span>
         <tw-breadcrumb [items]="items" size="md"></tw-breadcrumb>
       </div>
       <div>
-        <span class="text-sm text-slate-600 block mb-2">Large</span>
+        <span class="text-sm text-slate-600 dark:text-slate-400 block mb-2">Large</span>
         <tw-breadcrumb [items]="items" size="lg"></tw-breadcrumb>
       </div>
     </div>

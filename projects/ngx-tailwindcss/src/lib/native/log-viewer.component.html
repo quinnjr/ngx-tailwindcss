@@ -34,6 +34,7 @@
           type="button"
           class="px-2 py-1 text-xs font-medium rounded transition-colors"
           [class]="getLevelFilterClasses(level.value)"
+          [attr.aria-pressed]="activeLevels().has(level.value)"
           (click)="toggleLevelFilter(level.value)"
         >
           {{ level.label }}
@@ -45,8 +46,11 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
-        [class.text-blue-500]="autoScroll()"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+        [class.text-blue-600]="autoScroll()"
+        [class.dark:text-blue-400]="autoScroll()"
+        [class.text-gray-500]="!autoScroll()"
+        [class.dark:text-gray-400]="!autoScroll()"
         [attr.aria-label]="autoScroll() ? 'Disable auto-scroll' : 'Enable auto-scroll'"
         (click)="autoScroll.set(!autoScroll())"
       >
@@ -61,7 +65,7 @@
       </button>
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
         [attr.aria-label]="'Export logs'"
         (click)="exportLogs()"
       >
@@ -76,7 +80,7 @@
       </button>
       <button
         type="button"
-        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+        class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
         [attr.aria-label]="'Clear logs'"
         (click)="clearLogs.emit()"
       >
@@ -93,7 +97,7 @@
   </div>
 
   <!-- Log entries -->
-  <div class="flex-1 overflow-y-auto">
+  <div class="flex-1 overflow-y-auto" #scrollContainer>
     @if (filteredEntries().length === 0) {
       <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
         @if (entries().length === 0) {
@@ -107,14 +111,21 @@
         <tbody>
           @for (entry of filteredEntries(); track entry.id) {
             <tr
-              class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+              class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
               [class.bg-red-50]="entry.level === 'error' || entry.level === 'fatal'"
               [class.dark:bg-red-900/20]="entry.level === 'error' || entry.level === 'fatal'"
+              [class.border-l-4]="selectedEntry()?.id === entry.id"
+              [class.border-l-blue-600]="selectedEntry()?.id === entry.id"
+              [class.dark:border-l-blue-400]="selectedEntry()?.id === entry.id"
+              [attr.aria-current]="selectedEntry()?.id === entry.id ? 'true' : null"
+              [attr.tabindex]="entry.id === tabStopEntryId() ? 0 : -1"
+              (focus)="focusedEntryId.set(entry.id)"
               (click)="selectEntry(entry)"
+              (keydown)="onRowKeydown(entry, $event)"
             >
               <!-- Timestamp -->
               <td
-                class="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap font-mono text-xs"
+                class="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap font-mono text-xs"
               >
                 {{ formatTimestamp(entry.timestamp) }}
               </td>
@@ -128,7 +139,7 @@
 
               <!-- Source -->
               @if (showSource()) {
-                <td class="px-2 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
+                <td class="px-2 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap text-xs">
                   {{ entry.source || '-' }}
                 </td>
               }

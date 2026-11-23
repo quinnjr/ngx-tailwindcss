@@ -112,12 +112,19 @@ export class TwDropZoneDirective {
     if (!event.dataTransfer) return;
 
     // Try to parse drag data
+    // Plain text (e.g. a text selection or a link from another app) carries no
+    // JSON payload, so it is reported as `text`, matching what validateDrag accepts
+    const dataTransfer = event.dataTransfer;
+    const textData = (): DragData => {
+      const text = dataTransfer.getData('text/plain');
+      return text ? { type: 'text', data: text } : { type: 'unknown', data: null };
+    };
     let data: DragData;
     try {
       const jsonData = event.dataTransfer.getData('application/json');
-      data = jsonData ? JSON.parse(jsonData) : { type: 'unknown', data: null };
+      data = jsonData ? JSON.parse(jsonData) : textData();
     } catch {
-      data = { type: 'text', data: event.dataTransfer.getData('text/plain') };
+      data = textData();
     }
 
     // Check if files were dropped

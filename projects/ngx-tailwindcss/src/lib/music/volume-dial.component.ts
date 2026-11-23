@@ -9,16 +9,19 @@ import {
   model,
   OnDestroy,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { TwClassService } from '../core/tw-class.service';
 import { MusicAccessibilityService } from './accessibility.service';
-import { MobileSupportService } from './mobile-support.service';
+import { MobileSupportService, TouchTrackingState } from './mobile-support.service';
 
 export type DialVariant = 'modern' | 'vintage' | 'minimal' | 'led' | 'light' | 'highContrast';
 export type DialSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+/** Background the dial sits on: 'auto' follows the page colour scheme, 'dark' is an always-dark surface */
+export type DialSurface = 'auto' | 'dark';
 
 const DIAL_SIZES: Record<
   DialSize,
@@ -73,6 +76,43 @@ const DIAL_VARIANTS: Record<
   },
 };
 
+// The variants' `dark:` colours as plain utilities, for a dial on an always-dark surface:
+// a `dark:` variant only applies when the page itself is in dark mode, and whether that is
+// a media query or a class is up to the consumer. Written out in full so Tailwind's source
+// scan generates them.
+const DIAL_DARK_SURFACE_VARIANTS: Record<
+  DialVariant,
+  { track: string; fill: string; knob: string; indicator: string }
+> = {
+  modern: {
+    track: 'stroke-slate-700',
+    fill: 'stroke-blue-500',
+    knob: 'fill-slate-800 stroke-slate-600',
+    indicator: 'stroke-blue-500',
+  },
+  vintage: {
+    track: 'stroke-amber-900/30',
+    fill: 'stroke-amber-500',
+    knob: 'fill-amber-950 stroke-amber-700',
+    indicator: 'stroke-amber-600',
+  },
+  minimal: {
+    track: 'stroke-slate-800',
+    fill: 'stroke-slate-400',
+    knob: 'fill-slate-900 stroke-slate-700',
+    indicator: 'stroke-slate-200',
+  },
+  led: {
+    track: 'stroke-slate-900',
+    fill: 'stroke-emerald-500',
+    knob: 'fill-black stroke-slate-800',
+    indicator: 'stroke-emerald-400',
+  },
+  // Always-light and high-contrast dials bring their own background
+  light: DIAL_VARIANTS.light,
+  highContrast: DIAL_VARIANTS.highContrast,
+};
+
 /**
  * Volume Dial (Rotary Knob) component for audio controls
  *
@@ -105,7 +145,11 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   private readonly mobileSupport = inject(MobileSupportService);
   private readonly dialSvg = viewChild<ElementRef<SVGElement>>('dialSvg');
 
+  // NgModel writes its value on a microtask, which can land after the dial is destroyed
+  private destroyed = false;
+
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.dragController?.abort();
     this.dragController = null;
   }
@@ -128,6 +172,8 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   readonly centerDetent = input(false);
   readonly detentValue = input(50);
   readonly classOverride = input('');
+  /** Set 'dark' when the dial sits on an always-dark surface (e.g. a channel strip) */
+  readonly surface = input<DialSurface>('auto');
 
   // Custom sizing via CSS variables (overrides size prop)
   readonly customSize = input<number | null>(null); // Override dial size in pixels
@@ -146,8 +192,13 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   // Note: valueChange is automatically created by the model() signal
   readonly hapticTrigger = output<'change' | 'detent' | 'boundary'>(); // Haptic feedback trigger points
   private isDragging = false;
-  private startAngle = 0;
+  private lastAngle = 0;
+  private accumulatedAngle = 0;
   private startValue = 0;
+
+  // Disabled state set imperatively via setDisabledState (forms API)
+  private readonly cvaDisabled = signal(false);
+  protected readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
   private dragController: AbortController | null = null;
   private lastHapticTime = 0;
 
@@ -175,7 +226,20 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
       fontSize: baseConfig.fontSize,
     };
   });
-  protected readonly variantConfig = computed(() => DIAL_VARIANTS[this.variant()]);
+  protected readonly variantConfig = computed(() =>
+    this.surface() === 'dark'
+      ? DIAL_DARK_SURFACE_VARIANTS[this.variant()]
+      : DIAL_VARIANTS[this.variant()]
+  );
+
+  protected readonly tickClasses = computed(() =>
+    this.surface() === 'dark'
+      ? { major: 'stroke-slate-500', minor: 'stroke-slate-600' }
+      : {
+          major: 'stroke-slate-400 dark:stroke-slate-500',
+          minor: 'stroke-slate-300 dark:stroke-slate-600',
+        }
+  );
   protected readonly center = computed(() => this.sizeConfig().size / 2);
   protected readonly radius = computed(() => this.center() - this.sizeConfig().strokeWidth - 4);
   protected readonly knobRadius = computed(() => this.radius() * 0.55);
@@ -206,15 +270,22 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly valueClasses = computed(() => {
-    return this.twClass.merge(
-      'mt-1 font-mono font-medium text-slate-700 dark:text-slate-300',
-      this.sizeConfig().fontSize
-    );
+    const color =
+      this.surface() === 'dark' ? 'text-slate-300' : 'text-slate-700 dark:text-slate-300';
+    return this.twClass.merge(`mt-1 font-mono font-medium ${color}`, this.sizeConfig().fontSize);
   });
 
   protected readonly displayValue = computed(() => {
     const val = this.value();
     return Number.isInteger(val) ? val : val.toFixed(1);
+  });
+
+  // Value position within min..max as 0..1 (clamped; safe for an empty range)
+  protected readonly percentage = computed(() => {
+    const range = this.max() - this.min();
+    if (!(range > 0)) return 0;
+    const pct = (this.value() - this.min()) / range;
+    return Math.max(0, Math.min(1, Number.isFinite(pct) ? pct : 0));
   });
 
   // Calculate SVG arc path
@@ -229,8 +300,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly fillPath = computed(() => {
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
-    const fillAngle = this.startAngleDeg + percentage * this.totalAngle;
+    const fillAngle = this.startAngleDeg + this.percentage() * this.totalAngle;
     return this.describeArc(
       this.center(),
       this.center(),
@@ -241,8 +311,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly indicatorEnd = computed(() => {
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
-    const angle = this.startAngleDeg + percentage * this.totalAngle;
+    const angle = this.startAngleDeg + this.percentage() * this.totalAngle;
     const radians = (angle - 90) * (Math.PI / 180);
     const length = this.knobRadius() * 0.7;
     return {
@@ -287,8 +356,10 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   protected readonly ledSegments = computed(() => {
     const segments: Array<{ index: number; x: number; y: number; active: boolean }> = [];
     const ledCount = 12;
-    const ledRadius = this.radius() + this.sizeConfig().strokeWidth + 6;
-    const percentage = (this.value() - this.min()) / (this.max() - this.min());
+    // Outermost ring that keeps each LED (r=3) inside the SVG viewport, which clips;
+    // radius + strokeWidth + 6 put the ring 2px beyond the edge
+    const ledRadius = this.center() - 3;
+    const percentage = this.percentage();
 
     for (let i = 0; i < ledCount; i++) {
       const segmentPercentage = i / (ledCount - 1);
@@ -335,7 +406,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
 
   // Event handlers
   onMouseDown(event: MouseEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     event.preventDefault();
     this.startDrag(event.clientX, event.clientY);
 
@@ -354,22 +425,32 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   }
 
   onTouchStart(event: TouchEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     event.preventDefault();
-    const touch = event.touches[0];
+    // The finger that just landed on this dial: touches[0] may be a finger
+    // already holding another control (multi-touch mixing)
+    const touch = event.changedTouches?.[0] ?? event.touches[0];
+    const touchId = touch.identifier;
     const guarded = this.touchGuard();
+    // Keep this gesture's start state: the service's implicit one is shared by all controls
+    let tracking: TouchTrackingState | undefined;
     if (guarded) {
-      this.mobileSupport.startTouchTracking(event);
+      tracking = this.mobileSupport.startTouchTracking(event);
     }
     this.startDrag(touch.clientX, touch.clientY);
 
     const onTouchMove = (e: TouchEvent): void => {
       // Touch guard: ignore movement until the minimum touch duration has elapsed
-      if (guarded && !this.mobileSupport.validateTouchDuration(this.minTouchDuration())) return;
-      const t = e.touches[0];
-      this.handleDrag(t.clientX, t.clientY);
+      if (guarded && !this.mobileSupport.validateTouchDuration(this.minTouchDuration(), tracking)) {
+        return;
+      }
+      // Follow only the finger that started this drag
+      const t = findTouch(e.touches, touchId);
+      if (t) this.handleDrag(t.clientX, t.clientY);
     };
-    const onTouchEnd = (): void => {
+    const onTouchEnd = (e: TouchEvent): void => {
+      // Another finger lifting (e.g. from a neighbouring control) must not end this drag
+      if (e.changedTouches && !findTouch(e.changedTouches, touchId)) return;
       this.endDrag();
     };
 
@@ -378,32 +459,42 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     const { signal: abortSignal } = this.dragController;
     document.addEventListener('touchmove', onTouchMove, { passive: false, signal: abortSignal });
     document.addEventListener('touchend', onTouchEnd, { signal: abortSignal });
+    document.addEventListener('touchcancel', onTouchEnd, { signal: abortSignal });
   }
 
   private startDrag(clientX: number, clientY: number): void {
     this.isDragging = true;
-    this.startAngle = this.getAngleFromPoint(clientX, clientY);
+    this.lastAngle = this.getAngleFromPoint(clientX, clientY);
+    this.accumulatedAngle = 0;
     this.startValue = this.value();
   }
 
   private handleDrag(clientX: number, clientY: number): void {
     if (!this.isDragging) return;
 
+    // Accumulate the per-move angle delta so a gesture can sweep the whole
+    // 270° arc (a single start→current diff wraps at ±180°).
     const currentAngle = this.getAngleFromPoint(clientX, clientY);
-    let angleDiff = currentAngle - this.startAngle;
+    let angleDiff = currentAngle - this.lastAngle;
+    this.lastAngle = currentAngle;
 
     // Handle wrap-around
     if (angleDiff > 180) angleDiff -= 360;
     if (angleDiff < -180) angleDiff += 360;
 
-    const valueDiff = (angleDiff / this.totalAngle) * (this.max() - this.min());
-    let newValue = this.startValue + valueDiff;
+    // Keep the accumulated rotation within what the value range can absorb
+    const range = this.max() - this.min();
+    // An empty range would divide by zero and write NaN
+    if (!(range > 0)) return;
+    const minAngle = ((this.min() - this.startValue) / range) * this.totalAngle;
+    const maxAngle = ((this.max() - this.startValue) / range) * this.totalAngle;
+    this.accumulatedAngle = Math.max(
+      minAngle,
+      Math.min(maxAngle, this.accumulatedAngle + angleDiff)
+    );
 
-    // Apply constraints
-    newValue = Math.max(this.min(), Math.min(this.max(), newValue));
-
-    // Apply step
-    newValue = Math.round(newValue / this.step()) * this.step();
+    const valueDiff = (this.accumulatedAngle / this.totalAngle) * range;
+    let newValue = this.snapToStep(this.startValue + valueDiff);
 
     // Center detent
     if (this.centerDetent()) {
@@ -439,7 +530,7 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
 
     let newValue = this.value();
     const largeStep = (this.max() - this.min()) * 0.1;
@@ -477,10 +568,25 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     }
 
     event.preventDefault();
-    newValue = Math.max(this.min(), Math.min(this.max(), newValue));
-    newValue = Math.round(newValue / this.step()) * this.step();
-    this.setValue(newValue);
+    this.setValue(this.snapToStep(newValue));
     this.onTouchedFn();
+  }
+
+  // Round to the step grid (anchored at min), clamp, and strip float noise
+  private snapToStep(value: number): number {
+    const min = this.min();
+    const max = this.max();
+    const step = this.step();
+    let snapped = value;
+    if (step > 0) {
+      snapped = min + Math.round((value - min) / step) * step;
+      const decimals = Math.max(
+        step.toString().split('.')[1]?.length ?? 0,
+        min.toString().split('.')[1]?.length ?? 0
+      );
+      snapped = Number(snapped.toFixed(Math.min(decimals, 20)));
+    }
+    return Math.max(min, Math.min(max, snapped));
   }
 
   private setValue(newValue: number): void {
@@ -528,6 +634,8 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
 
   // ControlValueAccessor implementation
   writeValue(value: number): void {
+    // Setting the model emits valueChange, which must not happen once destroyed (NG0953)
+    if (this.destroyed) return;
     this.value.set(value ?? this.min());
   }
 
@@ -539,7 +647,14 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
     this.onTouchedFn = fn;
   }
 
-  setDisabledState(_isDisabled: boolean): void {
-    // Disabled state is handled via input
+  setDisabledState(isDisabled: boolean): void {
+    this.cvaDisabled.set(isDisabled);
   }
+}
+
+/** The touch with the given identifier in a touch list */
+function findTouch(list: TouchList, id: number): Touch | undefined {
+  // TouchList is array-like but not iterable without the dom.iterable lib
+  return Array.prototype.find.call(list, (touch: Touch) => touch.identifier === id) as
+    Touch | undefined;
 }

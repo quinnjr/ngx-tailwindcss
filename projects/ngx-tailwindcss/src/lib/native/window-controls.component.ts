@@ -53,6 +53,15 @@ export class TwWindowControlsComponent {
     return p;
   });
 
+  /** With `showFullscreen` the button toggles full screen, so name it for that action. */
+  protected readonly maximizeLabel = computed(() => {
+    const state = this.platformService.windowState();
+    if (this.showFullscreen()) {
+      return state.isFullscreen ? 'Exit full screen' : 'Enter full screen';
+    }
+    return state.isMaximized ? 'Restore' : 'Maximize';
+  });
+
   protected readonly containerClasses = computed(() => {
     const platform = this.effectivePlatform();
 

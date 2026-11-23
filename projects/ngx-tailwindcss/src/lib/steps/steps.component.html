@@ -2,12 +2,14 @@
   <ol [class]="listClasses()">
     @for (step of steps(); track step.id ?? $index; let i = $index; let last = $last) {
       <li [class]="itemClasses(last)">
-        <!-- Step content (indicator + label) -->
+        <!-- Step content (indicator + label). With labels hidden, a completed step shows
+             only a check icon: aria-label keeps the button named -->
         <button
           type="button"
           [class]="stepContentClasses(i)"
           [disabled]="!isStepClickable(i)"
           [attr.aria-current]="i === activeIndex() ? 'step' : null"
+          [attr.aria-label]="showLabels() ? null : step.label"
           (click)="onStepClick(i)"
         >
           <!-- Step indicator -->
@@ -36,28 +38,28 @@
               }
             </div>
           }
-        </button>
 
-        <!-- Label (for vertical, shown next to indicator) -->
-        @if (showLabels() && orientation() === 'vertical') {
-          <div class="ml-3">
-            <span [class]="labelClasses(i)">{{ step.label }}</span>
-            @if (step.description) {
-              <span [class]="descriptionClasses()">{{ step.description }}</span>
-            }
-          </div>
-        }
+          <!-- Label (for vertical, shown next to indicator; inside the button so it names it) -->
+          @if (showLabels() && orientation() === 'vertical') {
+            <div class="text-left">
+              <span [class]="labelClasses(i)">{{ step.label }}</span>
+              @if (step.description) {
+                <span [class]="descriptionClasses()">{{ step.description }}</span>
+              }
+            </div>
+          }
+        </button>
 
         <!-- Horizontal connector (inline between steps) -->
         @if (!last && orientation() === 'horizontal') {
           <div [class]="connectorClasses(i)" [ngStyle]="getHorizontalConnectorStyle()"></div>
         }
-      </li>
 
-      <!-- Vertical connector (between items) -->
-      @if (!last && orientation() === 'vertical') {
-        <div [class]="verticalConnectorClasses(i)" [ngStyle]="getVerticalConnectorStyle()"></div>
-      }
+        <!-- Vertical connector (below the item; kept inside the <li> for valid list markup) -->
+        @if (!last && orientation() === 'vertical') {
+          <div [class]="verticalConnectorClasses(i)" [ngStyle]="getVerticalConnectorStyle()"></div>
+        }
+      </li>
     }
   </ol>
 </nav>

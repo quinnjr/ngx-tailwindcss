@@ -1,13 +1,14 @@
-<div [class]="containerClasses()" [class]="responsiveClasses()">
+<div [class]="rootClasses()">
   <!-- Scroll Left Button -->
-  @if (scrollable() && channels().length > effectiveMaxChannels()) {
+  @if (showScrollButtons()) {
     <button
+      #scrollLeftButton
       type="button"
-      class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"
+      class="flex items-center justify-center w-6 bg-slate-800 enabled:hover:bg-slate-700 rounded text-slate-400 enabled:hover:text-white transition-colors self-stretch flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       [class.opacity-50]="!canScrollLeft()"
       [class.cursor-not-allowed]="!canScrollLeft()"
       [disabled]="!canScrollLeft() || disabled()"
-      (click)="scrollLeft()"
+      (click)="scrollLeft($event)"
       title="Scroll Left"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,16 +24,21 @@
 
   <!-- Channel Strips with Sections -->
   @if (sections().length > 0 && showSectionHeaders()) {
-    <div class="flex gap-1 overflow-hidden flex-1">
+    <!-- Every channel is rendered here (no paging), so the row scrolls: clipping it left the
+         channels past the mixer's edge unreachable -->
+    <!-- pt-1: room inside the clipping row for the -top-1 group indicators -->
+    <div class="flex gap-1 overflow-x-auto flex-1 pt-1">
       @for (sectionGroup of channelsBySection(); track sectionGroup.section?.id ?? 'unsectioned') {
         <div class="flex flex-col">
           <!-- Section Header -->
           @if (sectionGroup.section) {
             <button
               type="button"
-              class="flex items-center justify-between px-2 py-1 mb-1 rounded text-xs font-medium transition-colors"
+              class="flex items-center justify-between px-2 py-1 mb-1 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               [style.background-color]="sectionGroup.section.color || 'rgb(51, 65, 85)'"
               [class.text-white]="true"
+              [attr.aria-expanded]="!sectionGroup.collapsed"
+              [disabled]="disabled()"
               (click)="toggleSection(sectionGroup.section.id)"
             >
               <span class="truncate">{{ sectionGroup.section.name }}</span>
@@ -91,7 +97,7 @@
           } @else {
             <!-- Collapsed Section Indicator -->
             <div
-              class="flex items-center justify-center h-20 px-4 text-xs text-slate-500 bg-slate-800/50 rounded"
+              class="flex items-center justify-center h-20 px-4 text-xs text-slate-400 bg-slate-800/50 rounded"
             >
               {{ sectionGroup.channels.length }} ch
             </div>
@@ -100,8 +106,9 @@
       }
     </div>
   } @else {
-    <!-- Standard Channel Layout (no sections) -->
-    <div class="flex gap-1 overflow-hidden flex-1">
+    <!-- Standard Channel Layout (no sections). pt-1: the group indicators sit at -top-1, which
+         the clipping row cut off entirely -->
+    <div class="flex gap-1 overflow-hidden flex-1 pt-1">
       @for (channel of visibleChannels(); track channel.id; let i = $index) {
         <div class="relative">
           <!-- Group Indicator -->
@@ -115,7 +122,7 @@
 
           <tw-channel-strip
             [label]="channel.label"
-            [channelNumber]="scrollOffset() + i + 1"
+            [channelNumber]="effectiveScrollOffset() + i + 1"
             [variant]="channelStripVariant()"
             [size]="stripSize()"
             [showMeter]="true"
@@ -128,8 +135,8 @@
             [stereo]="true"
             [disabled]="disabled()"
             [ngModel]="getChannelState(channel)"
-            (stateChange)="onChannelStateChange($event, scrollOffset() + i)"
-            (soloChange)="onChannelSoloChange($event, scrollOffset() + i)"
+            (stateChange)="onChannelStateChange($event, channels().indexOf(channel))"
+            (soloChange)="onChannelSoloChange($event, channels().indexOf(channel))"
           ></tw-channel-strip>
         </div>
       }
@@ -137,14 +144,15 @@
   }
 
   <!-- Scroll Right Button -->
-  @if (scrollable() && channels().length > effectiveMaxChannels()) {
+  @if (showScrollButtons()) {
     <button
+      #scrollRightButton
       type="button"
-      class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"
+      class="flex items-center justify-center w-6 bg-slate-800 enabled:hover:bg-slate-700 rounded text-slate-400 enabled:hover:text-white transition-colors self-stretch flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
       [class.opacity-50]="!canScrollRight()"
       [class.cursor-not-allowed]="!canScrollRight()"
       [disabled]="!canScrollRight() || disabled()"
-      (click)="scrollRight()"
+      (click)="scrollRight($event)"
       title="Scroll Right"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

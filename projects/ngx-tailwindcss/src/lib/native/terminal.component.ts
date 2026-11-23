@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   input,
   output,
@@ -78,6 +79,14 @@ export class TwTerminalComponent implements AfterViewChecked {
     return lines.length > max ? lines.slice(-max) : lines;
   });
 
+  constructor() {
+    // Scroll to the newest output whenever lines are added
+    effect(() => {
+      this.displayedLines();
+      this.shouldScroll = true;
+    });
+  }
+
   public ngAfterViewChecked(): void {
     if (this.shouldScroll && this.autoScroll() && this.outputArea?.nativeElement) {
       this.outputArea.nativeElement.scrollTop = this.outputArea.nativeElement.scrollHeight;
@@ -100,17 +109,46 @@ export class TwTerminalComponent implements AfterViewChecked {
     return `${base} ${variantClasses[variant]}`;
   });
 
-  protected getLineClasses(line: TerminalLine): string {
-    const typeClasses: Record<TerminalLine['type'], string> = {
-      input: 'text-gray-100',
-      output: 'text-gray-300',
-      error: 'text-red-400',
-      info: 'text-blue-400',
-      success: 'text-green-400',
-      warning: 'text-yellow-400',
-    };
+  // Prompt, status and timestamp colours inside the output area, which is
+  // white in the light variant and near-black otherwise
+  protected readonly outputAccents = computed(() =>
+    this.variant() === 'light'
+      ? {
+          prompt: 'text-green-700',
+          processing: 'text-yellow-800',
+          timestamp: 'text-gray-500',
+          cursor: 'bg-gray-700',
+        }
+      : {
+          prompt: 'text-green-400',
+          processing: 'text-yellow-400',
+          timestamp: 'text-gray-400',
+          cursor: 'bg-gray-300',
+        }
+  );
 
-    return typeClasses[line.type] || 'text-gray-300';
+  protected getLineClasses(line: TerminalLine): string {
+    // The light variant renders on a white background, so it needs dark text
+    const typeClasses: Record<TerminalLine['type'], string> =
+      this.variant() === 'light'
+        ? {
+            input: 'text-gray-900',
+            output: 'text-gray-700',
+            error: 'text-red-700',
+            info: 'text-blue-700',
+            success: 'text-green-700',
+            warning: 'text-yellow-800',
+          }
+        : {
+            input: 'text-gray-100',
+            output: 'text-gray-300',
+            error: 'text-red-400',
+            info: 'text-blue-400',
+            success: 'text-green-400',
+            warning: 'text-yellow-400',
+          };
+
+    return typeClasses[line.type] || typeClasses.output;
   }
 
   protected formatTimestamp(date: Date): string {
@@ -129,6 +167,9 @@ export class TwTerminalComponent implements AfterViewChecked {
   }
 
   protected submitCommand(): void {
+    // While processing the input is read-only (not disabled, which would drop
+    // keyboard focus every command); it must not submit or change either
+    if (this.isProcessing()) return;
     const cmd = this.currentInput().trim();
     if (!cmd) return;
 
@@ -142,9 +183,15 @@ export class TwTerminalComponent implements AfterViewChecked {
     this.shouldScroll = true;
   }
 
-  protected navigateHistory(direction: number): void {
+  /**
+   * Walk the command history. `direction` 1 = older (ArrowUp), -1 = newer
+   * (ArrowDown); index -1 is the empty prompt, 0 the most recent command.
+   */
+  protected navigateHistory(direction: number, event?: Event): void {
     const history = this.commandHistory();
-    if (history.length === 0) return;
+    if (history.length === 0 || this.isProcessing()) return;
+    // Keep the caret from jumping to the start of the input on ArrowUp
+    event?.preventDefault();
 
     let newIndex = this.historyIndex() + direction;
 

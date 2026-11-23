@@ -51,6 +51,7 @@ class TestHostComponent {
       [showValue]="showValue()"
       [indeterminate]="indeterminate()"
       [thickness]="thickness()"
+      [label]="label()"
     ></tw-progress-circular>
   `,
   standalone: true,
@@ -65,6 +66,7 @@ class CircularTestComponent {
   showValue = signal(false);
   indeterminate = signal(false);
   thickness = signal(4);
+  label = signal('');
 }
 
 describe('TwProgressComponent', () => {
@@ -101,15 +103,17 @@ describe('TwProgressComponent', () => {
       component.value.set(150);
       component.max.set(100);
       fixture.detectChanges();
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('100%');
+      const host = progressEl.querySelector('[role="progressbar"]');
+      expect(host?.getAttribute('aria-valuenow')).toBe('100');
     });
 
     it('should not go below 0', () => {
       component.value.set(-10);
       component.max.set(100);
       fixture.detectChanges();
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
     });
   });
@@ -152,7 +156,7 @@ describe('TwProgressComponent', () => {
       component.variant.set('success');
       fixture.detectChanges();
       const bar = progressEl.querySelector('.overflow-hidden > div');
-      expect(bar?.className).toContain('bg-emerald-600');
+      expect(bar?.className).toContain('bg-emerald-700');
     });
 
     it('should apply warning variant', () => {
@@ -173,7 +177,40 @@ describe('TwProgressComponent', () => {
       component.variant.set('info');
       fixture.detectChanges();
       const bar = progressEl.querySelector('.overflow-hidden > div');
-      expect(bar?.className).toContain('bg-cyan-600');
+      expect(bar?.className).toContain('bg-cyan-700');
+    });
+
+    it('should use lighter fills with dark value text against the dark-mode slate-700 track', () => {
+      component.showValue.set(true);
+      component.labelPosition.set('inside');
+      component.value.set(50);
+      const expected: Array<[ProgressVariant, string]> = [
+        ['primary', 'dark:bg-blue-400'],
+        ['secondary', 'dark:bg-slate-400'],
+        ['success', 'dark:bg-emerald-500'],
+        ['danger', 'dark:bg-rose-400'],
+        ['info', 'dark:bg-cyan-500'],
+      ];
+      for (const [variant, darkFill] of expected) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        const bar = progressEl.querySelector('.overflow-hidden > div');
+        expect(bar?.className).toContain(darkFill);
+        expect(bar?.querySelector('span')?.className).toContain('dark:text-slate-900');
+      }
+    });
+
+    it('should use dark value text inside a warning bar', () => {
+      component.variant.set('warning');
+      component.showValue.set(true);
+      component.labelPosition.set('inside');
+      component.value.set(50);
+      fixture.detectChanges();
+      const value = progressEl.querySelector('.overflow-hidden > div > span');
+      expect(value?.textContent).toContain('50%');
+      // white on amber-500 is ~2.2:1
+      expect(value?.className).toContain('text-amber-950');
+      expect(value?.className).not.toContain('text-white');
     });
   });
 
@@ -189,6 +226,16 @@ describe('TwProgressComponent', () => {
       component.value.set(75);
       fixture.detectChanges();
       expect(progressEl.textContent).toContain('75%');
+    });
+
+    it('should keep label and value readable in dark mode', () => {
+      component.showValue.set(true);
+      fixture.detectChanges();
+      const spans = [...progressEl.querySelectorAll('span')];
+      const label = spans.find(s => s.textContent?.includes('Progress'))!;
+      const value = spans.find(s => s.textContent?.includes('%'))!;
+      expect(label.className).toContain('dark:text-slate-300');
+      expect(value.className).toContain('dark:text-slate-400');
     });
   });
 
@@ -235,7 +282,7 @@ describe('TwProgressComponent', () => {
       component.max.set(0);
       fixture.detectChanges();
 
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
       expect(progressEl.textContent).toContain('0%');
     });
@@ -244,7 +291,7 @@ describe('TwProgressComponent', () => {
       component.max.set(-5);
       fixture.detectChanges();
 
-      const bar = progressEl.querySelector('.overflow-hidden > div')!;
+      const bar = progressEl.querySelector<HTMLElement>('.overflow-hidden > div')!;
       expect(bar?.style.width).toBe('0%');
     });
   });
@@ -269,6 +316,47 @@ describe('TwProgressComponent', () => {
       const bar = progressEl.querySelector('[role="progressbar"]');
       expect(bar?.getAttribute('aria-valuemax')).toBe('100');
     });
+  });
+});
+
+describe('TwProgressComponent ariaLabel / ariaLabelledBy', () => {
+  @Component({
+    template: `
+      <span id="cap">Upload</span>
+      <tw-progress
+        [value]="40"
+        [ariaLabel]="ariaLabel()"
+        [ariaLabelledBy]="labelledBy()"
+      ></tw-progress>
+    `,
+    standalone: true,
+    imports: [TwProgressComponent],
+  })
+  class AriaHostComponent {
+    ariaLabel = signal<string | null>('File upload');
+    labelledBy = signal<string | null>(null);
+  }
+
+  it('names the progressbar via ariaLabel without rendering a visible caption', async () => {
+    await TestBed.configureTestingModule({ imports: [AriaHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(AriaHostComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const bar = el.querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-label')).toBe('File upload');
+    expect(bar.getAttribute('aria-labelledby')).toBeNull();
+    expect(bar.textContent?.trim()).toBe('');
+  });
+
+  it('applies ariaLabelledBy to the progressbar element', async () => {
+    await TestBed.configureTestingModule({ imports: [AriaHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(AriaHostComponent);
+    fixture.componentInstance.ariaLabel.set(null);
+    fixture.componentInstance.labelledBy.set('cap');
+    fixture.detectChanges();
+    const bar = (fixture.nativeElement as HTMLElement).querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-labelledby')).toBe('cap');
+    expect(bar.getAttribute('aria-label')).toBeNull();
   });
 });
 
@@ -298,6 +386,17 @@ describe('TwProgressCircularComponent', () => {
   it('should render SVG element', () => {
     const svg = progressEl.querySelector('svg');
     expect(svg).toBeTruthy();
+  });
+
+  it('should clamp aria-valuenow to the [0, max] range', () => {
+    const host = progressEl.querySelector('[role="progressbar"]')!;
+    component.value.set(150);
+    fixture.detectChanges();
+    expect(host.getAttribute('aria-valuenow')).toBe('100');
+
+    component.value.set(-5);
+    fixture.detectChanges();
+    expect(host.getAttribute('aria-valuenow')).toBe('0');
   });
 
   describe('size', () => {
@@ -336,6 +435,13 @@ describe('TwProgressCircularComponent', () => {
       fixture.detectChanges();
       const circle = progressEl.querySelectorAll('circle')[1];
       expect(circle?.getAttribute('stroke')).toBe('#e11d48');
+    });
+
+    it('should apply an info stroke color with >= 3:1 against the slate-200 track', () => {
+      component.variant.set('info');
+      fixture.detectChanges();
+      const circle = progressEl.querySelectorAll('circle')[1];
+      expect(circle?.getAttribute('stroke')).toBe('#0e7490');
     });
   });
 
@@ -389,5 +495,52 @@ describe('TwProgressCircularComponent', () => {
       const wrapper = progressEl.querySelector('[role="progressbar"]');
       expect(wrapper?.getAttribute('aria-valuenow')).toBe('75');
     });
+
+    it('should name the progressbar from the label input', () => {
+      const wrapper = progressEl.querySelector('[role="progressbar"]')!;
+      expect(wrapper.hasAttribute('aria-label')).toBe(false);
+      component.label.set('Uploading file');
+      fixture.detectChanges();
+      expect(wrapper.getAttribute('aria-label')).toBe('Uploading file');
+    });
+  });
+});
+
+describe('Progress bare boolean attributes', () => {
+  it('should treat bare showValue/indeterminate attributes as true', async () => {
+    @Component({
+      template: `
+        <tw-progress [value]="40" showValue></tw-progress>
+        <tw-progress-circular [value]="40" indeterminate></tw-progress-circular>
+      `,
+      standalone: true,
+      imports: [TwProgressComponent, TwProgressCircularComponent],
+    })
+    class BareAttrHostComponent {}
+
+    await TestBed.configureTestingModule({ imports: [BareAttrHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(BareAttrHostComponent);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('tw-progress')!.textContent).toContain('40%');
+    const circular = el.querySelector('tw-progress-circular [role="progressbar"]')!;
+    expect(circular.hasAttribute('aria-valuenow')).toBe(false);
+  });
+
+  it('should name the progressbar with its label', async () => {
+    @Component({
+      template: `<tw-progress [value]="40" label="Uploading"></tw-progress>`,
+      standalone: true,
+      imports: [TwProgressComponent],
+    })
+    class LabelHostComponent {}
+
+    await TestBed.configureTestingModule({ imports: [LabelHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(LabelHostComponent);
+    fixture.detectChanges();
+
+    const bar = (fixture.nativeElement as HTMLElement).querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-label')).toBe('Uploading');
   });
 });

@@ -9,7 +9,8 @@ export type TimeDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
 interface FlipSegment {
   id: string;
   value: string;
-  separator: boolean;
+  /** Separator rendered after this card ('' for none) */
+  separator: string;
 }
 
 /**
@@ -91,6 +92,19 @@ export class TwTimeDisplayComponent {
     }
   });
 
+  // role="img" hides the visible text, so the name carries everything shown, including the
+  // total that the default/minimal variants print after the current time
+  protected readonly ariaLabel = computed(() => {
+    const label = this.label();
+    const variant = this.variant();
+    const showsTotal =
+      this.showTotal() &&
+      this.mode() === 'time' &&
+      (variant === 'default' || variant === 'minimal');
+    const total = showsTotal ? ` of ${this.formatTime(this.total())}` : '';
+    return (label ? `${label}: ` : '') + this.displayText() + total;
+  });
+
   protected readonly displayChars = computed(() => {
     return this.displayText().split('');
   });
@@ -102,19 +116,40 @@ export class TwTimeDisplayComponent {
   });
 
   protected readonly flipSegments = computed((): FlipSegment[] => {
-    const time = this.value();
+    const mode = this.mode();
+    if (mode === 'bars') {
+      return [
+        { id: 'bar', value: String(this.bar()), separator: '.' },
+        { id: 'beat', value: String(this.beat()), separator: '' },
+      ];
+    }
+    if (mode !== 'time') {
+      // BPM and sample counts show as a single card with the same text as the other variants
+      return [{ id: mode, value: this.displayText(), separator: '' }];
+    }
+
+    // Counts down like the other variants when showRemaining is set
+    const shown = this.showRemaining() ? this.total() - this.value() : this.value();
+    const time = Math.max(0, Number.isFinite(shown) ? shown : 0);
     const hrs = Math.floor(time / 3600);
-    const mins = Math.floor((time % 3600) / 60);
     const secs = Math.floor(time % 60);
 
     const segments: FlipSegment[] = [];
     const showHrs = this.showHours() === 'always' || (this.showHours() === 'auto' && hrs > 0);
+    // Without an hours field, minutes carry the full duration (e.g. 65:00)
+    const mins = showHrs ? Math.floor((time % 3600) / 60) : Math.floor(time / 60);
 
     if (showHrs) {
-      segments.push({ id: 'h', value: hrs.toString().padStart(2, '0'), separator: true });
+      segments.push({ id: 'h', value: hrs.toString().padStart(2, '0'), separator: ':' });
     }
-    segments.push({ id: 'm', value: mins.toString().padStart(2, '0'), separator: true });
-    segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: false });
+    segments.push({ id: 'm', value: mins.toString().padStart(2, '0'), separator: ':' });
+    if (this.showMilliseconds()) {
+      const ms = Math.floor(time * 1000 + 1e-6) % 1000;
+      segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: '.' });
+      segments.push({ id: 'ms', value: ms.toString().padStart(3, '0'), separator: '' });
+    } else {
+      segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: '' });
+    }
 
     return segments;
   });
@@ -150,7 +185,9 @@ export class TwTimeDisplayComponent {
     if (isSeparator) {
       return this.twClass.merge(baseClasses, 'text-emerald-400/70 mx-0.5');
     }
-    return this.twClass.merge(baseClasses, 'text-emerald-400/50');
+    // Unit letters and signs (e.g. 'BPM', the remaining-time '-') are text too: at 50% they
+    // were ~3.1:1 on the slate-900 display
+    return this.twClass.merge(baseClasses, 'text-emerald-400/70');
   }
 
   protected readonly digitalClasses = computed(() => {
@@ -168,30 +205,36 @@ export class TwTimeDisplayComponent {
 
   protected readonly separatorClasses = computed(() => {
     const size = this.sizeConfig();
-    return this.twClass.merge('text-slate-500 font-bold', size.flip);
+    // Sits on the page: slate-500 is ~3.5:1 on a dark page
+    return this.twClass.merge('text-slate-500 dark:text-slate-400 font-bold', size.flip);
   });
 
   protected readonly defaultClasses = computed(() => {
     const size = this.sizeConfig();
-    return this.twClass.merge(
-      'font-mono font-medium text-slate-700 dark:text-slate-300 tabular-nums',
-      size.text
-    );
+    // Minimal inherits the surrounding text colour, so it stays readable inside dark or
+    // light containers (e.g. the audio player themes) regardless of the page colour scheme
+    const color = this.variant() === 'minimal' ? '' : 'text-slate-700 dark:text-slate-300';
+    return this.twClass.merge('font-mono font-medium tabular-nums', color, size.text);
   });
 
   // Utility
   formatTime(seconds: number): string {
     if (!seconds || !Number.isFinite(seconds) || seconds < 0) {
-      return this.showHours() === 'always' ? '0:00:00' : '0:00';
+      const zero = this.showHours() === 'always' ? '0:00:00' : '0:00';
+      return this.showMilliseconds() ? `${zero}.000` : zero;
     }
 
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 1000);
+    // Work in whole milliseconds to avoid float noise (e.g. 1.005 % 1 -> 0.00499...)
+    const totalMs = Math.floor(seconds * 1000 + 1e-6);
+    const totalSecs = Math.floor(totalMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const secs = totalSecs % 60;
+    const ms = totalMs % 1000;
 
     let result: string;
     const showHrs = this.showHours() === 'always' || (this.showHours() === 'auto' && hrs > 0);
+    // Without an hours field, minutes carry the full duration (e.g. 65:00)
+    const mins = showHrs ? Math.floor((totalSecs % 3600) / 60) : Math.floor(totalSecs / 60);
 
     if (showHrs) {
       result = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;

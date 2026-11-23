@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   AfterViewInit,
   booleanAttribute,
   ChangeDetectionStrategy,
@@ -14,6 +15,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
@@ -36,11 +38,17 @@ export type MultiSelectSize = 'sm' | 'md' | 'lg';
 export type MultiSelectVariant = 'default' | 'filled';
 export type MultiSelectAppendTo = 'body' | 'self';
 
-const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string }> = {
-  sm: { trigger: 'px-3 py-1.5 min-h-8', text: 'text-sm' },
-  md: { trigger: 'px-4 py-2.5 min-h-10', text: 'text-base' },
-  lg: { trigger: 'px-5 py-3 min-h-12', text: 'text-lg' },
-};
+/** Keyboard-navigation sentinel for the "Select All" row */
+const SELECT_ALL = Symbol('select-all');
+type NavItem = MultiSelectOption | typeof SELECT_ALL;
+
+const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string; clear: string }> =
+  {
+    // `clear` offsets the clear button over its reserved slot: padding + chevron (w-5) + gap-2
+    sm: { trigger: 'px-3 py-1.5 min-h-8', text: 'text-sm', clear: 'right-10' },
+    md: { trigger: 'px-4 py-2.5 min-h-10', text: 'text-base', clear: 'right-11' },
+    lg: { trigger: 'px-5 py-3 min-h-12', text: 'text-lg', clear: 'right-12' },
+  };
 
 /**
  * Multi-select/Dropdown component with Tailwind CSS styling.
@@ -70,6 +78,7 @@ const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string
 export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, AfterViewInit {
   @ViewChild('triggerButton') triggerButton!: ElementRef<HTMLButtonElement>;
   @ViewChild('filterInput') filterInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('clearButton') clearButton?: ElementRef<HTMLButtonElement>;
 
   /** Options to display (flat list) */
   readonly options = input<MultiSelectOption[]>([]);
@@ -125,23 +134,23 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   protected filterValue = signal('');
   protected selectedValues = signal<Set<unknown>>(new Set());
   protected dropdownPosition = signal<{ top: number; left: number; width: number } | null>(null);
-  protected readonly _disabled = signal(false);
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly cvaDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input OR the forms API state */
+  protected readonly _disabled = computed(() => this.disabled() || this.cvaDisabled());
   protected activeIndex = signal(-1);
 
   protected readonly listboxId = `tw-multiselect-listbox-${Math.random().toString(36).slice(2, 9)}`;
+  protected readonly triggerId = `${this.listboxId}-trigger`;
+  protected readonly selectAllId = `${this.listboxId}-select-all`;
+  /** Id of the displayed value; names the combobox when there is no label */
+  protected readonly valueId = `${this.listboxId}-value`;
 
   private onChangeFn: (value: unknown[]) => void = () => {};
   private onTouchedFn: () => void = () => {};
   private clickListener: ((event: MouseEvent) => void) | null = null;
   private resizeListener: (() => void) | null = null;
   private scrollListener: (() => void) | null = null;
-
-  constructor() {
-    // Keep the CVA-driven disabled state in sync with the input binding
-    effect(() => {
-      this._disabled.set(this.disabled());
-    });
-  }
 
   protected allOptions = computed(() => {
     const groups = this.groups();
@@ -159,14 +168,26 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
    */
   protected selectAllTarget = computed(() => {
     const enabledCount = this.enabledOptions().length;
-    const max = this.maxSelections();
-    return max > 0 ? Math.min(max, enabledCount) : enabledCount;
+    const capacity = this.selectionCapacity();
+    return capacity === null ? enabledCount : Math.min(capacity, enabledCount);
   });
 
   /** Select All cannot select everything when maxSelections is lower than the option count */
   protected selectAllLimited = computed(() => {
+    const capacity = this.selectionCapacity();
+    return capacity !== null && capacity < this.enabledOptions().length;
+  });
+
+  /** Number of selected values Select All cannot change (disabled or unknown options) */
+  private lockedCount = computed(() => {
+    const enabledValues = new Set(this.enabledOptions().map(opt => opt.value));
+    return [...this.selectedValues()].filter(value => !enabledValues.has(value)).length;
+  });
+
+  /** Enabled options that may be selected under maxSelections (null = unlimited) */
+  private selectionCapacity = computed(() => {
     const max = this.maxSelections();
-    return max > 0 && max < this.enabledOptions().length;
+    return max > 0 ? Math.max(0, max - this.lockedCount()) : null;
   });
 
   /** Number of currently selected enabled options (ignores disabled pre-selected values) */
@@ -216,11 +237,39 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     return this.filteredOptions();
   });
 
+  /** Whether the "Select All" row is rendered */
+  protected showSelectAllRow = computed(
+    () => this.showSelectAll() && !this.selectAllLimited() && this.allOptions().length > 0
+  );
+
+  /** Select All has nothing to toggle when every option is disabled */
+  protected selectAllDisabled = computed(() => this.enabledOptions().length === 0);
+
+  /** Keyboard-navigable rows in display order: Select All (when shown), then visible options */
+  private navItems = computed<NavItem[]>(() =>
+    this.showSelectAllRow() ? [SELECT_ALL, ...this.visibleOptions()] : this.visibleOptions()
+  );
+
   protected activeOptionId = computed(() => {
-    const index = this.activeIndex();
-    if (index < 0 || index >= this.visibleOptions().length) return null;
-    return `${this.listboxId}-option-${index}`;
+    const item = this.navItems()[this.activeIndex()];
+    if (item === undefined) return null;
+    return item === SELECT_ALL ? this.selectAllId : this.optionId(item);
   });
+
+  /**
+   * Keeps the keyboard-active option visible: focus stays on the trigger or filter
+   * (aria-activedescendant), so the listbox does not scroll by itself.
+   */
+  private readonly scrollActiveOptionIntoView = afterRenderEffect(() => {
+    const id = this.activeOptionId();
+    if (!id) return;
+    const option = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      `[id="${id}"]`
+    );
+    option?.scrollIntoView?.({ block: 'nearest' });
+  });
+
+  protected isSelectAllActive = computed(() => this.navItems()[this.activeIndex()] === SELECT_ALL);
 
   protected triggerClasses = computed(() => {
     const sizeClasses = MULTISELECT_SIZES[this.size()].trigger;
@@ -238,7 +287,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
       );
     } else if (this.variant() === 'filled') {
       baseClasses.push(
-        'bg-slate-100 dark:bg-slate-700 border-slate-100 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+        'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-100 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
       );
     } else {
       baseClasses.push(
@@ -249,6 +298,17 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     return this.twClass.merge(baseClasses.join(' '), this.triggerClass());
   });
 
+  protected showClearButton = computed(() => this.selectedValues().size > 0 && !this._disabled());
+
+  protected clearButtonClasses = computed(() =>
+    [
+      'absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded',
+      'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+      MULTISELECT_SIZES[this.size()].clear,
+    ].join(' ')
+  );
+
   protected dropdownClasses = computed(() => {
     const baseClasses = [
       'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10',
@@ -257,6 +317,18 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
 
     return this.twClass.merge(baseClasses.join(' '), this.dropdownClass());
   });
+
+  constructor() {
+    // Disabling the multiselect (input or forms API) while it is open closes the dropdown,
+    // so its options cannot change the value of a disabled control
+    effect(() => {
+      if (this._disabled()) {
+        untracked(() => {
+          this.closeDropdown();
+        });
+      }
+    });
+  }
 
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -310,7 +382,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this._disabled.set(isDisabled);
+    this.cvaDisabled.set(isDisabled);
   }
 
   toggleDropdown(): void {
@@ -352,7 +424,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   toggleOption(option: MultiSelectOption): void {
-    if (option.disabled) return;
+    if (option.disabled || this._disabled()) return;
 
     const selected = new Set(this.selectedValues());
 
@@ -372,22 +444,26 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   toggleSelectAll(): void {
+    if (this._disabled()) return;
     const enabledOptions = this.enabledOptions();
+    const enabledValues = new Set(enabledOptions.map(opt => opt.value));
+    // Selections on disabled options are locked: Select All must not add or remove them
+    const locked = [...this.selectedValues()].filter(value => !enabledValues.has(value));
 
+    let values: unknown[];
     if (this.selectedEnabledCount() >= this.selectAllTarget()) {
       // Deselect all
-      this.selectedValues.set(new Set());
-      this.onChangeFn([]);
-      this.selectionChange.emit([]);
+      values = locked;
     } else {
       // Select all (respecting max selections)
-      const max = this.maxSelections();
-      const toSelect = max > 0 ? enabledOptions.slice(0, max) : enabledOptions;
-      const values = toSelect.map(opt => opt.value);
-      this.selectedValues.set(new Set(values));
-      this.onChangeFn(values);
-      this.selectionChange.emit(values);
+      // Locked selections count toward maxSelections
+      const capacity = this.selectionCapacity();
+      const toSelect = capacity === null ? enabledOptions : enabledOptions.slice(0, capacity);
+      values = [...locked, ...toSelect.map(opt => opt.value)];
     }
+    this.selectedValues.set(new Set(values));
+    this.onChangeFn(values);
+    this.selectionChange.emit(values);
   }
 
   isSelected(option: MultiSelectOption): boolean {
@@ -406,7 +482,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
 
   protected isActive(option: MultiSelectOption): boolean {
     const index = this.activeIndex();
-    return index >= 0 && this.visibleOptions()[index] === option;
+    return index >= 0 && this.navItems()[index] === option;
   }
 
   protected optionId(option: MultiSelectOption): string | null {
@@ -420,6 +496,12 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     this.selectionChange.emit([]);
   }
 
+  /** Clear button handler: the button disappears once cleared, so keep focus on the trigger */
+  protected onClearClick(): void {
+    this.clearAll();
+    this.triggerButton?.nativeElement?.focus();
+  }
+
   protected onFilterInput(event: Event): void {
     const filterInput = event.target as HTMLInputElement;
     this.filterValue.set(filterInput.value);
@@ -429,10 +511,20 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   @HostListener('keydown', ['$event'])
   protected onKeydown(event: KeyboardEvent): void {
     if (this._disabled()) return;
+    // Let the clear button handle its own keys (native button activation)
+    if (event.target === this.clearButton?.nativeElement) return;
 
     const isFilterInput = event.target === this.filterInput?.nativeElement;
 
     switch (event.key) {
+      case 'Escape': {
+        // Claim Escape while open so an enclosing modal/overlay stays open
+        if (this.isOpen()) {
+          event.preventDefault();
+          this.closeDropdown(true);
+        }
+        break;
+      }
       case 'ArrowDown': {
         event.preventDefault();
         if (this.isOpen()) {
@@ -466,11 +558,15 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
       case 'Enter':
       case ' ': {
         if (event.key === ' ' && isFilterInput) return;
+        // Enter in the filter text field must never trigger implicit form submission
+        if (isFilterInput) event.preventDefault();
         if (this.isOpen() && this.activeIndex() >= 0) {
           event.preventDefault();
-          const option = this.visibleOptions()[this.activeIndex()];
-          if (option) {
-            this.toggleOption(option);
+          const item = this.navItems()[this.activeIndex()];
+          if (item === SELECT_ALL) {
+            if (!this.selectAllDisabled()) this.toggleSelectAll();
+          } else if (item) {
+            this.toggleOption(item);
           }
         }
         break;
@@ -478,27 +574,31 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     }
   }
 
+  private isNavItemDisabled(item: NavItem): boolean {
+    return item === SELECT_ALL ? this.selectAllDisabled() : !!item.disabled;
+  }
+
   private moveActiveIndex(delta: number): void {
-    const options = this.visibleOptions();
-    if (options.length === 0) return;
+    const items = this.navItems();
+    if (items.length === 0) return;
 
     let index = this.activeIndex();
-    for (const _ of options) {
-      index = (index + delta + options.length) % options.length;
-      if (!options[index].disabled) break;
+    for (const _ of items) {
+      index = (index + delta + items.length) % items.length;
+      if (!this.isNavItemDisabled(items[index])) break;
     }
     this.activeIndex.set(index);
   }
 
   private setActiveToEdge(first: boolean): void {
-    const options = this.visibleOptions();
+    const items = this.navItems();
     if (first) {
-      const index = options.findIndex(opt => !opt.disabled);
+      const index = items.findIndex(item => !this.isNavItemDisabled(item));
       if (index >= 0) this.activeIndex.set(index);
       return;
     }
-    for (let i = options.length - 1; i >= 0; i--) {
-      if (!options[i].disabled) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (!this.isNavItemDisabled(items[i])) {
         this.activeIndex.set(i);
         return;
       }
@@ -509,6 +609,23 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   protected onEscapePress(): void {
     if (this.isOpen()) {
       this.closeDropdown(true);
+    }
+  }
+
+  /**
+   * Closes the dropdown when keyboard focus moves to an element outside the component
+   * (e.g. Tab), so the open panel does not linger over the page. A null relatedTarget
+   * (clicks on non-focusable options) is left to the document click handler.
+   * Focus leaving the component also marks the control as touched, which commits
+   * pending values of `updateOn: 'blur'` form controls.
+   */
+  @HostListener('focusout', ['$event'])
+  protected onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget as Node | null;
+    if (next && this.elementRef.nativeElement.contains(next)) return;
+    this.onTouchedFn();
+    if (this.isOpen() && next) {
+      this.closeDropdown();
     }
   }
 

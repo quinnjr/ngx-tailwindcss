@@ -51,9 +51,13 @@ export class TwPropertyInspectorComponent {
     this.propertyChanged.emit({ property, value });
   }
 
-  public copyValue(property: PropertyItem): void {
-    void navigator.clipboard.writeText(String(property.value));
-    this.valueCopied.emit(property);
+  public async copyValue(property: PropertyItem): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(String(property.value));
+      this.valueCopied.emit(property);
+    } catch (error) {
+      console.error('Failed to copy value:', error);
+    }
   }
 
   public expandObject(property: PropertyItem): void {

@@ -2,18 +2,30 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  inject,
   input,
+  isDevMode,
   numberAttribute,
   output,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 import { KeySignature, StaffTimeSignature } from './staff.component';
 import { ChordDefinition, COMMON_CHORDS, TwChordDiagramComponent } from './chord-diagram.component';
 
 export type LeadSheetVariant = 'default' | 'minimal' | 'printed' | 'dark' | 'fakebook';
 export type LeadSheetStyle = 'standard' | 'nashville' | 'roman';
+/**
+ * Lead-sheet display mode.
+ *
+ * - `'chords-only'`: chord symbols (and rhythm slashes) only.
+ * - `'with-diagrams'` / `'full'`: chord symbols plus inline chord diagrams.
+ * - `'with-staff'`: **not yet supported.** A melody staff is not rendered yet, so this
+ *   currently renders exactly like `'chords-only'` (a dev-mode warning is logged).
+ */
 export type LeadSheetDisplayMode = 'chords-only' | 'with-staff' | 'with-diagrams' | 'full';
 export type SlashStyle = 'simple' | 'rhythmic' | 'none';
 
@@ -39,7 +51,13 @@ export interface LeadSheetMeasure {
   segno?: boolean;
   ending?: number; // 1st ending, 2nd ending, etc.
   slashPattern?: SlashPattern; // Custom slash pattern
-  melody?: MelodyNote[]; // Optional melody notes
+  /**
+   * Melody notes for this measure.
+   *
+   * **Not yet supported:** melody is not rendered by `tw-lead-sheet` yet; this field is
+   * currently ignored.
+   */
+  melody?: MelodyNote[];
 }
 
 export interface MelodyNote {
@@ -86,6 +104,39 @@ const NASHVILLE_MAP: Record<string, Record<string, string>> = {
   'F#': { 'F#': '1', 'G#m': '2m', 'A#m': '3m', B: '4', 'C#': '5', 'D#m': '6m', 'E#dim': '7°' },
 };
 
+interface ParsedChordSymbol {
+  /** Lookup key for NASHVILLE_MAP / COMMON_CHORDS, e.g. "A", "Am", "Bdim" */
+  base: string;
+  /** Everything after the root + triad quality, e.g. "7", "maj7", "/B" */
+  modifier: string;
+}
+
+// Split a chord symbol into root + triad quality and the remaining extension
+function parseChordSymbol(chord: string): ParsedChordSymbol | null {
+  const match = /^([A-G][#b]?)(.*)$/.exec(chord);
+  if (!match) return null;
+
+  const [, root, rest] = match;
+  const dimMatch = /^(dim|°)/.exec(rest);
+  if (dimMatch) {
+    return { base: `${root}dim`, modifier: rest.slice(dimMatch[0].length) };
+  }
+  // Minor ("m", "min", "-") but not major-seventh style "maj"
+  const minorMatch = /^(min|m(?!aj)|-)/.exec(rest);
+  if (minorMatch) {
+    return { base: `${root}m`, modifier: rest.slice(minorMatch[0].length) };
+  }
+  return { base: root, modifier: rest };
+}
+
+// Beats per measure for a time signature string ("3/4", "C" = 4, "C|" = 2)
+function beatsInTimeSignature(ts: string): number {
+  if (ts === 'C') return 4;
+  if (ts === 'C|') return 2;
+  const [beats] = ts.split('/').map(Number);
+  return beats || 4;
+}
+
 // Common slash patterns
 const SLASH_PATTERNS: Record<string, SlashPattern> = {
   '4/4-basic': { beats: [1, 2, 3, 4] },
@@ -110,9 +161,12 @@ const SLASH_PATTERNS: Record<string, SlashPattern> = {
   },
 })
 export class TwLeadSheetComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly data = input<LeadSheetData | null>(null);
   readonly variant = input<LeadSheetVariant>('default');
   readonly style = input<LeadSheetStyle>('standard');
+  /** See {@link LeadSheetDisplayMode}; `'with-staff'` is not yet supported. */
   readonly displayMode = input<LeadSheetDisplayMode>('chords-only');
   readonly slashStyle = input<SlashStyle>('simple');
   readonly measuresPerRow = input(4, { transform: numberAttribute });
@@ -133,6 +187,22 @@ export class TwLeadSheetComponent {
 
   // Exposed for template
   protected readonly COMMON_CHORDS = COMMON_CHORDS;
+
+  private warnedWithStaff = false;
+
+  constructor() {
+    // 'with-staff' is accepted by the type but no staff/melody is rendered yet: tell
+    // developers instead of silently rendering 'chords-only'
+    effect(() => {
+      if (this.displayMode() === 'with-staff' && !this.warnedWithStaff && isDevMode()) {
+        this.warnedWithStaff = true;
+        console.warn(
+          "tw-lead-sheet: displayMode 'with-staff' is not yet supported (no melody staff is " +
+            "rendered); it currently renders like 'chords-only'."
+        );
+      }
+    });
+  }
   protected readonly SLASH_PATTERNS = SLASH_PATTERNS;
 
   protected readonly containerClasses = computed(() => {
@@ -147,7 +217,7 @@ export class TwLeadSheetComponent {
       fakebook: 'bg-[#FFF9E6] border border-amber-300 font-serif',
     };
 
-    return [base, variantClasses[variant], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[variant], this.classOverride());
   });
 
   protected readonly textClasses = computed(() => {
@@ -155,13 +225,23 @@ export class TwLeadSheetComponent {
 
     const classes: Record<
       LeadSheetVariant,
-      { title: string; subtitle: string; chord: string; section: string; rehearsal: string }
+      {
+        title: string;
+        subtitle: string;
+        chord: string;
+        section: string;
+        rehearsal: string;
+        // Measure markers (repeats, segno/coda, endings, measure numbers, '%'): they
+        // inherited the page colour, e.g. black on the slate-950 'dark' variant
+        marker: string;
+      }
     > = {
       default: {
         title: 'text-slate-900 dark:text-white',
         subtitle: 'text-slate-600 dark:text-slate-400',
         chord: 'text-blue-600 dark:text-blue-400',
         section: 'text-slate-700 dark:text-slate-300',
+        marker: 'text-slate-700 dark:text-slate-300',
         rehearsal: 'text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700',
       },
       minimal: {
@@ -169,6 +249,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-500 dark:text-slate-400',
         chord: 'text-slate-800 dark:text-slate-200',
         section: 'text-slate-600 dark:text-slate-400',
+        marker: 'text-slate-600 dark:text-slate-400',
         rehearsal: 'text-slate-800 bg-slate-100',
       },
       printed: {
@@ -176,6 +257,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-700',
         chord: 'text-black',
         section: 'text-slate-800',
+        marker: 'text-slate-800',
         rehearsal: 'text-black bg-slate-200 border border-black',
       },
       dark: {
@@ -183,6 +265,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-slate-400',
         chord: 'text-cyan-400',
         section: 'text-slate-300',
+        marker: 'text-slate-300',
         rehearsal: 'text-white bg-slate-700',
       },
       fakebook: {
@@ -190,6 +273,7 @@ export class TwLeadSheetComponent {
         subtitle: 'text-amber-800',
         chord: 'text-black font-bold',
         section: 'text-amber-900 italic',
+        marker: 'text-amber-900',
         rehearsal: 'text-black bg-amber-200 border border-amber-600',
       },
     };
@@ -215,12 +299,13 @@ export class TwLeadSheetComponent {
   protected readonly slashClasses = computed(() => {
     const variant = this.variant();
 
+    // Slashes, accents and rests carry the rhythm: the previous shades were ~1.5-3:1
     const classes: Record<LeadSheetVariant, string> = {
-      default: 'text-slate-400 dark:text-slate-500',
-      minimal: 'text-slate-300 dark:text-slate-600',
-      printed: 'text-slate-500',
-      dark: 'text-slate-600',
-      fakebook: 'text-amber-600',
+      default: 'text-slate-600 dark:text-slate-400',
+      minimal: 'text-slate-600 dark:text-slate-400',
+      printed: 'text-slate-600',
+      dark: 'text-slate-400',
+      fakebook: 'text-amber-800',
     };
 
     return classes[variant];
@@ -246,44 +331,33 @@ export class TwLeadSheetComponent {
 
     if (style === 'standard') return chord;
 
+    const keyMap = NASHVILLE_MAP[key];
+    const parsed = parseChordSymbol(chord);
+    const nashville = keyMap && parsed ? keyMap[parsed.base] : undefined;
+    if (!nashville || !parsed) return chord;
+
     if (style === 'nashville') {
-      const keyMap = NASHVILLE_MAP[key];
-      if (keyMap) {
-        // Try to find the base chord
-        const baseChord = chord.replace(/[0-9maj].*/, '');
-        const modifier = chord.replace(baseChord, '');
-        const nashville = keyMap[baseChord];
-        if (nashville) return nashville + modifier;
-      }
-      return chord;
+      return nashville + parsed.modifier;
     }
 
     if (style === 'roman') {
       // Roman numeral conversion
       const romanMap: Record<string, string> = {
         '1': 'I',
-        '2': 'ii',
-        '3': 'iii',
+        '2': 'II',
+        '3': 'III',
         '4': 'IV',
         '5': 'V',
-        '6': 'vi',
-        '7': 'vii°',
+        '6': 'VI',
+        '7': 'VII',
       };
-      const keyMap = NASHVILLE_MAP[key];
-      if (keyMap) {
-        const baseChord = chord.replace(/[0-9maj].*/, '');
-        const modifier = chord.replace(baseChord, '');
-        const nashville = keyMap[baseChord];
-        if (nashville) {
-          const num = nashville.replace(/[m°]/, '');
-          const isMinor = nashville.includes('m');
-          const isDim = nashville.includes('°');
-          const roman = romanMap[num];
-          if (roman) {
-            const result = isMinor ? roman.toLowerCase() : roman;
-            return result + (isDim ? '°' : '') + modifier;
-          }
-        }
+      const num = nashville.replace(/[m°]/, '');
+      const isMinor = nashville.includes('m');
+      const isDim = nashville.includes('°');
+      const roman = romanMap[num];
+      if (roman) {
+        const result = isMinor || isDim ? roman.toLowerCase() : roman;
+        return result + (isDim ? '°' : '') + parsed.modifier;
       }
       return chord;
     }
@@ -317,9 +391,7 @@ export class TwLeadSheetComponent {
   }
 
   protected getBeatsPerMeasure(): number {
-    const ts = this.data()?.timeSignature || '4/4';
-    const [beats] = ts.split('/').map(Number);
-    return beats || 4;
+    return beatsInTimeSignature(this.data()?.timeSignature || '4/4');
   }
 
   protected getMeasureGlobalIndex(sectionIndex: number, measureIndex: number): number {
@@ -338,9 +410,32 @@ export class TwLeadSheetComponent {
     this.chordClick.emit({ section: sectionIndex, measure: measureIndex, chord });
   }
 
+  // Click / Enter / Space on a chord symbol: emit chordClick and toggle its diagram
+  protected activateChord(
+    event: Event,
+    sectionIndex: number,
+    measureIndex: number,
+    chordIndex: number,
+    chord: LeadSheetChord
+  ): void {
+    event.stopPropagation();
+    if (event instanceof KeyboardEvent) event.preventDefault();
+    this.onChordClick(sectionIndex, measureIndex, chord);
+    if (this.showChordDiagrams()) {
+      this.toggleDiagram(this.getChordId(sectionIndex, measureIndex, chordIndex));
+    }
+  }
+
   protected onMeasureClick(sectionIndex: number, measureIndex: number): void {
     if (!this.interactive()) return;
     this.measureClick.emit({ section: sectionIndex, measure: measureIndex });
+  }
+
+  // The per-measure button (keyboard access); stop the click reaching the measure's own
+  // click handler so measureClick is emitted once
+  protected activateMeasure(event: Event, sectionIndex: number, measureIndex: number): void {
+    event.stopPropagation();
+    this.onMeasureClick(sectionIndex, measureIndex);
   }
 
   // Get chord diagram for a chord symbol
@@ -359,8 +454,8 @@ export class TwLeadSheetComponent {
     const slashIndex = chord.indexOf('/');
     const mainChord = slashIndex > 0 ? chord.slice(0, Math.max(0, slashIndex)) : chord;
 
-    // Remove extensions (7, 9, 11, 13, maj7, sus, etc.)
-    return mainChord.replace(/[0-9majsusadd]+$/, '');
+    // Keep root + triad quality, drop extensions (7, 9, maj7, sus, etc.)
+    return parseChordSymbol(mainChord)?.base ?? mainChord;
   }
 
   // Get slash pattern for a measure
@@ -404,9 +499,7 @@ export class TwLeadSheetComponent {
 
   // Get default slash beats
   protected getDefaultSlashBeats(): number[] {
-    const ts = this.data()?.timeSignature || '4/4';
-    const [beats] = ts.split('/').map(Number);
-    return Array.from({ length: beats || 4 }, (_, i) => i + 1);
+    return Array.from({ length: this.getBeatsPerMeasure() }, (_, i) => i + 1);
   }
 
   // Toggle expanded diagram

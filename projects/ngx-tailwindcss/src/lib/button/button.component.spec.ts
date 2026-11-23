@@ -1,7 +1,7 @@
 import { Component, DebugElement, signal, ViewChild } from '@angular/core';
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ButtonSize,
   ButtonVariant,
@@ -95,6 +95,42 @@ describe('TwButtonComponent', () => {
 
       expect(buttonNative.className).toContain('bg-rose-600');
       expect(buttonNative.className).not.toContain('bg-blue-600');
+    });
+
+    it('should use AA-contrast text on warning, success and info buttons', () => {
+      component.variant.set('warning');
+      fixture.detectChanges();
+      // white on amber-500 is ~2.2:1
+      expect(buttonNative.className).toContain('text-amber-950');
+      expect(buttonNative.className).not.toContain('text-white');
+
+      component.variant.set('success');
+      fixture.detectChanges();
+      expect(buttonNative.className).toContain('bg-emerald-700');
+
+      component.variant.set('info');
+      fixture.detectChanges();
+      expect(buttonNative.className).toContain('bg-cyan-700');
+    });
+
+    it('should lighten the link variant in dark mode', () => {
+      component.variant.set('link');
+      fixture.detectChanges();
+      // blue-600 on a dark background is ~3.6:1
+      expect(buttonNative.className).toContain('dark:text-blue-400');
+    });
+
+    it('should draw a >= 3:1 focus ring on warning, success and info buttons', () => {
+      // the -500 rings are ~2.2-2.5:1 against the white offset and page
+      for (const [variant, ring] of [
+        ['warning', 'focus-visible:ring-amber-600'],
+        ['success', 'focus-visible:ring-emerald-700'],
+        ['info', 'focus-visible:ring-cyan-700'],
+      ] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(buttonNative.className).toContain(ring);
+      }
     });
   });
 
@@ -256,6 +292,30 @@ describe('TwButtonComponent', () => {
       expect(classes).toContain('inline-flex');
       expect(classes).toContain('items-center');
     });
+
+    it('should not pin display with an inline style', () => {
+      // An inline display would beat `class="hidden md:inline-flex"`
+      expect(buttonNative.style.display).toBe('');
+    });
+
+    it('keeps the host a flex box when classReplace sets no display', () => {
+      component.classReplace.set('px-6 py-2 bg-black text-white');
+      fixture.detectChanges();
+
+      expect(buttonNative.className.split(' ').sort()).toEqual(
+        ['bg-black', 'inline-flex', 'px-6', 'py-2', 'text-white'].sort()
+      );
+    });
+
+    it('lets classReplace set its own display', () => {
+      component.classReplace.set('hidden md:flex px-6');
+      fixture.detectChanges();
+
+      const classes = buttonNative.className.split(' ');
+      expect(classes).not.toContain('inline-flex');
+      expect(classes).toContain('hidden');
+      expect(classes).toContain('md:flex');
+    });
   });
 
   describe('public methods', () => {
@@ -333,6 +393,17 @@ describe('TwButtonLinkComponent', () => {
     expect(linkEl.getAttribute('href')).toBe('#');
   });
 
+  it('should keep native link semantics (no role="button" or disabled attribute)', () => {
+    expect(linkEl.hasAttribute('role')).toBe(false);
+
+    component.disabled.set(true);
+    fixture.detectChanges();
+
+    expect(linkEl.hasAttribute('role')).toBe(false);
+    expect(linkEl.hasAttribute('disabled')).toBe(false);
+    expect(linkEl.getAttribute('aria-disabled')).toBe('true');
+  });
+
   it('should apply pointer-events none when disabled', () => {
     component.disabled.set(true);
     fixture.detectChanges();
@@ -352,6 +423,46 @@ describe('TwButtonLinkComponent', () => {
     fixture.detectChanges();
 
     expect(linkEl.style.pointerEvents).not.toBe('none');
+  });
+
+  it('should not pin display with an inline style', () => {
+    expect(linkEl.style.display).toBe('');
+  });
+});
+
+@Component({
+  template: `<tw-button class="hidden fixed">Hidden</tw-button>`,
+  standalone: true,
+  imports: [TwButtonComponent],
+})
+class TestDisplayClassHostComponent {}
+
+describe('TwButtonComponent display and position classes', () => {
+  let style: HTMLStyleElement;
+
+  beforeEach(async () => {
+    style = document.createElement('style');
+    style.textContent = '.hidden { display: none; } .fixed { position: fixed; }';
+    document.head.append(style);
+    await TestBed.configureTestingModule({
+      imports: [TestDisplayClassHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    style.remove();
+  });
+
+  it('lets display and position utility classes apply to the host', () => {
+    const fixture = TestBed.createComponent(TestDisplayClassHostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('tw-button') as HTMLElement;
+
+    expect(host.className).toContain('hidden');
+    expect(host.className).toContain('fixed');
+    expect(getComputedStyle(host).display).toBe('none');
+    expect(getComputedStyle(host).position).toBe('fixed');
   });
 });
 
@@ -395,5 +506,194 @@ describe('TwButtonComponent with icons', () => {
 
   it('should render button text', () => {
     expect(buttonEl.textContent).toContain('Button with icon');
+  });
+});
+
+const flushTimers = (): Promise<void> =>
+  new Promise(resolve => {
+    setTimeout(resolve);
+  });
+
+describe('TwButtonComponent form type', () => {
+  @Component({
+    template: `
+      <form (submit)="onSubmit($event)">
+        <input name="field" value="initial" />
+        <tw-button [type]="type()" [disabled]="disabled()" (click)="onClick($event)">Go</tw-button>
+      </form>
+    `,
+    standalone: true,
+    imports: [TwButtonComponent],
+  })
+  class FormHostComponent {
+    type = signal<'button' | 'submit' | 'reset'>('submit');
+    disabled = signal(false);
+    cancelClick = false;
+    submitCount = 0;
+    onSubmit(event: Event): void {
+      event.preventDefault();
+      this.submitCount++;
+    }
+    onClick(event: Event): void {
+      if (this.cancelClick) event.preventDefault();
+    }
+  }
+
+  let fixture: ComponentFixture<FormHostComponent>;
+  let host: FormHostComponent;
+  let buttonNative: HTMLElement;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FormHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(FormHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+    buttonNative = fixture.nativeElement.querySelector('tw-button');
+  });
+
+  it('should submit the enclosing form when type="submit"', async () => {
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+  });
+
+  it('should render a hidden native submit button for implicit submission', () => {
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(native).toBeTruthy();
+    expect(native.getAttribute('tabindex')).toBe('-1');
+    expect(native.getAttribute('aria-hidden')).toBe('true');
+    expect(native.disabled).toBe(false);
+  });
+
+  it('should submit exactly once on implicit submission (Enter in a field)', async () => {
+    // Browsers implement implicit submission by firing a click on the form's
+    // default (first) submit button, which is the hidden native button.
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    let submitter: unknown;
+    form.addEventListener('submit', e => (submitter = e.submitter));
+    native.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+    expect(submitter).toBe(native);
+  });
+
+  it('should submit exactly once on click, using the native button as submitter', async () => {
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+    let submitter: unknown;
+    form.addEventListener('submit', e => (submitter = e.submitter));
+    (buttonNative.querySelector('span') as HTMLElement).click();
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+    expect(submitter).toBe(native);
+  });
+
+  it('should disable the hidden native submit button when disabled', async () => {
+    host.disabled.set(true);
+    fixture.detectChanges();
+    const native = buttonNative.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(native.disabled).toBe(true);
+    native.click();
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should not render a native submit button for type="button" or "reset"', () => {
+    host.type.set('button');
+    fixture.detectChanges();
+    expect(buttonNative.querySelector('button')).toBeNull();
+    host.type.set('reset');
+    fixture.detectChanges();
+    expect(buttonNative.querySelector('button')).toBeNull();
+  });
+
+  it('should submit on keyboard activation when type="submit"', async () => {
+    buttonNative.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flushTimers();
+    expect(host.submitCount).toBe(1);
+  });
+
+  it('should not submit when type="button"', async () => {
+    host.type.set('button');
+    fixture.detectChanges();
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should not submit when a click handler calls preventDefault', async () => {
+    host.cancelClick = true;
+    buttonNative.click();
+    await flushTimers();
+    expect(host.submitCount).toBe(0);
+  });
+
+  it('should reset the enclosing form when type="reset"', async () => {
+    host.type.set('reset');
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    input.value = 'changed';
+    buttonNative.click();
+    await flushTimers();
+    expect(input.value).toBe('initial');
+    expect(host.submitCount).toBe(0);
+  });
+});
+
+describe('TwButtonComponent class attribute', () => {
+  @Component({
+    template: `<tw-button class="bg-sky-700 hover:bg-sky-800 text-white">Static</tw-button
+      ><tw-button variant="outline" [class]="dynamic()" classOverride="shadow-none">Bound</tw-button
+      ><a tw-button href="#" class="bg-sky-700">Link</a>`,
+    standalone: true,
+    imports: [TwButtonComponent, TwButtonLinkComponent],
+  })
+  class ClassHostComponent {
+    dynamic = signal('text-sky-600');
+  }
+
+  let fixture: ComponentFixture<ClassHostComponent>;
+  const hosts = (): HTMLElement[] =>
+    fixture.debugElement
+      .queryAll(By.css('tw-button, a[tw-button]'))
+      .map(de => de.nativeElement as HTMLElement);
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [ClassHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(ClassHostComponent);
+    fixture.detectChanges();
+  });
+
+  it('lets a static class override the conflicting variant colours', () => {
+    const [button] = hosts();
+    expect(button.classList).toContain('bg-sky-700');
+    expect(button.classList).toContain('hover:bg-sky-800');
+    expect(button.classList).not.toContain('bg-blue-600');
+    expect(button.classList).not.toContain('hover:bg-blue-700');
+    expect(button.classList).toContain('rounded-lg');
+  });
+
+  it('merges a bound class and still applies classOverride', () => {
+    const button = hosts()[1];
+    expect(button.classList).toContain('text-sky-600');
+    expect(button.classList).not.toContain('text-slate-800');
+    expect(button.classList).toContain('shadow-none');
+    expect(button.classList).not.toContain('shadow-sm');
+
+    fixture.componentInstance.dynamic.set('text-rose-600');
+    fixture.detectChanges();
+    expect(button.classList).toContain('text-rose-600');
+    expect(button.classList).not.toContain('text-sky-600');
+  });
+
+  it('merges a static class on link buttons', () => {
+    const link = hosts()[2];
+    expect(link.classList).toContain('bg-sky-700');
+    expect(link.classList).not.toContain('bg-blue-600');
   });
 });

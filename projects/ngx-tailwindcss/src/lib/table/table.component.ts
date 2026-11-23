@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
@@ -16,6 +17,12 @@ import {
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
+/**
+ * Shared collator for string sorting: `localeCompare` with an options object builds a
+ * fresh collator on every call, which makes sorting large tables very slow.
+ */
+const stringCollator = new Intl.Collator(undefined, { numeric: true });
+
 export interface TableColumn {
   field: string;
   header: string;
@@ -28,11 +35,32 @@ export interface TableColumn {
 export type TableSize = 'sm' | 'md' | 'lg';
 export type TableVariant = 'default' | 'striped' | 'bordered';
 
+let nextTableId = 0;
+
 const TABLE_SIZES: Record<TableSize, { cell: string; text: string }> = {
   sm: { cell: 'px-3 py-2', text: 'text-sm' },
   md: { cell: 'px-4 py-3', text: 'text-sm' },
   lg: { cell: 'px-6 py-4', text: 'text-base' },
 };
+
+/** Elements whose clicks belong to themselves rather than to the enclosing row */
+const INTERACTIVE_SELECTOR = [
+  'a[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  'summary',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="button"]',
+  '[role="link"]',
+  '[role="checkbox"]',
+  '[role="switch"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="tab"]',
+].join(',');
 
 /**
  * Table/DataTable component with Tailwind CSS styling
@@ -51,6 +79,23 @@ const TABLE_SIZES: Record<TableSize, { cell: string; text: string }> = {
  * </tw-table>
  * ```
  */
+/**
+ * If `from` (the paginator button that changed page) has become disabled while focused,
+ * or focus already fell to the body, move focus to the current page button in the same
+ * group, else to the first enabled button there.
+ */
+function refocusFromDisabledButton(from: HTMLButtonElement): void {
+  const group = from.parentElement;
+  if (!from.disabled || !from.isConnected || !group) return;
+  const doc = from.ownerDocument;
+  const active = doc.activeElement;
+  if (active && active !== from && active !== doc.body) return;
+  (
+    group.querySelector<HTMLElement>('button[aria-current="page"]') ??
+    group.querySelector<HTMLElement>('button:not([disabled])')
+  )?.focus();
+}
+
 @Component({
   selector: 'tw-table',
   standalone: true,
@@ -60,6 +105,20 @@ const TABLE_SIZES: Record<TableSize, { cell: string; text: string }> = {
 })
 export class TwTableComponent {
   private readonly twClass = inject(TwClassService);
+
+  /** Focused paginator button whose activation changed the page */
+  private refocusFrom: HTMLButtonElement | null = null;
+
+  constructor() {
+    // Reaching the first/last page disables the Previous/Next button that got there,
+    // and a disabled button drops focus to the body: hand it to the current page instead
+    afterRenderEffect(() => {
+      this.currentPage();
+      const from = this.refocusFrom;
+      this.refocusFrom = null;
+      if (from) refocusFromDisabledButton(from);
+    });
+  }
 
   readonly data = input<any[]>([]);
   readonly columns = input<TableColumn[]>([]);
@@ -79,6 +138,15 @@ export class TwTableComponent {
   readonly trackByFn = input<(item: any) => any>(item => item);
   readonly classOverride = input('');
 
+  /** Accessible name of the table when no `title` is shown */
+  readonly ariaLabel = input('');
+
+  /** Id of an element that names the table when no `title` is shown */
+  readonly ariaLabelledBy = input('');
+
+  /** Id of the visible title, which names the table */
+  protected readonly titleId = `tw-table-${nextTableId++}-title`;
+
   @Output() selectionChange = new EventEmitter<any[]>();
   @Output() rowClick = new EventEmitter<any>();
   @Output() sortChange = new EventEmitter<{ field: string; order: number }>();
@@ -90,11 +158,21 @@ export class TwTableComponent {
   protected globalFilter = signal('');
   protected sortField = signal<string>('');
   protected sortOrder = signal<1 | -1>(1);
-  protected currentPage = signal(1);
   /** Current page size; follows the `rows` input until changed via the rows-per-page select. */
   protected pageSize = linkedSignal(() => this.rows());
-  /** Selection is held as a Set internally for O(1) lookups; emitted as an array. */
-  protected selection = signal<ReadonlySet<any>>(new Set());
+  /**
+   * Selection is held as a Set internally for O(1) lookups; emitted as an array. Rows
+   * that leave `data` (deleted, or replaced by re-fetched objects) drop out of it, so
+   * later emissions never report rows the table no longer shows.
+   */
+  protected selection = linkedSignal<any[], ReadonlySet<any>>({
+    source: this.data,
+    computation: (data, previous) => {
+      if (!previous || previous.value.size === 0) return new Set();
+      const present = new Set(data);
+      return new Set([...previous.value].filter(row => present.has(row)));
+    },
+  });
 
   protected readonly hasHeaderActions = computed(() => !!this.headerActionsTemplate());
 
@@ -124,7 +202,21 @@ export class TwTableComponent {
       result.sort((a, b) => {
         const aVal = this.getFieldValue(a, field);
         const bVal = this.getFieldValue(b, field);
-        const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        // null/undefined compare as neither < nor > anything, which makes the
+        // comparator inconsistent and scrambles the order: keep them last instead
+        const aEmpty = aVal === null || aVal === undefined;
+        const bEmpty = bVal === null || bVal === undefined;
+        if (aEmpty || bEmpty) return aEmpty === bEmpty ? 0 : aEmpty ? 1 : -1;
+        // Strings compare by locale (code-unit `<` would put every "Zoe" before "adam"
+        // and "item10" before "item9")
+        const comparison =
+          typeof aVal === 'string' && typeof bVal === 'string'
+            ? stringCollator.compare(aVal, bVal)
+            : aVal < bVal
+              ? -1
+              : aVal > bVal
+                ? 1
+                : 0;
         return comparison * this.sortOrder();
       });
     }
@@ -133,6 +225,11 @@ export class TwTableComponent {
 
   protected totalRecords = computed(() => this.filteredData().length);
   protected totalPages = computed(() => Math.ceil(this.totalRecords() / this.pageSize()));
+  /** Current page; clamped into range whenever the page count shrinks (e.g. data replaced). */
+  protected currentPage = linkedSignal<number, number>({
+    source: this.totalPages,
+    computation: (total, previous) => Math.min(previous?.value ?? 1, Math.max(1, total)),
+  });
 
   protected displayedData = computed(() => {
     if (!this.paginator()) return this.filteredData();
@@ -156,12 +253,13 @@ export class TwTableComponent {
     if (total <= 7) {
       for (let i = 1; i <= total; i++) pages.push(i);
     } else {
+      // Distinct ellipsis markers keep @for track keys unique
       pages.push(1);
-      if (current > 3) pages.push('...');
+      if (current > 3) pages.push('...start');
       const start = Math.max(2, current - 1);
       const end = Math.min(total - 1, current + 1);
       for (let i = start; i <= end; i++) pages.push(i);
-      if (current < total - 2) pages.push('...');
+      if (current < total - 2) pages.push('...end');
       pages.push(total);
     }
     return pages;
@@ -241,7 +339,8 @@ export class TwTableComponent {
   /** Row class matrix memoized per selected/odd combination. */
   private readonly rowClassMatrix = computed(() => {
     const striped = this.variant() === 'striped';
-    const hover = this.hoverable() ? 'hover:bg-slate-50 dark:hover:bg-slate-700' : '';
+    // Dark hover stays at half-strength slate-700 so slate-400 cell text keeps 4.5:1
+    const hover = this.hoverable() ? 'hover:bg-slate-50 dark:hover:bg-slate-700/50' : '';
     const pointer = this.selectable() ? 'cursor-pointer' : '';
     const build = (isSelected: boolean, isOdd: boolean) =>
       this.twClass.merge(
@@ -273,7 +372,7 @@ export class TwTableComponent {
       'w-8 h-8 text-sm font-medium rounded-lg transition-colors',
       isCurrent
         ? 'bg-blue-600 text-white'
-        : 'text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+        : 'text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
     );
   }
 
@@ -304,8 +403,13 @@ export class TwTableComponent {
     this.sortChange.emit({ field: this.sortField(), order: this.sortOrder() });
   }
 
-  goToPage(page: number): void {
+  goToPage(page: number, event?: Event): void {
     if (page < 1 || page > this.totalPages()) return;
+    const button = event?.currentTarget;
+    this.refocusFrom =
+      button instanceof HTMLButtonElement && button === button.ownerDocument.activeElement
+        ? button
+        : null;
     this.currentPage.set(page);
     this.pageChange.emit({ page, rows: this.pageSize() });
   }
@@ -338,6 +442,8 @@ export class TwTableComponent {
   }
 
   toggleSelectAll(): void {
+    // Single selection mode never holds more than one row
+    if (this.selectionMode() === 'single') return;
     const displayed = this.displayedData();
     const next = new Set(this.selection());
     if (this.allSelected()) {
@@ -349,9 +455,22 @@ export class TwTableComponent {
     this.selectionChange.emit([...next]);
   }
 
-  onRowClick(row: any): void {
+  onRowClick(row: any, event?: Event): void {
     this.rowClick.emit(row);
-    if (this.selectable()) this.toggleSelection(row);
+    // Clicks on interactive content inside the row (e.g. row-action buttons,
+    // links, inputs) must not also toggle the row's selection
+    if (this.selectable() && !this.isFromInteractiveDescendant(event)) this.toggleSelection(row);
+  }
+
+  private isFromInteractiveDescendant(event?: Event): boolean {
+    const target = event?.target;
+    const row = event?.currentTarget;
+    if (!(target instanceof Element) || !(row instanceof Element)) return false;
+    const interactive = target.closest(INTERACTIVE_SELECTOR);
+    // The event bubbled from inside the row, so any interactive match that does not
+    // enclose the row belongs to it, even if its handler already detached it
+    // (e.g. an Edit button swapped for Save, or a Delete button removing the row)
+    return !!interactive && !interactive.contains(row);
   }
 
   clearSelection(): void {

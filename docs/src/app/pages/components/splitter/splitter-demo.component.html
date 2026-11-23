@@ -7,13 +7,13 @@
 <app-demo-section title="Basic Usage" [code]="basicCode">
   <div class="h-[300px] border rounded-lg overflow-hidden">
     <tw-splitter direction="horizontal" [initialSizes]="[30, 70]">
-      <div twSplitterPaneStart class="p-4 bg-slate-50">
+      <div twSplitterPaneStart class="p-4 bg-slate-50 text-slate-900">
         <h3 class="font-semibold mb-2">Left Panel</h3>
         <p class="text-sm text-slate-600">Drag the divider to resize.</p>
       </div>
       <div twSplitterPaneEnd class="p-4">
         <h3 class="font-semibold mb-2">Right Panel</h3>
-        <p class="text-sm text-slate-600">This panel takes up the remaining space.</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">This panel takes up the remaining space.</p>
       </div>
     </tw-splitter>
   </div>
@@ -23,11 +23,11 @@
 <app-demo-section title="Vertical Split" [code]="verticalCode">
   <div class="h-[400px] border rounded-lg overflow-hidden">
     <tw-splitter direction="vertical" [initialSizes]="[40, 60]">
-      <div twSplitterPaneStart class="p-4 bg-blue-50">
+      <div twSplitterPaneStart class="p-4 bg-blue-50 text-slate-900">
         <h3 class="font-semibold mb-2">Top Panel</h3>
         <p class="text-sm text-slate-600">Code editor area</p>
       </div>
-      <div twSplitterPaneEnd class="p-4 bg-slate-50">
+      <div twSplitterPaneEnd class="p-4 bg-slate-50 text-slate-900">
         <h3 class="font-semibold mb-2">Bottom Panel</h3>
         <p class="text-sm text-slate-600">Console output area</p>
       </div>
@@ -42,13 +42,13 @@
       direction="horizontal"
       [initialSizes]="[50, 50]"
       [minSizes]="[150, 200]">
-      <div twSplitterPaneStart class="p-4 bg-green-50">
+      <div twSplitterPaneStart class="p-4 bg-green-50 text-slate-900">
         <h3 class="font-semibold mb-2">Min 150px</h3>
         <p class="text-sm text-slate-600">This panel won't shrink below 150px.</p>
       </div>
       <div twSplitterPaneEnd class="p-4">
         <h3 class="font-semibold mb-2">Min 200px</h3>
-        <p class="text-sm text-slate-600">This panel won't shrink below 200px.</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">This panel won't shrink below 200px.</p>
       </div>
     </tw-splitter>
   </div>
@@ -60,7 +60,7 @@
     @for (size of gutterSizes; track size) {
       <div class="h-[150px] border rounded-lg overflow-hidden">
         <tw-splitter direction="horizontal" [gutterSize]="size">
-          <div twSplitterPaneStart class="p-4 bg-slate-50">
+          <div twSplitterPaneStart class="p-4 bg-slate-50 text-slate-900">
             <span class="font-semibold">{{ size }} gutter</span>
           </div>
           <div twSplitterPaneEnd class="p-4">

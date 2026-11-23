@@ -1,10 +1,12 @@
 import {
+  booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
   forwardRef,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -16,11 +18,16 @@ export type CheckboxVariant = 'primary' | 'secondary' | 'success' | 'warning' | 
 export type CheckboxSize = 'sm' | 'md' | 'lg';
 
 const CHECKBOX_VARIANTS: Record<CheckboxVariant, string> = {
-  primary: 'text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
-  secondary: 'text-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
-  success: 'text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
-  warning: 'text-amber-500 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
-  danger: 'text-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
+  primary:
+    'text-blue-600 accent-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600',
+  secondary:
+    'text-slate-600 accent-slate-600 focus:ring-slate-500 border-slate-300 dark:border-slate-600',
+  success:
+    'text-emerald-600 accent-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-600',
+  warning:
+    'text-amber-600 accent-amber-600 focus:ring-amber-500 border-slate-300 dark:border-slate-600',
+  danger:
+    'text-rose-600 accent-rose-600 focus:ring-rose-500 border-slate-300 dark:border-slate-600',
 };
 
 const CHECKBOX_SIZES: Record<CheckboxSize, { box: string; label: string }> = {
@@ -58,13 +65,13 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   // Signal-based inputs
   readonly variant = input<CheckboxVariant>('primary');
   readonly size = input<CheckboxSize>('md');
-  readonly disabled = input(false, { transform: (v: boolean | string) => v === '' || v === true });
+  readonly disabled = input(false, { transform: booleanAttribute });
   readonly indeterminate = input(false, {
-    transform: (v: boolean | string) => v === '' || v === true,
+    transform: booleanAttribute,
   });
   readonly name = input('');
   readonly value = input<any>();
-  readonly readonly = input(false, { transform: (v: boolean | string) => v === '' || v === true });
+  readonly readonly = input(false, { transform: booleanAttribute });
   readonly classOverride = input('');
 
   // Signal-based outputs
@@ -74,6 +81,8 @@ export class TwCheckboxComponent implements ControlValueAccessor {
 
   // Internal state
   protected readonly checked = signal(false);
+  /** Mixed state: follows the `indeterminate` input, cleared when the user toggles the box */
+  protected readonly isIndeterminate = linkedSignal(() => this.indeterminate());
   /** Disabled state set through the forms API (setDisabledState) */
   private readonly _disabled = signal(false);
 
@@ -86,7 +95,7 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   protected readonly labelContainerClasses = computed(() => {
     return this.twClass.merge(
       'inline-flex items-center gap-2 cursor-pointer',
-      this.isDisabled() ? 'opacity-50 cursor-not-allowed' : '',
+      this.isDisabled() ? 'opacity-50 cursor-not-allowed' : this.readonly() ? 'cursor-default' : '',
       this.classOverride()
     );
   });
@@ -113,12 +122,19 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   });
 
   onCheckboxChange(event: Event): void {
-    if (this.isDisabled() || this.readonly()) return;
-
     const inputElement = event.target as HTMLInputElement;
+
+    if (this.isDisabled() || this.readonly()) {
+      // The browser already toggled the native input; restore the model state
+      inputElement.checked = this.checked();
+      inputElement.indeterminate = this.isIndeterminate();
+      return;
+    }
+
     const isChecked = inputElement.checked;
 
     this.checked.set(isChecked);
+    this.isIndeterminate.set(false);
     this.onChangeFn(isChecked);
     this.onChange.emit({ checked: isChecked, value: this.value() });
   }
@@ -149,6 +165,7 @@ export class TwCheckboxComponent implements ControlValueAccessor {
   toggle(): void {
     if (!this.isDisabled() && !this.readonly()) {
       this.checked.set(!this.checked());
+      this.isIndeterminate.set(false);
       this.onChangeFn(this.checked());
       this.onChange.emit({ checked: this.checked(), value: this.value() });
     }

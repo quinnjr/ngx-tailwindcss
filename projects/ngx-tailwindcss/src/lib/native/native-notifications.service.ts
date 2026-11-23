@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { NativeAppPlatformService } from './platform.service';
 import { dynamicImport } from './dynamic-import.util';
+import { isElectronIpcAvailable, loadElectronIpc } from './electron-bridge.util';
 
 export interface NativeNotificationOptions {
   title: string;
@@ -77,9 +78,10 @@ export class NativeNotificationsService {
     if (this.platformService.isTauri()) {
       return this.showTauriNotification(options);
     }
-    if (this.platformService.isElectron()) {
+    if (this.platformService.isElectron() && (await isElectronIpcAvailable())) {
       return this.showElectronNotification(options);
     }
+    if (typeof Notification === 'undefined') return null;
     return this.showWebNotification(options);
   }
 
@@ -89,7 +91,7 @@ export class NativeNotificationsService {
       console.warn('Badge count not directly supported in Tauri');
     } else if (this.platformService.isElectron()) {
       try {
-        const { ipcRenderer } = await dynamicImport('electron');
+        const { ipcRenderer } = await loadElectronIpc();
         ipcRenderer.send('set-badge-count', count);
       } catch (error) {
         console.error('Failed to set Electron badge count:', error);
@@ -131,7 +133,7 @@ export class NativeNotificationsService {
     options: NativeNotificationOptions
   ): Promise<string | null> {
     try {
-      const { ipcRenderer } = await dynamicImport('electron');
+      const { ipcRenderer } = await loadElectronIpc();
       const id = `notification-${Date.now()}`;
 
       await ipcRenderer.invoke('show-notification', {

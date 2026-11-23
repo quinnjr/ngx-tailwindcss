@@ -403,6 +403,11 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   readonly presetApplied = output<EQPreset>();
   readonly presetSaved = output<EQPreset>();
 
+  /** Disabled state set through the forms API (setDisabledState) */
+  private readonly formDisabled = signal(false);
+  /** Effective disabled state: the `disabled` input or a disabled form control */
+  protected readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
   protected readonly bandValues = signal<number[]>([]);
   protected readonly draggingBand = signal<number | null>(null);
   protected readonly currentPreset = signal<EQPreset | null>(null);
@@ -453,16 +458,29 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   // Presets grouped by category
   protected readonly presetsByCategory = computed(() => {
     const presets = this.filteredPresets();
+    const enabled = this.presetCategories();
     const grouped = new Map<EQPresetCategory, EQPreset[]>();
 
     for (const preset of presets) {
-      const category = preset.category || 'custom';
+      // Custom presets admitted via the "custom" category but tagged with a
+      // disabled category have no section of their own: list them under Custom
+      const category =
+        preset.category && enabled.includes(preset.category) ? preset.category : 'custom';
       const list = grouped.get(category) || [];
       list.push(preset);
       grouped.set(category, list);
     }
 
     return grouped;
+  });
+
+  // Menu sections: the enabled categories, plus "Custom" for custom presets given
+  // without a category (always available, but they had no section to appear in)
+  protected readonly menuCategories = computed(() => {
+    const categories = this.presetCategories();
+    return !categories.includes('custom') && this.presetsByCategory().has('custom')
+      ? [...categories, 'custom' as const]
+      : categories;
   });
 
   // Category display names
@@ -500,57 +518,79 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: string;
         curve: string;
         grid: string;
+        // Text on the fill colour (active quick preset)
+        onFill: string;
+        // Band value text for boosts / cuts
+        positive: string;
+        negative: string;
       }
     > = {
+      // Slider thumbs keep 3:1 against their track (at 0 dB the thumb is the
+      // only value indicator)
       default: {
         background: 'bg-slate-900',
-        slider: 'bg-slate-600',
+        slider: 'bg-slate-400',
         fill: 'bg-blue-500',
         track: 'bg-slate-700',
         label: 'text-slate-400',
         value: 'text-slate-300',
         curve: '#3B82F6',
         grid: '#334155',
+        onFill: 'text-white',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       studio: {
         background: 'bg-slate-950',
         slider: 'bg-slate-500',
         fill: 'bg-green-500',
         track: 'bg-slate-800',
-        label: 'text-slate-500',
+        label: 'text-slate-400',
         value: 'text-green-400',
         curve: '#22C55E',
         grid: '#1E293B',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       minimal: {
         background: 'bg-white dark:bg-slate-900',
-        slider: 'bg-slate-400 dark:bg-slate-500',
+        slider: 'bg-slate-500 dark:bg-slate-400',
         fill: 'bg-slate-700 dark:bg-slate-300',
         track: 'bg-slate-200 dark:bg-slate-700',
         label: 'text-slate-500 dark:text-slate-400',
         value: 'text-slate-700 dark:text-slate-300',
         curve: '#64748B',
         grid: '#E2E8F0',
+        onFill: 'text-white dark:text-slate-900',
+        positive: 'text-slate-700 dark:text-slate-300',
+        negative: 'text-slate-700 dark:text-slate-300',
       },
       neon: {
         background: 'bg-black',
-        slider: 'bg-purple-600',
+        slider: 'bg-purple-500',
         fill: 'bg-cyan-400',
         track: 'bg-slate-800',
         label: 'text-purple-400',
         value: 'text-cyan-400',
         curve: '#22D3EE',
         grid: '#581C87',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
       light: {
         background: 'bg-white',
-        slider: 'bg-slate-400',
+        slider: 'bg-slate-500',
         fill: 'bg-blue-600',
         track: 'bg-slate-200',
         label: 'text-slate-600',
         value: 'text-slate-800',
         curve: '#2563EB',
         grid: '#E2E8F0',
+        onFill: 'text-white',
+        positive: 'text-green-700',
+        negative: 'text-red-700',
       },
       highContrast: {
         background: 'bg-black',
@@ -561,6 +601,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         value: 'text-yellow-400',
         curve: '#FFFF00',
         grid: '#FFFFFF',
+        onFill: 'text-black',
+        positive: 'text-green-400',
+        negative: 'text-red-400',
       },
     };
 
@@ -569,7 +612,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-xl p-4';
-    const disabled = this.disabled() ? 'opacity-50 pointer-events-none' : '';
+    const disabled = this.isDisabled() ? 'opacity-50 pointer-events-none' : '';
     return [base, this.colors().background, disabled, this.classOverride()]
       .filter(Boolean)
       .join(' ');
@@ -577,20 +620,18 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   protected readonly curvePath = computed(() => {
     const bands = this.bands();
-    const height = this.sliderHeight();
-    const minGain = this.minGain();
-    const maxGain = this.maxGain();
     const bandWidth = 100 / bands.length;
+    // Anchor the ends on the 0 dB line, which is only the vertical middle for
+    // symmetric gain ranges
+    const zeroY = this.zeroLineY();
 
-    const points = bands.map((band, i) => {
-      const x = (i + 0.5) * bandWidth;
-      const normalizedGain = (band.gain - minGain) / (maxGain - minGain);
-      const y = (1 - normalizedGain) * height;
-      return { x, y };
-    });
+    const points = bands.map((band, i) => ({
+      x: (i + 0.5) * bandWidth,
+      y: this.gainToY(band.gain),
+    }));
 
     // Create smooth curve using bezier
-    let path = `M 0 ${height / 2}`;
+    let path = `M 0 ${zeroY}`;
 
     for (let i = 0; i < points.length; i++) {
       if (i === 0) {
@@ -606,12 +647,12 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       }
     }
 
-    path += ` L 100 ${height / 2}`;
+    path += ` L 100 ${zeroY}`;
     return path;
   });
 
   protected onBandMouseDown(event: MouseEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
     this.draggingBand.set(bandIndex);
 
     // Capture the track rect once for the whole gesture
@@ -640,7 +681,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected onBandTouchStart(event: TouchEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
     this.draggingBand.set(bandIndex);
 
     // Capture the track rect once for the whole gesture
@@ -671,7 +712,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   // Keyboard control for a focused band slider
   protected onBandKeydown(event: KeyboardEvent, bandIndex: number): void {
-    if (!this.interactive() || this.disabled()) return;
+    if (!this.interactive() || this.isDisabled()) return;
 
     const step = this.step();
     const largeStep = step * 4;
@@ -712,6 +753,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
     event.preventDefault();
     gain = Math.max(this.minGain(), Math.min(this.maxGain(), gain));
+    this.clearPresetIfEdited(bandIndex, gain);
 
     this.bandValues.update(values => {
       const newValues = [...values];
@@ -734,6 +776,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     let gain = minGain + percentage * (maxGain - minGain);
     gain = Math.round(gain / step) * step;
     gain = Math.max(minGain, Math.min(maxGain, gain));
+    this.clearPresetIfEdited(bandIndex, gain);
 
     this.bandValues.update(values => {
       const newValues = [...values];
@@ -746,6 +789,16 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     this.emitValues();
   }
 
+  /**
+   * A manual band edit means the values no longer match the applied preset:
+   * stop showing it as the current/pressed preset.
+   */
+  private clearPresetIfEdited(bandIndex: number, gain: number): void {
+    if ((this.bandValues()[bandIndex] ?? 0) !== gain) {
+      this.currentPreset.set(null);
+    }
+  }
+
   private emitValues(): void {
     const values = this.bands().map(b => ({ frequency: b.frequency, gain: b.gain }));
     this.onChange(values);
@@ -753,18 +806,41 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected resetBand(bandIndex: number): void {
+    if (!this.interactive() || this.isDisabled()) return;
+    this.clearPresetIfEdited(bandIndex, 0);
     this.bandValues.update(values => {
       const newValues = [...values];
       newValues[bandIndex] = 0;
       return newValues;
     });
+    this.bandChange.emit({ frequency: this.frequencies()[bandIndex], gain: 0 });
     this.emitValues();
+    this.onTouched();
   }
 
   protected resetAll(): void {
     this.bandValues.set(this.frequencies().map(() => 0));
     this.currentPreset.set(EQ_PRESETS[0]); // Flat preset
     this.emitValues();
+    this.onTouched();
+  }
+
+  /**
+   * A preset chosen by the user also marks the control as touched, which commits
+   * the new values of `updateOn: 'blur'` form controls.
+   */
+  protected onPresetClick(preset: EQPreset): void {
+    this.applyPreset(preset);
+    this.onTouched();
+  }
+
+  /**
+   * A preset chosen from the menu closes it, removing the focused menu item: return
+   * focus to the Presets toggle instead of dropping it to the page body.
+   */
+  protected onPresetMenuSelect(preset: EQPreset, toggle: HTMLElement): void {
+    this.onPresetClick(preset);
+    toggle.focus();
   }
 
   // Preset methods
@@ -779,7 +855,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         Math.abs(curr - freq) < Math.abs(prev - freq) ? curr : prev
       );
 
-      return preset.values[closest] ?? 0;
+      // Built-in presets go up to ±6 dB: keep them inside a narrower configured range
+      const gain = preset.values[closest] ?? 0;
+      return Math.max(this.minGain(), Math.min(this.maxGain(), gain));
     });
 
     this.bandValues.set(values);
@@ -827,6 +905,13 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     this.showPresetMenu.set(false);
   }
 
+  // Escape closes an open preset menu and returns focus to its toggle
+  protected onPresetMenuEscape(toggle: HTMLElement): void {
+    if (!this.showPresetMenu()) return;
+    this.closePresetMenu();
+    toggle.focus();
+  }
+
   protected onPresetSearch(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     this.presetSearchQuery.set(inputElement.value);
@@ -844,25 +929,39 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
       .filter((p): p is EQPreset => p !== undefined);
   });
 
-  protected getBandFillHeight(gain: number): string {
+  /** Y offset (px) of a gain on the slider track, using the same linear scale as the thumb */
+  private gainToY(gain: number): number {
     const minGain = this.minGain();
     const maxGain = this.maxGain();
-    const height = this.sliderHeight();
+    const range = maxGain - minGain;
+    if (range <= 0) return this.sliderHeight() / 2;
+    const normalized = Math.max(0, Math.min(1, (gain - minGain) / range));
+    return (1 - normalized) * this.sliderHeight();
+  }
 
-    if (gain >= 0) {
-      const percentage = gain / maxGain;
-      return `${percentage * (height / 2)}px`;
-    }
-    const percentage = Math.abs(gain) / Math.abs(minGain);
-    return `${percentage * (height / 2)}px`;
+  /**
+   * Gain scale labels at the top, quarter, middle, three-quarter and bottom
+   * positions of the track (matching the grid lines), derived from the actual
+   * min/max gain rather than assuming a ±12 dB range.
+   */
+  protected readonly gainScaleLabels = computed(() => {
+    const maxGain = this.maxGain();
+    const range = maxGain - this.minGain();
+    return [0, 0.25, 0.5, 0.75, 1].map(fraction => {
+      const gain = Math.round((maxGain - fraction * range) * 10) / 10;
+      return gain > 0 ? `+${gain}` : `${gain}`;
+    });
+  });
+
+  /** Y offset (px) of the 0 dB line (not necessarily the middle for asymmetric ranges) */
+  protected readonly zeroLineY = computed(() => this.gainToY(0));
+
+  protected getBandFillHeight(gain: number): string {
+    return `${Math.abs(this.gainToY(gain) - this.gainToY(0))}px`;
   }
 
   protected getBandFillPosition(gain: number): string {
-    const height = this.sliderHeight();
-    if (gain >= 0) {
-      return `${height / 2 - (gain / this.maxGain()) * (height / 2)}px`;
-    }
-    return `${height / 2}px`;
+    return `${Math.min(this.gainToY(gain), this.gainToY(0))}px`;
   }
 
   private formatFrequency(freq: number): string {
@@ -874,15 +973,14 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   // ControlValueAccessor
   writeValue(value: EQBandValue[] | null): void {
-    if (value) {
-      const gains = this.frequencies().map(freq => {
-        const band = value.find(b => b.frequency === freq);
-        return band?.gain ?? 0;
-      });
-      this.bandValues.set(gains);
-    } else {
-      this.bandValues.set(this.frequencies().map(() => 0));
+    const gains = this.frequencies().map(freq => value?.find(b => b.frequency === freq)?.gain ?? 0);
+    // New values from the form (e.g. reset/setValue) no longer match the
+    // applied preset: stop showing it as the current/pressed preset
+    const current = this.bandValues();
+    if (gains.some((gain, i) => gain !== (current[i] ?? 0))) {
+      this.currentPreset.set(null);
     }
+    this.bandValues.set(gains);
   }
 
   registerOnChange(fn: (value: EQBandValue[]) => void): void {
@@ -894,6 +992,12 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    // Handled via input
+    this.formDisabled.set(isDisabled);
+    if (isDisabled) {
+      this.dragController?.abort();
+      this.dragController = null;
+      this.draggingBand.set(null);
+      this.showPresetMenu.set(false);
+    }
   }
 }

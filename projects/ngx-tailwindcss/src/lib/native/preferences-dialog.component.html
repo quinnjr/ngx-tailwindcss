@@ -19,10 +19,17 @@
       >
         <h2 class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ title() }}</h2>
         <button
+          type="button"
+          aria-label="Close"
           (click)="close()"
           class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
         >
-          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-4 h-4 text-slate-500 dark:text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -39,12 +46,16 @@
       >
         @for (tab of tabs(); track tab.id) {
           <button
-            (click)="selectedTabId.set(tab.id)"
+            type="button"
+            [attr.aria-pressed]="selectedTabId() === tab.id"
+            (click)="selectTab(tab.id)"
             [class.bg-blue-100]="selectedTabId() === tab.id"
             [class.dark:bg-blue-900/40]="selectedTabId() === tab.id"
-            [class.text-blue-600]="selectedTabId() === tab.id"
+            [class.text-blue-700]="selectedTabId() === tab.id"
             [class.dark:text-blue-400]="selectedTabId() === tab.id"
-            class="flex flex-col items-center gap-1.5 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            [class.text-slate-600]="selectedTabId() !== tab.id"
+            [class.dark:text-slate-400]="selectedTabId() !== tab.id"
+            class="flex flex-col items-center gap-1.5 px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

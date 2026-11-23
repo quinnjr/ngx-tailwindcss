@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type PianoChordVariant = 'default' | 'minimal' | 'dark' | 'colorful';
 export type PianoChordSize = 'sm' | 'md' | 'lg';
@@ -106,7 +108,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'C', octave: 4, finger: 1, isRoot: true },
-      { note: 'D#', octave: 4, finger: 3 },
+      { note: 'Eb', octave: 4, finger: 3 },
       { note: 'G', octave: 4, finger: 5 },
     ],
   },
@@ -133,7 +135,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'F', octave: 4, finger: 1, isRoot: true },
-      { note: 'G#', octave: 4, finger: 3 },
+      { note: 'Ab', octave: 4, finger: 3 },
       { note: 'C', octave: 5, finger: 5 },
     ],
   },
@@ -142,7 +144,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
     type: 'minor',
     notes: [
       { note: 'G', octave: 4, finger: 1, isRoot: true },
-      { note: 'A#', octave: 4, finger: 3 },
+      { note: 'Bb', octave: 4, finger: 3 },
       { note: 'D', octave: 5, finger: 5 },
     ],
   },
@@ -172,7 +174,7 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
       { note: 'C', octave: 4, finger: 1, isRoot: true },
       { note: 'E', octave: 4, finger: 2 },
       { note: 'G', octave: 4, finger: 3 },
-      { note: 'A#', octave: 4, finger: 5 },
+      { note: 'Bb', octave: 4, finger: 5 },
     ],
   },
   G7: {
@@ -261,6 +263,19 @@ export const PIANO_CHORDS: Record<string, PianoChordDefinition> = {
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES = ['C#', 'D#', 'F#', 'G#', 'A#'];
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NATURAL_SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+// Map any spelling (C#, Db, E#, Cb, ...) to the keyboard key it is played on
+function toKey(note: string, octave: number): { note: string; octave: number } {
+  const match = /^([A-G])(#|b)?$/.exec(note);
+  if (!match) return { note, octave };
+  const shift = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const semitone = NATURAL_SEMITONES[match[1]] + shift;
+  return {
+    note: ALL_NOTES[(semitone + 12) % 12],
+    octave: octave + Math.floor(semitone / 12),
+  };
+}
 
 /**
  * Piano Chord Diagram component
@@ -283,6 +298,8 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
   },
 })
 export class TwPianoChordComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly chord = input<string | null>(null);
   readonly customChord = input<PianoChordDefinition | null>(null);
   readonly variant = input<PianoChordVariant>('default');
@@ -295,6 +312,8 @@ export class TwPianoChordComponent {
   readonly showKeyLabels = input(false); // Show C, D, E, etc. on white keys
   readonly highlightRoot = input(true);
   readonly classOverride = input('');
+  /** Accessible name of the keyboard; derived from the chord name and notes when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
 
   protected readonly chordData = computed((): PianoChordDefinition | null => {
     const custom = this.customChord();
@@ -308,6 +327,23 @@ export class TwPianoChordComponent {
 
   protected readonly displayName = computed(() => {
     return this.chordData()?.name || this.chord() || '';
+  });
+
+  /** e.g. "C major chord: C4, E4, G4 highlighted" */
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const chord = this.chordData();
+    const name = this.displayName();
+    if (!chord) return name ? `${name} chord` : 'Piano keyboard';
+    // Spell out the quality only for a bare root name ("C" -> "C major"; "Am7" says it already)
+    const bareRoot = /^[A-G][#b]?$/.test(name) && !!chord.type;
+    const title = `${name}${bareRoot ? ` ${chord.type}` : ''} chord`;
+    const notes = this.visibleNotes().map(n => {
+      const accidental = n.note[1] === '#' ? ' sharp ' : n.note[1] === 'b' ? ' flat ' : '';
+      return `${n.note[0]}${accidental}${n.octave}`;
+    });
+    return notes.length > 0 ? `${title}: ${notes.join(', ')} highlighted` : title;
   });
 
   protected readonly dimensions = computed(() => {
@@ -336,6 +372,10 @@ export class TwPianoChordComponent {
     };
   });
 
+  // Chord (active) keys are the only cue for which notes are in the chord: every active fill
+  // is >= 3:1 against its unhighlighted key. The finger circles sit on active keys of similar
+  // lightness, so they carry a ring in the white-key colour (>= 3:1 against both the circle
+  // and the active keys).
   protected readonly colors = computed(() => {
     const variant = this.variant();
     switch (variant) {
@@ -343,60 +383,82 @@ export class TwPianoChordComponent {
         return {
           background: '#1E293B',
           whiteKey: '#F8FAFC',
-          whiteKeyActive: '#60A5FA',
+          // blue-400 was ~2.4:1 on the white keys
+          whiteKeyActive: '#3B82F6',
           blackKey: '#1E293B',
           blackKeyActive: '#3B82F6',
           border: '#64748B',
-          fingerCircle: '#EF4444',
+          ring: '#F8FAFC',
+          // White finger numbers need >= 4.5:1 on the circles: red-500 was ~3.8:1 and
+          // amber-500 ~2.1:1
+          fingerCircle: '#DC2626',
           fingerText: '#FFFFFF',
-          rootCircle: '#F59E0B',
+          rootCircle: '#B45309',
           text: '#F8FAFC',
           noteLabel: '#64748B',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
       case 'minimal': {
         return {
           background: 'transparent',
           whiteKey: '#FFFFFF',
-          whiteKeyActive: '#BFDBFE',
-          blackKey: '#334155',
-          blackKeyActive: '#1E40AF',
+          // blue-200 was ~1.4:1 on the white keys, blue-800 ~1.2:1 on slate-700 black keys
+          whiteKeyActive: '#3B82F6',
+          blackKey: '#1E293B',
+          blackKeyActive: '#3B82F6',
           border: '#CBD5E1',
+          ring: '#FFFFFF',
           fingerCircle: '#1E40AF',
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
-          text: '#334155',
-          noteLabel: '#94A3B8',
+          // On the page's own background: the container's slate-700, lightened on a dark page
+          // where the fixed colour was unreadable
+          text: 'currentColor',
+          // slate-400 was ~2.6:1 on the white keys
+          noteLabel: '#64748B',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
       case 'colorful': {
         return {
           background: '#FEFCE8',
           whiteKey: '#FFFBEB',
-          whiteKeyActive: '#86EFAC',
+          // green-300 was ~1.4:1 on the white keys
+          whiteKeyActive: '#16A34A',
           blackKey: '#1F2937',
-          blackKeyActive: '#22C55E',
+          blackKeyActive: '#16A34A',
           border: '#FCD34D',
-          fingerCircle: '#8B5CF6',
+          ring: '#FFFBEB',
+          // White finger numbers: violet-500 (~4.2:1) and pink-500 (~3.5:1) were too light
+          fingerCircle: '#7C3AED',
           fingerText: '#FFFFFF',
-          rootCircle: '#EC4899',
+          rootCircle: '#DB2777',
           text: '#1F2937',
           noteLabel: '#78716C',
+          // Key label on a chord (active) key, >= 4.5:1 on green-600
+          noteLabelActive: '#1C1917',
         };
       }
       default: {
         return {
           background: '#FFFFFF',
           whiteKey: '#FFFFFF',
-          whiteKeyActive: '#93C5FD',
+          // blue-300 was ~1.8:1 on the white keys
+          whiteKeyActive: '#3B82F6',
           blackKey: '#1F2937',
           blackKeyActive: '#3B82F6',
           border: '#E5E7EB',
+          ring: '#FFFFFF',
           fingerCircle: '#2563EB',
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
           text: '#1F2937',
           noteLabel: '#6B7280',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
     }
@@ -407,10 +469,10 @@ export class TwPianoChordComponent {
     const variantClasses: Record<PianoChordVariant, string> = {
       default: 'bg-white border border-slate-200 shadow-sm',
       dark: 'bg-slate-800 border border-slate-700',
-      minimal: 'bg-transparent',
+      minimal: 'bg-transparent text-[#334155] dark:text-slate-200',
       colorful: 'bg-amber-50 border border-amber-200',
     };
-    return [base, variantClasses[this.variant()], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());
   });
 
   protected readonly whiteKeys = computed(() => {
@@ -435,8 +497,9 @@ export class TwPianoChordComponent {
     const { whiteKeyWidth } = this.dimensions();
     const keys: Array<{ note: string; octave: number; position: number }> = [];
 
-    // Black key positions relative to white keys
-    const blackKeyPositions = [0.65, 1.75, 3.6, 4.65, 5.7]; // C#, D#, F#, G#, A#
+    // Centre of each black key, in white-key widths from the octave's C (C#, D#, F#, G#, A#).
+    // Keys are 0.6 wide, so each straddles the boundary between its neighbouring white keys.
+    const blackKeyPositions = [0.95, 2.05, 3.9, 5, 6.1];
 
     for (let o = 0; o < octaves; o++) {
       const octaveOffset = o * 7 * whiteKeyWidth;
@@ -452,22 +515,44 @@ export class TwPianoChordComponent {
     return keys;
   });
 
+  /** Chord notes that fall on a key inside the visible octave range (others have no key to mark) */
+  protected readonly visibleNotes = computed((): PianoChordNote[] => {
+    const chord = this.chordData();
+    if (!chord) return [];
+    const first = this.startOctave();
+    const last = first + this.octaveCount() - 1;
+    return chord.notes.filter(n => {
+      const { octave } = toKey(n.note, n.octave);
+      return octave >= first && octave <= last;
+    });
+  });
+
   protected isNoteActive(note: string, octave: number): boolean {
     const chord = this.chordData();
     if (!chord) return false;
 
-    return chord.notes.some(n => n.note === note && n.octave === octave);
+    const target = toKey(note, octave);
+    return chord.notes.some(n => {
+      const key = toKey(n.note, n.octave);
+      return key.note === target.note && key.octave === target.octave;
+    });
   }
 
   protected getNoteInfo(note: string, octave: number): PianoChordNote | null {
     const chord = this.chordData();
     if (!chord) return null;
 
-    return chord.notes.find(n => n.note === note && n.octave === octave) || null;
+    const target = toKey(note, octave);
+    return (
+      chord.notes.find(n => {
+        const key = toKey(n.note, n.octave);
+        return key.note === target.note && key.octave === target.octave;
+      }) || null
+    );
   }
 
   protected isBlackKey(note: string): boolean {
-    return BLACK_NOTES.includes(note);
+    return BLACK_NOTES.includes(toKey(note, 0).note);
   }
 
   protected getWhiteKeyX(index: number): number {
@@ -481,18 +566,19 @@ export class TwPianoChordComponent {
   }
 
   protected getFingerY(isBlack: boolean): number {
-    const { whiteKeyHeight, blackKeyHeight, padding } = this.dimensions();
-    const topOffset = this.showChordName() ? 28 : 0;
+    // SVG coordinates: the chord name is rendered above the SVG, not inside it
+    const { whiteKeyHeight, blackKeyHeight, padding, fingerRadius } = this.dimensions();
 
     if (isBlack) {
-      return topOffset + padding + blackKeyHeight - this.dimensions().fingerRadius - 4;
+      return padding + blackKeyHeight - fingerRadius - 4;
     }
-    return topOffset + padding + whiteKeyHeight - this.dimensions().fingerRadius - 8;
+    return padding + whiteKeyHeight - fingerRadius - 8;
   }
 
-  protected getFingerX(note: string, octave: number): number {
-    const { whiteKeyWidth, padding, blackKeyWidth } = this.dimensions();
+  protected getFingerX(rawNote: string, rawOctave: number): number {
+    const { whiteKeyWidth, padding } = this.dimensions();
     const startOct = this.startOctave();
+    const { note, octave } = toKey(rawNote, rawOctave);
 
     if (this.isBlackKey(note)) {
       // Find the black key

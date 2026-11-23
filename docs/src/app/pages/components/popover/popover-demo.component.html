@@ -9,8 +9,8 @@
     <tw-popover>
       <tw-button twPopoverTrigger>Open Popover</tw-button>
       <div class="p-4">
-        <h4 class="font-semibold text-slate-900 mb-2">Popover Title</h4>
-        <p class="text-sm text-slate-600">This is the popover content. You can put any content here.</p>
+        <h4 class="font-semibold text-slate-900 dark:text-slate-100 mb-2">Popover Title</h4>
+        <p class="text-sm text-slate-600 dark:text-slate-400">This is the popover content. You can put any content here.</p>
       </div>
     </tw-popover>
   </app-demo-section>
@@ -46,7 +46,10 @@
   </app-demo-section>
 
   <!-- Trigger Types -->
-  <app-demo-section title="Trigger Types" [code]="triggersCode">
+  <app-demo-section
+    title="Trigger Types"
+    description="trigger accepts click (default), hover, focus or manual. Hover and focus popovers are non-interactive tooltips: the panel has role=&quot;tooltip&quot; and the trigger gets aria-describedby while open. Click and manual popovers may hold interactive content and use dialog semantics: the panel has role=&quot;dialog&quot; (labelled by the header when set) and the trigger gets aria-haspopup=&quot;dialog&quot;, aria-expanded and, while open, aria-controls."
+    [code]="triggersCode">
     <div class="flex flex-wrap gap-4">
       <tw-popover trigger="click">
         <tw-button twPopoverTrigger>Click to open</tw-button>
@@ -73,13 +76,13 @@
             <span class="text-blue-600 font-semibold">JD</span>
           </div>
           <div>
-            <p class="font-semibold text-slate-900">John Doe</p>
+            <p class="font-semibold text-slate-900 dark:text-slate-100">John Doe</p>
             <p class="text-sm text-slate-500">john&#64;example.com</p>
           </div>
         </div>
         <div class="border-t pt-3 space-y-2">
-          <a href="#" class="block text-sm text-slate-600 hover:text-slate-900">View Profile</a>
-          <a href="#" class="block text-sm text-slate-600 hover:text-slate-900">Settings</a>
+          <a href="#" class="block text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900">View Profile</a>
+          <a href="#" class="block text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900">Settings</a>
           <a href="#" class="block text-sm text-rose-600 hover:text-rose-700">Sign Out</a>
         </div>
       </div>

@@ -4,7 +4,7 @@
 
 ## Overview
 
-ngx-tailwindcss is an open-source Angular UI component library that provides 30+ components styled with Tailwind CSS. It's designed for Angular 19, 20, and 21, using standalone components and modern Angular features like signals and effects.
+ngx-tailwindcss is an open-source Angular UI component library that provides 30+ components styled with Tailwind CSS. It's designed for Angular 19, 20, 21, and 22, using standalone components and modern Angular features like signals and effects.
 
 ## Key Features
 
@@ -18,14 +18,14 @@ ngx-tailwindcss is an open-source Angular UI component library that provides 30+
 ## Installation
 
 ```bash
-pnpm add ngx-tailwindcss
+pnpm add @quinnjr/ngx-tailwindcss
 ```
 
 Configure Tailwind to scan the library:
 
 ```css
 @import "tailwindcss";
-@source "../node_modules/ngx-tailwindcss/**/*.mjs";
+@source "../node_modules/@quinnjr/ngx-tailwindcss/**/*.mjs";
 ```
 
 ## Components
@@ -104,7 +104,7 @@ Configure Tailwind to scan the library:
 ## Global Configuration
 
 ```typescript
-import { provideTwConfig } from 'ngx-tailwindcss';
+import { provideTwConfig } from '@quinnjr/ngx-tailwindcss';
 
 export const appConfig = {
   providers: [
@@ -134,7 +134,7 @@ export const appConfig = {
 
 - Documentation: https://ngx-tailwindcss.dev
 - GitHub: https://github.com/quinnjr/ngx-tailwindcss
-- npm: https://www.npmjs.com/package/ngx-tailwindcss
+- npm: https://www.npmjs.com/package/@quinnjr/ngx-tailwindcss
 - License: MIT
 
 ## Contact

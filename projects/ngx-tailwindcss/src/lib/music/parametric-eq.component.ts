@@ -12,10 +12,12 @@ import {
   numberAttribute,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
 
 export type EQFilterType =
   'lowpass' | 'highpass' | 'bandpass' | 'lowshelf' | 'highshelf' | 'peaking' | 'notch';
@@ -98,6 +100,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private stopDprWatch: (() => void) | null = null;
 
   constructor() {
     // Redraw when any render-affecting input or interaction state changes.
@@ -158,8 +162,12 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#0F172A',
           grid: '#334155',
-          gridText: '#64748B',
+          // slate-400: readable (>=4.5:1) axis labels on the dark background
+          gridText: '#94A3B8',
+          nodeText: '#FFFFFF',
           curve: '#3B82F6',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curveFill: 'rgba(59, 130, 246, 0.2)',
           spectrum: 'rgba(59, 130, 246, 0.3)',
         };
@@ -168,7 +176,10 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#1C1917',
           grid: '#44403C',
-          gridText: '#78716C',
+          gridText: '#A8A29E', // stone-400
+          nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#F59E0B',
           curveFill: 'rgba(245, 158, 11, 0.2)',
           spectrum: 'rgba(245, 158, 11, 0.3)',
@@ -178,7 +189,10 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#000000',
           grid: '#1E1E1E',
-          gridText: '#666666',
+          gridText: '#999999',
+          nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#00FFFF',
           curveFill: 'rgba(0, 255, 255, 0.15)',
           spectrum: 'rgba(255, 0, 255, 0.3)',
@@ -189,6 +203,11 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#FFFFFF',
           grid: '#E2E8F0',
           gridText: '#64748B',
+          nodeText: '#0F172A',
+          // Dark node outlines: white ones vanish on the white plot, leaving the
+          // orange/yellow/green nodes at ~2-2.8:1 and the selected node unmarked
+          nodeStroke: 'rgba(15,23,42,0.6)',
+          nodeStrokeSelected: '#0F172A',
           curve: '#2563EB',
           curveFill: 'rgba(37, 99, 235, 0.15)',
           spectrum: 'rgba(37, 99, 235, 0.2)',
@@ -199,6 +218,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#000000',
           grid: '#FFFFFF',
           gridText: '#FFFFFF',
+          nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#FFFF00',
           curveFill: 'rgba(255, 255, 0, 0.3)',
           spectrum: 'rgba(0, 255, 0, 0.4)',
@@ -209,7 +231,10 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#1E293B',
           grid: '#475569',
           gridText: '#94A3B8',
+          nodeText: '#FFFFFF',
           curve: '#10B981',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curveFill: 'rgba(16, 185, 129, 0.2)',
           spectrum: 'rgba(16, 185, 129, 0.3)',
         };
@@ -217,18 +242,70 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     }
   });
 
+  // Selected-band readout panel. The translucent slate-800 panel with white /
+  // slate-400 text is ~1.2-3:1 on the light variant's white surroundings.
+  protected readonly panelClasses = computed(() =>
+    this.variant() === 'light'
+      ? { panel: 'bg-slate-100', label: 'text-slate-600', value: 'text-slate-900' }
+      : { panel: 'bg-slate-800/50', label: 'text-slate-400', value: 'text-white' }
+  );
+
+  /**
+   * Text colour for a band chip: white or slate-900, whichever contrasts more
+   * with the band colour (white on the default orange/yellow/green bands was
+   * ~1.9-2.8:1).
+   */
+  protected bandTextColor(color: string | undefined): string {
+    const hex = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(color ?? '')?.[1];
+    if (!hex) return '#FFFFFF';
+    const full = hex.length === 3 ? hex.replaceAll(/./g, c => c + c) : hex;
+    const [r, g, b] = [0, 2, 4].map(i => {
+      const c = Number.parseInt(full.slice(i, i + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // slate-900 (#0F172A) has a relative luminance of ~0.0089
+    const onWhite = 1.05 / (luminance + 0.05);
+    const onDark = (luminance + 0.05) / 0.0589;
+    return onDark > onWhite ? '#0F172A' : '#FFFFFF';
+  }
+
+  /**
+   * Band chip colours. A disabled (bypassed) band is shown as a neutral grey
+   * chip rather than dimming the whole chip: at opacity-40 its still-operable
+   * select button's text was ~2:1 against its own background.
+   */
+  protected chipColors(band: EQBand): { background: string | undefined; text: string } {
+    if (band.enabled) {
+      return { background: band.color, text: this.bandTextColor(band.color) };
+    }
+    return this.variant() === 'light'
+      ? { background: '#E2E8F0', text: '#334155' } // slate-200 / slate-700 (~8.9:1)
+      : { background: '#475569', text: '#FFFFFF' }; // slate-600 / white (~7.6:1)
+  }
+
   protected readonly containerClasses = computed(() => {
     const base = 'relative rounded-lg overflow-hidden';
     return [base, this.classOverride()].filter(Boolean).join(' ');
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
     this.requestDraw();
+    // The view is static without an analyser: redraw at the new resolution
+    // after browser zoom or a move to a screen with a different density
+    this.stopDprWatch = watchDevicePixelRatio(() => {
+      this.requestDraw();
+    });
   }
 
   ngOnDestroy(): void {
+    this.stopDprWatch?.();
+    this.stopDprWatch = null;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
@@ -344,13 +421,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     const height = this.height();
     const colors = this.colors();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
-    }
+    // Size the backing store for the device pixel ratio; drawing and pointer
+    // hit-testing both stay in CSS pixels
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
 
     // Clear and fill background
     this.ctx.fillStyle = colors.background;
@@ -410,9 +483,12 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
       if (this.showLabels()) {
         this.ctx.fillStyle = textColor;
         this.ctx.font = '10px system-ui';
-        this.ctx.textAlign = 'center';
+        // Labels at the very edges (20k at the default maxFreq) are anchored
+        // inside the canvas: centred there, half of the text was clipped off
+        const edge = 12;
+        this.ctx.textAlign = x >= width - edge ? 'right' : x <= edge ? 'left' : 'center';
         const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
-        this.ctx.fillText(label, x, height - 4);
+        this.ctx.fillText(label, Math.min(width - 2, Math.max(2, x)), height - 4);
       }
     }
 
@@ -429,7 +505,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         this.ctx.fillStyle = textColor;
         this.ctx.font = '10px system-ui';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(`${gain > 0 ? '+' : ''}${gain}`, 4, y - 2);
+        // A line at the very top (gain === maxGain) would put its label above the canvas
+        const labelY = y - 2 < 10 ? y + 10 : y - 2;
+        this.ctx.fillText(`${gain > 0 ? '+' : ''}${gain}`, 4, labelY);
       }
     }
 
@@ -449,13 +527,20 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     const width = this.width();
     const height = this.height();
     const bufferLength = this.frequencyData.length;
+    // FFT bin i is centred at i * (nyquist / binCount) Hz
+    const sampleRate = this.analyserNode()?.context?.sampleRate ?? 44_100;
+    const binHz = sampleRate / 2 / bufferLength;
+    const minFreq = this.minFreq();
+    const maxFreq = this.maxFreq();
 
     this.ctx.fillStyle = color;
     this.ctx.beginPath();
     this.ctx.moveTo(0, height);
 
     for (let i = 0; i < bufferLength; i++) {
-      const freq = (i / bufferLength) * (this.maxFreq() - this.minFreq()) + this.minFreq();
+      const freq = i * binHz;
+      if (freq < minFreq) continue;
+      if (freq > maxFreq) break;
       const x = this.frequencyToX(freq);
       const value = this.frequencyData[i] / 255;
       const y = height - value * height;
@@ -543,7 +628,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
 
       // Draw node circle
       this.ctx.fillStyle = band.color || '#fff';
-      this.ctx.strokeStyle = isSelected ? '#fff' : 'rgba(255,255,255,0.5)';
+      this.ctx.strokeStyle = isSelected
+        ? this.colors().nodeStrokeSelected
+        : this.colors().nodeStroke;
       this.ctx.lineWidth = isSelected ? 3 : 2;
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -552,16 +639,22 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
 
       // Draw frequency label if hovered or selected
       if (isHovered || isSelected) {
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = this.colors().nodeText;
         this.ctx.font = '11px system-ui';
-        this.ctx.textAlign = 'center';
+        // Keep the readout inside the canvas: below the node when it is near
+        // the top (boosted), and edge-anchored near the left/right edges
+        const width = this.width();
+        const below = y - radius - 26 < 0;
+        const edge = 30;
+        this.ctx.textAlign = x >= width - edge ? 'right' : x <= edge ? 'left' : 'center';
+        const labelX = Math.min(width - 2, Math.max(2, x));
         const freqLabel =
           band.frequency >= 1000
             ? `${(band.frequency / 1000).toFixed(1)}kHz`
             : `${Math.round(band.frequency)}Hz`;
         const gainLabel = `${band.gain > 0 ? '+' : ''}${band.gain.toFixed(1)}dB`;
-        this.ctx.fillText(freqLabel, x, y - radius - 14);
-        this.ctx.fillText(gainLabel, x, y - radius - 2);
+        this.ctx.fillText(freqLabel, labelX, below ? y + radius + 12 : y - radius - 14);
+        this.ctx.fillText(gainLabel, labelX, below ? y + radius + 24 : y - radius - 2);
       }
     }
   }
@@ -628,16 +721,18 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     return 10 ** (minLog + ratio * (maxLog - minLog));
   }
 
+  // Linear gain axis: maxGain at the top, minGain at the bottom (works for
+  // asymmetric ranges, where 0 dB is not the vertical centre)
   private gainToY(gain: number): number {
     const height = this.height();
     const range = this.maxGain() - this.minGain();
-    return height / 2 - (gain / range) * height;
+    return ((this.maxGain() - gain) / range) * height;
   }
 
   private yToGain(y: number): number {
     const height = this.height();
     const range = this.maxGain() - this.minGain();
-    return ((height / 2 - y) / height) * range;
+    return this.maxGain() - (y / height) * range;
   }
 
   private getCanvasPosition(event: MouseEvent): { x: number; y: number } {
@@ -669,6 +764,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   protected toggleBand(band: EQBand): void {
+    if (!this.interactive()) return;
     const updatedBands = this.bands().map(b =>
       b.id === band.id ? { ...b, enabled: !b.enabled } : b
     );
@@ -681,13 +777,16 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
   }
 
   // Keyboard control for the focused band: arrows adjust gain (up/down) and
-  // frequency (left/right); Home/End jump gain to 0/max
+  // frequency (left/right); PageUp/PageDown widen/narrow Q (the keyboard
+  // counterpart of Shift+drag); Home/End jump gain to 0/max. Enter/Space keep the
+  // native button behaviour (select, same as a click); enabling/disabling has
+  // its own switch so keyboard, mouse and screen readers all agree.
   protected onBandKeydown(event: KeyboardEvent, band: EQBand): void {
     if (!this.interactive()) return;
 
     const freqFactor = event.shiftKey ? 2 ** (1 / 3) : 2 ** (1 / 12); // major third / semitone
     let updatedBand: EQBand | null = null;
-    let property: 'frequency' | 'gain' = 'gain';
+    let property: 'frequency' | 'gain' | 'q' = 'gain';
 
     switch (event.key) {
       case 'ArrowUp': {
@@ -714,8 +813,22 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         property = 'frequency';
         break;
       }
+      case 'PageUp': {
+        updatedBand = { ...band, q: Math.min(18, Math.round(band.q * 1.25 * 100) / 100) };
+        property = 'q';
+        break;
+      }
+      case 'PageDown': {
+        updatedBand = { ...band, q: Math.max(0.1, Math.round((band.q / 1.25) * 100) / 100) };
+        property = 'q';
+        break;
+      }
       case 'Home': {
         updatedBand = { ...band, gain: 0 };
+        break;
+      }
+      case 'End': {
+        updatedBand = { ...band, gain: this.maxGain() };
         break;
       }
       default: {
@@ -731,11 +844,29 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
     this.bandChange.emit({ band: updatedBand, property });
   }
 
+  private bandFrequencyLabel(band: EQBand): string {
+    return band.frequency >= 1000
+      ? `${(band.frequency / 1000).toFixed(1)} kilohertz`
+      : `${Math.round(band.frequency)} hertz`;
+  }
+
+  /**
+   * Visible label of a band's select button. Dragging a node produces
+   * fractional frequencies, so sub-kHz values are rounded like everywhere else.
+   */
+  protected bandButtonLabel(band: EQBand): string {
+    return band.frequency >= 1000
+      ? `${(band.frequency / 1000).toFixed(1)}kHz`
+      : `${Math.round(band.frequency)}Hz`;
+  }
+
+  /** Accessible name of a band's enable switch (its state is exposed via aria-checked) */
+  protected bandToggleLabel(band: EQBand): string {
+    return `Enable EQ band at ${this.bandFrequencyLabel(band)}`;
+  }
+
   protected bandAriaLabel(band: EQBand): string {
-    const freqLabel =
-      band.frequency >= 1000
-        ? `${(band.frequency / 1000).toFixed(1)} kilohertz`
-        : `${Math.round(band.frequency)} hertz`;
+    const freqLabel = this.bandFrequencyLabel(band);
     const gainLabel = `${band.gain > 0 ? '+' : ''}${band.gain.toFixed(1)} dB`;
     return `EQ band at ${freqLabel}, ${gainLabel}${band.enabled ? '' : ', disabled'}`;
   }

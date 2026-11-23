@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 /**
  * Center component for centering content horizontally and/or vertically.
@@ -19,10 +20,8 @@ import { TwClassService } from '../core/tw-class.service';
  *   <div>Centered content</div>
  * </tw-center>
  *
- * <!-- Center only horizontally (inline content) -->
- * <tw-center [inline]="true">
- *   <span>Centered text</span>
- * </tw-center>
+ * <!-- Inline center that sits within a line of text -->
+ * <p>Status: <tw-center [inline]="true" class="w-6 h-6 rounded-full bg-green-500"><span>✓</span></tw-center></p>
  * ```
  */
 @Component({
@@ -31,13 +30,10 @@ import { TwClassService } from '../core/tw-class.service';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './center.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'centerClasses()',
+  },
 })
 export class TwCenterComponent {
   private readonly twClass = inject(TwClassService);
@@ -52,7 +48,7 @@ export class TwCenterComponent {
   readonly vertical = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly centerClasses = computed(() => {
     const classes: string[] = [this.inline() ? 'inline-flex' : 'flex'];
@@ -86,13 +82,12 @@ export class TwCenterComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './square.component.html',
-  styles: [
-    `
-      :host {
-        display: inline-block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'squareClasses()',
+    '[style.width]': 'size()',
+    '[style.height]': 'size()',
+  },
 })
 export class TwSquareComponent {
   private readonly twClass = inject(TwClassService);
@@ -104,11 +99,13 @@ export class TwSquareComponent {
   readonly centerContent = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly squareClasses = computed(() => {
     return this.twClass.merge(
-      this.centerContent() ? 'flex items-center justify-center' : '',
+      // A fixed-size box: don't let a flex parent squeeze it below `size`
+      'shrink-0',
+      this.centerContent() ? 'inline-flex items-center justify-center' : 'inline-block',
       this.class()
     );
   });
@@ -130,13 +127,12 @@ export class TwSquareComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './circle.component.html',
-  styles: [
-    `
-      :host {
-        display: inline-block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'circleClasses()',
+    '[style.width]': 'size()',
+    '[style.height]': 'size()',
+  },
 })
 export class TwCircleComponent {
   private readonly twClass = inject(TwClassService);
@@ -148,12 +144,12 @@ export class TwCircleComponent {
   readonly centerContent = input(true, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly circleClasses = computed(() => {
     return this.twClass.merge(
-      'rounded-full',
-      this.centerContent() ? 'flex items-center justify-center' : '',
+      'rounded-full shrink-0',
+      this.centerContent() ? 'inline-flex items-center justify-center' : 'inline-block',
       this.class()
     );
   });

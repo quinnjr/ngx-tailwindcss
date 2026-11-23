@@ -182,13 +182,15 @@ export class TwStepsComponent {
     return this.twClass.merge(
       'font-medium block',
       sizeClasses,
-      status === 'upcoming' ? 'text-slate-500' : 'text-slate-900'
+      status === 'upcoming'
+        ? 'text-slate-500 dark:text-slate-400'
+        : 'text-slate-900 dark:text-slate-100'
     );
   }
 
   protected descriptionClasses() {
     const sizeClasses = STEPS_SIZES[this.size()].desc;
-    return this.twClass.merge('text-slate-500 block', sizeClasses);
+    return this.twClass.merge('text-slate-500 dark:text-slate-400 block', sizeClasses);
   }
 
   getStepStatus(index: number): 'complete' | 'current' | 'upcoming' {

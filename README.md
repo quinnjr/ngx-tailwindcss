@@ -21,8 +21,24 @@ npm install @quinnjr/ngx-tailwindcss
 
 ### Peer Dependencies
 
-```bash
-pnpm add @angular/cdk
+The library requires `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/animations` (Angular 19+) and `rxjs`, which an Angular application already has. `@angular/cdk` is **not** required; it, `@tauri-apps/*` and `electron` are optional peers used only by the native/desktop integrations you opt into.
+
+### Animations Provider
+
+`tw-modal` (and `tw-confirm-dialog`, which renders a `tw-modal`) and `tw-overlay` use Angular animations. Register an animations provider in your application config, otherwise opening one of them throws `NG05105: Unexpected synthetic property ... found`:
+
+```typescript
+// app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideAnimationsAsync(),
+    // or provideAnimations() from '@angular/platform-browser/animations',
+    // or provideNoopAnimations() to disable the transitions entirely
+  ],
+};
 ```
 
 ## Tailwind CSS Configuration
@@ -60,6 +76,7 @@ module.exports = {
 Import components directly in your Angular components:
 
 ```typescript
+// example.component.ts
 import { Component } from '@angular/core';
 import {
   TwButtonComponent,
@@ -71,15 +88,18 @@ import {
   selector: 'app-example',
   standalone: true,
   imports: [TwButtonComponent, TwCardComponent, TwCardBodyDirective],
-  template: `
-    <tw-card>
-      <tw-card-body>
-        <tw-button variant="primary">Click me!</tw-button>
-      </tw-card-body>
-    </tw-card>
-  `,
+  templateUrl: './example.component.html',
 })
 export class ExampleComponent {}
+```
+
+```html
+<!-- example.component.html -->
+<tw-card>
+  <tw-card-body>
+    <tw-button variant="primary">Click me!</tw-button>
+  </tw-card-body>
+</tw-card>
 ```
 
 Or import everything at once:
@@ -125,6 +145,7 @@ export const appConfig: ApplicationConfig = {
 <tw-button variant="primary">Primary</tw-button>
 <tw-button variant="danger" size="lg">Large Danger</tw-button>
 <tw-button variant="outline" [loading]="isLoading">Submit</tw-button>
+<tw-button type="submit">Save</tw-button> <!-- submits the enclosing <form> -->
 <tw-button variant="ghost" [iconOnly]="true">
   <svg twButtonIcon>...</svg>
 </tw-button>
@@ -133,6 +154,7 @@ export const appConfig: ApplicationConfig = {
 **Props:**
 - `variant`: `'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'ghost' | 'outline' | 'link'`
 - `size`: `'xs' | 'sm' | 'md' | 'lg' | 'xl'`
+- `type`: `'button' | 'submit' | 'reset'` (default `'button'`); `submit`/`reset` act on the enclosing `<form>`
 - `disabled`, `loading`, `fullWidth`, `iconOnly`: `boolean`
 - `classOverride`: Additional classes to merge
 - `classReplace`: Complete class replacement
@@ -302,6 +324,7 @@ Conflict resolution is a lightweight, tailwind-merge-style approximation: it han
 ## Customization Examples
 
 `classOverride` is available on most components; `classReplace` is currently supported on `tw-button` and `tw-card` only.
+On `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`, `tw-card` and `tw-card-horizontal` a plain `class` attribute or `[class]` binding (string, array, `Set` or `{ class: condition }` object) is merged the same way, so `class="bg-sky-700 text-white"` replaces the variant colours; `classOverride` is applied after `class` and wins over it.
 
 ### Per-Component Override
 

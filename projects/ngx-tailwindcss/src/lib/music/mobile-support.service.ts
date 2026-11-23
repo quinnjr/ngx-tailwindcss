@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, OnDestroy, signal } from '@angular/core';
 
 /**
  * Haptic feedback types supported by devices
@@ -49,6 +49,19 @@ export interface SwipeGestureResult {
 }
 
 /**
+ * Start point of a tracked touch/mouse gesture, as returned by
+ * {@link MobileSupportService.startTouchTracking}. Pass it back to the
+ * validation helpers to evaluate a gesture independently of others: the
+ * service is a root singleton, so its implicit "last started" gesture is
+ * overwritten when two controls are touched at once (e.g. two faders).
+ */
+export interface TouchTrackingState {
+  time: number;
+  x: number;
+  y: number;
+}
+
+/**
  * Service for mobile touch interactions and haptic feedback
  *
  * @example
@@ -61,13 +74,12 @@ export interface SwipeGestureResult {
 @Injectable({
   providedIn: 'root',
 })
-export class MobileSupportService {
+export class MobileSupportService implements OnDestroy {
   private readonly _hapticEnabled = signal(true);
   private readonly _touchGuardEnabled = signal(true);
   private lastActionTime = 0;
-  private touchStartTime = 0;
-  private touchStartX = 0;
-  private touchStartY = 0;
+  // Most recently started gesture (used when no explicit state is passed)
+  private tracking: TouchTrackingState = { time: 0, x: 0, y: 0 };
 
   /** Whether haptic feedback is enabled */
   readonly hapticEnabled = this._hapticEnabled.asReadonly();
@@ -84,16 +96,22 @@ export class MobileSupportService {
   /** Current device orientation */
   readonly orientation = signal<'portrait' | 'landscape'>(this.getOrientation());
 
+  private readonly orientationHandler = (): void => {
+    this.orientation.set(this.getOrientation());
+  };
+
   constructor() {
     // Listen for orientation changes
     if (typeof window !== 'undefined') {
-      window.addEventListener('orientationchange', () => {
-        this.orientation.set(this.getOrientation());
-      });
+      window.addEventListener('orientationchange', this.orientationHandler);
+      window.addEventListener('resize', this.orientationHandler);
+    }
+  }
 
-      window.addEventListener('resize', () => {
-        this.orientation.set(this.getOrientation());
-      });
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('orientationchange', this.orientationHandler);
+      window.removeEventListener('resize', this.orientationHandler);
     }
   }
 
@@ -113,10 +131,12 @@ export class MobileSupportService {
    * @param type The type of haptic feedback
    */
   triggerHaptic(type: HapticFeedbackType = 'light'): void {
-    if (!this._hapticEnabled() || !this.supportsHaptic()) return;
+    // supportsHaptic only reflects the Vibration API; the iOS webkit bridge
+    // below must still be tried when it is absent (iOS Safari has no vibrate)
+    if (!this._hapticEnabled() || typeof window === 'undefined') return;
 
     // Use Vibration API
-    if ('vibrate' in navigator) {
+    if (this.supportsHaptic()) {
       const patterns: Record<HapticFeedbackType, number[]> = {
         light: [10],
         medium: [20],
@@ -212,7 +232,7 @@ export class MobileSupportService {
    * `axisLock` and `requireConfirm` need per-gesture context and are handled
    * by `TwTouchGuardDirective`, so they are intentionally ignored.
    */
-  shouldAllowAction(config: TouchGuardConfig = {}): boolean {
+  shouldAllowAction(config: TouchGuardConfig = {}, from?: TouchTrackingState): boolean {
     if (!this._touchGuardEnabled()) return true;
 
     const now = Date.now();
@@ -224,7 +244,7 @@ export class MobileSupportService {
     }
 
     // Check minimum touch duration (relative to startTouchTracking)
-    if (config.minDuration && !this.validateTouchDuration(config.minDuration)) {
+    if (config.minDuration && !this.validateTouchDuration(config.minDuration, from)) {
       return false;
     }
 
@@ -241,69 +261,52 @@ export class MobileSupportService {
 
   /**
    * Start tracking a touch for guard validation
+   * @returns The gesture's start state; pass it to the validation helpers to
+   *   keep concurrent gestures on different controls independent
    */
-  startTouchTracking(event: TouchEvent | MouseEvent): void {
-    this.touchStartTime = Date.now();
-
-    if ('touches' in event) {
-      this.touchStartX = event.touches[0].clientX;
-      this.touchStartY = event.touches[0].clientY;
-    } else {
-      this.touchStartX = event.clientX;
-      this.touchStartY = event.clientY;
-    }
+  startTouchTracking(event: TouchEvent | MouseEvent): TouchTrackingState {
+    const { x, y } = this.pointOf(event);
+    this.tracking = { time: Date.now(), x, y };
+    return this.tracking;
   }
 
   /**
    * Validate touch duration
+   * @param from Gesture start (defaults to the most recently started gesture)
    */
-  validateTouchDuration(minDuration: number = 0): boolean {
-    const duration = Date.now() - this.touchStartTime;
+  validateTouchDuration(
+    minDuration: number = 0,
+    from: TouchTrackingState = this.tracking
+  ): boolean {
+    const duration = Date.now() - from.time;
     return duration >= minDuration;
   }
 
   /**
    * Validate drag distance
+   * @param from Gesture start (defaults to the most recently started gesture)
    */
-  validateDragDistance(event: TouchEvent | MouseEvent, minDistance: number = 10): boolean {
-    let currentX: number;
-    let currentY: number;
-
-    if ('touches' in event) {
-      currentX = event.touches[0].clientX;
-      currentY = event.touches[0].clientY;
-    } else {
-      currentX = event.clientX;
-      currentY = event.clientY;
-    }
-
-    const dx = currentX - this.touchStartX;
-    const dy = currentY - this.touchStartY;
-    const distance = Math.hypot(dx, dy);
-
-    return distance >= minDistance;
+  validateDragDistance(
+    event: TouchEvent | MouseEvent,
+    minDistance: number = 10,
+    from: TouchTrackingState = this.tracking
+  ): boolean {
+    const { x, y } = this.pointOf(event);
+    return Math.hypot(x - from.x, y - from.y) >= minDistance;
   }
 
   /**
    * Get drag delta with optional axis lock
+   * @param from Gesture start (defaults to the most recently started gesture)
    */
   getDragDelta(
     event: TouchEvent | MouseEvent,
-    axisLock: 'x' | 'y' | 'none' = 'none'
+    axisLock: 'x' | 'y' | 'none' = 'none',
+    from: TouchTrackingState = this.tracking
   ): { dx: number; dy: number } {
-    let currentX: number;
-    let currentY: number;
-
-    if ('touches' in event) {
-      currentX = event.touches[0].clientX;
-      currentY = event.touches[0].clientY;
-    } else {
-      currentX = event.clientX;
-      currentY = event.clientY;
-    }
-
-    let dx = currentX - this.touchStartX;
-    let dy = currentY - this.touchStartY;
+    const { x, y } = this.pointOf(event);
+    let dx = x - from.x;
+    let dy = y - from.y;
 
     if (axisLock === 'x') {
       dy = 0;
@@ -312,6 +315,22 @@ export class MobileSupportService {
     }
 
     return { dx, dy };
+  }
+
+  /**
+   * Position of a touch or mouse event. For touch events the touch on the
+   * listening element (`targetTouches`) is used: `touches[0]` is the first
+   * finger anywhere on the screen, which belongs to a different control when
+   * several are touched at once. On touchend/touchcancel the lifted finger is
+   * no longer in `targetTouches`/`touches`, so fall back to `changedTouches`
+   * (reading `touches[0]` would crash, or pick another finger still down).
+   */
+  private pointOf(event: TouchEvent | MouseEvent): { x: number; y: number } {
+    if ('touches' in event) {
+      const touch = event.targetTouches?.[0] ?? event.changedTouches?.[0] ?? event.touches[0];
+      return { x: touch.clientX, y: touch.clientY };
+    }
+    return { x: event.clientX, y: event.clientY };
   }
 
   // =========================================================================
@@ -370,7 +389,7 @@ export class MobileSupportService {
     minDistance: number = 50,
     maxDuration: number = 500
   ): SwipeGestureResult | null {
-    const duration = Date.now() - this.touchStartTime;
+    const duration = Date.now() - this.tracking.time;
     if (duration > maxDuration) return null;
 
     let endX: number;
@@ -383,13 +402,16 @@ export class MobileSupportService {
       endY = event.clientY;
     }
 
-    const dx = endX - this.touchStartX;
-    const dy = endY - this.touchStartY;
+    const dx = endX - this.tracking.x;
+    const dy = endY - this.tracking.y;
     const distance = Math.hypot(dx, dy);
 
     if (distance < minDistance) return null;
 
-    const velocity = distance / duration;
+    // Date.now() is coarsened by some browsers (e.g. 100 ms under Firefox's
+    // fingerprinting resistance), so a quick flick can measure 0 ms; floor it
+    // at 1 ms so velocity stays finite
+    const velocity = distance / Math.max(1, duration);
     let direction: MusicSwipeDirection;
 
     if (Math.abs(dx) > Math.abs(dy)) {

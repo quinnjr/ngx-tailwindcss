@@ -154,4 +154,110 @@ describe('TwTooltipDirective', () => {
 
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
   });
+
+  const nextTick = (): Promise<void> =>
+    new Promise<void>(resolve => {
+      setTimeout(resolve, 0);
+    });
+
+  it('should preserve existing aria-describedby references on the host', async () => {
+    buttonEl.setAttribute('aria-describedby', 'hint-1');
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector('[role="tooltip"]');
+    expect(buttonEl.getAttribute('aria-describedby')).toBe(`hint-1 ${tooltip?.id}`);
+
+    buttonEl.dispatchEvent(new Event('mouseleave'));
+    await nextTick();
+    expect(buttonEl.getAttribute('aria-describedby')).toBe('hint-1');
+  });
+
+  it('should stay open while the pointer moves from the host onto the tooltip (WCAG 1.4.13)', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.classList.contains('pointer-events-none')).toBe(false);
+
+    buttonEl.dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: tooltip }));
+    tooltip.dispatchEvent(new MouseEvent('mouseenter'));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBe(tooltip);
+
+    tooltip.dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: document.body }));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('should let tooltipClass override conflicting base classes', async () => {
+    component.tooltipClass.set('bg-red-500 text-xs');
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+
+    expect(tooltip.classList.contains('bg-red-500')).toBe(true);
+    expect(tooltip.classList.contains('bg-slate-900')).toBe(false);
+    expect(tooltip.classList.contains('text-sm')).toBe(false);
+  });
+
+  it('should keep the arrow when the content changes while open', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+
+    component.tooltipContent.set('Updated');
+    fixture.detectChanges();
+
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.textContent).toBe('Updated');
+    expect(tooltip.querySelector('div')).toBeTruthy();
+  });
+
+  it('should close an open tooltip when it becomes disabled', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBeTruthy();
+
+    component.tooltipDisabled.set(true);
+    fixture.detectChanges();
+
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('should not show a pending tooltip after it becomes disabled during the show delay', async () => {
+    component.showDelay.set(20);
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    component.tooltipDisabled.set(true);
+    fixture.detectChanges();
+
+    await new Promise(resolve => {
+      setTimeout(resolve, 40);
+    });
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('should fade in to a custom opacity from tooltipClass instead of forcing opacity-100', async () => {
+    component.tooltipClass.set('opacity-90');
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.style.opacity).toBe('0');
+
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+    expect(tooltip.style.opacity).toBe('');
+    expect(tooltip.classList.contains('opacity-90')).toBe(true);
+    expect(tooltip.classList.contains('opacity-100')).toBe(false);
+  });
 });

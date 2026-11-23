@@ -54,7 +54,7 @@ describe('TwScrollAreaComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     scrollAreaEl = fixture.debugElement.query(By.directive(TwScrollAreaComponent)).nativeElement;
-    container = scrollAreaEl.querySelector('div')!;
+    container = scrollAreaEl;
     scrollToSpy = vi.fn();
     container.scrollTo = scrollToSpy as unknown as typeof container.scrollTo;
   });
@@ -129,6 +129,18 @@ describe('TwScrollAreaComponent', () => {
       expect(container.className).toContain('scroll-area-hidden');
     });
 
+    it('should use opaque thumb colours with at least 3:1 contrast', () => {
+      const css = [...document.head.querySelectorAll('style')]
+        .map(style => style.textContent ?? '')
+        .filter(text => text.includes('scroll-area-styled'))
+        .join('\n');
+      expect(css).toContain('scrollbar-thumb');
+      // Half-transparent slate thumbs were about 2:1 against a white surface
+      expect(css).not.toMatch(/rgba\(\s*(100|148)/);
+      expect(css).toContain('#64748b');
+      expect(css).toContain('#94a3b8');
+    });
+
     it('should apply thin and dark scrollbar classes', () => {
       component.thin.set(true);
       component.dark.set(true);
@@ -162,5 +174,63 @@ describe('TwScrollAreaComponent', () => {
       fixture.detectChanges();
       expect(container.className).toContain('custom-scroll-area');
     });
+  });
+});
+
+describe('TwScrollAreaComponent host classes', () => {
+  it('applies a static class once, on the host that is the scroll container', async () => {
+    @Component({
+      template: `<tw-scroll-area class="tw-test-box extra" height="120px"
+        ><div>Item</div></tw-scroll-area
+      >`,
+      standalone: true,
+      imports: [TwScrollAreaComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes defined by the app's stylesheet
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-box { margin: 12px; padding: 16px; display: none; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-scroll-area'))
+        .nativeElement as HTMLElement;
+      expect(host.className).toContain('scroll-area-styled');
+      expect(host.className).toContain('overflow-y-auto');
+      expect(host.className).toContain('tw-test-box');
+      expect(host.style.height).toBe('120px');
+      // No wrapper element repeats the classes (margin, width, ... applied twice)
+      const item = host.querySelector<HTMLElement>(':scope > div')!;
+      expect(item.textContent).toBe('Item');
+      expect(item.className).toBe('');
+
+      // No host CSS reset overrides the consumer's utilities (e.g. `hidden md:block`)
+      const hostStyle = getComputedStyle(host);
+      expect(hostStyle.marginTop).toBe('12px');
+      expect(hostStyle.paddingTop).toBe('16px');
+      expect(hostStyle.display).toBe('none');
+    } finally {
+      style.remove();
+    }
+  });
+
+  it('scopes the custom scrollbar styles to the host element', () => {
+    TestBed.configureTestingModule({ imports: [TwScrollAreaComponent] });
+    const fixture = TestBed.createComponent(TwScrollAreaComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const hostAttr = [...host.attributes].find(a => a.name.startsWith('_nghost'))?.name;
+    expect(hostAttr).toBeTruthy();
+    const all = [...document.querySelectorAll('style')].map(s => s.textContent).join(' ');
+    expect(all).toContain(`.scroll-area-styled[${hostAttr}]::-webkit-scrollbar`);
   });
 });

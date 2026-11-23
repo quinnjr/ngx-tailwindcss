@@ -156,7 +156,8 @@ describe('TwSpinnerComponent', () => {
         component.color.set('warning');
         fixture.detectChanges();
         const spinner = spinnerEl.querySelector('.animate-spin');
-        expect(spinner?.className).toContain('border-amber-500');
+        // amber-500 on white is ~2.2:1, below the 3:1 needed for a status graphic
+        expect(spinner?.className).toContain('border-amber-600');
       });
 
       it('should apply danger color', () => {
@@ -177,7 +178,15 @@ describe('TwSpinnerComponent', () => {
         component.color.set('neutral');
         fixture.detectChanges();
         const spinner = spinnerEl.querySelector('.animate-spin');
-        expect(spinner?.className).toContain('border-slate-400');
+        expect(spinner?.className).toContain('border-slate-500');
+      });
+
+      it('should lighten the secondary color in dark mode (>= 3:1 on slate-900)', () => {
+        component.color.set('secondary');
+        fixture.detectChanges();
+        const spinner = spinnerEl.querySelector('.animate-spin');
+        expect(spinner?.className).toContain('border-slate-600');
+        expect(spinner?.className).toContain('dark:border-slate-400');
       });
     });
 
@@ -207,7 +216,7 @@ describe('TwSpinnerComponent', () => {
         component.color.set('warning');
         fixture.detectChanges();
         const bar = spinnerEl.querySelector('.bar-stretch');
-        expect(bar?.className).toContain('bg-amber-500');
+        expect(bar?.className).toContain('bg-amber-600');
       });
     });
   });

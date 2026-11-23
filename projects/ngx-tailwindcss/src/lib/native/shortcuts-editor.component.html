@@ -24,6 +24,7 @@
       />
     </div>
     <select
+      aria-label="Filter by category"
       [ngModel]="selectedCategory()"
       (ngModelChange)="selectedCategory.set($event)"
       class="px-3 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -46,14 +47,16 @@
             {{ shortcut.command }}
             @if (shortcut.isCustom) {
               <span
-                class="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded"
+                class="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded"
               >
                 Modified
               </span>
             }
           </div>
           @if (shortcut.description) {
-            <div class="text-sm text-slate-500 truncate">{{ shortcut.description }}</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 truncate">
+              {{ shortcut.description }}
+            </div>
           }
         </div>
 
@@ -61,11 +64,18 @@
           <!-- Current Binding -->
           @if (editingId() === shortcut.id) {
             <div
+              tabindex="-1"
+              data-shortcut-recording
               class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-2 border-blue-500"
             >
-              <span class="text-sm text-slate-500">Press keys...</span>
+              <span class="text-sm text-slate-600 dark:text-slate-400">Press keys...</span>
               <span class="font-mono text-sm">{{ recordedKeys().join(' + ') || '...' }}</span>
-              <button (click)="cancelEdit()" class="ml-2 text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                aria-label="Cancel recording"
+                (click)="cancelEdit()"
+                class="ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"
@@ -78,6 +88,7 @@
             </div>
           } @else {
             <button
+              [attr.data-shortcut-edit]="shortcut.id"
               (click)="startEdit(shortcut)"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
             >
@@ -92,7 +103,7 @@
                 }
               }
               @if (shortcut.keys.length === 0) {
-                <span class="text-sm text-slate-500">Not set</span>
+                <span class="text-sm text-slate-600 dark:text-slate-300">Not set</span>
               }
             </button>
           }
@@ -101,7 +112,7 @@
           @if (shortcut.isCustom) {
             <button
               (click)="resetShortcut(shortcut)"
-              class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              class="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
               title="Reset to default"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +130,9 @@
     }
 
     @if (filteredShortcuts().length === 0) {
-      <div class="flex flex-col items-center justify-center py-12 text-slate-500">
+      <div
+        class="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400"
+      >
         <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"

@@ -22,13 +22,14 @@ export interface TimelineEvent {
 export type TimelineLayout = 'vertical' | 'horizontal';
 export type TimelineAlign = 'left' | 'right' | 'alternate';
 
-const TIMELINE_COLORS: Record<string, { bg: string; border: string }> = {
-  primary: { bg: 'bg-blue-600', border: 'border-blue-600' },
-  secondary: { bg: 'bg-slate-600', border: 'border-slate-600' },
-  success: { bg: 'bg-emerald-600', border: 'border-emerald-600' },
-  warning: { bg: 'bg-amber-500', border: 'border-amber-500' },
-  danger: { bg: 'bg-rose-600', border: 'border-rose-600' },
-  info: { bg: 'bg-cyan-600', border: 'border-cyan-600' },
+// `icon` is the colour of an icon drawn on the marker (>= 3:1; white on amber is ~2.2:1)
+const TIMELINE_COLORS: Record<string, { bg: string; border: string; icon: string }> = {
+  primary: { bg: 'bg-blue-600', border: 'border-blue-600', icon: 'text-white' },
+  secondary: { bg: 'bg-slate-600', border: 'border-slate-600', icon: 'text-white' },
+  success: { bg: 'bg-emerald-600', border: 'border-emerald-600', icon: 'text-white' },
+  warning: { bg: 'bg-amber-500', border: 'border-amber-500', icon: 'text-amber-950' },
+  danger: { bg: 'bg-rose-600', border: 'border-rose-600', icon: 'text-white' },
+  info: { bg: 'bg-cyan-600', border: 'border-cyan-600', icon: 'text-white' },
 };
 
 /**
@@ -101,50 +102,49 @@ export class TwTimelineComponent {
     );
   }
 
-  protected connectorClasses(index: number) {
+  /**
+   * Connector geometry per marker kind and size. The line runs through the centre of the
+   * item's marker (markers have z-10, so they sit ON TOP of the line). Dot markers are
+   * w-3/w-4/w-5 (centre 6/8/10px), icon markers w-8/w-10/w-12 (centre 16/20/24px); the
+   * 2px line is offset by 1px to centre it. Static strings so Tailwind can see them.
+   */
+  private readonly CONNECTOR_GEOMETRY = {
+    dot: {
+      verticalTop: { sm: 'top-[6px]', md: 'top-[8px]', lg: 'top-[10px]' },
+      verticalLeft: { sm: 'left-[5px]', md: 'left-[7px]', lg: 'left-[9px]' },
+      verticalRight: { sm: 'right-[5px]', md: 'right-[7px]', lg: 'right-[9px]' },
+      horizontalTop: { sm: 'top-[5px]', md: 'top-[7px]', lg: 'top-[9px]' },
+      horizontalLeft: { sm: 'left-[6px]', md: 'left-[8px]', lg: 'left-[10px]' },
+    },
+    icon: {
+      verticalTop: { sm: 'top-[16px]', md: 'top-[20px]', lg: 'top-[24px]' },
+      verticalLeft: { sm: 'left-[15px]', md: 'left-[19px]', lg: 'left-[23px]' },
+      verticalRight: { sm: 'right-[15px]', md: 'right-[19px]', lg: 'right-[23px]' },
+      horizontalTop: { sm: 'top-[15px]', md: 'top-[19px]', lg: 'top-[23px]' },
+      horizontalLeft: { sm: 'left-[16px]', md: 'left-[20px]', lg: 'left-[24px]' },
+    },
+  } as const;
+
+  protected connectorClasses(index: number, event?: TimelineEvent) {
+    const geometry = this.CONNECTOR_GEOMETRY[event?.icon ? 'icon' : 'dot'];
+    const size = this.markerSize();
+
     if (this.layout() === 'horizontal') {
+      // Items are equal-width columns with the marker at their top-left, so a line one item
+      // wide starting at this marker's centre ends at the next marker's centre
       return this.twClass.merge(
-        'absolute top-4 left-full w-full h-0.5 bg-slate-300',
-        '-translate-x-1/2'
+        'absolute w-full h-0.5 bg-slate-300',
+        geometry.horizontalTop[size],
+        geometry.horizontalLeft[size]
       );
     }
 
-    // Line runs through the CENTER of the marker (not starting at the bottom)
-    // This creates a continuous visual connection through all markers
-    // The markers have z-10, so they appear ON TOP of the line
-
-    // Position line at the vertical center of the marker
-    // sm (w-3 = 12px): center at 6px
-    // md (w-4 = 16px): center at 8px
-    // lg (w-5 = 20px): center at 10px
-    const topPosition = {
-      sm: 'top-[6px]',
-      md: 'top-[8px]',
-      lg: 'top-[10px]',
-    };
-
-    // Calculate the left position to center the 2px line (w-0.5) with the marker dot
-    // sm (w-3 = 12px): center at 6px, line at 6px - 1px = 5px
-    // md (w-4 = 16px): center at 8px, line at 8px - 1px = 7px
-    // lg (w-5 = 20px): center at 10px, line at 10px - 1px = 9px
-    const leftPosition = {
-      sm: 'left-[5px]',
-      md: 'left-[7px]',
-      lg: 'left-[9px]',
-    };
-
-    const rightPosition = {
-      sm: 'right-[5px]',
-      md: 'right-[7px]',
-      lg: 'right-[9px]',
-    };
-
     return this.twClass.merge(
       'absolute w-0.5 bg-slate-300 bottom-0',
-      topPosition[this.markerSize()],
+      geometry.verticalTop[size],
       this.effectiveAlign(index) === 'right'
-        ? rightPosition[this.markerSize()]
-        : leftPosition[this.markerSize()]
+        ? geometry.verticalRight[size]
+        : geometry.verticalLeft[size]
     );
   }
 
@@ -157,7 +157,11 @@ export class TwTimelineComponent {
     const color = event.color || 'primary';
     const colorClasses = TIMELINE_COLORS[color];
 
-    return this.twClass.merge('rounded-full ring-4 ring-white', size, colorClasses.bg);
+    return this.twClass.merge(
+      'rounded-full ring-4 ring-white dark:ring-slate-900',
+      size,
+      colorClasses.bg
+    );
   }
 
   protected iconMarkerClasses(event: TimelineEvent) {
@@ -166,9 +170,10 @@ export class TwTimelineComponent {
     const colorClasses = TIMELINE_COLORS[color];
 
     return this.twClass.merge(
-      'rounded-full flex items-center justify-center text-white ring-4 ring-white',
+      'rounded-full flex items-center justify-center ring-4 ring-white dark:ring-slate-900',
       size,
-      colorClasses.bg
+      colorClasses.bg,
+      colorClasses.icon
     );
   }
 
@@ -180,14 +185,14 @@ export class TwTimelineComponent {
   }
 
   protected dateClasses() {
-    return 'text-xs text-slate-500 font-medium uppercase tracking-wide';
+    return 'text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide';
   }
 
   protected titleClasses() {
-    return 'text-base font-semibold text-slate-900 mt-1';
+    return 'text-base font-semibold text-slate-900 dark:text-slate-100 mt-1';
   }
 
   protected descriptionClasses() {
-    return 'text-sm text-slate-600 mt-1';
+    return 'text-sm text-slate-600 dark:text-slate-300 mt-1';
   }
 }

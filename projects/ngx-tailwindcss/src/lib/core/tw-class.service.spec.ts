@@ -155,6 +155,21 @@ describe('TwClassService', () => {
         expect(result).toBe('opacity-100');
       });
 
+      it('should resolve filter, backdrop filter, object, aspect and order conflicts', () => {
+        expect(
+          service.merge('absolute inset-0 bg-slate-900/50 backdrop-blur-sm', 'backdrop-blur-none')
+        ).toBe('absolute inset-0 bg-slate-900/50 backdrop-blur-none');
+        expect(service.merge('backdrop-blur-sm backdrop-opacity-50', 'backdrop-blur-lg')).toBe(
+          'backdrop-blur-lg backdrop-opacity-50'
+        );
+        expect(service.merge('grayscale blur-sm', 'grayscale-0')).toBe('grayscale-0 blur-sm');
+        expect(service.merge('object-cover object-center', 'object-contain')).toBe(
+          'object-contain object-center'
+        );
+        expect(service.merge('aspect-video', 'aspect-square')).toBe('aspect-square');
+        expect(service.merge('order-1', 'order-last')).toBe('order-last');
+      });
+
       it('should handle transition', () => {
         const result = service.merge('transition', 'transition-all');
         expect(result).toBe('transition-all');
@@ -210,6 +225,259 @@ describe('TwClassService', () => {
         expect(result).toBe('ring-2');
       });
 
+      it('should keep ring width, ring offset and ring color separate', () => {
+        const result = service.merge(
+          'focus-visible:ring-2 focus-visible:ring-offset-2',
+          'focus-visible:ring-blue-500'
+        );
+        expect(result).toBe(
+          'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500'
+        );
+      });
+
+      it('should resolve ring color and ring offset conflicts independently', () => {
+        expect(service.merge('ring-blue-500 ring-2', 'ring-red-500')).toBe('ring-red-500 ring-2');
+        expect(service.merge('ring-offset-2 ring-offset-white', 'ring-offset-4')).toBe(
+          'ring-offset-4 ring-offset-white'
+        );
+        expect(service.merge('ring', 'ring-4')).toBe('ring-4');
+      });
+
+      it('should classify ring arbitrary values, opacity modifiers and ring-inset', () => {
+        expect(service.merge('ring-[3px] ring-blue-500/50 ring-inset', 'ring-4')).toBe(
+          'ring-4 ring-blue-500/50 ring-inset'
+        );
+        expect(service.merge('ring-2 ring-blue-500/50', 'ring-[#fff]')).toBe('ring-2 ring-[#fff]');
+        expect(service.merge('ring-offset-2', 'ring-offset-[3px]')).toBe('ring-offset-[3px]');
+      });
+
+      it('should keep outline width, style, offset and color separate', () => {
+        expect(
+          service.merge(
+            'focus-visible:outline-2 focus-visible:outline-offset-2',
+            'focus-visible:outline-blue-500'
+          )
+        ).toBe(
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500'
+        );
+        expect(service.merge('outline-none ring-2', 'outline-dashed')).toBe(
+          'outline-dashed ring-2'
+        );
+      });
+
+      it('should keep shadow size and shadow color separate', () => {
+        expect(service.merge('shadow-lg', 'shadow-slate-900/50')).toBe(
+          'shadow-lg shadow-slate-900/50'
+        );
+        expect(service.merge('shadow-lg shadow-red-500', 'shadow-xl/20')).toBe(
+          'shadow-xl/20 shadow-red-500'
+        );
+      });
+
+      it('should keep side and corner radii separate from the shorthand', () => {
+        expect(service.merge('p-4 rounded-lg', 'border-l-4 rounded-l-none')).toBe(
+          'p-4 rounded-lg border-l-4 rounded-l-none'
+        );
+        expect(service.merge('rounded-t-lg rounded-b-none')).toBe('rounded-t-lg rounded-b-none');
+        expect(service.merge('rounded-t-lg rounded-bl-sm', 'rounded-md')).toBe('rounded-md');
+      });
+
+      it('should keep background color separate from other background utilities', () => {
+        expect(
+          service.merge(
+            'bg-white bg-no-repeat bg-cover bg-center bg-fixed bg-clip-text',
+            'bg-black'
+          )
+        ).toBe('bg-black bg-no-repeat bg-cover bg-center bg-fixed bg-clip-text');
+        expect(service.merge('bg-linear-to-r bg-blue-500', 'bg-none')).toBe('bg-none bg-blue-500');
+      });
+
+      it('should keep flex grow and shrink separate', () => {
+        expect(service.merge('grow shrink-0')).toBe('grow shrink-0');
+        expect(service.merge('shrink-0', 'shrink')).toBe('shrink');
+      });
+
+      it('should keep text wrapping, overflow and color separate', () => {
+        expect(service.merge('text-balance text-ellipsis', 'text-gray-500')).toBe(
+          'text-balance text-ellipsis text-gray-500'
+        );
+        expect(service.merge('text-[14px] text-gray-500', 'text-[0.75rem]')).toBe(
+          'text-[0.75rem] text-gray-500'
+        );
+        expect(service.merge('whitespace-nowrap break-words')).toBe(
+          'whitespace-nowrap break-words'
+        );
+      });
+
+      it('should keep grid placement and table border utilities separate', () => {
+        expect(service.merge('col-start-2 col-span-2')).toBe('col-start-2 col-span-2');
+        expect(service.merge('justify-between justify-items-center')).toBe(
+          'justify-between justify-items-center'
+        );
+        expect(service.merge('border-collapse border-spacing-2 border-gray-200')).toBe(
+          'border-collapse border-spacing-2 border-gray-200'
+        );
+      });
+
+      it.each([
+        // [input, expected] - mirrors tailwind-merge semantics
+        ['rounded-lg rounded-t-none', 'rounded-lg rounded-t-none'],
+        ['rounded-t-none rounded-lg', 'rounded-lg'],
+        ['rounded-tl-none rounded-t-lg', 'rounded-t-lg'],
+        ['shadow-none shadow-lg', 'shadow-lg'],
+        ['bg-gradient-to-r bg-linear-to-r', 'bg-linear-to-r'],
+        ['text-sm/6 text-lg', 'text-lg'],
+        [
+          'text-[length:var(--x)] text-[color:var(--y)]',
+          'text-[length:var(--x)] text-[color:var(--y)]',
+        ],
+        ['outline-none outline', 'outline-none outline'],
+        ['ring ring-0', 'ring-0'],
+        ['border-t-2 border-2', 'border-2'],
+        ['border-2 border-t-4', 'border-2 border-t-4'],
+        ['border border-t-0', 'border border-t-0'],
+        ['border-l-2 border-x-4', 'border-x-4'],
+        ['border-2 border-dashed', 'border-2 border-dashed'],
+        ['border-dashed border-solid', 'border-solid'],
+        ['border-[3px] border-[#fff]', 'border-[3px] border-[#fff]'],
+        ['border-red-500 border-t-blue-500', 'border-red-500 border-t-blue-500'],
+        ['border-t-blue-500 border-red-500', 'border-red-500'],
+        [
+          'border-separate border-s-2 border-emerald-500',
+          'border-separate border-s-2 border-emerald-500',
+        ],
+        ['p-2 px-4', 'p-2 px-4'],
+        ['pl-2 px-4', 'px-4'],
+        ['ms-2 mx-4', 'mx-4'],
+        ['inset-0 top-2', 'inset-0 top-2'],
+        ['top-2 inset-0', 'inset-0'],
+        ['top-2 top-4', 'top-4'],
+        ['left-2 inset-x-0', 'inset-x-0'],
+        ['inset-0 inset-shadow-sm', 'inset-0 inset-shadow-sm'],
+        ['w-4 h-4 size-6', 'size-6'],
+        ['grid-cols-2 grid-cols-[1fr_2fr]', 'grid-cols-[1fr_2fr]'],
+        ['md:hover:p-2 hover:md:p-4', 'hover:md:p-4'],
+        ['before:hover:p-2 hover:before:p-4', 'before:hover:p-2 hover:before:p-4'],
+        ['-mt-2 mt-4', 'mt-4'],
+        ['flex-1 flex-grow-0 grow', 'flex-1 grow'],
+        ['hidden table', 'table'],
+        // Layout component host defaults vs consumer display overrides
+        ['flex hidden', 'hidden'],
+        ['inline-flex inline-block', 'inline-block'],
+        ['block contents', 'contents'],
+        ['flex grid', 'grid'],
+        ['flex md:hidden', 'flex md:hidden'],
+        ['hidden md:flex', 'hidden md:flex'],
+        ['flex hover:block', 'flex hover:block'],
+        ['shrink-0 flex flex-1', 'shrink-0 flex flex-1'],
+      ])('merges %s -> %s', (input, expected) => {
+        expect(service.merge(input)).toBe(expected);
+      });
+
+      it('should honor the Tailwind v4 trailing important modifier', () => {
+        expect(service.merge('flex!', 'block!')).toBe('block!');
+        expect(service.merge('ring-2! ring-blue-500')).toBe('ring-2! ring-blue-500');
+      });
+
+      it.each([
+        ['!p-2 p-4', '!p-2 p-4'],
+        ['p-2! p-4', 'p-2! p-4'],
+        ['flex! grid', 'flex! grid'],
+        ['!px-2 p-4', '!px-2 p-4'],
+        ['!px-2 !p-4', '!p-4'],
+        ['!p-2 p-4! ', 'p-4!'],
+        ['md:!p-2 md:p-4 md:!p-6', 'md:!p-6 md:p-4'],
+        ['!-mt-2 -mt-4 !mt-1', '!mt-1 -mt-4'],
+      ])(
+        'treats the important modifier as part of the conflict key: %s -> %s',
+        (input, expected) => {
+          expect(service.merge(input)).toBe(expected);
+        }
+      );
+
+      it.each([
+        [
+          'bg-[length:1rem_1rem] bg-[linear-gradient(45deg,transparent_25%,transparent)] bg-blue-500',
+          'bg-[length:1rem_1rem] bg-[linear-gradient(45deg,transparent_25%,transparent)] bg-blue-500',
+        ],
+        ['bg-[url(/a.png)] bg-[image:var(--img)]', 'bg-[image:var(--img)]'],
+        ['bg-[position:center] bg-left', 'bg-left'],
+        ['shadow-[inset_0_-4px_8px_rgba(0,0,0,0.1)] shadow-inner', 'shadow-inner'],
+        ['shadow-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)]', 'shadow-[0_0_0_1px_rgba(0,0,0,0.1)]'],
+      ])('classifies arbitrary background/shadow values: %s -> %s', (input, expected) => {
+        expect(service.merge(input)).toBe(expected);
+      });
+
+      // Realistic base + variant + override combinations used by library components
+      it.each<[string[], string]>([
+        [
+          [
+            'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+            'bg-white dark:bg-zinc-800 border-2 border-slate-500 dark:border-zinc-500 hover:border-slate-600 text-slate-800 shadow-sm focus-visible:ring-slate-500',
+            'text-sm px-6 py-3 min-h-10',
+            '[&_svg]:w-4 [&_svg]:h-4',
+            'w-full opacity-50 cursor-not-allowed pointer-events-none',
+            'rounded-full px-2',
+          ],
+          'inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 bg-white dark:bg-zinc-800 border-2 border-slate-500 dark:border-zinc-500 hover:border-slate-600 text-slate-800 shadow-sm focus-visible:ring-slate-500 text-sm px-2 py-3 min-h-10 [&_svg]:w-4 [&_svg]:h-4 w-full opacity-50 cursor-not-allowed pointer-events-none',
+        ],
+        [
+          ['block px-6 py-4 border-b border-slate-100 dark:border-slate-700', 'p-2 border-0'],
+          'block border-slate-100 dark:border-slate-700 p-2 border-0',
+        ],
+        [
+          [
+            'block px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-xl',
+            'rounded-none border-t-2 border-blue-500',
+          ],
+          'block px-6 py-4 border-t-2 border-blue-500 bg-slate-50/50 rounded-none',
+        ],
+        [
+          [
+            'flex flex-wrap items-center gap-2 p-2 min-h-10',
+            'border border-slate-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500',
+            'bg-white dark:bg-slate-800',
+            'gap-x-4 border-dashed',
+          ],
+          'flex flex-wrap items-center gap-2 p-2 min-h-10 border border-slate-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white dark:bg-slate-800 gap-x-4 border-dashed',
+        ],
+        [
+          [
+            'inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg',
+            'text-xs text-blue-50',
+          ],
+          'inline-flex items-center px-4 py-2 text-xs font-medium text-blue-50 rounded-lg',
+        ],
+        [
+          [
+            'absolute left-full top-0 ml-1 py-1 min-w-48 shadow-lg dark:shadow-slate-900/50',
+            'left-auto right-full ml-0 mr-1',
+          ],
+          'absolute left-auto top-0 ml-0 py-1 min-w-48 shadow-lg dark:shadow-slate-900/50 right-full mr-1',
+        ],
+        [
+          [
+            'rounded-lg bg-white shadow-lg ring-1 ring-black/5 overflow-auto py-1',
+            'w-56',
+            'overflow-y-scroll',
+          ],
+          'rounded-lg bg-white shadow-lg ring-1 ring-black/5 overflow-auto py-1 w-56 overflow-y-scroll',
+        ],
+        [
+          ['w-full', 'max-w-4xl', 'mx-auto', 'px-4 sm:px-6 lg:px-8', 'px-0'],
+          'w-full max-w-4xl mx-auto px-0 sm:px-6 lg:px-8',
+        ],
+        [
+          [
+            'relative h-full border-r last:border-r-0 focus:ring-2 focus:ring-inset focus:ring-blue-400',
+            'border-slate-300',
+          ],
+          'relative h-full border-r last:border-r-0 focus:ring-2 focus:ring-inset focus:ring-blue-400 border-slate-300',
+        ],
+      ])('preserves intended classes for %j', (input, expected) => {
+        expect(service.merge(...input)).toBe(expected);
+      });
+
       it('should handle gradient from', () => {
         const result = service.merge('from-blue-500', 'from-red-500');
         expect(result).toBe('from-red-500');
@@ -263,8 +531,8 @@ describe('TwClassService', () => {
       });
 
       it('should resolve conflicts with important prefix', () => {
-        const result = service.merge('px-2', '!px-4');
-        expect(result).toBe('!px-4');
+        expect(service.merge('!px-2', '!px-4')).toBe('!px-4');
+        expect(service.merge('px-2', '!px-4')).toBe('px-2 !px-4');
       });
 
       it('should let later padding shorthand subsume longhands', () => {
@@ -296,8 +564,12 @@ describe('TwClassService', () => {
       });
 
       it('should handle variants on arbitrary values containing colons', () => {
-        const result = service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-red-500');
-        expect(result).toBe('hover:bg-red-500');
+        const result = service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-none');
+        expect(result).toBe('hover:bg-none');
+        // Background image and color are independent utilities
+        expect(service.merge('hover:bg-[url(https://a.io/x.png)]', 'hover:bg-red-500')).toBe(
+          'hover:bg-[url(https://a.io/x.png)] hover:bg-red-500'
+        );
       });
 
       it('should treat border-x and border-y as border-width', () => {
@@ -390,6 +662,13 @@ describe('TwClassService', () => {
         const result = service.getVariantClasses('primary');
         expect(result).toContain('bg-blue-600');
       });
+
+      it('should return AA-contrast status defaults matching the components', () => {
+        expect(service.getVariantClasses('success')).toContain('bg-emerald-700');
+        expect(service.getVariantClasses('info')).toContain('bg-cyan-700');
+        expect(service.getVariantClasses('warning')).toContain('text-amber-950');
+        expect(service.getVariantClasses('warning')).not.toContain('text-white');
+      });
     });
   });
 
@@ -424,6 +703,18 @@ describe('TwClassService', () => {
     it('should return empty string for unconfigured variant', () => {
       const result = service.getVariantClasses('tertiary');
       expect(result).toBe('');
+    });
+  });
+
+  describe('with a raw TW_CONFIG partial theme', () => {
+    it('should keep default variants that the partial theme omits', () => {
+      TestBed.configureTestingModule({
+        providers: [{ provide: TW_CONFIG, useValue: { theme: { primary: 'bg-purple-600' } } }],
+      });
+      const service = TestBed.inject(TwClassService);
+
+      expect(service.getVariantClasses('primary')).toBe('bg-purple-600');
+      expect(service.getVariantClasses('danger')).toContain('bg-rose-600');
     });
   });
 
@@ -464,10 +755,296 @@ describe('TwClassService', () => {
       expect(service.merge('scroll-auto', 'scroll-smooth')).toBe('scroll-smooth');
     });
 
+    it('should keep per-side scroll margin/padding independent', () => {
+      expect(service.merge('scroll-mt-16 scroll-mb-4')).toBe('scroll-mt-16 scroll-mb-4');
+      expect(service.merge('scroll-px-4 scroll-py-2')).toBe('scroll-px-4 scroll-py-2');
+      expect(service.merge('scroll-mt-16', 'scroll-mt-20')).toBe('scroll-mt-20');
+      expect(service.merge('scroll-mt-16 scroll-ml-2', 'scroll-m-4')).toBe('scroll-m-4');
+      expect(service.merge('scroll-pt-2 scroll-pl-2', 'scroll-py-4')).toBe(
+        'scroll-pl-2 scroll-py-4'
+      );
+    });
+
+    it('should keep per-axis skew, 3D rotate and translate-z independent', () => {
+      expect(service.merge('skew-x-3 skew-y-6')).toBe('skew-x-3 skew-y-6');
+      expect(service.merge('skew-x-3 skew-y-6', 'skew-12')).toBe('skew-12');
+      expect(service.merge('rotate-x-45 rotate-y-30 rotate-12')).toBe(
+        'rotate-x-45 rotate-y-30 rotate-12'
+      );
+      expect(service.merge('translate-x-2 translate-z-4')).toBe('translate-x-2 translate-z-4');
+      expect(service.merge('scale-z-50', 'scale-75')).toBe('scale-75');
+    });
+
     it('should keep pointer-events, select, and resize independent', () => {
       expect(service.merge('pointer-events-none select-none resize-none')).toBe(
         'pointer-events-none select-none resize-none'
       );
+    });
+  });
+
+  describe('utility catalog (Tailwind v4)', () => {
+    let service: TwClassService;
+
+    beforeEach(() => {
+      TestBed.configureTestingModule({ providers: [TwClassService] });
+      service = TestBed.inject(TwClassService);
+    });
+
+    // Pairs that set different CSS properties: both must be kept
+    const independent: ReadonlyArray<[string, string]> = [
+      // Layout
+      ['block', 'relative'],
+      ['absolute', 'inset-0'],
+      ['top-0', 'left-0'],
+      ['inset-x-0', 'inset-y-2'],
+      ['inset-s-0', 'inset-e-4'],
+      ['top-0', 'inset-s-0'],
+      ['inset-bs-0', 'inset-be-2'],
+      ['overflow-x-auto', 'overflow-y-hidden'],
+      ['z-10', 'visible'],
+      ['inset-0', 'inset-shadow-sm'],
+      // Flexbox & grid
+      ['flex', 'flex-1'],
+      ['flex-row', 'flex-wrap'],
+      ['grow', 'shrink-0'],
+      ['basis-1/2', 'flex-none'],
+      ['justify-between', 'justify-items-center'],
+      ['items-center', 'self-start'],
+      ['content-center', 'place-items-center'],
+      ['gap-x-2', 'gap-y-4'],
+      ['grid-cols-3', 'grid-rows-2'],
+      ['col-span-2', 'col-start-1'],
+      ['row-span-2', 'row-end-3'],
+      // Spacing
+      ['px-4', 'py-2'],
+      ['pt-2', 'pb-4'],
+      ['ps-2', 'pe-4'],
+      ['pbs-2', 'pbe-4'],
+      ['mx-auto', 'my-4'],
+      ['mbs-2', 'mt-4'],
+      ['space-x-4', 'space-x-reverse'],
+      ['space-y-2', 'space-y-reverse'],
+      ['space-x-2', 'space-y-4'],
+      // Sizing
+      ['w-full', 'h-10'],
+      ['min-w-0', 'max-w-md'],
+      ['min-h-screen', 'max-h-96'],
+      // Typography
+      ['text-sm', 'text-gray-700'],
+      ['text-(length:--size)', 'text-red-500'],
+      ['text-left', 'text-white'],
+      ['text-white', 'text-shadow-md'],
+      ['text-shadow-lg', 'text-shadow-sky-300'],
+      ['truncate', 'text-gray-500'],
+      ['font-bold', 'font-sans'],
+      ['font-sans', 'font-stretch-condensed'],
+      ['font-mono', 'font-features-["smcp"]'],
+      ['leading-tight', 'tracking-wide'],
+      ['uppercase', 'underline'],
+      ['whitespace-nowrap', 'break-all'],
+      // Backgrounds
+      ['bg-red-500', 'bg-cover'],
+      ['bg-white', 'bg-[url(/a.png)]'],
+      ['bg-(image:--hero)', 'bg-slate-900'],
+      ['bg-center', 'bg-no-repeat'],
+      ['bg-linear-to-r', 'bg-blue-500'],
+      ['bg-fixed', 'bg-clip-text'],
+      ['from-indigo-500', 'from-10%'],
+      ['via-sky-500', 'via-30%'],
+      ['to-emerald-500', 'to-90%'],
+      ['from-red-500', 'to-blue-500'],
+      // Borders
+      ['border', 'border-gray-200'],
+      ['border-2', 'border-dashed'],
+      ['border-t', 'border-b'],
+      ['border-t-2', 'border-t-red-500'],
+      ['border-bs', 'border-red-500'],
+      ['border-bs-2', 'border-be-4'],
+      ['border-collapse', 'border-spacing-2'],
+      ['border-spacing-x-2', 'border-spacing-y-4'],
+      ['rounded-t-lg', 'rounded-b-none'],
+      ['rounded-lg', 'border'],
+      ['ring-2', 'ring-blue-500'],
+      ['ring-offset-2', 'ring-offset-white'],
+      ['ring', 'ring-inset'],
+      ['outline-2', 'outline-offset-2'],
+      ['outline-dashed', 'outline-red-500'],
+      // Effects & filters
+      ['shadow-lg', 'shadow-black/20'],
+      ['shadow-md', 'opacity-50'],
+      ['blur-sm', 'backdrop-blur-sm'],
+      // Transitions & animation
+      ['transition-colors', 'duration-200'],
+      ['transition-all', 'transition-discrete'],
+      ['ease-in-out', 'delay-100'],
+      ['animate-spin', 'transition'],
+      // Transforms
+      ['scale-x-50', 'scale-y-75'],
+      ['rotate-45', 'rotate-x-12'],
+      ['translate-x-2', 'translate-y-4'],
+      ['skew-x-3', 'skew-y-6'],
+      ['origin-top', 'scale-95'],
+      // Interactivity
+      ['cursor-pointer', 'select-none'],
+      ['pointer-events-none', 'resize-none'],
+      ['scroll-smooth', 'scroll-mt-4'],
+      ['scroll-pt-2', 'scroll-pbs-4'],
+      ['scroll-mx-2', 'scroll-my-4'],
+      // Remaining families
+      ['columns-2', 'gap-4'],
+      ['break-inside-avoid', 'break-words'],
+      ['box-border', 'box-decoration-clone'],
+      ['float-left', 'clear-both'],
+      ['isolate', 'mix-blend-multiply'],
+      ['overscroll-x-none', 'overscroll-y-contain'],
+      ['sr-only', 'absolute'],
+      ['grid-flow-col', 'auto-cols-fr'],
+      ['italic', 'font-bold'],
+      ['underline', 'decoration-red-500'],
+      ['decoration-2', 'decoration-wavy'],
+      ['decoration-dotted', 'decoration-sky-500'],
+      ['decoration-from-font', 'underline-offset-4'],
+      ['indent-4', 'align-middle'],
+      ['line-clamp-2', 'hyphens-auto'],
+      ['list-disc', 'list-inside'],
+      ['list-image-none', 'list-decimal'],
+      ['list-item', 'list-none'],
+      ['table-fixed', 'caption-bottom'],
+      ['divide-y', 'divide-slate-200'],
+      ['divide-x', 'divide-y'],
+      ['divide-y-2', 'divide-y-reverse'],
+      ['divide-dashed', 'divide-red-500'],
+      ['inset-shadow-sm', 'inset-shadow-black/20'],
+      ['inset-ring-2', 'inset-ring-red-500'],
+      ['shadow-md', 'inset-shadow-sm'],
+      ['drop-shadow-md', 'drop-shadow-red-500'],
+      ['drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]', 'drop-shadow-indigo-500/50'],
+      ['blur-sm', 'drop-shadow-lg'],
+      ['will-change-transform', 'transition'],
+      ['perspective-dramatic', 'perspective-origin-top'],
+      ['transform-3d', 'backface-hidden'],
+      ['appearance-none', 'field-sizing-content'],
+      ['scheme-dark', 'caret-blue-500'],
+      ['accent-blue-500', 'caret-blue-500'],
+      ['touch-pan-x', 'touch-pan-y'],
+      ['touch-pan-y', 'touch-pinch-zoom'],
+      ['snap-x', 'snap-mandatory'],
+      ['snap-start', 'snap-always'],
+      ['fill-current', 'stroke-current'],
+      ['stroke-2', 'stroke-blue-500'],
+      ['decoration-clone', 'decoration-sky-500'],
+      ['decoration-slice', 'decoration-2'],
+      ['drop-shadow-lg', 'drop-shadow-[#ff000080]'],
+      ['drop-shadow-md', 'drop-shadow-[rgb(0_0_0/0.5)]'],
+      ['list-none', 'list-inside'],
+      ['float-left', 'clear-both'],
+      ['stroke-1', 'stroke-current'],
+      ['scroll-smooth', 'snap-x'],
+      ['break-words', 'break-after-page'],
+      ['stroke-[1.5]', 'stroke-[#123456]'],
+    ];
+
+    // Pairs that set the same CSS property: the later class must win
+    const conflicting: ReadonlyArray<[string, string, string?]> = [
+      ['block', 'hidden'],
+      ['relative', 'absolute'],
+      ['top-0', 'top-4'],
+      ['start-0', 'inset-s-4'],
+      ['inset-s-0 inset-bs-0', 'inset-0'],
+      ['inset-bs-0', 'inset-y-2'],
+      ['overflow-x-auto', 'overflow-hidden'],
+      ['z-10', 'z-20'],
+      ['flex-row', 'flex-col'],
+      ['justify-start', 'justify-end'],
+      ['gap-x-2 gap-y-4', 'gap-2'],
+      ['col-span-1', 'col-span-2'],
+      ['pt-2 pbs-2', 'p-4'],
+      ['pbs-2', 'py-4'],
+      ['mbe-2', 'm-4'],
+      ['space-x-reverse', 'space-x-reverse'],
+      ['w-4', 'w-8'],
+      ['text-sm', 'text-lg'],
+      ['text-sm', 'text-(length:--size)'],
+      ['text-red-500', 'text-blue-500'],
+      ['text-shadow-sm', 'text-shadow-lg'],
+      ['text-shadow-red-500', 'text-shadow-blue-500'],
+      ['font-sans', 'font-mono'],
+      ['font-stretch-condensed', 'font-stretch-expanded'],
+      ['bg-red-500', 'bg-blue-500'],
+      ['bg-[url(/a.png)]', 'bg-(image:--hero)'],
+      ['from-10%', 'from-20%'],
+      ['from-red-500', 'from-blue-500'],
+      ['border-t-2 border-bs-4', 'border-2'],
+      ['border-be-2', 'border-y-4'],
+      ['border-bs-red-500', 'border-blue-500'],
+      ['border-spacing-x-2 border-spacing-y-4', 'border-spacing-2'],
+      ['rounded-tl-lg', 'rounded-none'],
+      ['ring-2', 'ring-4'],
+      ['shadow-sm', 'shadow-lg'],
+      ['transition-discrete', 'transition-normal'],
+      ['transition-colors', 'transition-all'],
+      ['duration-100', 'duration-300'],
+      ['scale-x-50', 'scale-75'],
+      ['skew-x-3', 'skew-12'],
+      ['translate-x-2 translate-y-2', 'translate-4'],
+      ['scroll-mbs-2', 'scroll-m-4'],
+      ['scroll-pbe-2', 'scroll-py-4'],
+      ['outline-red-500', 'outline-blue-500'],
+      ['columns-3', 'columns-1'],
+      ['break-inside-avoid', 'break-inside-auto'],
+      ['float-right', 'float-none'],
+      ['isolate', 'isolation-auto'],
+      ['overscroll-x-none overscroll-y-none', 'overscroll-auto'],
+      ['sr-only', 'not-sr-only'],
+      ['box-content', 'box-border'],
+      ['grid-flow-row', 'grid-flow-col'],
+      ['italic', 'not-italic'],
+      ['decoration-slate-300', 'decoration-blue-500'],
+      ['decoration-2', 'decoration-auto'],
+      ['decoration-solid', 'decoration-wavy'],
+      ['underline-offset-2', 'underline-offset-4'],
+      ['indent-4', 'indent-0'],
+      ['align-top', 'align-middle'],
+      ['line-clamp-3', 'line-clamp-none'],
+      ['hyphens-auto', 'hyphens-none'],
+      ['list-disc', 'list-none'],
+      ['list-outside', 'list-inside'],
+      ['table-auto', 'table-fixed'],
+      ['divide-slate-200', 'divide-blue-500'],
+      ['divide-y', 'divide-y-2'],
+      ['divide-solid', 'divide-dashed'],
+      ['inset-shadow-sm', 'inset-shadow-none'],
+      ['inset-ring-red-500', 'inset-ring-blue-500'],
+      ['mix-blend-multiply', 'mix-blend-normal'],
+      ['drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]', 'drop-shadow-none'],
+      ['drop-shadow-red-500', 'drop-shadow-blue-500'],
+      ['drop-shadow-red-500', 'drop-shadow-[#00ff00]'],
+      ['box-decoration-slice', 'decoration-clone'],
+      ['columns-2', 'columns-3xs'],
+      ['fill-none', 'fill-current'],
+      ['will-change-transform', 'will-change-auto'],
+      ['perspective-near', 'perspective-none'],
+      ['transform-3d', 'transform-flat'],
+      ['backface-hidden', 'backface-visible'],
+      ['appearance-none', 'appearance-auto'],
+      ['field-sizing-content', 'field-sizing-fixed'],
+      ['caret-slate-500', 'caret-blue-500'],
+      ['accent-slate-600', 'accent-blue-600'],
+      ['touch-pan-x touch-pinch-zoom', 'touch-none'],
+      ['snap-x', 'snap-none'],
+      ['snap-mandatory', 'snap-proximity'],
+      ['fill-slate-400', 'fill-blue-500'],
+      ['fill-current', 'fill-none'],
+      ['stroke-1', 'stroke-[1.5]'],
+      ['stroke-slate-400', 'stroke-blue-500'],
+    ];
+
+    it.each(independent)('keeps both %s and %s', (first, second) => {
+      expect(service.merge(first, second)).toBe(`${first} ${second}`);
+    });
+
+    it.each(conflicting)('lets %s be overridden by %s', (first, second) => {
+      expect(service.merge(first, second)).toBe(second);
     });
   });
 });

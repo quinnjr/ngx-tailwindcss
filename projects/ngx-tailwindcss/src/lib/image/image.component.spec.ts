@@ -4,6 +4,8 @@ import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageBorderRadius, ImageFit, TwImageComponent } from './image.component';
 import { TwClassService } from '../core/tw-class.service';
+import { pushEscapeLayer, removeEscapeLayer } from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 @Component({
   template: `
@@ -43,6 +45,14 @@ class TestHostComponent {
   onHideSpy = vi.fn();
   onLoadSpy = vi.fn();
   onErrorSpy = vi.fn();
+}
+
+/** Read the component's protected preview-state signals in tests */
+function previewState(image: TwImageComponent): {
+  zoomLevel: () => number;
+  rotation: () => number;
+} {
+  return image as unknown as { zoomLevel: () => number; rotation: () => number };
 }
 
 describe('TwImageComponent', () => {
@@ -104,6 +114,15 @@ describe('TwImageComponent', () => {
       fixture.detectChanges();
       const container = imageEl.query(By.css('div'));
       expect(container.nativeElement.style.width).toBe('50%');
+    });
+
+    it('should pass non-pixel CSS lengths through unchanged', () => {
+      component.width.set('10rem');
+      component.height.set('8em');
+      fixture.detectChanges();
+      const container = imageEl.query(By.css('div'));
+      expect(container.nativeElement.style.width).toBe('10rem');
+      expect(container.nativeElement.style.height).toBe('8em');
     });
   });
 
@@ -218,6 +237,39 @@ describe('TwImageComponent', () => {
       expect(component.onHideSpy).toHaveBeenCalled();
     });
 
+    it('should close on a document Escape keydown and claim the key', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      document.dispatchEvent(event);
+      fixture.detectChanges();
+      expect(component.onHideSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should leave Escape to a layer opened above the preview', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const above = {};
+      pushEscapeLayer(above);
+      try {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        fixture.detectChanges();
+        expect(component.onHideSpy).not.toHaveBeenCalled();
+      } finally {
+        removeEscapeLayer(above);
+      }
+    });
+
+    it('should not react to Escape already handled by an inner layer', () => {
+      component.image.openPreview();
+      fixture.detectChanges();
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      event.preventDefault();
+      document.dispatchEvent(event);
+      expect(component.onHideSpy).not.toHaveBeenCalled();
+    });
+
     it('should expose the thumbnail as a keyboard-operable button', () => {
       const container = imageEl.query(By.css('div')).nativeElement;
       expect(container.getAttribute('role')).toBe('button');
@@ -248,6 +300,62 @@ describe('TwImageComponent', () => {
 
       document.body.style.overflow = '';
     });
+
+    it('should restore body overflow when openPreview is called twice', () => {
+      document.body.style.overflow = 'scroll';
+
+      component.image.openPreview();
+      component.image.openPreview();
+      fixture.detectChanges();
+      component.image.closePreview();
+      fixture.detectChanges();
+
+      expect(document.body.style.overflow).toBe('scroll');
+      document.body.style.overflow = '';
+    });
+
+    it('should restore body overflow when destroyed with the preview open', () => {
+      document.body.style.overflow = 'scroll';
+
+      component.image.openPreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fixture.destroy();
+      expect(document.body.style.overflow).toBe('scroll');
+
+      document.body.style.overflow = '';
+    });
+
+    it('should share the body scroll lock with other layers closing out of order', () => {
+      // A modal/sidebar/overlay uses the same shared lock with its own owner
+      const modalOwner = {};
+      document.body.style.overflow = 'scroll';
+
+      lockBodyScroll(document, modalOwner); // modal opens
+      component.image.openPreview(); // preview opens on top
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      unlockBodyScroll(document, modalOwner); // modal closes first
+      expect(document.body.style.overflow).toBe('hidden'); // preview still open
+
+      component.image.closePreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('scroll');
+
+      // Reverse order: preview first, then the modal
+      component.image.openPreview();
+      fixture.detectChanges();
+      lockBodyScroll(document, modalOwner);
+      component.image.closePreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden'); // modal still open
+      unlockBodyScroll(document, modalOwner);
+      expect(document.body.style.overflow).toBe('scroll');
+
+      document.body.style.overflow = '';
+    });
   });
 
   describe('loading state', () => {
@@ -273,16 +381,16 @@ describe('TwImageComponent', () => {
     });
 
     it('should zoom in', () => {
-      const initialZoom = component.image.zoomLevel();
+      const initialZoom = previewState(component.image).zoomLevel();
       component.image.zoomIn();
-      expect(component.image.zoomLevel()).toBeGreaterThan(initialZoom);
+      expect(previewState(component.image).zoomLevel()).toBeGreaterThan(initialZoom);
     });
 
     it('should zoom out', () => {
       component.image.zoomIn();
-      const afterZoomIn = component.image.zoomLevel();
+      const afterZoomIn = previewState(component.image).zoomLevel();
       component.image.zoomOut();
-      expect(component.image.zoomLevel()).toBeLessThan(afterZoomIn);
+      expect(previewState(component.image).zoomLevel()).toBeLessThan(afterZoomIn);
     });
 
     it('should not zoom in beyond max', () => {
@@ -290,7 +398,7 @@ describe('TwImageComponent', () => {
       for (let i = 0; i < 20; i++) {
         component.image.zoomIn();
       }
-      expect(component.image.zoomLevel()).toBeLessThanOrEqual(3);
+      expect(previewState(component.image).zoomLevel()).toBeLessThanOrEqual(3);
     });
 
     it('should not zoom out beyond min', () => {
@@ -298,7 +406,7 @@ describe('TwImageComponent', () => {
       for (let i = 0; i < 20; i++) {
         component.image.zoomOut();
       }
-      expect(component.image.zoomLevel()).toBeGreaterThanOrEqual(0.5);
+      expect(previewState(component.image).zoomLevel()).toBeGreaterThanOrEqual(0.5);
     });
   });
 
@@ -312,18 +420,104 @@ describe('TwImageComponent', () => {
 
     it('should rotate left', () => {
       component.image.rotateLeft();
-      expect(component.image.rotation()).toBe(-90);
+      expect(previewState(component.image).rotation()).toBe(-90);
     });
 
     it('should rotate right', () => {
       component.image.rotateRight();
-      expect(component.image.rotation()).toBe(90);
+      expect(previewState(component.image).rotation()).toBe(90);
     });
 
     it('should accumulate rotation', () => {
       component.image.rotateRight();
       component.image.rotateRight();
-      expect(component.image.rotation()).toBe(180);
+      expect(previewState(component.image).rotation()).toBe(180);
     });
+  });
+});
+
+describe('TwImageComponent image settled before listeners attach (SSR hydration)', () => {
+  function stubImage(props: {
+    complete: boolean;
+    naturalWidth: number;
+    decode?: () => Promise<void>;
+  }) {
+    const proto = HTMLImageElement.prototype;
+    const saved = ['complete', 'naturalWidth', 'decode'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => props.complete });
+    Object.defineProperty(proto, 'naturalWidth', {
+      configurable: true,
+      get: () => props.naturalWidth,
+    });
+    Object.defineProperty(proto, 'decode', { configurable: true, value: props.decode });
+    return () => {
+      for (const [key, descriptor] of saved) {
+        if (descriptor) {
+          Object.defineProperty(proto, key, descriptor);
+        } else {
+          Reflect.deleteProperty(proto, key);
+        }
+      }
+    };
+  }
+
+  async function render(): Promise<ComponentFixture<TestHostComponent>> {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('shows an image that had already loaded, emitting onLoad once', async () => {
+    const restore = stubImage({ complete: true, naturalWidth: 640 });
+    try {
+      const fixture = await render();
+      const img = fixture.debugElement.query(By.css('tw-image img'))
+        .nativeElement as HTMLImageElement;
+      expect(img.style.display).toBe('block');
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeNull();
+      expect(fixture.componentInstance.onLoadSpy).toHaveBeenCalledTimes(1);
+
+      // A late load event for the same image does not emit again
+      img.dispatchEvent(new Event('load'));
+      expect(fixture.componentInstance.onLoadSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it('reports an image that had already failed', async () => {
+    const restore = stubImage({
+      complete: true,
+      naturalWidth: 0,
+      decode: () => Promise.reject(new Error('broken')),
+    });
+    try {
+      const fixture = await render();
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.onErrorSpy).toHaveBeenCalledTimes(1);
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps the placeholder while the image is still loading', async () => {
+    const restore = stubImage({ complete: false, naturalWidth: 0 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeTruthy();
+      expect(fixture.componentInstance.onLoadSpy).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 });

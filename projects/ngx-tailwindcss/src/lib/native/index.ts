@@ -57,6 +57,7 @@ export * from './system-tray.service';
 export * from './native-notifications.service';
 export * from './dock.service';
 export * from './update.service';
+export * from './electron-bridge.util';
 
 // Directives
 export * from './draggable.directive';

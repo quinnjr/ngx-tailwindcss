@@ -3,10 +3,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   EventEmitter,
   inject,
   Input,
   input,
+  model,
   Output,
   output,
 } from '@angular/core';
@@ -29,15 +31,15 @@ const CHIP_VARIANTS: Record<ChipVariant, Record<ChipStyle, string>> = {
     outline: 'border border-slate-600 dark:border-slate-400 text-slate-600 dark:text-slate-400',
   },
   success: {
-    solid: 'bg-emerald-600 text-white',
+    solid: 'bg-emerald-700 text-white',
     soft: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
     outline:
-      'border border-emerald-600 dark:border-emerald-400 text-emerald-600 dark:text-emerald-400',
+      'border border-emerald-600 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400',
   },
   warning: {
-    solid: 'bg-amber-500 text-white',
+    solid: 'bg-amber-500 text-amber-950',
     soft: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-    outline: 'border border-amber-500 dark:border-amber-400 text-amber-600 dark:text-amber-400',
+    outline: 'border border-amber-500 dark:border-amber-400 text-amber-700 dark:text-amber-400',
   },
   danger: {
     solid: 'bg-rose-600 text-white',
@@ -45,9 +47,9 @@ const CHIP_VARIANTS: Record<ChipVariant, Record<ChipStyle, string>> = {
     outline: 'border border-rose-600 dark:border-rose-400 text-rose-600 dark:text-rose-400',
   },
   info: {
-    solid: 'bg-cyan-600 text-white',
+    solid: 'bg-cyan-700 text-white',
     soft: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300',
-    outline: 'border border-cyan-600 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400',
+    outline: 'border border-cyan-600 dark:border-cyan-400 text-cyan-700 dark:text-cyan-400',
   },
 };
 
@@ -152,8 +154,10 @@ export class TwChipComponent {
 })
 export class TwChipsComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  readonly values = input<any[]>([]);
+  /** Chip values; supports `[(values)]` and also works uncontrolled */
+  readonly values = model<any[]>([]);
   readonly variant = input<ChipVariant>('primary');
   readonly chipStyle = input<ChipStyle>('soft');
   readonly size = input<ChipSize>('md');
@@ -166,7 +170,6 @@ export class TwChipsComponent {
   /** Accessible name for the text input used to add chips */
   readonly ariaLabel = input('Add item');
 
-  readonly valuesChange = output<any[]>();
   readonly onAdd = output<any>();
   readonly onRemove = output<{ value: any; index: number }>();
 
@@ -180,11 +183,11 @@ export class TwChipsComponent {
   });
 
   protected inputClasses = computed(() => {
-    return 'flex-1 min-w-20 px-2 py-1 text-sm outline-none bg-transparent';
+    return 'flex-1 min-w-20 px-2 py-1 text-sm outline-none bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500';
   });
 
   getDisplayValue(value: any): string {
-    if (typeof value === 'object' && this.field()) {
+    if (value !== null && typeof value === 'object' && this.field()) {
       return value[this.field()];
     }
     return String(value);
@@ -195,18 +198,49 @@ export class TwChipsComponent {
     const removed = currentValues[index];
     const newValues = [...currentValues];
     newValues.splice(index, 1);
-    this.valuesChange.emit(newValues);
+    this.values.set(newValues);
     this.onRemove.emit({ value: removed, index });
   }
 
+  /**
+   * Remove-button handler. Chips are tracked by index, so removing any chip but the
+   * last keeps the focused button (it now names the next chip); removing the last
+   * chip destroys the focused button, so move focus to the text input, or to the
+   * new last chip's remove button when adding is not allowed.
+   */
+  protected onChipRemove(index: number): void {
+    const wasLast = index === this.values().length - 1;
+    this.removeValue(index);
+    if (!wasLast) return;
+
+    const host = this.elementRef.nativeElement;
+    const textInput = host.querySelector<HTMLInputElement>('input');
+    if (textInput) {
+      textInput.focus();
+      return;
+    }
+    // The removed chip is still rendered until change detection runs
+    const previous = host.querySelectorAll<HTMLButtonElement>('tw-chip button')[index - 1];
+    if (previous) {
+      previous.focus();
+      return;
+    }
+    // No chips and no input left: focus the list itself rather than dropping to <body>
+    const list = host.querySelector<HTMLElement>('[role="list"]');
+    list?.setAttribute('tabindex', '-1');
+    list?.focus();
+  }
+
   onAddChip(event: Event): void {
+    // Enter that commits an IME composition must not add a chip
+    if ((event as KeyboardEvent).isComposing) return;
     event.preventDefault();
     const inputEl = event.target as HTMLInputElement;
     const value = inputEl.value.trim();
 
     if (value) {
       const newValues = [...this.values(), value];
-      this.valuesChange.emit(newValues);
+      this.values.set(newValues);
       this.onAdd.emit(value);
       inputEl.value = '';
     }

@@ -54,23 +54,26 @@
         />
       }
       @case ('accent') {
+        <!-- Open '>' wedge pointing right (a filled triangle pointing left read as '<') -->
         <path
+          class="accent-mark"
           [attr.d]="
             'M ' +
             (x() - size() * 0.4) +
-            ' ' +
-            y() +
-            ' L ' +
-            (x() + size() * 0.4) +
             ' ' +
             (y() - size() * 0.2) +
             ' L ' +
             (x() + size() * 0.4) +
             ' ' +
-            (y() + size() * 0.2) +
-            ' Z'
+            y() +
+            ' L ' +
+            (x() - size() * 0.4) +
+            ' ' +
+            (y() + size() * 0.2)
           "
-          [attr.fill]="effectiveColor()"
+          [attr.stroke]="effectiveColor()"
+          stroke-width="2"
+          fill="none"
         />
       }
       @case ('marcato') {
@@ -243,18 +246,25 @@
           stroke-width="1.5"
           fill="none"
         />
+        <!-- Lower mordent: vertical line through (MusicXML <mordent>) -->
+        <line
+          [attr.x1]="x()"
+          [attr.y1]="y() - size() * 0.4"
+          [attr.x2]="x()"
+          [attr.y2]="y() + size() * 0.4"
+          [attr.stroke]="effectiveColor()"
+          stroke-width="1"
+        />
       }
       @case ('invertedMordent') {
+        <!-- Upper mordent / pralltriller: the same zigzag as the mordent, without the
+             vertical line (MusicXML <inverted-mordent>) -->
         <path
           [attr.d]="
             'M ' +
             (x() - size() * 0.4) +
             ' ' +
             y() +
-            ' l ' +
-            size() * 0.2 +
-            ' ' +
-            size() * 0.3 +
             ' l ' +
             size() * 0.2 +
             ' ' +
@@ -266,20 +276,15 @@
             ' l ' +
             size() * 0.2 +
             ' ' +
-            -size() * 0.3
+            -size() * 0.3 +
+            ' l ' +
+            size() * 0.2 +
+            ' ' +
+            size() * 0.3
           "
           [attr.stroke]="effectiveColor()"
           stroke-width="1.5"
           fill="none"
-        />
-        <!-- Vertical line through -->
-        <line
-          [attr.x1]="x()"
-          [attr.y1]="y() - size() * 0.4"
-          [attr.x2]="x()"
-          [attr.y2]="y() + size() * 0.4"
-          [attr.stroke]="effectiveColor()"
-          stroke-width="1"
         />
       }
       @case ('turn') {

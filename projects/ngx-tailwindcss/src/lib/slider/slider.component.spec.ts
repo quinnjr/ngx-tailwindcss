@@ -103,19 +103,19 @@ describe('TwSliderComponent', () => {
 
   describe('min/max/step', () => {
     it('should set min attribute', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.min).toBe('0');
     });
 
     it('should set max attribute', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.max).toBe('100');
     });
 
     it('should set step attribute', () => {
       component.step.set(5);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.step).toBe('5');
     });
 
@@ -123,7 +123,7 @@ describe('TwSliderComponent', () => {
       component.min.set(10);
       component.max.set(200);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.min).toBe('10');
       expect(input.max).toBe('200');
     });
@@ -145,14 +145,14 @@ describe('TwSliderComponent', () => {
       component.label.set('Volume');
       fixture.detectChanges();
       const label = sliderEl.querySelector('label')!;
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.id).toBeTruthy();
       expect(label.getAttribute('for')).toBe(input.id);
       expect(input.getAttribute('aria-label')).toBe('Volume');
     });
 
     it('should leave the range input unnamed when no label is provided', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.getAttribute('aria-label')).toBeNull();
     });
   });
@@ -161,7 +161,7 @@ describe('TwSliderComponent', () => {
     it('should render tickCount tick marks', () => {
       component.showTicks.set(true);
       fixture.detectChanges();
-      const ticks = sliderEl.querySelectorAll('.tabular-nums.text-slate-400');
+      const ticks = sliderEl.querySelectorAll('.mt-1 > .tabular-nums');
       expect(ticks.length).toBe(5);
       expect(ticks[0].textContent).toContain('0');
       expect(ticks[4].textContent).toContain('100');
@@ -171,9 +171,24 @@ describe('TwSliderComponent', () => {
       component.showTicks.set(true);
       component.tickCount.set(1);
       fixture.detectChanges();
-      const ticks = sliderEl.querySelectorAll('.tabular-nums.text-slate-400');
+      const ticks = sliderEl.querySelectorAll('.mt-1 > .tabular-nums');
       expect(ticks.length).toBe(1);
       expect(ticks[0].textContent?.trim()).toBe('0');
+    });
+  });
+
+  describe('label contrast', () => {
+    it('should render ticks and min/max labels with AA-contrast colours in light and dark mode', () => {
+      component.showTicks.set(true);
+      component.showMinMax.set(true);
+      fixture.detectChanges();
+      const labels = sliderEl.querySelectorAll('span.text-xs.tabular-nums');
+      expect(labels.length).toBe(7);
+      for (const label of labels) {
+        expect(label.className).toContain('text-slate-500');
+        expect(label.className).toContain('dark:text-slate-400');
+        expect(label.className).not.toMatch(/(^|\s)text-slate-400/);
+      }
     });
   });
 
@@ -193,7 +208,7 @@ describe('TwSliderComponent', () => {
     it('should apply warning variant', () => {
       component.variant.set('warning');
       fixture.detectChanges();
-      const fill = sliderEl.querySelector('[class*="bg-amber-500"]');
+      const fill = sliderEl.querySelector('[class*="bg-amber-600"]');
       expect(fill).toBeTruthy();
     });
 
@@ -230,7 +245,7 @@ describe('TwSliderComponent', () => {
     it('should set disabled attribute', () => {
       component.disabled.set(true);
       fixture.detectChanges();
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(input.disabled).toBe(true);
     });
 
@@ -263,14 +278,14 @@ describe('TwSliderComponent', () => {
 
   describe('events', () => {
     it('should emit onInput during drag', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       input.value = '50';
       input.dispatchEvent(new Event('input'));
       expect(component.inputValue).toBe(50);
     });
 
     it('should emit onChange on release', () => {
-      const input = sliderEl.querySelector('input[type="range"]')!;
+      const input = sliderEl.querySelector<HTMLInputElement>('input[type="range"]')!;
       input.value = '75';
       input.dispatchEvent(new Event('change'));
       expect(component.changeValue).toBe(75);
@@ -355,5 +370,134 @@ describe('TwSliderComponent with FormControl', () => {
     const input = fixture.debugElement.query(By.css('input[type="range"]'))
       .nativeElement as HTMLInputElement;
     expect(input.disabled).toBe(true);
+  });
+});
+
+@Component({
+  template: `
+    <tw-slider
+      [min]="min"
+      [max]="max"
+      [step]="step"
+      [showTicks]="true"
+      [formControl]="control"
+    ></tw-slider>
+  `,
+  standalone: true,
+  imports: [TwSliderComponent, ReactiveFormsModule],
+})
+class SliderRegressionHostComponent {
+  min = 0;
+  max = 100;
+  step = 1;
+  control = new FormControl(150);
+}
+
+describe('TwSliderComponent (regressions)', () => {
+  it('should clamp the fill and thumb to the track for out-of-range values', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const thumb = fixture.nativeElement.querySelector('.pointer-events-none') as HTMLElement;
+    expect(thumb.style.left).toBe('100%');
+
+    fixture.componentInstance.control.setValue(-20);
+    fixture.detectChanges();
+    expect(thumb.style.left).toBe('0%');
+  });
+
+  it('should render fractional tick values for fractional ranges', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.componentInstance.max = 1;
+    fixture.componentInstance.step = 0.25;
+    fixture.componentInstance.control.setValue(0);
+    fixture.detectChanges();
+    const ticks = [
+      ...(fixture.nativeElement.querySelectorAll(
+        '.flex.justify-between.px-1 span'
+      ) as NodeListOf<HTMLElement>),
+    ].map(t => t.textContent?.trim());
+    expect(ticks).toEqual(['0', '0.25', '0.5', '0.75', '1']);
+  });
+});
+
+describe('TwSliderComponent (round 3)', () => {
+  it('should expose the formatted value as aria-valuetext', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.getAttribute('aria-valuetext')).toBe('150');
+  });
+
+  it('should end the drag state on change even if the pointer is released elsewhere', () => {
+    const fixture = TestBed.createComponent(SliderRegressionHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    input.dispatchEvent(new MouseEvent('mousedown'));
+    fixture.detectChanges();
+    const thumb = () => fixture.nativeElement.querySelector('.pointer-events-none > div');
+    expect(thumb().className).toContain('scale-110');
+    input.value = '40';
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(thumb().className).not.toContain('scale-110');
+  });
+});
+
+@Component({
+  template: `<tw-slider [min]="10" [max]="50" [showValue]="true"></tw-slider>`,
+  standalone: true,
+  imports: [TwSliderComponent],
+})
+class UnboundSliderHostComponent {}
+
+describe('TwSliderComponent (round 7)', () => {
+  it('should show the min value (like the native input) when no value has been set', () => {
+    const fixture = TestBed.createComponent(UnboundSliderHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.value).toBe('10');
+    expect(input.getAttribute('aria-valuetext')).toBe('10');
+    expect(fixture.nativeElement.querySelector('.tabular-nums').textContent.trim()).toBe('10');
+  });
+});
+
+describe('TwSliderComponent (round 10)', () => {
+  it('should give the value readout a dark-mode text colour', () => {
+    const fixture = TestBed.createComponent(UnboundSliderHostComponent);
+    fixture.detectChanges();
+    const readout = fixture.nativeElement.querySelector('.font-semibold') as HTMLElement;
+    expect(readout.classList).toContain('text-slate-900');
+    expect(readout.classList).toContain('dark:text-slate-100');
+  });
+});
+
+describe('TwSliderComponent (round 34)', () => {
+  it('should end the drag and commit the dragged value when disabled mid-drag', () => {
+    const fixture = TestBed.createComponent(FormControlTestComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+
+    input.dispatchEvent(new MouseEvent('mousedown'));
+    input.value = '60';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.scale-110')).not.toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(25);
+
+    // Disabled before release: the browser never delivers mouseup/change to a disabled input
+    fixture.componentInstance.control.disable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.scale-110')).toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(60);
+    expect(input.value).toBe('60');
+  });
+
+  it('should not commit anything on disable when no drag is pending', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.disabled.set(true);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.changeValue).toBeNull();
   });
 });

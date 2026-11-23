@@ -111,7 +111,7 @@ export class TwScrubberComponent implements OnDestroy {
   protected readonly progressPercent = computed(() => {
     const dur = this.duration();
     if (dur <= 0) return 0;
-    return (this.currentTime() / dur) * 100;
+    return Math.max(0, Math.min(100, (this.currentTime() / dur) * 100));
   });
 
   protected readonly containerClasses = computed(() => {
@@ -121,14 +121,18 @@ export class TwScrubberComponent implements OnDestroy {
 
   protected readonly trackContainerClasses = computed(() => {
     const variant = this.variant();
-    const baseClasses = 'relative flex-1 cursor-pointer rounded-full overflow-hidden';
+    const disabled = this.disabled();
+    // No overflow-hidden here: it would clip the thumb and the hover/thumbnail previews
+    // (the fills are clipped by an inner wrapper instead)
+    const baseClasses = 'relative flex-1 cursor-pointer rounded-full';
 
+    // Disabled: no hover growth / hover-revealed thumb (`group`), which suggested a usable control
     const heightClasses: Record<ScrubberVariant, string> = {
       default: 'h-2',
       thin: 'h-1',
       thick: 'h-3',
-      youtube: 'h-1 hover:h-2 transition-all duration-150',
-      spotify: 'h-1 group',
+      youtube: disabled ? 'h-1' : 'h-1 hover:h-2 transition-all duration-150 group',
+      spotify: disabled ? 'h-1' : 'h-1 group',
     };
 
     const bgClasses: Record<ScrubberVariant, string> = {
@@ -143,7 +147,7 @@ export class TwScrubberComponent implements OnDestroy {
       baseClasses,
       heightClasses[variant],
       bgClasses[variant],
-      this.disabled() ? 'opacity-50 cursor-not-allowed' : ''
+      disabled ? 'opacity-50 cursor-not-allowed' : ''
     );
   });
 
@@ -172,7 +176,9 @@ export class TwScrubberComponent implements OnDestroy {
       thin: 'bg-blue-500',
       thick: 'bg-gradient-to-r from-blue-500 to-blue-400',
       youtube: 'bg-red-600',
-      spotify: 'bg-emerald-500',
+      // The spotify thumb only shows on hover, so the fill is the playhead: emerald-500 was
+      // ~1.9:1 against the slate-500 buffered range
+      spotify: 'bg-emerald-300',
     };
 
     return this.twClass.merge(baseClasses, colorClasses[variant]);
@@ -187,7 +193,8 @@ export class TwScrubberComponent implements OnDestroy {
       default: 'w-4 h-4',
       thin: 'w-3 h-3',
       thick: 'w-5 h-5',
-      youtube: 'w-3 h-3 opacity-0 hover:opacity-100 scale-0 hover:scale-100',
+      // The thumb is pointer-events-none, so it reveals on hovering the track (group)
+      youtube: 'w-3 h-3 opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100',
       spotify: 'w-3 h-3 opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100',
     };
 
@@ -203,7 +210,14 @@ export class TwScrubberComponent implements OnDestroy {
   });
 
   protected readonly markerClasses = computed(() => {
-    return 'absolute top-0 bottom-0 w-0.5 bg-yellow-500 -translate-x-1/2 pointer-events-none';
+    const variant = this.variant();
+    // On the slate tracks yellow-500 was ~1.6:1 (light mode); slate-900/white keep 3:1 on the
+    // track, buffered range and blue progress fill
+    const color =
+      variant === 'youtube' || variant === 'spotify'
+        ? 'bg-yellow-500'
+        : 'bg-slate-900 dark:bg-white';
+    return `absolute top-0 bottom-0 w-0.5 ${color} -translate-x-1/2 pointer-events-none`;
   });
 
   protected readonly hoverPreviewClasses = computed(() => {
@@ -254,12 +268,20 @@ export class TwScrubberComponent implements OnDestroy {
 
     const col = frameIndex % sprite.columns;
     const row = Math.floor(frameIndex / sprite.columns);
+    const rows = Math.ceil(sprite.totalFrames / sprite.columns);
+
+    // The preview box is thumbnailWidth x thumbnailHeight, so scale the sheet so one
+    // frame fills it exactly (frames may be larger or smaller than the preview)
+    const width = this.thumbnailWidth();
+    const height = this.thumbnailHeight();
 
     return {
-      x: -col * sprite.frameWidth,
-      y: -row * sprite.frameHeight,
-      width: sprite.frameWidth,
-      height: sprite.frameHeight,
+      x: -col * width,
+      y: -row * height,
+      width,
+      height,
+      sheetWidth: sprite.columns * width,
+      sheetHeight: rows * height,
     };
   });
 
@@ -268,7 +290,9 @@ export class TwScrubberComponent implements OnDestroy {
   });
 
   protected readonly timeInsideClasses = computed(() => {
-    return 'text-xs font-mono text-white/90 tabular-nums';
+    // The text overflows the thin track onto the page and the light track/buffer fills, where
+    // bare white text all but vanished; a dark chip keeps it readable on any background
+    return 'text-xs font-mono text-white tabular-nums px-1 rounded bg-slate-900/80';
   });
 
   // Event handlers
@@ -284,6 +308,9 @@ export class TwScrubberComponent implements OnDestroy {
     };
     const onMouseUp = (): void => {
       this.isDragging.set(false);
+      // The hover position froze when the drag began: drop it so a release off the
+      // track leaves no stale preview (the next mousemove over the track restores it)
+      this.hoverPosition.set(null);
       this.seekEnd.emit();
       this.dragController?.abort();
       this.dragController = null;
@@ -333,6 +360,7 @@ export class TwScrubberComponent implements OnDestroy {
     const { signal: abortSignal } = this.dragController;
     document.addEventListener('touchmove', onTouchMove, { passive: false, signal: abortSignal });
     document.addEventListener('touchend', onTouchEnd, { signal: abortSignal });
+    document.addEventListener('touchcancel', onTouchEnd, { signal: abortSignal });
   }
 
   onKeyDown(event: KeyboardEvent): void {

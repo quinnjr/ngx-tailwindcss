@@ -26,12 +26,12 @@
       <!-- Sync Toggle Button -->
       <button
         type="button"
-        class="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+        class="px-2 py-0.5 rounded text-[10px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [class.bg-green-600]="isSynced()"
         [class.text-white]="isSynced()"
         [class.bg-slate-700]="!isSynced()"
-        [class.text-slate-400]="!isSynced()"
-        [class.hover:bg-slate-600]="!isSynced()"
+        [class.text-slate-300]="!isSynced()"
+        [class.enabled:hover:bg-slate-600]="!isSynced()"
         [disabled]="disabled()"
         (click)="toggleSync()"
         title="Toggle Sync"
@@ -75,7 +75,9 @@
         class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() <= minBpm()"
-        (click)="incrementBpm(-step())"
+        (click)="keepFocus($event); incrementBpm(-step())"
+        aria-label="Decrease BPM"
+        title="Decrease BPM"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path>
@@ -87,7 +89,9 @@
     <div class="relative">
       @if (isEditing()) {
         <input
+          #editInput
           type="number"
+          aria-label="Tempo in BPM"
           [ngModel]="editValue()"
           (ngModelChange)="editValue.set($event)"
           (blur)="finishEditing()"
@@ -99,9 +103,17 @@
         />
       } @else {
         <div
+          #valueDisplay
           [class]="bpmValueClasses()"
           [class.cursor-pointer]="editable() && !disabled()"
           (click)="editable() ? startEditing() : null"
+          (keydown.enter)="editable() ? startEditing() : null"
+          (keydown.space)="$event.preventDefault(); editable() ? startEditing() : null"
+          [attr.role]="editable() ? 'button' : null"
+          [attr.tabindex]="editable() && !disabled() ? 0 : null"
+          [attr.aria-label]="
+            editable() ? 'Tempo ' + internalBpm() + ' BPM, activate to edit' : null
+          "
           title="Click to edit"
         >
           {{ bpmDisplay() }}
@@ -116,7 +128,9 @@
         class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
         [class]="buttonClasses()"
         [disabled]="disabled() || internalBpm() >= maxBpm()"
-        (click)="incrementBpm(step())"
+        (click)="keepFocus($event); incrementBpm(step())"
+        aria-label="Increase BPM"
+        title="Increase BPM"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
@@ -129,20 +143,13 @@
   <div class="flex items-center justify-center gap-2">
     <span [class]="labelClasses()">BPM</span>
     @if (showMsPerBeat()) {
-      <span class="text-[10px] font-mono opacity-60" [class]="labelClasses()">
-        ({{ msPerBeat() }}ms)
-      </span>
+      <span class="text-[10px] font-mono" [class]="labelClasses()"> ({{ msPerBeat() }}ms) </span>
     }
   </div>
 
   <!-- Tempo Marking -->
   @if (showTempoMarking() || variant() === 'analog') {
-    <span
-      class="text-sm italic"
-      [class.text-amber-500/70]="variant() === 'analog'"
-      [class.text-slate-500]="variant() !== 'analog'"
-      >{{ tempoMarking() }}</span
-    >
+    <span class="text-sm italic" [class]="mutedTextClasses()">{{ tempoMarking() }}</span>
   }
 
   <!-- Enhanced BPM Slider -->
@@ -153,12 +160,13 @@
         <!-- Main Slider -->
         <input
           type="range"
-          [value]="internalBpm()"
-          (input)="onSliderChange($event)"
           [min]="minBpm()"
           [max]="maxBpm()"
           [step]="step()"
-          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer absolute top-2"
+          [value]="internalBpm()"
+          (input)="onSliderChange($event)"
+          aria-label="Tempo in BPM"
+          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer absolute top-2 disabled:opacity-50 disabled:cursor-not-allowed"
           style="accent-color: var(--slider-color, #3b82f6)"
           [disabled]="disabled() || !editable()"
         />
@@ -166,23 +174,16 @@
         <!-- Filled portion -->
         <div
           class="absolute top-2 left-0 h-2 rounded-l-lg pointer-events-none"
-          [style.width.%]="sliderPercent()"
-          [class.bg-blue-500]="variant() === 'default' || variant() === 'minimal'"
-          [class.bg-red-500]="variant() === 'led'"
-          [class.bg-cyan-500]="variant() === 'digital'"
-          [class.bg-amber-500]="variant() === 'analog'"
+          [class]="sliderAccentClasses().fill"
+          [style.width]="sliderOffset(sliderPercent())"
         ></div>
 
         <!-- Value indicator on track -->
         @if (showSliderValue()) {
           <div
             class="absolute -top-4 transform -translate-x-1/2 text-[10px] font-mono px-1 rounded transition-all"
-            [style.left.%]="sliderPercent()"
-            [class.bg-blue-500]="variant() === 'default' || variant() === 'minimal'"
-            [class.bg-red-500]="variant() === 'led'"
-            [class.bg-cyan-500]="variant() === 'digital'"
-            [class.bg-amber-500]="variant() === 'analog'"
-            [class.text-white]="variant() !== 'minimal'"
+            [class]="sliderAccentClasses().bubble"
+            [style.left]="sliderOffset(sliderPercent())"
           >
             {{ internalBpm() }}
           </div>
@@ -195,18 +196,18 @@
           @for (mark of sliderMarks(); track mark.value) {
             <div
               class="absolute flex flex-col items-center"
-              [style.left.%]="mark.percent"
+              [style.left]="sliderOffset(mark.percent)"
               style="transform: translateX(-50%)"
             >
               <div class="w-px h-1 bg-slate-600"></div>
-              <span class="text-[8px] text-slate-600">{{ mark.label }}</span>
+              <span class="text-[8px]" [class]="mutedTextClasses()">{{ mark.label }}</span>
             </div>
           }
         </div>
       }
 
       <!-- Min/Max labels -->
-      <div class="flex justify-between text-[10px] text-slate-600 mt-1">
+      <div class="flex justify-between text-[10px] mt-1" [class]="mutedTextClasses()">
         <span>{{ minBpm() }}</span>
         <span>{{ maxBpm() }}</span>
       </div>
@@ -221,7 +222,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() / 2 < minBpm()"
-        (click)="halfTempo()"
+        (click)="keepFocus($event); halfTempo()"
         title="Half tempo (÷2)"
       >
         ÷2
@@ -230,7 +231,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() * 2 > maxBpm()"
-        (click)="doubleTempo()"
+        (click)="keepFocus($event); doubleTempo()"
         title="Double tempo (×2)"
       >
         ×2
@@ -243,7 +244,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() / 3 < minBpm()"
-        (click)="thirdTempo()"
+        (click)="keepFocus($event); thirdTempo()"
         title="Third tempo (÷3)"
       >
         ÷3
@@ -252,7 +253,7 @@
         type="button"
         [class]="buttonClasses()"
         [disabled]="disabled() || !editable() || internalBpm() * 3 > maxBpm()"
-        (click)="tripleTempo()"
+        (click)="keepFocus($event); tripleTempo()"
         title="Triple tempo (×3)"
       >
         ×3
@@ -349,11 +350,11 @@
       @for (preset of [60, 80, 100, 120, 140, 160, 180]; track preset) {
         <button
           type="button"
-          class="px-1.5 py-0.5 rounded text-[10px] transition-colors"
+          class="px-1.5 py-0.5 rounded text-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           [class]="
             internalBpm() === preset
               ? 'bg-blue-500 text-white'
-              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+              : 'bg-slate-700 text-slate-300 enabled:hover:bg-slate-600'
           "
           [disabled]="disabled()"
           (click)="setBpmValue(preset)"

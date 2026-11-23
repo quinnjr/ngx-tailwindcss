@@ -13,11 +13,11 @@
 
     <tw-sidebar [visibleInput]="leftSidebarVisible" (visibleChange)="leftSidebarVisible = $event" position="left" header="Menu">
       <nav class="space-y-1">
-        <a href="#" class="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg">Dashboard</a>
-        <a href="#" class="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg">Projects</a>
-        <a href="#" class="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg">Team</a>
-        <a href="#" class="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg">Calendar</a>
-        <a href="#" class="block px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg">Settings</a>
+        <a href="#" class="block px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Dashboard</a>
+        <a href="#" class="block px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Projects</a>
+        <a href="#" class="block px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Team</a>
+        <a href="#" class="block px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Calendar</a>
+        <a href="#" class="block px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Settings</a>
       </nav>
     </tw-sidebar>
 
@@ -41,24 +41,24 @@
 
   <!-- Positions -->
   <app-demo-section title="Positions" [code]="positionsCode">
-    <p class="text-slate-600">
+    <p class="text-slate-600 dark:text-slate-400">
       Sidebars can slide in from different edges:
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">left</code>,
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">right</code>,
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">top</code>,
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">bottom</code>
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">left</code>,
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">right</code>,
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">top</code>,
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">bottom</code>
     </p>
   </app-demo-section>
 
   <!-- Sizes -->
   <app-demo-section title="Sizes" [code]="sizesCode">
-    <p class="text-slate-600">
+    <p class="text-slate-600 dark:text-slate-400">
       Available sizes:
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">sm</code> (256px),
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">md</code> (320px),
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">lg</code> (384px),
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">xl</code> (480px),
-      <code class="text-sm bg-slate-100 px-2 py-1 rounded">full</code> (100%)
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">sm</code> (256px),
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">md</code> (320px),
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">lg</code> (384px),
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">xl</code> (480px),
+      <code class="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">full</code> (100%)
     </p>
   </app-demo-section>
 </div>

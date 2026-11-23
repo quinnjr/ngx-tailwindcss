@@ -2,13 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
+  untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
 export type PianoVariant = 'classic' | 'modern' | 'minimal';
@@ -43,7 +46,9 @@ export interface MidiDevice {
 
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES = ['C#', 'D#', 'F#', 'G#', 'A#'];
-const BLACK_KEY_OFFSETS = [0.65, 1.75, 3.6, 4.7, 5.8]; // Position multipliers for black keys within an octave
+// Left edge of each black key within an octave, in white-key widths (keys are 0.6 wide, so
+// each one straddles the boundary between its neighbouring white keys)
+const BLACK_KEY_OFFSETS = [0.65, 1.75, 3.6, 4.7, 5.8];
 
 /**
  * Interactive Piano Keyboard component
@@ -111,16 +116,55 @@ export class TwPianoComponent implements OnDestroy {
 
   private midiAccess: MIDIAccess | null = null;
   private midiInputs: MIDIInput[] = [];
+  // Inputs reported as connected (midiConnected emitted, midiDisconnected not yet)
+  private connectedMidiDevices = new Map<string, MidiDevice>();
   private readonly midiStateChangeHandler = (): void => {
     this.updateMidiDevices();
   };
 
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private destroyed = false;
+  // Incremented on every connect/disconnect so a stale requestMIDIAccess() result is ignored
+  private midiRequestId = 0;
+
+  constructor() {
+    // Disabled keys receive no mouseup/touchend/keyup, so release keys held via the UI
+    // when the piano becomes disabled (they used to stay pressed with no noteOff, ever)
+    effect(() => {
+      if (!this.disabled()) return;
+      untracked(() => {
+        this.releaseKeysWhere(note => note.source === 'mouse' || note.source === 'touch');
+      });
+    });
+
+    // Request MIDI access when enableMidi is turned on, release it when turned off (browser only)
+    effect(() => {
+      const enabled = this.enableMidi();
+      if (!this.isBrowser) return;
+      untracked(() => {
+        if (enabled) {
+          if (!this.midiAccess) {
+            void this.initMidi();
+          }
+        } else if (this.midiAccess) {
+          this.disconnectMidi();
+        } else {
+          // Cancel a request that is still pending
+          this.midiRequestId++;
+        }
+      });
+    });
+  }
+
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.midiRequestId++;
     this.midiAccess?.removeEventListener('statechange', this.midiStateChangeHandler);
     for (const midiInput of this.midiInputs) {
       midiInput.onmidimessage = null;
     }
     this.midiInputs = [];
+    this.connectedMidiDevices = new Map();
     this.midiAccess = null;
   }
 
@@ -196,7 +240,7 @@ export class TwPianoComponent implements OnDestroy {
           octave,
           midi: this.noteToMidi(note, octave),
           isBlack: true,
-          position: octaveOffset + BLACK_KEY_OFFSETS[i] * whiteWidth - this.blackKeyWidth() / 2,
+          position: octaveOffset + BLACK_KEY_OFFSETS[i] * whiteWidth,
         });
       });
     }
@@ -217,15 +261,29 @@ export class TwPianoComponent implements OnDestroy {
     return this.twClass.merge(baseClasses, variantClasses[variant], this.classOverride());
   });
 
+  // Text around the keys (MIDI status, octave labels): classic/modern sit on a dark panel,
+  // minimal on the page, so it follows the page's colour scheme (all >= 4.5:1)
+  protected readonly mutedTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly midiConnectedClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-green-700 dark:text-green-400' : 'text-green-400'
+  );
+
   protected whiteKeyClasses(key: PianoKey): string {
     const variant = this.variant();
     const isActive = this.isKeyActive(key);
-    const isHighlighted = this.isKeyHighlighted(key);
+    // A pressed key shows its pressed colours: the highlight colours were merged last and
+    // replaced them, so pressing a highlighted key showed no change (e.g. on 'minimal')
+    const isHighlighted = this.isKeyHighlighted(key) && !isActive;
 
+    // Focus ring: blue-400 was ~2.5:1 on the white keys; blue-800 keeps >= 3:1 on the
+    // white, pressed and highlighted key colours in both colour schemes
     const baseClasses = `
       relative h-full border-r last:border-r-0
       transition-all duration-75
-      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400
+      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-800
     `;
 
     const variantClasses: Record<PianoVariant, string> = {
@@ -263,12 +321,14 @@ export class TwPianoComponent implements OnDestroy {
   protected blackKeyClasses(key: PianoKey): string {
     const variant = this.variant();
     const isActive = this.isKeyActive(key);
-    const isHighlighted = this.isKeyHighlighted(key);
+    const isHighlighted = this.isKeyHighlighted(key) && !isActive;
 
+    // Inset ring on the dark key itself: the outer blue-400 ring lay over the white keys
+    // (~2.5:1); blue-300 keeps >= 3:1 on every black key colour
     const baseClasses = `
       absolute top-0 z-10
       transition-all duration-75
-      focus:outline-none focus:ring-2 focus:ring-blue-400
+      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-300
     `;
 
     const variantClasses: Record<PianoVariant, string> = {
@@ -303,9 +363,11 @@ export class TwPianoComponent implements OnDestroy {
 
   protected labelClasses(keyType: 'white' | 'black'): string {
     if (keyType === 'white') {
-      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-500';
+      // dark: the 'minimal' white keys turn slate-400 (pressed) / blue-300 (highlighted) in
+      // dark mode, where slate-600 is only ~3.0:1 / ~4.2:1
+      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-600 dark:text-slate-800';
     }
-    return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-medium text-slate-400';
+    return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-medium text-slate-300';
   }
 
   protected isKeyActive(key: PianoKey): boolean {
@@ -381,8 +443,7 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   onKeyUp(key: PianoKey): void {
-    if (this.disabled()) return;
-
+    // No disabled guard: releasing a held key must always be possible
     const keyId = this.getKeyId(key);
     const keys = new Map(this.activeKeys());
     if (keys.has(keyId)) {
@@ -398,13 +459,24 @@ export class TwPianoComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Mouse/touch/keyboard release of a key. Only releases keys held via the UI: merely moving
+   * the pointer off (mouseleave) a key held by MIDI or pressKey() must not cut that note off.
+   */
+  onPointerRelease(key: PianoKey): void {
+    const source = this.activeKeys().get(this.getKeyId(key))?.source;
+    if (source === 'mouse' || source === 'touch') {
+      this.onKeyUp(key);
+    }
+  }
+
   onTouchStart(event: TouchEvent, key: PianoKey): void {
     event.preventDefault();
     this.onKeyDown(key, 'touch');
   }
 
   onTouchEnd(key: PianoKey): void {
-    this.onKeyUp(key);
+    this.onPointerRelease(key);
   }
 
   // Keyboard interaction (Enter/Space mirror mousedown/mouseup)
@@ -416,20 +488,24 @@ export class TwPianoComponent implements OnDestroy {
 
   onKeyboardUp(event: Event, key: PianoKey): void {
     event.preventDefault();
-    this.onKeyUp(key);
+    this.onPointerRelease(key);
   }
 
   // MIDI handling
   async initMidi(): Promise<void> {
     if (!this.enableMidi()) return;
 
-    if (!navigator.requestMIDIAccess) {
+    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
       this.midiError.emit('Web MIDI API not supported in this browser');
       return;
     }
 
+    const requestId = ++this.midiRequestId;
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      const access = await navigator.requestMIDIAccess();
+      // Destroyed or disabled while the permission prompt was pending
+      if (this.destroyed || requestId !== this.midiRequestId) return;
+      this.midiAccess = access;
       this.updateMidiDevices();
 
       // Listen for device changes (removed again in ngOnDestroy/disconnectMidi)
@@ -443,6 +519,7 @@ export class TwPianoComponent implements OnDestroy {
     if (!this.midiAccess) return;
 
     const devices: MidiDevice[] = [];
+    const connected = new Map<string, MidiDevice>();
 
     // Disconnect old inputs
     for (const midiInput of this.midiInputs) {
@@ -452,11 +529,12 @@ export class TwPianoComponent implements OnDestroy {
 
     // Connect to all inputs
     this.midiAccess.inputs.forEach((midiInput: MIDIInput) => {
-      devices.push({
+      const device: MidiDevice = {
         id: midiInput.id,
         name: midiInput.name ?? 'Unknown Device',
         manufacturer: midiInput.manufacturer ?? 'Unknown',
-      });
+      };
+      devices.push(device);
 
       midiInput.onmidimessage = (event: MIDIMessageEvent) => {
         this.handleMidiMessage(event);
@@ -464,16 +542,26 @@ export class TwPianoComponent implements OnDestroy {
       this.midiInputs.push(midiInput);
 
       if (midiInput.state === 'connected') {
-        this.connectedMidiDevice.set({
-          id: midiInput.id,
-          name: midiInput.name ?? 'Unknown Device',
-          manufacturer: midiInput.manufacturer ?? 'Unknown',
-        });
-        this.midiConnected.emit(this.connectedMidiDevice()!);
+        connected.set(device.id, device);
       }
     });
 
     this.availableMidiDevices.set(devices);
+
+    // Report devices that were unplugged / plugged in since the last update (the status
+    // used to keep showing an unplugged device, and every statechange re-emitted midiConnected)
+    for (const [id, device] of this.connectedMidiDevices) {
+      if (!connected.has(id)) this.midiDisconnected.emit(device);
+    }
+    for (const [id, device] of connected) {
+      if (!this.connectedMidiDevices.has(id)) this.midiConnected.emit(device);
+    }
+    this.connectedMidiDevices = connected;
+
+    const shown = this.connectedMidiDevice();
+    this.connectedMidiDevice.set(
+      shown && connected.has(shown.id) ? shown : ([...connected.values()].at(-1) ?? null)
+    );
   }
 
   private handleMidiMessage(event: MIDIMessageEvent): void {
@@ -499,6 +587,8 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   private handleMidiNoteOn(midiNote: number, velocity: number): void {
+    // A disabled piano plays nothing (note-offs still release keys held before disabling)
+    if (this.disabled()) return;
     const key = this.midiToKey(midiNote);
     if (!key) return;
 
@@ -544,6 +634,7 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   disconnectMidi(): void {
+    this.midiRequestId++;
     this.midiAccess?.removeEventListener('statechange', this.midiStateChangeHandler);
     for (const midiInput of this.midiInputs) {
       midiInput.onmidimessage = null;
@@ -551,10 +642,10 @@ export class TwPianoComponent implements OnDestroy {
     this.midiInputs = [];
     this.midiAccess = null;
 
-    const device = this.connectedMidiDevice();
-    if (device) {
+    for (const device of this.connectedMidiDevices.values()) {
       this.midiDisconnected.emit(device);
     }
+    this.connectedMidiDevices = new Map();
     this.connectedMidiDevice.set(null);
     this.availableMidiDevices.set([]);
   }
@@ -612,7 +703,26 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   releaseAllKeys(): void {
-    this.activeKeys.set(new Map());
+    this.releaseKeysWhere(() => true);
+  }
+
+  private releaseKeysWhere(predicate: (note: ActiveNote) => boolean): void {
+    const active = this.activeKeys();
+    const released = [...active].filter(([, note]) => predicate(note)).map(([keyId]) => keyId);
+    if (released.length === 0) return;
+
+    const allKeys = [...this.whiteKeys(), ...this.blackKeys()];
+    const remaining = new Map(active);
+    for (const keyId of released) remaining.delete(keyId);
+    this.activeKeys.set(remaining);
+
+    // Emit noteOff for every released key so consumers don't leave notes hanging
+    for (const keyId of released) {
+      const key = allKeys.find(k => this.getKeyId(k) === keyId);
+      if (key) {
+        this.noteOff.emit({ note: key.note, octave: key.octave, midi: key.midi, velocity: 0 });
+      }
+    }
   }
 
   // Press key by MIDI note number

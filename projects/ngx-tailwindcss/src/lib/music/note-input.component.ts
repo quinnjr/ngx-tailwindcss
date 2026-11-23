@@ -1,27 +1,37 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   HostListener,
   inject,
+  Injector,
   input,
   numberAttribute,
   OnDestroy,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { retainFocusAfterAction } from './focus-retain';
 
-import { ClefType, KeySignature, StaffTimeSignature, TwStaffComponent } from './staff.component';
 import {
+  ClefType,
+  getStaffLayout,
+  KeySignature,
+  StaffTimeSignature,
+  TwStaffComponent,
+} from './staff.component';
+import {
+  createAccidentalContext,
   NoteAccidental,
   NoteData,
   NoteDuration,
   NoteName,
-  TwNoteComponent,
+  spellMidiPitch,
 } from './note.component';
 
 export type Voice = 1 | 2 | 3 | 4;
@@ -55,23 +65,6 @@ export interface ClipboardData {
   measureEnd: number;
 }
 
-// MIDI note number to note name mapping
-const MIDI_NOTE_NAMES: NoteName[] = ['C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'];
-const MIDI_NOTE_ACCIDENTALS: Array<NoteAccidental | null> = [
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-  'sharp',
-  null,
-];
-
 // Keyboard shortcuts for note durations
 const DURATION_SHORTCUTS: Record<string, NoteDuration> = {
   '1': 'whole',
@@ -83,6 +76,23 @@ const DURATION_SHORTCUTS: Record<string, NoteDuration> = {
 };
 
 // Keyboard shortcuts for note names
+// Diatonic step index within an octave (C = 0)
+const STEP_INDEX: Record<NoteName, number> = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+const STEP_NAMES: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+// Absolute diatonic step (octave * 7 + step) of the top staff line for each clef
+// (treble F5, bass A3, alto G4, tenor E4; percussion uses the treble layout)
+const CLEF_TOP_LINE_STEPS: Record<ClefType, number> = {
+  treble: 5 * 7 + STEP_INDEX.F,
+  bass: 3 * 7 + STEP_INDEX.A,
+  alto: 4 * 7 + STEP_INDEX.G,
+  tenor: 4 * 7 + STEP_INDEX.E,
+  percussion: 5 * 7 + STEP_INDEX.F,
+};
+
+// How far outside the staff a pointer position may map to (in half-spaces): 3 ledger lines
+const MAX_LEDGER_STEPS = 6;
+
 const NOTE_SHORTCUTS: Record<string, NoteName> = {
   c: 'C',
   d: 'D',
@@ -96,16 +106,21 @@ const NOTE_SHORTCUTS: Record<string, NoteName> = {
 @Component({
   selector: 'tw-note-input',
   standalone: true,
-  imports: [CommonModule, TwStaffComponent, TwNoteComponent],
+  imports: [CommonModule, TwStaffComponent],
   templateUrl: './note-input.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'block outline-none',
+    // The focusable host is where keyboard input is entered: it needs a visible focus
+    // indicator (outline-none removed the browser's) and an accessible name
+    class:
+      'block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+    role: 'group',
+    'aria-label': 'Note input',
     '[attr.tabindex]': '0',
   },
 })
-export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
-  private readonly elementRef = inject(ElementRef);
+export class TwNoteInputComponent implements OnDestroy {
+  private readonly injector = inject(Injector);
   private readonly staffContainer = viewChild<ElementRef<HTMLDivElement>>('staffContainer');
 
   // Staff configuration (pass-through to tw-staff)
@@ -172,6 +187,10 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   // Drag state
   private noteDragController: AbortController | null = null;
 
+  private destroyed = false;
+  // Incremented on every connect/disconnect so a stale requestMIDIAccess() result is ignored
+  private midiRequestId = 0;
+
   // Note ID counter
   private noteIdCounter = 0;
 
@@ -182,6 +201,32 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     3: '#059669', // Emerald
     4: '#DC2626', // Red
   };
+
+  protected readonly restSymbols: Record<NoteDuration, string> = {
+    whole: '𝄻',
+    half: '𝄼',
+    quarter: '𝄽',
+    eighth: '𝄾',
+    sixteenth: '𝄿',
+    thirtysecond: '𝅀',
+  };
+
+  // Voice selector buttons. The raw voice colours were unreadable as button text (white on
+  // emerald-600 ~3.8:1; slate-800/blue/red/emerald on the slate-700 dark-mode button ~1.3-2.7:1),
+  // so the buttons use darker fills and light/dark text shades that keep >= 4.5:1.
+  private readonly voiceButtonColors: Record<Voice, { active: string; inactive: string }> = {
+    1: { active: 'bg-slate-800', inactive: 'text-slate-800 dark:text-slate-200' },
+    2: { active: 'bg-blue-700', inactive: 'text-blue-700 dark:text-blue-300' },
+    3: { active: 'bg-emerald-700', inactive: 'text-emerald-800 dark:text-emerald-300' },
+    4: { active: 'bg-red-700', inactive: 'text-red-700 dark:text-red-300' },
+  };
+
+  protected voiceButtonClasses(voice: number, active: boolean): string {
+    const colors = this.voiceButtonColors[voice as Voice] ?? this.voiceButtonColors[1];
+    return active
+      ? `${colors.active} text-white ring-2 ring-blue-500`
+      : `bg-slate-200 dark:bg-slate-700 ${colors.inactive}`;
+  }
 
   protected getVoiceColorByNumber(voice: number): string {
     const v = voice as Voice;
@@ -195,18 +240,19 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     return (h - totalStaffHeight) / 2;
   });
 
-  protected readonly measureWidth = computed(() => {
-    const w = this.width();
-    const clefWidth = 50;
-    const keyWidth = 40;
-    const timeWidth = 30;
-    const availableWidth = w - clefWidth - keyWidth - timeWidth - 20;
-    return availableWidth / this.measures();
-  });
+  // Mirror tw-staff's layout so the grid lines up with its bar lines (the key signature
+  // width depends on the number of accidentals)
+  private readonly staffLayout = computed(() =>
+    getStaffLayout({
+      width: this.width(),
+      measures: this.measures(),
+      keySignature: this.keySignature(),
+    })
+  );
 
-  protected readonly contentStartX = computed(() => {
-    return 50 + 40 + 30 + 10; // clef + key + time + padding
-  });
+  protected readonly measureWidth = computed(() => this.staffLayout().measureWidth);
+
+  protected readonly contentStartX = computed(() => this.staffLayout().contentStartX);
 
   protected readonly gridPositions = computed(() => {
     const positions: number[] = [];
@@ -234,23 +280,60 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     };
   });
 
-  ngAfterViewInit(): void {
-    // Initialize with initial notes
-    const initial = this.initialNotes();
-    if (initial.length > 0) {
-      this.notes.set([...initial]);
-    }
+  constructor() {
+    // Load notes from initialNotes, and reload whenever the parent supplies a different
+    // array (e.g. undo/transpose/import in tw-score-editor). Echoes of our own notesChanged
+    // emission come back as the same array reference and are ignored.
+    effect(() => {
+      const initial = this.initialNotes();
+      untracked(() => {
+        if (initial === this.notes()) return;
+        this.notes.set([...initial]);
+        this.syncNoteIdCounter(initial);
+        const ids = new Set(initial.map(n => n.id));
+        this.selectedNotes.update(sel => sel.filter(n => ids.has(n.id)));
+      });
+    });
 
-    // Setup MIDI if enabled
-    if (this.enableMidiInput()) {
-      void this.initMidi();
-    }
+    // Becoming read-only mid-drag cancels the drag; the mouseup used to commit the move
+    // (noteMoved/notesChanged) on a non-editable staff
+    effect(() => {
+      if (this.editable()) return;
+      untracked(() => {
+        this.noteDragController?.abort();
+        this.noteDragController = null;
+        this.isDragging.set(false);
+        this.draggedNote.set(null);
+      });
+    });
 
-    // Focus element for keyboard input
-    this.elementRef.nativeElement.focus();
+    // Connect / disconnect MIDI whenever enableMidiInput changes (e.g. tw-score-editor only
+    // enables it on the selected part). The host is focusable (tabindex 0) for keyboard
+    // input; it is not focused automatically so rendering never steals the page's focus.
+    effect(() => {
+      const enabled = this.enableMidiInput();
+      untracked(() => {
+        if (enabled) {
+          if (!this.midiAccess) void this.initMidi();
+        } else {
+          this.disconnectMidi();
+        }
+      });
+    });
+  }
+
+  // Ensure generated ids never collide with ids already present ("note-<n>")
+  private syncNoteIdCounter(notes: PlacedNote[]): void {
+    for (const note of notes) {
+      const match = /^note-(\d+)$/.exec(note.id);
+      if (match) {
+        this.noteIdCounter = Math.max(this.noteIdCounter, Number(match[1]) + 1);
+      }
+    }
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.disconnectMidi();
     this.noteDragController?.abort();
     this.noteDragController = null;
@@ -342,62 +425,41 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     const staffTop = this.staffTop();
     const spacing = this.lineSpacing();
 
-    // Calculate position relative to staff
-    // Position 0 = top line (F5 in treble), each half-space is one step
-    const position = (y - staffTop) / (spacing / 2);
-
-    // Map position to note (treble clef: F5 at top)
-    const noteNames: NoteName[] = [
-      'F',
-      'E',
-      'D',
-      'C',
-      'B',
-      'A',
-      'G',
-      'F',
-      'E',
-      'D',
-      'C',
-      'B',
-      'A',
-      'G',
-    ];
-    const octaves = [5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3];
-
-    const index = Math.round(position);
-    const clampedIndex = Math.max(0, Math.min(noteNames.length - 1, index));
+    // Position 0 = top line, each half-space is one diatonic step downwards
+    const position = Math.round((y - staffTop) / (spacing / 2));
+    const clamped = Math.max(-MAX_LEDGER_STEPS, Math.min(8 + MAX_LEDGER_STEPS, position));
+    const step = CLEF_TOP_LINE_STEPS[this.clef()] - clamped;
 
     return {
-      note: noteNames[clampedIndex],
-      octave: octaves[clampedIndex],
+      note: STEP_NAMES[((step % 7) + 7) % 7],
+      octave: Math.floor(step / 7),
     };
   }
 
-  private placeNote(position: {
-    x: number;
-    note: NoteName;
-    octave: number;
-    measure: number;
-    beat: number;
-  }): void {
+  private placeNote(
+    position: {
+      x: number;
+      note: NoteName;
+      octave: number;
+      measure: number;
+      beat: number;
+    },
+    accidental: NoteAccidental = this.currentAccidental()
+  ): void {
+    const isRest = this.isRest();
     const newNote: PlacedNote = {
       id: `note-${this.noteIdCounter++}`,
       name: position.note,
       octave: position.octave,
       duration: this.currentDuration(),
-      accidental: this.currentAccidental(),
+      accidental: isRest ? null : accidental,
       dotted: this.isDotted(),
       x: position.x,
       measure: position.measure,
       beat: position.beat,
       voice: this.currentVoice(),
+      ...(isRest ? { isRest: true } : {}),
     };
-
-    if (this.isRest()) {
-      // Place as rest - we store it but render differently
-      (newNote as any).isRest = true;
-    }
 
     this.saveUndoState();
     this.notes.update(notes => [...notes, newNote]);
@@ -462,12 +524,20 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
 
   private finalizeDrag(): void {
     const dragged = this.draggedNote();
-    if (dragged) {
+    const previousState = dragged ? this.notes().find(n => n.id === dragged.id) : undefined;
+    const moved =
+      !!dragged &&
+      !!previousState &&
+      (previousState.x !== dragged.x ||
+        previousState.name !== dragged.name ||
+        previousState.octave !== dragged.octave);
+
+    // A mousedown/mouseup without movement is a click (selection), not a move
+    if (dragged && moved) {
       this.saveUndoState();
 
-      const previousState = this.notes().find(n => n.id === dragged.id);
-
       this.notes.update(notes => notes.map(n => (n.id === dragged.id ? dragged : n)));
+      this.selectedNotes.update(sel => sel.map(n => (n.id === dragged.id ? dragged : n)));
 
       this.noteMoved.emit({
         type: 'move',
@@ -488,6 +558,66 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     if (!this.enableKeyboardShortcuts() || !this.editable()) return;
 
     const key = event.key.toLowerCase();
+    // AltGr is reported as Ctrl+Alt on Windows: '#' is AltGr+3 on French/Spanish/Belgian
+    // layouts and must still reach the accidental shortcuts below
+    const isAltGr =
+      event.getModifierState?.('AltGraph') || (event.ctrlKey && event.altKey && !event.metaKey);
+    const isModifier = (event.ctrlKey || event.metaKey) && !isAltGr;
+
+    // Modifier combos first, so Ctrl+C / Ctrl+A / Ctrl+V are not swallowed by the
+    // note-name (c, a) or voice (v) shortcuts below
+    if (isModifier) {
+      switch (key) {
+        case 'z': {
+          event.preventDefault();
+          if (event.shiftKey) {
+            this.redo();
+          } else {
+            this.undo();
+          }
+          return;
+        }
+        case 'c': {
+          event.preventDefault();
+          this.copySelectedMeasures();
+          return;
+        }
+        case 'v': {
+          event.preventDefault();
+          this.pasteFromClipboard();
+          return;
+        }
+        case 'a': {
+          event.preventDefault();
+          this.selectAllNotes();
+          return;
+        }
+        default: {
+          // Leave other browser/OS shortcuts alone
+          return;
+        }
+      }
+    }
+
+    // Voice shortcuts (Shift+1-4). event.key is the shifted character ('!', '@', ...),
+    // so use the physical key code. Shift+3 types '#' on US layouts: that is the documented
+    // sharp shortcut, handled below (it used to switch to voice 3 instead)
+    const voiceMatch = /^(?:Digit|Numpad)([1-4])$/.exec(event.code ?? '');
+    if (event.shiftKey && voiceMatch && event.key !== '#') {
+      event.preventDefault();
+      const voice = Number(voiceMatch[1]) as Voice;
+      if (voice <= this.maxVoices()) {
+        this.currentVoice.set(voice);
+      }
+      return;
+    }
+
+    // V cycles voices: works on every layout, including US where Shift+3 types '#' (sharp)
+    if (key === 'v' && !event.altKey) {
+      event.preventDefault();
+      this.currentVoice.update(v => ((v % this.maxVoices()) + 1) as Voice);
+      return;
+    }
 
     // Duration shortcuts (1-6)
     if (DURATION_SHORTCUTS[key]) {
@@ -534,47 +664,10 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Voice selection (v + 1-4)
-    if (key === 'v') {
-      event.preventDefault();
-      // Wait for next key
-      return;
-    }
-
     // Delete selected
     if (key === 'delete' || key === 'backspace') {
       event.preventDefault();
       this.deleteSelectedNotes();
-      return;
-    }
-
-    // Undo/Redo
-    if ((event.ctrlKey || event.metaKey) && key === 'z') {
-      event.preventDefault();
-      if (event.shiftKey) {
-        this.redo();
-      } else {
-        this.undo();
-      }
-      return;
-    }
-
-    // Copy/Paste
-    if ((event.ctrlKey || event.metaKey) && key === 'c') {
-      event.preventDefault();
-      this.copySelectedMeasures();
-      return;
-    }
-    if ((event.ctrlKey || event.metaKey) && key === 'v') {
-      event.preventDefault();
-      this.pasteFromClipboard();
-      return;
-    }
-
-    // Select all
-    if ((event.ctrlKey || event.metaKey) && key === 'a') {
-      event.preventDefault();
-      this.selectAllNotes();
       return;
     }
 
@@ -597,16 +690,6 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     if (key === 'arrowright') {
       event.preventDefault();
       this.moveSelectedNotes(1, 0);
-      return;
-    }
-
-    // Voice shortcuts (1-4 with shift)
-    if (event.shiftKey && ['1', '2', '3', '4'].includes(key)) {
-      event.preventDefault();
-      const voice = parseInt(key, 10) as Voice;
-      if (voice <= this.maxVoices()) {
-        this.currentVoice.set(voice);
-      }
     }
   }
 
@@ -618,15 +701,12 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
         note: name,
       });
     } else {
-      // Place at first available position
-      const x = this.contentStartX() + 20;
-      this.placeNote({
-        x,
-        note: name,
-        octave: 4,
-        measure: 0,
-        beat: 0,
-      });
+      // Place after the last note (like MIDI input; a fixed position stacked every typed note
+      // on top of the previous one), in the octave that sits on the current clef's staff
+      const x = this.getNextNotePosition();
+      const { measure, beat } = this.xToMeasureBeat(x);
+      const octave = Math.round((CLEF_TOP_LINE_STEPS[this.clef()] - 7 - STEP_INDEX[name]) / 7);
+      this.placeNote({ x, note: name, octave, measure, beat });
     }
   }
 
@@ -638,8 +718,16 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   // ==================== MIDI INPUT ====================
 
   private async initMidi(): Promise<void> {
+    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
+      this.midiConnected.set(false);
+      return;
+    }
+    const requestId = ++this.midiRequestId;
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      const access = await navigator.requestMIDIAccess();
+      // Destroyed or disabled while the permission prompt was pending
+      if (this.destroyed || requestId !== this.midiRequestId) return;
+      this.midiAccess = access;
       this.midiConnected.set(true);
 
       const { inputs } = this.midiAccess;
@@ -688,41 +776,50 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     const noteNumber = data[1];
     const velocity = data[2];
 
-    // Note On (0x9) with velocity > 0
-    if (command === 9 && velocity > 0) {
-      const { note, octave, accidental } = this.midiNoteToNote(noteNumber);
-
+    // Note On (0x9) with velocity > 0; read-only (editable false) places nothing
+    if (command === 9 && velocity > 0 && this.editable()) {
       // Place note at current cursor position or next available
       const hover = this.hoverPosition();
       const x = hover?.x ?? this.getNextNotePosition();
+      const { measure, beat } = hover ?? this.xToMeasureBeat(x);
 
-      this.placeNote({
-        x,
-        note,
-        octave,
-        measure: hover?.measure ?? 0,
-        beat: hover?.beat ?? 0,
-      });
-
-      // Update current accidental if needed
-      if (accidental) {
-        this.currentAccidental.set(accidental);
-      }
+      const { note, octave, accidental } = this.midiNoteToNote(noteNumber, measure, beat);
+      this.placeNote({ x, note, octave, measure, beat }, accidental);
     }
   }
 
-  private midiNoteToNote(midiNote: number): {
+  /**
+   * Spell a MIDI pitch for placement at measure/beat. The MIDI pitch fully determines the
+   * written accidental: none when the key signature or an earlier accidental in the measure
+   * already gives that pitch (see NoteData.accidental), otherwise an explicit one.
+   */
+  private midiNoteToNote(
+    midiNote: number,
+    measure: number,
+    beat: number
+  ): {
     note: NoteName;
     octave: number;
     accidental: NoteAccidental;
   } {
-    const noteIndex = midiNote % 12;
-    const octave = Math.floor(midiNote / 12) - 1;
+    const key = this.keySignature();
+    const { name, octave, alteration } = spellMidiPitch(midiNote, key);
 
+    const context = createAccidentalContext(key);
+    const earlier = this.notes()
+      .filter(n => n.measure === measure && n.beat < beat && !n.isRest)
+      .sort((a, b) => a.beat - b.beat);
+    for (const n of earlier) context.resolve(n);
+
+    return { note: name, octave, accidental: context.spell(name, octave, alteration) };
+  }
+
+  private xToMeasureBeat(x: number): { measure: number; beat: number } {
+    const measureWidth = this.measureWidth();
+    const offset = Math.max(0, x - this.contentStartX());
     return {
-      note: MIDI_NOTE_NAMES[noteIndex],
-      octave,
-      accidental: MIDI_NOTE_ACCIDENTALS[noteIndex],
+      measure: Math.floor(offset / measureWidth),
+      beat: Math.floor(((offset % measureWidth) / measureWidth) * this.gridDivision()),
     };
   }
 
@@ -737,6 +834,7 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
   }
 
   private disconnectMidi(): void {
+    this.midiRequestId++;
     if (this.midiAccess) {
       this.midiAccess.removeEventListener('statechange', this.midiStateChangeHandler);
       this.midiAccess.inputs.forEach(midiInput => {
@@ -839,21 +937,28 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     const staffTop = this.staffTop();
     const spacing = this.lineSpacing();
 
-    // Map note to position (treble clef)
-    const notePositions: Record<NoteName, number> = {
-      F: 0,
-      E: 1,
-      D: 2,
-      C: 3,
-      B: 4,
-      A: 5,
-      G: 6,
-    };
+    // Diatonic step index (C0 = 0); octaves start at C, so B4 is one step below C5
+    const step = octave * 7 + STEP_INDEX[name];
 
-    const basePosition = notePositions[name];
-    const octaveOffset = (5 - octave) * 7;
+    // Position 0 = top line of the current clef, each step is half a space downwards
+    return staffTop + (CLEF_TOP_LINE_STEPS[this.clef()] - step) * (spacing / 2);
+  }
 
-    return staffTop + (basePosition + octaveOffset) * (spacing / 2);
+  // Y positions of the ledger lines needed for a note outside the staff
+  protected ledgerLines(name: NoteName, octave: number): number[] {
+    const staffTop = this.staffTop();
+    const spacing = this.lineSpacing();
+    const bottom = staffTop + spacing * 4;
+    const y = this.noteToY(name, octave);
+    const epsilon = spacing / 4;
+    const lines: number[] = [];
+    for (let lineY = staffTop - spacing; lineY >= y - epsilon; lineY -= spacing) {
+      lines.push(lineY);
+    }
+    for (let lineY = bottom + spacing; lineY <= y + epsilon; lineY += spacing) {
+      lines.push(lineY);
+    }
+    return lines;
   }
 
   isNoteSelected(note: PlacedNote): boolean {
@@ -924,6 +1029,14 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
           newBeat -= grid;
           newMeasure++;
         }
+        // Keep the note on the staff (x, measure and beat must stay consistent)
+        if (newMeasure < 0) {
+          newMeasure = 0;
+          newBeat = 0;
+        } else if (newMeasure >= this.measures()) {
+          newMeasure = this.measures() - 1;
+          newBeat = grid - 1;
+        }
 
         // Calculate new X position
         const newX =
@@ -936,11 +1049,15 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
           name: noteNames[newNoteIndex],
           octave: newOctave,
           beat: newBeat,
-          measure: Math.max(0, newMeasure),
+          measure: newMeasure,
           x: newX,
         };
       })
     );
+
+    // Keep the selection pointing at the moved notes (not their stale copies)
+    const selectedIds = new Set(selected.map(s => s.id));
+    this.selectedNotes.set(this.notes().filter(n => selectedIds.has(n.id)));
 
     this.notesChanged.emit(this.notes());
   }
@@ -972,6 +1089,12 @@ export class TwNoteInputComponent implements AfterViewInit, OnDestroy {
     this.undoStack.update(s => [...s, [...this.notes()]]);
     this.notes.set(nextState);
     this.notesChanged.emit(this.notes());
+  }
+
+  /** Toolbar Undo / Redo / Delete: keep keyboard focus when the action disables the button */
+  protected runAction(event: Event, action: 'undo' | 'redo' | 'deleteSelectedNotes'): void {
+    retainFocusAfterAction(event, this.injector);
+    this[action]();
   }
 
   // ==================== PUBLIC API ====================

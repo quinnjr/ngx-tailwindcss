@@ -1,5 +1,18 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwFocusTrapDirective } from '../directives';
+import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
+
+let nextOnboardingId = 0;
 
 export interface OnboardingStep {
   id: string;
@@ -12,7 +25,7 @@ export interface OnboardingStep {
 @Component({
   selector: 'tw-onboarding-wizard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   templateUrl: './onboarding-wizard.component.html',
 })
 export class TwOnboardingWizardComponent {
@@ -26,7 +39,15 @@ export class TwOnboardingWizardComponent {
   public readonly skipped = output();
   public readonly closed = output();
 
+  protected readonly titleId = `tw-onboarding-title-${nextOnboardingId++}`;
+
   public readonly isOpen = signal(false);
+
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  constructor() {
+    trackNativeEscapeLayer(this, this.isOpen);
+  }
   public readonly currentIndex = signal(0);
   public readonly dontShowAgain = signal(false);
 
@@ -41,6 +62,12 @@ export class TwOnboardingWizardComponent {
     this.currentIndex.set(startIndex);
     this.dontShowAgain.set(false);
     this.isOpen.set(true);
+  }
+
+  /** Escape skips the wizard when skipping is allowed, like the Skip button. */
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.isOpen() && claimNativeEscape(this, event) && this.allowSkip()) this.skip();
   }
 
   public close(): void {
@@ -60,6 +87,13 @@ export class TwOnboardingWizardComponent {
 
   public previous(): void {
     if (this.currentIndex() > 0) {
+      // Reaching the first step disables Previous, which drops its focus;
+      // move focus on to the Next button instead
+      const host = this.elementRef.nativeElement;
+      const previousButton = host.querySelector<HTMLElement>('[data-wizard-previous]');
+      if (this.currentIndex() === 1 && previousButton === host.ownerDocument.activeElement) {
+        host.querySelector<HTMLElement>('[data-wizard-primary]')?.focus();
+      }
       this.currentIndex.update(i => i - 1);
       const step = this.currentStep();
       if (step) {

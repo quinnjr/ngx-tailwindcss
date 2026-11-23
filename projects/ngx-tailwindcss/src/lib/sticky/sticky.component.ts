@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { twClassValue } from '../core/class-value';
 import { TwClassService } from '../core/tw-class.service';
 
 export type StickyPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -43,8 +44,10 @@ const OFFSET_VALUES: Record<StickyOffset, string> = {
   templateUrl: './sticky.component.html',
   styles: [
     `
+      /* The host must not be the sticky element's containing block: a block host is
+         exactly as tall as its content, which leaves no room to stick. */
       :host {
-        display: block;
+        display: contents;
       }
     `,
   ],
@@ -68,7 +71,7 @@ export class TwStickyComponent {
   readonly disabled = input(false);
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly stickyClasses = computed(() => {
     return this.twClass.merge(this.disabled() ? 'relative' : 'sticky', this.class());

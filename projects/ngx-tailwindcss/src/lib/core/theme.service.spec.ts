@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTheme, DEFAULT_THEME_COLORS, TW_THEME } from './theme';
 import { TwThemeService } from './theme.service';
 
@@ -128,6 +128,46 @@ describe('TwThemeService', () => {
       service.setTheme(createTheme({ colors: { primary: { light: '#abcdef', dark: '#fedcba' } } }));
 
       expect(document.documentElement.style.getPropertyValue('--tw-color-primary')).toBe('#abcdef');
+    });
+
+    it('should remove custom properties the new theme no longer defines', () => {
+      TestBed.configureTestingModule({});
+      const service = TestBed.inject(TwThemeService);
+      const rootStyle = document.documentElement.style;
+
+      service.setTheme(createTheme({ customProperties: { brand: '#123456' } }));
+      expect(rootStyle.getPropertyValue('--tw-brand')).toBe('#123456');
+
+      service.setTheme(createTheme({}));
+      expect(rootStyle.getPropertyValue('--tw-brand')).toBe('');
+      expect(rootStyle.getPropertyValue('--tw-color-primary')).toBe(
+        DEFAULT_THEME_COLORS.primary.light
+      );
+    });
+  });
+
+  describe('blocked storage', () => {
+    it('should not throw when localStorage access fails', () => {
+      const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+      });
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError');
+      });
+
+      try {
+        TestBed.configureTestingModule({});
+        const service = TestBed.inject(TwThemeService);
+        expect(service.colorMode()).toBe('system');
+
+        expect(() => {
+          service.setColorMode('dark');
+        }).not.toThrow();
+        expect(service.isDark()).toBe(true);
+      } finally {
+        getItem.mockRestore();
+        setItem.mockRestore();
+      }
     });
   });
 

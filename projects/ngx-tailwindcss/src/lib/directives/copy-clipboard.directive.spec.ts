@@ -81,6 +81,21 @@ describe('TwCopyClipboardDirective', () => {
     expect(component.lastEvent?.error).toBeUndefined();
   });
 
+  it('should return focus to the trigger after the execCommand fallback', () => {
+    setClipboard(undefined);
+    document.execCommand = vi.fn().mockReturnValue(true);
+    document.body.append(fixture.nativeElement);
+
+    try {
+      buttonEl.focus();
+      buttonEl.click();
+
+      expect(document.activeElement).toBe(buttonEl);
+    } finally {
+      (fixture.nativeElement as HTMLElement).remove();
+    }
+  });
+
   it('should emit failure when the execCommand fallback fails', () => {
     setClipboard(undefined);
     const execCommandSpy = vi.fn().mockReturnValue(false);

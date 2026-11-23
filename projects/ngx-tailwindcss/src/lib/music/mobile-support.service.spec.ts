@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileSupportService } from './mobile-support.service';
 
 describe('MobileSupportService', () => {
@@ -48,6 +48,28 @@ describe('MobileSupportService', () => {
 
       service.setHapticEnabled(true);
       expect(service.hapticEnabled()).toBe(true);
+    });
+
+    it('should use the iOS webkit haptic bridge when the Vibration API is unavailable', () => {
+      const postMessage = vi.fn();
+      const win = window as unknown as Record<string, unknown>;
+      win['webkit'] = { messageHandlers: { haptic: { postMessage } } };
+      service.supportsHaptic.set(false);
+
+      try {
+        service.triggerHaptic('success');
+        expect(postMessage).toHaveBeenCalledWith({ type: 'notification-success' });
+      } finally {
+        delete win['webkit'];
+      }
+    });
+
+    it('should remove window listeners on destroy', () => {
+      const spy = vi.spyOn(window, 'removeEventListener');
+      service.ngOnDestroy();
+      expect(spy).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(spy).toHaveBeenCalledWith('orientationchange', expect.any(Function));
+      spy.mockRestore();
     });
   });
 
@@ -189,6 +211,22 @@ describe('MobileSupportService', () => {
     });
   });
 
+  describe('swipe detection', () => {
+    it('should report a finite velocity when the clock reads 0 ms elapsed', () => {
+      // Coarsened clocks (e.g. Firefox fingerprinting resistance) can report
+      // the same Date.now() at touchstart and touchend for a quick flick
+      vi.spyOn(Date, 'now').mockReturnValue(1000);
+      service.startTouchTracking(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+      const swipe = service.detectSwipe(new MouseEvent('mouseup', { clientX: 120, clientY: 0 }));
+      vi.restoreAllMocks();
+
+      expect(swipe?.direction).toBe('right');
+      expect(swipe?.duration).toBe(0);
+      expect(Number.isFinite(swipe?.velocity)).toBe(true);
+      expect(swipe?.velocity).toBe(120);
+    });
+  });
+
   describe('drag delta', () => {
     it('should calculate drag delta with touch event', () => {
       const startEvent = {
@@ -205,6 +243,23 @@ describe('MobileSupportService', () => {
       const dragDelta = service.getDragDelta(moveEvent);
       expect(dragDelta.dx).toBe(200);
       expect(dragDelta.dy).toBe(0);
+    });
+
+    it('should calculate drag delta from a touchend event (lifted finger)', () => {
+      service.startTouchTracking({
+        targetTouches: [{ clientX: 0, clientY: 100 }],
+        touches: [{ clientX: 0, clientY: 100 }],
+      } as unknown as TouchEvent);
+
+      // On touchend the lifted finger is only in changedTouches
+      const endEvent = {
+        targetTouches: [],
+        touches: [],
+        changedTouches: [{ clientX: 150, clientY: 100 }],
+      } as unknown as TouchEvent;
+
+      expect(service.getDragDelta(endEvent)).toEqual({ dx: 150, dy: 0 });
+      expect(service.validateDragDistance(endEvent, 10)).toBe(true);
     });
 
     it('should calculate drag delta with mouse event', () => {

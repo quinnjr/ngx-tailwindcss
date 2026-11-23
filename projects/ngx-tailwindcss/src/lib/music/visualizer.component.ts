@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   input,
@@ -10,10 +11,12 @@ import {
   numberAttribute,
   OnDestroy,
   output,
+  PLATFORM_ID,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { prepareHiDpiCanvas } from './canvas-hidpi';
 
 export type VisualizerVariant = 'circular' | 'bars' | 'wave' | 'particles' | 'rings';
 export type VisualizerColorScheme = 'rainbow' | 'fire' | 'ocean' | 'neon' | 'mono' | 'custom';
@@ -54,6 +57,7 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
 
   readonly analyserNode = input<AnalyserNode | undefined>(undefined);
   /** Render animated mock data when no analyser node is connected (for demos). */
@@ -107,8 +111,24 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   private beatTimestamps: number[] = [];
   private lastBeatTime = 0;
   private beatFlashIntensity = 0;
-  private beatRingRadius = 0;
+  // Start "expired" so no ring animates before the first detected beat
+  private beatRingRadius = Number.POSITIVE_INFINITY;
+  private beatResetTimer: ReturnType<typeof setTimeout> | null = null;
   private beatPulseScale = 1;
+
+  constructor() {
+    // Only configure the analyser when smoothing was explicitly provided;
+    // otherwise adapt to the node's existing configuration. Tracking both
+    // inputs also covers nodes bound after init (an AudioContext usually
+    // needs a user gesture first) and later smoothing changes.
+    effect(() => {
+      const analyser = this.analyserNode();
+      const smoothing = this.smoothing();
+      if (analyser && smoothing !== undefined) {
+        analyser.smoothingTimeConstant = smoothing;
+      }
+    });
+  }
 
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-lg overflow-hidden';
@@ -116,18 +136,11 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   });
 
   ngAfterViewInit(): void {
+    // No canvas rendering during SSR (getContext / rAF are unavailable)
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
-
-    const analyser = this.analyserNode();
-    if (analyser) {
-      // Only configure the analyser when smoothing was explicitly provided;
-      // otherwise adapt to the node's existing configuration.
-      const smoothing = this.smoothing();
-      if (smoothing !== undefined) {
-        analyser.smoothingTimeConstant = smoothing;
-      }
-    }
 
     // Draw loop never writes template state directly, so keep it out of the zone
     this.zone.runOutsideAngular(() => {
@@ -138,6 +151,10 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+    }
+    if (this.beatResetTimer) {
+      clearTimeout(this.beatResetTimer);
+      this.beatResetTimer = null;
     }
   }
 
@@ -176,12 +193,13 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     const width = this.width();
     const height = this.height();
 
-    // Only resize the canvas when dimensions actually change (resizing resets context state)
-    if (canvas.width !== width) {
-      canvas.width = width;
-    }
-    if (canvas.height !== height) {
-      canvas.height = height;
+    // Size the backing store for the device pixel ratio (drawing uses CSS pixels).
+    // A resize clears the canvas, so the idle frame must be redrawn afterwards.
+    const prevBackingWidth = canvas.width;
+    const prevBackingHeight = canvas.height;
+    prepareHiDpiCanvas(canvas, this.ctx, width, height);
+    if (canvas.width !== prevBackingWidth || canvas.height !== prevBackingHeight) {
+      this.idleFrameDrawn = false;
     }
 
     const analyser = this.analyserNode();
@@ -214,6 +232,12 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
       for (let i = 0; i < this.frequencyData.length; i++) {
         this.frequencyData[i] =
           Math.random() * 100 + Math.sin(Date.now() / 500 + i * 0.1) * 50 + 50;
+      }
+      // Mock waveform centred on 128 (silence); an all-zero buffer would draw
+      // the 'wave' variant as a flat line pinned to the edge
+      const phase = Date.now() / 200;
+      for (let i = 0; i < this.timeDomainData.length; i++) {
+        this.timeDomainData[i] = Math.round(128 + Math.sin(phase + i * 0.2) * 48);
       }
     }
 
@@ -388,7 +412,11 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
         });
 
         // Reset beat active after short delay
-        setTimeout(() => {
+        if (this.beatResetTimer) {
+          clearTimeout(this.beatResetTimer);
+        }
+        this.beatResetTimer = setTimeout(() => {
+          this.beatResetTimer = null;
           this.isBeatActive.set(false);
         }, 100);
       });
@@ -511,9 +539,24 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   private drawBeatParticles(): void {
     if (!this.ctx) return;
 
+    const width = this.width();
+    const height = this.height();
+
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i] as BeatParticle;
       if (!p.isBeatParticle) continue;
+
+      // Beat particles are animated here (not in drawParticles) so they move,
+      // fade and get removed regardless of the active variant.
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.02;
+      p.size *= 0.98;
+
+      if (p.life <= 0 || p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
+        this.particles.splice(i, 1);
+        continue;
+      }
 
       // Draw with glow effect
       const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
@@ -638,7 +681,8 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     for (let i = 0; i < this.timeDomainData.length; i++) {
       const x = (i / this.timeDomainData.length) * width;
       const value = (this.timeDomainData[i] / 128 - 1) * sensitivity;
-      const y = height / 2 + value * height * 0.4;
+      // Canvas y grows downward: positive samples must plot above the centre
+      const y = height / 2 - value * height * 0.4;
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -699,6 +743,8 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
     // Update and draw particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
+      // Beat particles are animated and drawn by drawBeatParticles()
+      if ((p as BeatParticle).isBeatParticle) continue;
 
       p.x += p.vx;
       p.y += p.vy;

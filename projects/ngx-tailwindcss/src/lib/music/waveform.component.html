@@ -2,8 +2,9 @@
   <!-- Canvas for waveform rendering -->
   <canvas
     #waveformCanvas
-    [width]="effectiveWidth()"
-    [height]="effectiveHeight()"
+    [style.width.px]="responsive() ? null : effectiveWidth()"
+    [style.height.px]="responsive() ? null : effectiveHeight()"
+    [style.aspect-ratio]="responsive() ? effectiveWidth() + ' / ' + effectiveHeight() : null"
     [class]="canvasClasses()"
     [class.w-full]="responsive()"
     [class.cursor-grab]="isPanning()"
@@ -17,7 +18,17 @@
     (touchstart)="onTouchStart($event)"
     (touchmove)="onTouchMove($event)"
     (touchend)="onTouchEnd()"
-    role="img"
+    (keydown)="onCanvasKeydown($event)"
+    [attr.role]="seekable() ? 'slider' : 'img'"
+    [attr.tabindex]="seekable() ? 0 : null"
+    [attr.aria-valuemin]="seekable() ? 0 : null"
+    [attr.aria-valuemax]="seekable() ? 100 : null"
+    [attr.aria-valuenow]="seekable() ? Math.round(progress() * 100) : null"
+    [attr.aria-valuetext]="
+      seekable() && duration() > 0
+        ? formatTime(progress() * duration()) + ' of ' + formatTime(duration())
+        : null
+    "
     [attr.aria-label]="
       'Audio waveform' + (duration() > 0 ? ', duration ' + formatTime(duration()) : '')
     "
@@ -28,11 +39,12 @@
     <div
       class="absolute top-0 bottom-0 left-0 bg-blue-500/20 pointer-events-none transition-all duration-100"
       [style.width.%]="
-        ((progress() - visibleRange().start) / (visibleRange().end - visibleRange().start)) * 100
+        Math.min(
+          1,
+          (progress() - visibleRange().start) / (visibleRange().end - visibleRange().start)
+        ) * 100
       "
-      [style.display]="
-        progress() < visibleRange().start || progress() > visibleRange().end ? 'none' : 'block'
-      "
+      [style.display]="progress() < visibleRange().start ? 'none' : 'block'"
     ></div>
   }
 
@@ -57,8 +69,16 @@
     }
   }
 
-  <!-- Hover time indicator (hidden in mini mode) -->
+  <!-- Hover time indicator (hidden in mini mode). The label sits inside the top
+       edge: placed above it, the overflow-hidden container clipped it away.
+       It shifts from left- to right-aligned across the view (translateX 0 to
+       -100%) so it is never cut off at the edges, and drops below the zoom
+       controls (which would otherwise cover it at the right) when shown and there
+       is room; in a short view (sm, 48px) it would be clipped there, so it stays
+       at the top, painted above the controls (it only shows while the pointer is
+       on the canvas, never on the controls). -->
   @if (showHoverTime() && hoverPosition() !== null && !isMini()) {
+    @let belowZoomControls = zoomable() && showZoomControls() && effectiveHeight() >= 68;
     @let hoverInView =
       (hoverPosition()! - visibleRange().start) / (visibleRange().end - visibleRange().start);
     @if (hoverInView >= 0 && hoverInView <= 1) {
@@ -67,7 +87,10 @@
         [style.left.%]="hoverInView * 100"
       >
         <div
-          class="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          class="absolute left-0 z-10 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          [class.top-1]="!belowZoomControls"
+          [class.top-11]="belowZoomControls"
+          [style.transform]="'translateX(' + hoverInView * -100 + '%)'"
         >
           {{ formatTime(hoverPosition()! * duration()) }}
         </div>
@@ -93,7 +116,7 @@
   <!-- Time display (hidden in mini mode) -->
   @if (showTime() && !isMini()) {
     <div
-      class="absolute bottom-2 left-2 right-2 flex justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pointer-events-none"
+      class="absolute bottom-2 left-2 right-2 flex justify-between text-xs font-mono text-slate-300 pointer-events-none"
     >
       <span>{{ formatTime(progress() * duration()) }}</span>
       <span>{{ formatTime(duration()) }}</span>
@@ -108,9 +131,9 @@
       <!-- Zoom Out -->
       <button
         type="button"
-        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 enabled:hover:text-white enabled:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="!canZoomOut()"
-        (click)="zoomOut()"
+        (click)="keepFocus($event); zoomOut()"
         title="Zoom Out"
         aria-label="Zoom out"
       >
@@ -131,9 +154,9 @@
       <!-- Zoom In -->
       <button
         type="button"
-        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 enabled:hover:text-white enabled:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="!canZoomIn()"
-        (click)="zoomIn()"
+        (click)="keepFocus($event); zoomIn()"
         title="Zoom In"
         aria-label="Zoom in"
       >
@@ -151,7 +174,7 @@
         <button
           type="button"
           class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-          (click)="resetZoom()"
+          (click)="keepFocus($event); resetZoom()"
           title="Reset Zoom"
           aria-label="Reset zoom"
         >
@@ -192,7 +215,7 @@
 
       <!-- Visible range markers -->
       <div
-        class="absolute top-0 bottom-0 left-0 right-0 flex justify-between text-[8px] text-slate-500 px-1"
+        class="absolute top-0 bottom-0 left-0 right-0 flex justify-between text-[8px] text-slate-300 px-1"
       >
         <span>{{ formatTime(visibleRange().start * duration()) }}</span>
         <span>{{ formatTime(visibleRange().end * duration()) }}</span>

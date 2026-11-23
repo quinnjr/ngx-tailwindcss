@@ -1,57 +1,76 @@
 <div class="tw-multiselect relative">
   <!-- Label -->
   @if (label()) {
-    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+    <label
+      [for]="triggerId"
+      class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+    >
       {{ label() }}
     </label>
   }
 
-  <!-- Trigger Button -->
-  <button
-    #triggerButton
-    type="button"
-    [class]="triggerClasses()"
-    [disabled]="_disabled()"
-    (click)="toggleDropdown()"
-    [attr.aria-expanded]="isOpen()"
-    [attr.aria-haspopup]="'listbox'"
-    [attr.aria-controls]="isOpen() ? listboxId : null"
-    [attr.aria-activedescendant]="activeOptionId()"
-  >
-    <span class="flex-1 text-left truncate">
-      {{ displayText() }}
-    </span>
+  <!-- Trigger Button + Clear Button (siblings: buttons must not be nested) -->
+  <div class="relative">
+    <button
+      #triggerButton
+      type="button"
+      [id]="triggerId"
+      role="combobox"
+      [class]="triggerClasses()"
+      [attr.aria-labelledby]="label() ? null : valueId"
+      [disabled]="_disabled()"
+      (click)="toggleDropdown()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-haspopup]="'listbox'"
+      [attr.aria-controls]="isOpen() ? listboxId : null"
+      [attr.aria-activedescendant]="activeOptionId()"
+    >
+      <span [id]="valueId" class="flex-1 text-left truncate">
+        {{ displayText() }}
+      </span>
 
-    <div class="flex items-center gap-2">
-      @if (selectedValues().size > 0 && !_disabled()) {
-        <button
-          type="button"
-          class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-          (click)="clearAll(); $event.stopPropagation()"
-          aria-label="Clear all selections"
+      <div class="flex items-center gap-2">
+        @if (showClearButton()) {
+          <!-- Reserves the space the clear button is overlaid on -->
+          <span class="w-4 h-4" aria-hidden="true"></span>
+        }
+
+        <svg
+          class="w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform"
+          [class.rotate-180]="isOpen()"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      }
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </div>
+    </button>
 
-      <svg
-        class="w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform"
-        [class.rotate-180]="isOpen()"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+    @if (showClearButton()) {
+      <button
+        #clearButton
+        type="button"
+        [class]="clearButtonClasses()"
+        (click)="onClearClick()"
+        aria-label="Clear all selections"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
-    </div>
-  </button>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    }
+  </div>
 
   <!-- Dropdown -->
   @if (isOpen()) {
@@ -84,8 +103,11 @@
       <input
         #filterInput
         type="text"
-        class="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+        class="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
         placeholder="Search..."
+        aria-label="Search options"
+        [attr.aria-controls]="listboxId"
+        [attr.aria-activedescendant]="activeOptionId()"
         [value]="filterValue()"
         (input)="onFilterInput($event)"
         (click)="$event.stopPropagation()"
@@ -93,12 +115,17 @@
     </div>
   }
 
-  <!-- Select All Option -->
-  @if (showSelectAll() && !selectAllLimited() && allOptions().length > 0) {
+  <!-- Select All Option. Rows cancel mousedown so a click keeps focus on the trigger/filter -->
+  @if (showSelectAllRow()) {
     <div
       class="px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-200 dark:border-slate-700 flex items-center gap-2"
       role="option"
+      [attr.id]="selectAllId"
       [attr.aria-selected]="isAllSelected()"
+      [attr.aria-disabled]="selectAllDisabled() || null"
+      [class.bg-slate-100]="isSelectAllActive()"
+      [class.dark:bg-slate-700]="isSelectAllActive()"
+      (mousedown)="$event.preventDefault()"
       (click)="toggleSelectAll(); $event.stopPropagation()"
     >
       @if (showCheckbox()) {
@@ -106,8 +133,8 @@
           class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
           [class.border-blue-600]="isAllSelected() || isSomeSelected()"
           [class.bg-blue-600]="isAllSelected() || isSomeSelected()"
-          [class.border-slate-300]="!isAllSelected() && !isSomeSelected()"
-          [class.dark:border-slate-500]="!isAllSelected() && !isSomeSelected()"
+          [class.border-slate-500]="!isAllSelected() && !isSomeSelected()"
+          [class.dark:border-slate-400]="!isAllSelected() && !isSomeSelected()"
         >
           @if (isAllSelected()) {
             <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,10 +176,13 @@
             [attr.aria-disabled]="option.disabled || null"
             [class.opacity-50]="option.disabled"
             [class.cursor-not-allowed]="option.disabled"
-            [class.bg-blue-50]="isSelected(option) && !option.disabled"
-            [class.dark:bg-blue-900/30]="isSelected(option) && !option.disabled"
+            [class.bg-blue-50]="isSelected(option) && !option.disabled && !isActive(option)"
+            [class.dark:bg-blue-900/30]="
+              isSelected(option) && !option.disabled && !isActive(option)
+            "
             [class.bg-slate-100]="isActive(option)"
             [class.dark:bg-slate-700]="isActive(option)"
+            (mousedown)="$event.preventDefault()"
             (click)="toggleOption(option); $event.stopPropagation()"
           >
             @if (showCheckbox()) {
@@ -160,8 +190,8 @@
                 class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
                 [class.border-blue-600]="isSelected(option)"
                 [class.bg-blue-600]="isSelected(option)"
-                [class.border-slate-300]="!isSelected(option)"
-                [class.dark:border-slate-500]="!isSelected(option)"
+                [class.border-slate-500]="!isSelected(option)"
+                [class.dark:border-slate-400]="!isSelected(option)"
               >
                 @if (isSelected(option)) {
                   <svg
@@ -209,10 +239,11 @@
         [attr.aria-disabled]="option.disabled || null"
         [class.opacity-50]="option.disabled"
         [class.cursor-not-allowed]="option.disabled"
-        [class.bg-blue-50]="isSelected(option) && !option.disabled"
-        [class.dark:bg-blue-900/30]="isSelected(option) && !option.disabled"
+        [class.bg-blue-50]="isSelected(option) && !option.disabled && !isActive(option)"
+        [class.dark:bg-blue-900/30]="isSelected(option) && !option.disabled && !isActive(option)"
         [class.bg-slate-100]="isActive(option)"
         [class.dark:bg-slate-700]="isActive(option)"
+        (mousedown)="$event.preventDefault()"
         (click)="toggleOption(option); $event.stopPropagation()"
       >
         @if (showCheckbox()) {
@@ -220,8 +251,8 @@
             class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
             [class.border-blue-600]="isSelected(option)"
             [class.bg-blue-600]="isSelected(option)"
-            [class.border-slate-300]="!isSelected(option)"
-            [class.dark:border-slate-500]="!isSelected(option)"
+            [class.border-slate-500]="!isSelected(option)"
+            [class.dark:border-slate-400]="!isSelected(option)"
           >
             @if (isSelected(option)) {
               <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

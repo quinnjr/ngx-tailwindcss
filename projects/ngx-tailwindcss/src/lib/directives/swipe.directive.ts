@@ -51,6 +51,8 @@ export class TwSwipeDirective implements OnInit, OnDestroy {
   private startX = 0;
   private startY = 0;
   private startTime = 0;
+  /** Whether a single-finger gesture is in progress */
+  private tracking = false;
 
   /** Minimum distance in pixels to trigger swipe (default: 50px) */
   @Input({ transform: numberAttribute })
@@ -89,7 +91,9 @@ export class TwSwipeDirective implements OnInit, OnDestroy {
   swipeDown = new EventEmitter<SwipeEvent>();
 
   private readonly onTouchStart = (event: TouchEvent): void => {
-    if (this.swipeDisabled || event.touches.length !== 1) return;
+    // A second finger turns the gesture into a pinch/multi-touch: stop tracking
+    this.tracking = !this.swipeDisabled && event.touches.length === 1;
+    if (!this.tracking) return;
 
     const touch = event.touches[0];
     this.startX = touch.clientX;
@@ -98,7 +102,9 @@ export class TwSwipeDirective implements OnInit, OnDestroy {
   };
 
   private readonly onTouchEnd = (event: TouchEvent): void => {
-    if (this.swipeDisabled || event.changedTouches.length !== 1) return;
+    const wasTracking = this.tracking;
+    this.tracking = false;
+    if (!wasTracking || this.swipeDisabled || event.changedTouches.length !== 1) return;
 
     const touch = event.changedTouches[0];
     const endX = touch.clientX;
@@ -163,12 +169,17 @@ export class TwSwipeDirective implements OnInit, OnDestroy {
     });
   };
 
+  private readonly onTouchCancel = (): void => {
+    this.tracking = false;
+  };
+
   ngOnInit(): void {
     const element = this.el.nativeElement;
 
     this.ngZone.runOutsideAngular(() => {
       element.addEventListener('touchstart', this.onTouchStart, { passive: true });
       element.addEventListener('touchend', this.onTouchEnd, { passive: true });
+      element.addEventListener('touchcancel', this.onTouchCancel, { passive: true });
     });
   }
 
@@ -176,5 +187,6 @@ export class TwSwipeDirective implements OnInit, OnDestroy {
     const element = this.el.nativeElement;
     element.removeEventListener('touchstart', this.onTouchStart);
     element.removeEventListener('touchend', this.onTouchEnd);
+    element.removeEventListener('touchcancel', this.onTouchCancel);
   }
 }

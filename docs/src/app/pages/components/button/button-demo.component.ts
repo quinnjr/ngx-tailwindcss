@@ -28,12 +28,26 @@ export class ButtonDemoComponent {
     gear: faGear,
   };
 
+  submitCount = signal(0);
+
+  onFormSubmit(event: Event): void {
+    event.preventDefault();
+    this.submitCount.update(count => count + 1);
+  }
+
   simulateLoading(): void {
     this.isLoading.set(true);
     setTimeout(() => this.isLoading.set(false), 2000);
   }
 
   // Code examples
+  formCode = `<form (submit)="save($event)">
+  <input name="title" />
+  <!-- Clicking it, or pressing Enter in the field, submits the form -->
+  <tw-button type="submit" variant="primary">Submit</tw-button>
+  <tw-button type="reset" variant="outline">Reset</tw-button>
+</form>`;
+
   variantsCode = `<tw-button variant="primary">Primary</tw-button>
 <tw-button variant="secondary">Secondary</tw-button>
 <tw-button variant="success">Success</tw-button>
@@ -68,13 +82,13 @@ export class ButtonDemoComponent {
   <fa-icon [icon]="faTrash" twButtonIconEnd></fa-icon>
 </tw-button>`;
 
-  iconOnlyCode = `<tw-button variant="primary" [iconOnly]="true" size="sm">
+  iconOnlyCode = `<tw-button variant="primary" [iconOnly]="true" size="sm" aria-label="Add">
   <fa-icon [icon]="faPlus" twButtonIcon></fa-icon>
 </tw-button>
-<tw-button variant="secondary" [iconOnly]="true">
+<tw-button variant="secondary" [iconOnly]="true" aria-label="Like">
   <fa-icon [icon]="faHeart" twButtonIcon></fa-icon>
 </tw-button>
-<tw-button variant="ghost" [iconOnly]="true" size="lg">
+<tw-button variant="ghost" [iconOnly]="true" size="lg" aria-label="Settings">
   <fa-icon [icon]="faGear" twButtonIcon></fa-icon>
 </tw-button>`;
 

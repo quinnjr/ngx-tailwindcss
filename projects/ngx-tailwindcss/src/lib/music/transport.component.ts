@@ -56,6 +56,9 @@ export class TwTransportComponent {
   readonly showSkipButtons = input(true);
   readonly showLoop = input(true);
   readonly showShuffle = input(false);
+  /** Accessible name / tooltip of the rewind and fast-forward buttons (e.g. for fixed-step seeks) */
+  readonly rewindLabel = input('Rewind');
+  readonly fastForwardLabel = input('Fast forward');
   readonly classOverride = input('');
 
   // Outputs
@@ -127,17 +130,17 @@ export class TwTransportComponent {
       case 'modern': {
         if (isPrimary) {
           variantClasses =
-            'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg focus:ring-blue-400';
+            'bg-blue-500 enabled:hover:bg-blue-600 text-white shadow-md enabled:hover:shadow-lg focus:ring-blue-400';
         } else if (type === 'record') {
           variantClasses =
-            'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 focus:ring-slate-400';
+            'bg-slate-200 dark:bg-slate-700 enabled:hover:bg-slate-300 dark:enabled:hover:bg-slate-600 text-slate-700 dark:text-slate-300 focus:ring-slate-400';
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 focus:ring-blue-400'
-            : 'bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 focus:ring-slate-400';
+            : 'bg-transparent enabled:hover:bg-slate-200 dark:enabled:hover:bg-slate-700 text-slate-500 dark:text-slate-400 focus:ring-slate-400';
         } else {
           variantClasses =
-            'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 focus:ring-slate-400';
+            'bg-slate-200 dark:bg-slate-700 enabled:hover:bg-slate-300 dark:enabled:hover:bg-slate-600 text-slate-700 dark:text-slate-300 focus:ring-slate-400';
         }
 
         break;
@@ -145,48 +148,57 @@ export class TwTransportComponent {
       case 'minimal': {
         if (isPrimary) {
           variantClasses =
-            'bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 focus:ring-slate-400';
+            'bg-slate-900 dark:bg-white enabled:hover:bg-slate-800 dark:enabled:hover:bg-slate-100 text-white dark:text-slate-900 focus:ring-slate-400';
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'text-blue-600 dark:text-blue-400 focus:ring-blue-400'
-            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:ring-slate-400';
+            : // slate-400 was ~2.6:1 on a light page; inactive icons still need 3:1
+              'text-slate-500 dark:text-slate-400 enabled:hover:text-slate-700 dark:enabled:hover:text-slate-300 focus:ring-slate-400';
         } else {
           variantClasses =
-            'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 focus:ring-slate-400';
+            'text-slate-600 dark:text-slate-400 enabled:hover:text-slate-900 dark:enabled:hover:text-white enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800 focus:ring-slate-400';
         }
 
         break;
       }
       case 'classic': {
         if (isPrimary) {
+          // The play/pause icon needs 3:1: white on green-400/500 was ~1.8-2.2:1
           variantClasses =
-            'bg-gradient-to-b from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white shadow-md border border-green-700 focus:ring-green-400';
+            'bg-gradient-to-b from-green-600 to-green-700 enabled:hover:from-green-700 enabled:hover:to-green-800 text-white shadow-md border border-green-800 focus:ring-green-400';
         } else if (type === 'record') {
+          // Hover lightens the gradient: the slate-400/500 hover was ~2.4:1 behind the
+          // dark-mode slate-300 icons (~1.8:1 behind the red-300 recording dot)
           variantClasses =
-            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-400 hover:to-slate-500 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
+            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 enabled:hover:from-slate-200 enabled:hover:to-slate-300 dark:enabled:hover:from-slate-500 dark:enabled:hover:to-slate-600 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 focus:ring-amber-400'
             : 'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 text-slate-600 dark:text-slate-400 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         } else {
+          // Hover lightens the gradient: the slate-400/500 hover was ~2.4:1 behind the
+          // dark-mode slate-300 icons (~1.8:1 behind the red-300 recording dot)
           variantClasses =
-            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-400 hover:to-slate-500 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
+            'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 enabled:hover:from-slate-200 enabled:hover:to-slate-300 dark:enabled:hover:from-slate-500 dark:enabled:hover:to-slate-600 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
         }
 
         break;
       }
       case 'compact': {
         if (isPrimary) {
-          variantClasses = 'bg-emerald-500 hover:bg-emerald-400 text-white focus:ring-emerald-400';
+          // White on emerald-500 (hover 400) was ~2.5:1 (1.9:1) for the play/pause icon
+          variantClasses =
+            'bg-emerald-600 enabled:hover:bg-emerald-700 text-white focus:ring-emerald-400';
         } else if (type === 'record') {
-          variantClasses = 'bg-slate-800 hover:bg-slate-700 text-slate-400 focus:ring-slate-400';
+          variantClasses =
+            'bg-slate-800 enabled:hover:bg-slate-700 text-slate-400 focus:ring-slate-400';
         } else if (type === 'toggle') {
           variantClasses = isActive
             ? 'bg-slate-700 text-emerald-400 focus:ring-emerald-400'
-            : 'bg-transparent text-slate-500 hover:text-slate-300 focus:ring-slate-400';
+            : 'bg-transparent text-slate-500 enabled:hover:text-slate-300 focus:ring-slate-400';
         } else {
           variantClasses =
-            'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 focus:ring-slate-400';
+            'bg-slate-800 enabled:hover:bg-slate-700 text-slate-400 enabled:hover:text-slate-200 focus:ring-slate-400';
         }
 
         break;
@@ -208,12 +220,24 @@ export class TwTransportComponent {
         break;
       }
       case 'record': {
-        colorClass = 'text-slate-500 dark:text-slate-400';
+        // The idle record icon keeps the button's own text colour: slate-500 was
+        // ~2.5:1 on the classic gradient and ~2.2:1 on the compact slate-700 hover
+        // (dark slate-400 ~2.9:1 on the modern slate-600 hover)
+        colorClass = '';
 
         break;
       }
       case 'record-active': {
-        colorClass = 'text-red-500 animate-pulse';
+        // The red dot is the recording indicator and needs 3:1 on its button: red-500
+        // was ~1.5-2.6:1 on the classic slate gradients and ~2.7:1 on dark modern slate-700
+        const recordColors: Record<TransportVariant, string> = {
+          // (dark modern red-400 and compact red-500 were ~2.6-2.7:1 on the hover fill)
+          modern: 'text-red-600 dark:text-red-300',
+          minimal: 'text-red-500',
+          classic: 'text-red-800 dark:text-red-300',
+          compact: 'text-red-400',
+        };
+        colorClass = `${recordColors[this.variant()]} animate-pulse`;
 
         break;
       }

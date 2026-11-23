@@ -6,15 +6,18 @@ import {
   inject,
   input,
   output,
+  PLATFORM_ID,
   signal,
   untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
 export type VuMeterVariant = 'led' | 'gradient' | 'solid' | 'retro' | 'light' | 'highContrast';
 export type VuMeterOrientation = 'vertical' | 'horizontal';
 export type VuMeterMode = 'peak' | 'rms' | 'both';
+/** Background around the meter: 'auto' follows the page colour scheme, 'dark' is an always-dark surface */
+export type VuMeterSurface = 'auto' | 'dark';
 
 interface MeterSegment {
   index: number;
@@ -46,6 +49,7 @@ const RMS_WINDOW_SIZE = 1024;
 })
 export class TwVuMeterComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   // Value inputs
   readonly value = input(0);
@@ -89,14 +93,20 @@ export class TwVuMeterComponent {
 
   // Class overrides
   readonly classOverride = input('');
+  /**
+   * Set 'dark' when the meter sits on an always-dark surface (e.g. a channel strip): the
+   * text around the meter (vertical scale, labels) then uses light colours whatever the
+   * page's colour scheme
+   */
+  readonly surface = input<VuMeterSurface>('auto');
 
   // Outputs
   readonly clipDetected = output<{ channel: number }>();
 
   // Internal state
-  protected readonly channelValues = signal<number[]>([0]); // Current display value (peak or RMS depending on mode)
-  protected readonly peakValues = signal<number[]>([0]); // Peak hold values
-  protected readonly rmsValues = signal<number[]>([0]); // RMS values (for 'both' mode)
+  protected readonly channelValues = signal<number[]>([]); // Current display value (peak or RMS depending on mode)
+  protected readonly peakValues = signal<number[]>([]); // Peak hold values
+  protected readonly rmsValues = signal<number[]>([]); // RMS values (for 'both' mode)
   protected readonly clipStates = signal<boolean[]>([false]);
 
   // Timestamp (per channel) before which a held peak must not decay
@@ -106,6 +116,8 @@ export class TwVuMeterComponent {
     new Float32Array(RMS_WINDOW_SIZE),
   ]; // Circular buffers for RMS calculation
   private rmsWriteIndices: number[] = [0, 0];
+  // Samples recorded so far (up to the window size): the RMS averages only these
+  private rmsSampleCounts: number[] = [0, 0];
 
   constructor() {
     // Bridge the declarative value inputs into the imperative setValue path
@@ -125,9 +137,10 @@ export class TwVuMeterComponent {
       }
     });
 
-    // Peak decay timer: only runs while peaks are shown
+    // Peak decay timer: only runs while peaks are shown, and only in the browser
+    // (a never-ending interval would keep SSR rendering from becoming stable)
     effect(onCleanup => {
-      if (!this.showPeak()) return;
+      if (!this.isBrowser || !this.showPeak()) return;
       const timer = setInterval(() => {
         this.decayPeaks();
       }, 50);
@@ -139,7 +152,7 @@ export class TwVuMeterComponent {
     // RMS decay timer (slower than peak): only runs in rms/both mode
     effect(onCleanup => {
       const mode = this.meterMode();
-      if (mode !== 'rms' && mode !== 'both') return;
+      if (!this.isBrowser || (mode !== 'rms' && mode !== 'both')) return;
       const timer = setInterval(() => {
         this.decayRms();
       }, 50);
@@ -153,6 +166,8 @@ export class TwVuMeterComponent {
   protected readonly channels = computed(() => {
     return this.stereo() ? [0, 1] : [0];
   });
+
+  protected readonly anyClipped = computed(() => this.clipStates().some(Boolean));
 
   protected readonly showRmsBar = computed(() => {
     return this.meterMode() === 'both';
@@ -222,17 +237,33 @@ export class TwVuMeterComponent {
 
   // Text alternative for assistive technology
   protected readonly meterAriaLabel = computed(() => {
-    const max = this.max() || 1;
     const values = this.channelValues();
     const name = this.label() || 'Level meter';
     if (this.stereo()) {
-      const left = Math.round(((values[0] ?? 0) / max) * 100);
-      const right = Math.round(((values[1] ?? 0) / max) * 100);
+      const left = Math.round(this.toPercent(values[0] ?? this.min()));
+      const right = Math.round(this.toPercent(values[1] ?? this.min()));
       return `${name}: left ${left}%, right ${right}%`;
     }
-    const mono = Math.round(((values[0] ?? 0) / max) * 100);
+    const mono = Math.round(this.toPercent(values[0] ?? this.min()));
     return `${name}: ${mono}%`;
   });
+
+  /** Size of the min..max value range (guarded against a zero/negative span). */
+  private range(): number {
+    const span = this.max() - this.min();
+    return span > 0 ? span : 1;
+  }
+
+  /** Map a value in min..max onto a 0-100 display percentage. */
+  protected toPercent(value: number): number {
+    const pct = ((value - this.min()) / this.range()) * 100;
+    return Math.max(0, Math.min(100, pct));
+  }
+
+  /** Map a 0-1 normalized level back into the min..max value range. */
+  private fromNormalized(level: number): number {
+    return this.min() + level * this.range();
+  }
 
   // Effective dimensions (custom overrides take precedence)
   protected readonly effectiveHeight = computed(() => this.customHeight() ?? this.height());
@@ -268,12 +299,35 @@ export class TwVuMeterComponent {
   });
 
   protected readonly labelClasses = computed(() => {
-    return 'text-xs font-medium text-slate-600 dark:text-slate-400';
+    return this.surface() === 'dark'
+      ? 'text-xs font-medium text-slate-400'
+      : 'text-xs font-medium text-slate-600 dark:text-slate-400';
+  });
+
+  // Text outside the meter surface (vertical scale, channel and mode labels) sits on
+  // the surrounding background
+  protected readonly surroundTextClass = computed(() =>
+    this.surface() === 'dark' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'
+  );
+
+  // The horizontal scale sits inside the meter surface, so its colour follows that
+  // surface (e.g. slate-500 is below 4.5:1 on the always-dark led background, and
+  // dark:slate-400 is unreadable on the always-white light variant)
+  protected readonly scaleTextClasses = computed(() => {
+    const classes: Record<VuMeterVariant, string> = {
+      led: 'text-slate-400',
+      gradient: 'text-slate-600 dark:text-slate-400',
+      solid: 'text-slate-500 dark:text-slate-400',
+      retro: 'text-slate-600 dark:text-slate-400',
+      light: 'text-slate-500',
+      highContrast: 'text-slate-300',
+    };
+    return classes[this.variant()];
   });
 
   protected segmentClasses(segment: MeterSegment, currentValue: number): string {
     const variant = this.variant();
-    const isActive = (currentValue / this.max()) * 100 >= segment.threshold;
+    const isActive = this.toPercent(currentValue ?? this.min()) >= segment.threshold;
     const baseClasses = 'rounded-sm transition-all duration-75';
 
     if (variant === 'led') {
@@ -293,11 +347,15 @@ export class TwVuMeterComponent {
       );
     }
 
+    // Lit segments on the light-surface variants are kept >= 3:1 against the unlit
+    // segments (WCAG 1.4.11): the lit length is the reading
     if (variant === 'gradient') {
       const activeColors: Record<string, string> = {
-        green: 'bg-gradient-to-t from-emerald-600 to-emerald-400',
-        yellow: 'bg-gradient-to-t from-amber-500 to-amber-300',
-        red: 'bg-gradient-to-t from-red-600 to-red-400',
+        green:
+          'bg-gradient-to-t from-emerald-800 to-emerald-700 dark:from-emerald-500 dark:to-emerald-400',
+        yellow:
+          'bg-gradient-to-t from-amber-800 to-amber-700 dark:from-amber-400 dark:to-amber-300',
+        red: 'bg-gradient-to-t from-red-700 to-red-600 dark:from-red-400 dark:to-red-300',
       };
       return this.twClass.merge(
         baseClasses,
@@ -305,39 +363,10 @@ export class TwVuMeterComponent {
       );
     }
 
-    if (variant === 'solid') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-500',
-        yellow: 'bg-amber-400',
-        red: 'bg-red-500',
-      };
+    if (variant === 'solid' || variant === 'retro' || variant === 'light') {
       return this.twClass.merge(
         baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-slate-100 dark:bg-slate-800'
-      );
-    }
-
-    if (variant === 'retro') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-600',
-        yellow: 'bg-amber-500',
-        red: 'bg-red-600',
-      };
-      return this.twClass.merge(
-        baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-amber-100 dark:bg-amber-900/30'
-      );
-    }
-
-    if (variant === 'light') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-500',
-        yellow: 'bg-amber-400',
-        red: 'bg-red-500',
-      };
-      return this.twClass.merge(
-        baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-slate-200'
+        isActive ? this.litColors()[segment.color] : TwVuMeterComponent.UNLIT[variant]
       );
     }
 
@@ -353,15 +382,48 @@ export class TwVuMeterComponent {
     );
   }
 
+  private static readonly UNLIT: Record<'solid' | 'retro' | 'light', string> = {
+    solid: 'bg-slate-100 dark:bg-slate-800',
+    retro: 'bg-amber-100 dark:bg-amber-900/30',
+    light: 'bg-slate-200',
+  };
+
+  // Solid zone colours (segments and the peak-hold marker, which sits on unlit segments)
+  private static readonly LIT: Record<VuMeterVariant, Record<MeterSegment['color'], string>> = {
+    led: { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' },
+    highContrast: { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' },
+    gradient: {
+      green: 'bg-emerald-700 dark:bg-emerald-400',
+      yellow: 'bg-amber-700 dark:bg-amber-300',
+      red: 'bg-red-600 dark:bg-red-400',
+    },
+    solid: {
+      green: 'bg-emerald-700 dark:bg-emerald-500',
+      yellow: 'bg-amber-700 dark:bg-amber-400',
+      red: 'bg-red-600 dark:bg-red-500',
+    },
+    retro: {
+      green: 'bg-emerald-700 dark:bg-emerald-600',
+      yellow: 'bg-amber-700 dark:bg-amber-500',
+      red: 'bg-red-600 dark:bg-red-500',
+    },
+    light: { green: 'bg-emerald-700', yellow: 'bg-amber-700', red: 'bg-red-600' },
+  };
+
+  private litColors(): Record<MeterSegment['color'], string> {
+    return TwVuMeterComponent.LIT[this.variant()];
+  }
+
   protected peakClasses(peakValue: number): string {
-    const percentage = (peakValue / this.max()) * 100;
+    const percentage = this.toPercent(peakValue);
+    const colors = this.litColors();
     if (percentage >= this.redThreshold()) {
-      return 'bg-red-500';
+      return colors.red;
     }
     if (percentage >= this.yellowThreshold()) {
-      return 'bg-amber-400';
+      return colors.yellow;
     }
-    return 'bg-emerald-500';
+    return colors.green;
   }
 
   // Public methods
@@ -379,8 +441,8 @@ export class TwVuMeterComponent {
       this.channelValues.set(values);
     } else if (mode === 'rms') {
       // For RMS mode, add sample to buffer and recalculate
-      this.addSampleToRmsBuffer(normalizedValue / this.max(), channel);
-      const rmsValue = this.calculateRmsFromBuffer(channel) * this.max();
+      this.addSampleToRmsBuffer(this.toPercent(normalizedValue) / 100, channel);
+      const rmsValue = this.fromNormalized(this.calculateRmsFromBuffer(channel));
       const values = [...this.channelValues()];
       values[channel] = rmsValue;
       this.channelValues.set(values);
@@ -390,8 +452,8 @@ export class TwVuMeterComponent {
       values[channel] = normalizedValue;
       this.channelValues.set(values);
 
-      this.addSampleToRmsBuffer(normalizedValue / this.max(), channel);
-      const rmsValue = this.calculateRmsFromBuffer(channel) * this.max();
+      this.addSampleToRmsBuffer(this.toPercent(normalizedValue) / 100, channel);
+      const rmsValue = this.fromNormalized(this.calculateRmsFromBuffer(channel));
       const rmsVals = [...this.rmsValues()];
       rmsVals[channel] = rmsValue;
       this.rmsValues.set(rmsVals);
@@ -403,7 +465,7 @@ export class TwVuMeterComponent {
     }
 
     // Check for clip
-    if (this.showClip() && (normalizedValue / this.max()) * 100 >= this.clipThreshold()) {
+    if (this.showClip() && this.toPercent(normalizedValue) >= this.clipThreshold()) {
       this.setClip(channel);
     }
   }
@@ -421,7 +483,7 @@ export class TwVuMeterComponent {
       const abs = Math.abs(sample);
       if (abs > peak) peak = abs;
     }
-    const peakValue = peak * this.max();
+    const peakValue = this.fromNormalized(Math.min(1, peak));
 
     // Calculate RMS from samples
     let sumSquares = 0;
@@ -429,7 +491,7 @@ export class TwVuMeterComponent {
       sumSquares += sample * sample;
     }
     const rms = Math.sqrt(sumSquares / samples.length);
-    const rmsValue = rms * this.max();
+    const rmsValue = this.fromNormalized(Math.min(1, rms));
 
     if (mode === 'peak') {
       const values = [...this.channelValues()];
@@ -456,7 +518,7 @@ export class TwVuMeterComponent {
     }
 
     // Check for clip
-    if (this.showClip() && (peakValue / this.max()) * 100 >= this.clipThreshold()) {
+    if (this.showClip() && this.toPercent(peakValue) >= this.clipThreshold()) {
       this.setClip(channel);
     }
   }
@@ -482,14 +544,14 @@ export class TwVuMeterComponent {
    * Get the current RMS value for a channel (useful for external display)
    */
   getRmsValue(channel = 0): number {
-    return this.rmsValues()[channel] ?? 0;
+    return this.rmsValues()[channel] ?? this.min();
   }
 
   /**
    * Get the current peak value for a channel
    */
   getPeakValue(channel = 0): number {
-    return this.peakValues()[channel] ?? 0;
+    return this.peakValues()[channel] ?? this.min();
   }
 
   private addSampleToRmsBuffer(sample: number, channel: number): void {
@@ -498,22 +560,29 @@ export class TwVuMeterComponent {
     }
     this.rmsBuffers[channel][this.rmsWriteIndices[channel]] = sample;
     this.rmsWriteIndices[channel] = (this.rmsWriteIndices[channel] + 1) % RMS_WINDOW_SIZE;
+    this.rmsSampleCounts[channel] = Math.min(
+      RMS_WINDOW_SIZE,
+      (this.rmsSampleCounts[channel] ?? 0) + 1
+    );
   }
 
   private calculateRmsFromBuffer(channel: number): number {
     const buffer = this.rmsBuffers[channel];
-    if (!buffer) return 0;
+    const count = this.rmsSampleCounts[channel] ?? 0;
+    if (!buffer || count === 0) return 0;
 
     let sumSquares = 0;
     for (const element of buffer) {
       sumSquares += element * element;
     }
-    return Math.sqrt(sumSquares / buffer.length);
+    // Unwritten slots are zero, so only the recorded samples count towards the mean
+    return Math.sqrt(sumSquares / count);
   }
 
   private updatePeak(value: number, channel: number): void {
     const peaks = [...this.peakValues()];
-    if (value > peaks[channel]) {
+    // Channels beyond the initial mono slot start out undefined
+    if (value > (peaks[channel] ?? this.min())) {
       peaks[channel] = value;
       this.peakValues.set(peaks);
 
@@ -526,7 +595,7 @@ export class TwVuMeterComponent {
     const peaks = [...this.peakValues()];
 
     // Nothing to do while the meter is idle
-    if (peaks.every(peak => peak <= 0)) return;
+    if (peaks.every(peak => peak <= this.min())) return;
 
     const values = this.channelValues();
     const now = Date.now();
@@ -534,8 +603,8 @@ export class TwVuMeterComponent {
 
     peaks.forEach((peak, i) => {
       // Honor the hold period: no decay until it has elapsed
-      if (peak > values[i] && now >= (this.peakHoldUntil[i] ?? 0)) {
-        peaks[i] = Math.max(values[i], peak - this.max() * this.peakDecayRate());
+      if (peak > (values[i] ?? this.min()) && now >= (this.peakHoldUntil[i] ?? 0)) {
+        peaks[i] = Math.max(values[i] ?? this.min(), peak - this.range() * this.peakDecayRate());
         changed = true;
       }
     });
@@ -549,13 +618,14 @@ export class TwVuMeterComponent {
     const rmsVals = [...this.rmsValues()];
 
     // Nothing to do while the meter is idle
-    if (rmsVals.every(rms => rms <= 0)) return;
+    const min = this.min();
+    if (rmsVals.every(rms => rms <= min)) return;
 
     let changed = false;
 
     rmsVals.forEach((rms, i) => {
-      if (rms > 0) {
-        rmsVals[i] = Math.max(0, rms - this.max() * this.rmsDecayRate());
+      if (rms > min) {
+        rmsVals[i] = Math.max(min, rms - this.range() * this.rmsDecayRate());
         changed = true;
       }
     });
@@ -585,21 +655,22 @@ export class TwVuMeterComponent {
   }
 
   reset(): void {
-    this.channelValues.set(this.channels().map(() => 0));
-    this.peakValues.set(this.channels().map(() => 0));
-    this.rmsValues.set(this.channels().map(() => 0));
+    const min = this.min();
+    this.channelValues.set(this.channels().map(() => min));
+    this.peakValues.set(this.channels().map(() => min));
+    this.rmsValues.set(this.channels().map(() => min));
     this.resetAllClips();
 
     // Clear RMS buffers
     this.rmsBuffers.forEach(buffer => buffer.fill(0));
     this.rmsWriteIndices = [0, 0];
+    this.rmsSampleCounts = [0, 0];
   }
 
   /**
    * Get RMS display position (percentage) for rendering
    */
   protected getRmsPosition(channel: number): number {
-    const rms = this.rmsValues()[channel] ?? 0;
-    return (rms / this.max()) * 100;
+    return this.toPercent(this.rmsValues()[channel] ?? this.min());
   }
 }

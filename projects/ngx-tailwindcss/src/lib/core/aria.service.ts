@@ -1,5 +1,5 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { DestroyRef, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 
 /**
  * Service for managing ARIA live regions and announcements for screen readers.
@@ -8,8 +8,27 @@ import { DOCUMENT } from '@angular/common';
 @Injectable({ providedIn: 'root' })
 export class TwAriaService {
   private readonly document = inject(DOCUMENT);
+  // Live regions only make sense in a browser; on the server they would be
+  // serialized into the SSR markup and duplicated on hydration
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private liveRegion: HTMLElement | null = null;
   private assertiveRegion: HTMLElement | null = null;
+  private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  private destroyed = false;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      for (const timer of this.timers) clearTimeout(timer);
+      this.timers.clear();
+      this.announceQueue.set([]);
+      this.isProcessing.set(false);
+      this.liveRegion?.remove();
+      this.assertiveRegion?.remove();
+      this.liveRegion = null;
+      this.assertiveRegion = null;
+    });
+  }
 
   private readonly announceQueue = signal<string[]>([]);
   private readonly isProcessing = signal(false);
@@ -19,6 +38,7 @@ export class TwAriaService {
    * Messages are queued and announced sequentially.
    */
   announce(message: string, delay = 100): void {
+    if (!this.isBrowser || this.destroyed) return;
     this.announceQueue.update(queue => [...queue, message]);
     this.processQueue(delay);
   }
@@ -28,10 +48,11 @@ export class TwAriaService {
    * This interrupts the current speech.
    */
   announceAssertive(message: string): void {
+    if (!this.isBrowser || this.destroyed) return;
     this.ensureAssertiveRegion();
     if (this.assertiveRegion) {
       this.assertiveRegion.textContent = '';
-      setTimeout(() => {
+      this.schedule(() => {
         if (this.assertiveRegion) {
           this.assertiveRegion.textContent = message;
         }
@@ -70,16 +91,24 @@ export class TwAriaService {
 
       if (this.liveRegion) {
         this.liveRegion.textContent = '';
-        setTimeout(() => {
+        this.schedule(() => {
           if (this.liveRegion) {
             this.liveRegion.textContent = message;
           }
-          setTimeout(process, delay + 500);
+          this.schedule(process, delay + 500);
         }, 50);
       }
     };
 
-    setTimeout(process, delay);
+    this.schedule(process, delay);
+  }
+
+  private schedule(callback: () => void, delay: number): void {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    this.timers.add(timer);
   }
 
   private ensureLiveRegion(): void {

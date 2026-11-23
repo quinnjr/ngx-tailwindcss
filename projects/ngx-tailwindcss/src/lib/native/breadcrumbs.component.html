@@ -61,11 +61,12 @@
     <div class="absolute inset-0 flex items-center bg-white dark:bg-gray-800 px-2">
       <input
         type="text"
+        aria-label="Path"
         class="flex-1 px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
         [value]="editPath()"
         (input)="onPathInput($event)"
         (keydown.enter)="submitPath()"
-        (keydown.escape)="cancelEdit()"
+        (keydown.escape)="$event.preventDefault(); cancelEdit(true)"
         (blur)="cancelEdit()"
         #pathInput
       />
@@ -77,10 +78,16 @@
     <button
       type="button"
       class="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      data-breadcrumbs-edit
       [attr.aria-label]="'Edit path'"
       (click)="startEdit()"
     >
-      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        class="w-4 h-4 text-gray-500 dark:text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -99,7 +106,12 @@
       [attr.aria-label]="'Copy path'"
       (click)="copyPath()"
     >
-      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        class="w-4 h-4 text-gray-500 dark:text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"

@@ -1,4 +1,4 @@
-import { Component, DebugElement, signal, ViewChild } from '@angular/core';
+import { Component, DebugElement, signal, TemplateRef, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -53,6 +53,27 @@ class TestHostComponent {
   markerSize = signal<'sm' | 'md' | 'lg'>('md');
 }
 
+@Component({
+  template: `
+    <ng-template #icon><span>*</span></ng-template>
+    <tw-timeline [events]="events(icon)" [layout]="layout()"></tw-timeline>
+  `,
+  standalone: true,
+  imports: [TwTimelineComponent],
+})
+class IconTimelineHostComponent {
+  layout = signal<TimelineLayout>('vertical');
+  color?: TimelineEvent['color'];
+  private cached?: TimelineEvent[];
+  events(icon: TemplateRef<unknown>): TimelineEvent[] {
+    this.cached ??= [
+      { id: 'a', title: 'A', icon, color: this.color },
+      { id: 'b', title: 'B', icon, color: this.color },
+    ];
+    return this.cached;
+  }
+}
+
 describe('TwTimelineComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
@@ -97,6 +118,13 @@ describe('TwTimelineComponent', () => {
       expect(timelineEl.nativeElement.textContent).toContain('2024-01-01');
       expect(timelineEl.nativeElement.textContent).toContain('2024-02-01');
       expect(timelineEl.nativeElement.textContent).toContain('2024-03-01');
+    });
+
+    it('should keep date, title and description readable in dark mode', () => {
+      const el: HTMLElement = timelineEl.nativeElement;
+      expect(el.querySelector('time')!.className).toContain('dark:text-slate-400');
+      expect(el.querySelector('h4')!.className).toContain('dark:text-slate-100');
+      expect(el.querySelector('p')!.className).toContain('dark:text-slate-300');
     });
   });
 
@@ -213,6 +241,66 @@ describe('TwTimelineComponent', () => {
       const connectors = timelineEl.queryAll(By.css('.bg-slate-300'));
       // There should be connectors for non-last items
       expect(connectors.length).toBeGreaterThan(0);
+    });
+
+    it('should run horizontal connectors from this dot centre to the next one', () => {
+      component.layout.set('horizontal');
+      fixture.detectChanges();
+      const connectors = timelineEl.queryAll(By.css('.bg-slate-300'));
+      expect(connectors.length).toBe(2);
+      const cls = connectors[0].nativeElement.className as string;
+      // md dot (16px): centre at 8px; 2px line centred vertically at 7px
+      expect(cls).toContain('left-[8px]');
+      expect(cls).toContain('top-[7px]');
+      expect(cls).toContain('w-full');
+      expect(cls).not.toContain('left-full');
+      expect(cls).not.toContain('-translate-x-1/2');
+    });
+  });
+
+  describe('icon marker connectors', () => {
+    it('should centre connectors on icon markers, vertically and horizontally', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.detectChanges();
+      const el = iconFixture.debugElement.query(By.directive(TwTimelineComponent));
+
+      // md icon marker (40px): centre at 20px; 2px line offset by 1px
+      let cls = el.queryAll(By.css('.bg-slate-300'))[0].nativeElement.className as string;
+      expect(cls).toContain('top-[20px]');
+      expect(cls).toContain('left-[19px]');
+
+      iconFixture.componentInstance.layout.set('horizontal');
+      iconFixture.detectChanges();
+      cls = el.queryAll(By.css('.bg-slate-300'))[0].nativeElement.className as string;
+      expect(cls).toContain('top-[19px]');
+      expect(cls).toContain('left-[20px]');
+    });
+  });
+
+  describe('icon marker colour', () => {
+    it('should draw the icon in dark text on a warning marker (white on amber is ~2.2:1)', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.componentInstance.color = 'warning';
+      iconFixture.detectChanges();
+      const marker = iconFixture.debugElement.query(By.css('.bg-amber-500'))
+        .nativeElement as HTMLElement;
+      expect(marker.className).toContain('text-amber-950');
+      expect(marker.className).not.toContain('text-white');
+    });
+
+    it('should keep white icons on the other markers', () => {
+      const iconFixture = TestBed.createComponent(IconTimelineHostComponent);
+      iconFixture.detectChanges();
+      const marker = iconFixture.debugElement.query(By.css('.bg-blue-600'))
+        .nativeElement as HTMLElement;
+      expect(marker.className).toContain('text-white');
+    });
+  });
+
+  describe('marker ring', () => {
+    it('should not draw a white ring around markers in dark mode', () => {
+      const dot = timelineEl.query(By.css('.rounded-full'));
+      expect(dot.nativeElement.className).toContain('dark:ring-slate-900');
     });
   });
 

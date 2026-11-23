@@ -6,6 +6,7 @@ import {
   HostListener,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -53,7 +54,8 @@ export class TwSearchBarComponent {
   protected readonly query = signal('');
   protected readonly isFocused = signal(false);
   protected readonly showSuggestions = signal(false);
-  protected readonly activeFilters = signal<SearchFilter[]>([]);
+  // Seeded from the `filters` input; user removals/additions apply on top
+  protected readonly activeFilters = linkedSignal<SearchFilter[]>(() => [...this.filters()]);
   protected readonly recentSearches = signal<string[]>([]);
 
   @HostListener('document:click', ['$event'])
@@ -63,6 +65,38 @@ export class TwSearchBarComponent {
     }
   }
 
+  /**
+   * Escape from inside the suggestions closes them and returns focus to the
+   * input (Escape in the input itself is handled there and clears the query).
+   */
+  @HostListener('keydown.escape', ['$event'])
+  protected onHostEscape(event: Event): void {
+    const inputEl = this.elementRef.nativeElement.querySelector('input');
+    if (event.target === inputEl || !this.suggestionsVisible()) return;
+    // Claim the key so an enclosing dialog stays open
+    event.preventDefault();
+    // Focusing the input reopens the suggestions, so hide them afterwards
+    inputEl?.focus();
+    this.showSuggestions.set(false);
+  }
+
+  /**
+   * Escape in the input clears the query and closes the suggestions. When there
+   * is nothing to clear or close it is left to an enclosing dialog; otherwise it
+   * is claimed so the dialog stays open.
+   */
+  protected onInputEscape(event: Event): void {
+    if (!this.query() && !this.suggestionsVisible()) return;
+    event.preventDefault();
+    this.clearSearch();
+  }
+
+  /** Whether the suggestions dropdown is rendered. */
+  protected readonly suggestionsVisible = computed(
+    () =>
+      this.showSuggestions() && (this.suggestions().length > 0 || this.recentSearches().length > 0)
+  );
+
   protected onFocus(): void {
     this.isFocused.set(true);
     this.showSuggestions.set(true);
@@ -70,9 +104,18 @@ export class TwSearchBarComponent {
 
   protected onBlur(): void {
     this.isFocused.set(false);
-    // Delay hiding suggestions to allow click events
+  }
+
+  /**
+   * Hide the suggestions once focus has left the whole search bar. Tabbing from
+   * the input into a suggestion keeps them open, so they stay keyboard-operable;
+   * the delay lets a click on a suggestion land first.
+   */
+  @HostListener('focusout')
+  protected onFocusOut(): void {
     setTimeout(() => {
-      if (!this.isFocused()) {
+      const host = this.elementRef.nativeElement as HTMLElement;
+      if (!this.isFocused() && !host.contains(host.ownerDocument.activeElement)) {
         this.showSuggestions.set(false);
       }
     }, 200);
@@ -98,13 +141,30 @@ export class TwSearchBarComponent {
     }
   }
 
+  /**
+   * Clearing, choosing a suggestion or removing a filter removes the focused
+   * control; when focus was on it, move focus back to the input first (without
+   * reopening the suggestions) so keyboard users keep their place.
+   */
+  private keepFocusInSearchBar(): void {
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const inputEl = host.querySelector('input');
+    const active = host.ownerDocument.activeElement;
+    if (!inputEl || active === inputEl || !host.contains(active)) return;
+    const open = this.showSuggestions();
+    inputEl.focus();
+    this.showSuggestions.set(open);
+  }
+
   protected clearSearch(): void {
+    this.keepFocusInSearchBar();
     this.query.set('');
     this.queryChange.emit('');
     this.showSuggestions.set(false);
   }
 
   protected selectSuggestion(suggestion: SearchSuggestion): void {
+    this.keepFocusInSearchBar();
     this.query.set(suggestion.label);
     this.suggestionSelect.emit(suggestion);
     this.showSuggestions.set(false);
@@ -112,11 +172,13 @@ export class TwSearchBarComponent {
   }
 
   protected selectRecent(recent: string): void {
+    this.keepFocusInSearchBar();
     this.query.set(recent);
     this.submitSearch();
   }
 
   protected removeFilter(filter: SearchFilter): void {
+    this.keepFocusInSearchBar();
     this.activeFilters.update(filters => filters.filter(f => f.id !== filter.id));
     this.filterChange.emit(this.activeFilters());
   }

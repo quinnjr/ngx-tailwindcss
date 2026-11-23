@@ -75,6 +75,22 @@ describe('TwStepsComponent', () => {
     expect(stepsEl.nativeElement.textContent).toContain('Create your account');
   });
 
+  it('should give step labels and descriptions dark-mode text colours', () => {
+    const labels = [...stepsEl.nativeElement.querySelectorAll('span')].filter((el: HTMLElement) =>
+      ['Personal Info', 'Account Setup', 'Enter your details'].includes(el.textContent.trim())
+    ) as HTMLElement[];
+    expect(labels.length).toBe(3);
+    expect(labels.find(l => l.textContent.trim() === 'Personal Info')!.className).toContain(
+      'dark:text-slate-100'
+    );
+    expect(labels.find(l => l.textContent.trim() === 'Account Setup')!.className).toContain(
+      'dark:text-slate-400'
+    );
+    expect(labels.find(l => l.textContent.trim() === 'Enter your details')!.className).toContain(
+      'dark:text-slate-400'
+    );
+  });
+
   describe('step status', () => {
     it('should mark first step as current', () => {
       const status = component.stepsComponent.getStepStatus(0);
@@ -199,6 +215,19 @@ describe('TwStepsComponent', () => {
       expect(buttons[2].nativeElement.disabled).toBe(true);
     });
 
+    it('should keep step buttons named when labels are hidden', () => {
+      component.activeIndex.set(1);
+      component.showLabels.set(false);
+      fixture.detectChanges();
+      const buttons = stepsEl.queryAll(By.css('button[type="button"]'));
+      // The completed first step renders only a check icon
+      expect(buttons[0].nativeElement.textContent.trim()).toBe('');
+      expect(buttons[0].nativeElement.getAttribute('aria-label')).toBe('Personal Info');
+      component.showLabels.set(true);
+      fixture.detectChanges();
+      expect(buttons[0].nativeElement.getAttribute('aria-label')).toBeNull();
+    });
+
     it('should disable all steps in readonly mode', () => {
       component.readonly.set(true);
       fixture.detectChanges();
@@ -218,6 +247,16 @@ describe('TwStepsComponent', () => {
       fixture.detectChanges();
       const list = stepsEl.query(By.css('.flex'));
       expect(list.nativeElement.className).toContain('flex-col');
+    });
+
+    it('should name vertical step buttons by their label and keep only <li> children in the list', () => {
+      component.orientation.set('vertical');
+      fixture.detectChanges();
+      const buttons = stepsEl.queryAll(By.css('li > button'));
+      expect(buttons[0].nativeElement.textContent).toContain('Personal Info');
+      expect(buttons[1].nativeElement.textContent).toContain('Account Setup');
+      const list = stepsEl.query(By.css('ol')).nativeElement as HTMLOListElement;
+      expect([...list.children].every(child => child.tagName === 'LI')).toBe(true);
     });
   });
 

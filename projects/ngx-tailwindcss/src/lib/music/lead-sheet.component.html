@@ -1,4 +1,4 @@
-<div [class]="containerClasses()" aria-label="Lead sheet">
+<div [class]="containerClasses()" role="group" aria-label="Lead sheet">
   <!-- Header -->
   @if (data()?.title) {
     <header class="text-center mb-6">
@@ -104,14 +104,48 @@
               [class.hover:bg-slate-50]="
                 interactive() && variant() !== 'dark' && variant() !== 'fakebook'
               "
-              [class.dark:hover:bg-slate-800]="interactive() && variant() === 'default'"
+              [class.dark:hover:bg-slate-800]="
+                interactive() && (variant() === 'default' || variant() === 'minimal')
+              "
               [class.hover:bg-amber-100]="interactive() && variant() === 'fakebook'"
               (click)="
                 onMeasureClick(sectionIndex, rowIndex * measuresPerRow() + measureInRowIndex)
               "
             >
               <!-- Repeat/Navigation Markers -->
-              <div class="flex items-start justify-between text-xs mb-1">
+              <div
+                class="flex items-start justify-between text-xs mb-1"
+                [class]="textClasses().marker"
+              >
+                @if (interactive()) {
+                  <!-- Keyboard access to measureClick: a sibling of the chord buttons, not a
+                       wrapper, so interactive elements are never nested -->
+                  <button
+                    type="button"
+                    class="sr-only focus:not-sr-only focus:px-1 focus:rounded focus:outline focus:outline-2 focus:outline-blue-500"
+                    [attr.aria-label]="
+                      'Measure ' +
+                      getMeasureGlobalIndex(
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    "
+                    (click)="
+                      activateMeasure(
+                        $event,
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    "
+                  >
+                    {{
+                      getMeasureGlobalIndex(
+                        sectionIndex,
+                        rowIndex * measuresPerRow() + measureInRowIndex
+                      )
+                    }}
+                  </button>
+                }
                 @if (measure.repeatStart) {
                   <span class="text-lg">𝄆</span>
                 }
@@ -125,7 +159,7 @@
                   <span class="border-l border-t border-current px-1"> {{ measure.ending }}. </span>
                 }
                 @if (showMeasureNumbers()) {
-                  <span class="text-[10px] opacity-50">
+                  <span class="text-[10px]">
                     {{
                       getMeasureGlobalIndex(
                         sectionIndex,
@@ -148,26 +182,53 @@
                   @for (chord of measure.chords; track $index; let chordIndex = $index) {
                     <div class="relative">
                       <span
-                        class="font-semibold text-lg"
+                        class="text-lg"
                         [class]="textClasses().chord"
+                        [class.font-semibold]="variant() !== 'fakebook'"
                         [class.font-mono]="variant() !== 'fakebook'"
                         [class.cursor-pointer]="interactive() || showChordDiagrams()"
                         [class.hover:underline]="interactive()"
+                        [attr.role]="interactive() || showChordDiagrams() ? 'button' : null"
+                        [attr.tabindex]="interactive() || showChordDiagrams() ? 0 : null"
+                        [attr.aria-expanded]="
+                          showChordDiagrams()
+                            ? isDiagramExpanded(
+                                getChordId(
+                                  sectionIndex,
+                                  rowIndex * measuresPerRow() + measureInRowIndex,
+                                  chordIndex
+                                )
+                              )
+                            : null
+                        "
                         (click)="
-                          onChordClick(
+                          activateChord(
+                            $event,
                             sectionIndex,
                             rowIndex * measuresPerRow() + measureInRowIndex,
+                            chordIndex,
                             chord
-                          );
-                          showChordDiagrams() &&
-                            toggleDiagram(
-                              getChordId(
-                                sectionIndex,
-                                rowIndex * measuresPerRow() + measureInRowIndex,
-                                chordIndex
-                              )
-                            );
-                          $event.stopPropagation()
+                          )
+                        "
+                        (keydown.enter)="
+                          (interactive() || showChordDiagrams()) &&
+                            activateChord(
+                              $event,
+                              sectionIndex,
+                              rowIndex * measuresPerRow() + measureInRowIndex,
+                              chordIndex,
+                              chord
+                            )
+                        "
+                        (keydown.space)="
+                          (interactive() || showChordDiagrams()) &&
+                            activateChord(
+                              $event,
+                              sectionIndex,
+                              rowIndex * measuresPerRow() + measureInRowIndex,
+                              chordIndex,
+                              chord
+                            )
                         "
                       >
                         {{ convertChord(chord.chord) }}
@@ -200,7 +261,7 @@
                   }
                 } @else {
                   <!-- Empty measure / repeat previous marker -->
-                  <span class="opacity-30">%</span>
+                  <span [class]="textClasses().marker">%</span>
                 }
               </div>
 
@@ -215,7 +276,7 @@
                     >
                       @for (beat of getSlashPatternForMeasure(measure); track beat) {
                         @if (isRestBeat(measure, beat)) {
-                          <span class="text-lg opacity-50">𝄽</span>
+                          <span class="text-lg">𝄽</span>
                         } @else {
                           <span
                             class="text-lg"

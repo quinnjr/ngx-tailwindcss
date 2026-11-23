@@ -23,7 +23,7 @@
  * ======
  * 1. Import this file in your application's global styles:
  *
- *    @import 'ngx-tailwindcss/styles/theme.css';
+ *    @import '@quinnjr/ngx-tailwindcss/styles/theme.css';
  *
  * 2. Override any variables in your own CSS to customize colors:
  *

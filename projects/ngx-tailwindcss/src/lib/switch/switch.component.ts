@@ -20,7 +20,7 @@ const SWITCH_VARIANTS: Record<SwitchVariant, { on: string; off: string }> = {
   primary: { on: 'bg-blue-600', off: 'bg-slate-300 dark:bg-slate-600' },
   secondary: { on: 'bg-slate-600', off: 'bg-slate-300 dark:bg-slate-600' },
   success: { on: 'bg-emerald-600', off: 'bg-slate-300 dark:bg-slate-600' },
-  warning: { on: 'bg-amber-500', off: 'bg-slate-300 dark:bg-slate-600' },
+  warning: { on: 'bg-amber-600', off: 'bg-slate-300 dark:bg-slate-600' },
   danger: { on: 'bg-rose-600', off: 'bg-slate-300 dark:bg-slate-600' },
 };
 
@@ -128,6 +128,11 @@ export class TwSwitchComponent implements ControlValueAccessor {
     this.onChangeFn(newValue);
     this.onTouchedFn();
     this.onChange.emit(newValue);
+  }
+
+  /** Marks the control as touched when focus leaves the switch */
+  onSwitchBlur(): void {
+    this.onTouchedFn();
   }
 
   // ControlValueAccessor implementation

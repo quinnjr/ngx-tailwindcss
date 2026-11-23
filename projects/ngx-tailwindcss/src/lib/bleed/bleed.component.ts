@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { twClassValue } from '../core/class-value';
 
 export type BleedDirection = 'horizontal' | 'left' | 'right' | 'all';
 export type BleedAmount = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -19,6 +20,19 @@ const AMOUNT_MAP: Record<BleedAmount, string> = {
   xl: '6rem',
   full: '50vw',
 };
+
+/**
+ * Negate a CSS length. Plain lengths (`2rem`) are prefixed with `-`; anything else
+ * (`var(--gutter)`, `calc(...)`, `min(...)`) is wrapped in `calc(-1 * ...)`, since
+ * `-var(...)` / `-calc(...)` are invalid CSS.
+ */
+function negateLength(value: string): string {
+  const trimmed = value.trim();
+  if (/^\+?(\d+\.?\d*|\.\d+)[a-z%]*$/i.test(trimmed)) {
+    return `-${trimmed.replace(/^\+/, '')}`;
+  }
+  return `calc(-1 * ${trimmed})`;
+}
 
 /**
  * Bleed component for breaking out of container constraints.
@@ -52,13 +66,11 @@ const AMOUNT_MAP: Record<BleedAmount, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bleed.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'bleedClasses()',
+    '[style]': 'bleedStyles()',
+  },
 })
 export class TwBleedComponent {
   private readonly twClass = inject(TwClassService);
@@ -76,10 +88,10 @@ export class TwBleedComponent {
   readonly preservePadding = input(false, { transform: booleanAttribute });
 
   /** Additional CSS classes */
-  readonly class = input('');
+  readonly class = input('', { transform: twClassValue });
 
   protected readonly bleedClasses = computed(() => {
-    return this.twClass.merge('relative', this.class());
+    return this.twClass.merge('block relative', this.class());
   });
 
   protected readonly bleedStyles = computed<Record<string, string>>(() => {
@@ -92,6 +104,7 @@ export class TwBleedComponent {
     const bleedValue = customAmount || AMOUNT_MAP[this.amount()];
     const fullMargin = 'calc(-50vw + 50%)';
     const fullPadding = 'calc(50vw - 50%)';
+    const negativeValue = negateLength(bleedValue);
 
     const styles: Record<string, string> = {};
 
@@ -106,8 +119,8 @@ export class TwBleedComponent {
           styles['paddingRight'] = fullPadding;
         }
       } else {
-        styles['marginLeft'] = `-${bleedValue}`;
-        styles['marginRight'] = `-${bleedValue}`;
+        styles['marginLeft'] = negativeValue;
+        styles['marginRight'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingLeft'] = bleedValue;
@@ -124,7 +137,7 @@ export class TwBleedComponent {
           styles['paddingLeft'] = fullPadding;
         }
       } else {
-        styles['marginLeft'] = `-${bleedValue}`;
+        styles['marginLeft'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingLeft'] = bleedValue;
@@ -140,7 +153,7 @@ export class TwBleedComponent {
           styles['paddingRight'] = fullPadding;
         }
       } else {
-        styles['marginRight'] = `-${bleedValue}`;
+        styles['marginRight'] = negativeValue;
 
         if (preservePadding) {
           styles['paddingRight'] = bleedValue;
@@ -149,8 +162,8 @@ export class TwBleedComponent {
     }
 
     if (direction === 'all' && !isFull) {
-      styles['marginTop'] = `-${bleedValue}`;
-      styles['marginBottom'] = `-${bleedValue}`;
+      styles['marginTop'] = negativeValue;
+      styles['marginBottom'] = negativeValue;
 
       if (preservePadding) {
         styles['paddingTop'] = bleedValue;

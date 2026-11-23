@@ -58,7 +58,7 @@ export class TwScrollToDirective {
         ? this.twScrollTo
         : `#${this.twScrollTo}`;
 
-    const target = document.querySelector(selector);
+    const target = this.findTarget(selector);
 
     if (target) {
       event.preventDefault();
@@ -74,6 +74,17 @@ export class TwScrollToDirective {
           behavior: this.scrollBehavior,
         });
       }
+    }
+  }
+
+  private findTarget(selector: string): Element | null {
+    try {
+      return document.querySelector(selector);
+    } catch {
+      // Valid HTML ids such as "1-intro" are invalid CSS selectors ("#1-intro");
+      // fall back to an id lookup instead of throwing from the click handler
+      // eslint-disable-next-line unicorn/prefer-query-selector -- the id is not a valid selector
+      return selector.startsWith('#') ? document.getElementById(selector.slice(1)) : null;
     }
   }
 }

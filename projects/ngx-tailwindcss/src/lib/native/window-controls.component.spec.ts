@@ -122,6 +122,42 @@ describe('TwWindowControlsComponent', () => {
     expect(mockPlatformService.maximize).toHaveBeenCalledTimes(1);
   });
 
+  it('names the button for full screen when it toggles full screen', async () => {
+    TestBed.resetTestingModule();
+    @Component({
+      template: `<tw-window-controls
+        platform="windows"
+        [showFullscreen]="true"
+      ></tw-window-controls>`,
+      standalone: true,
+      imports: [TwWindowControlsComponent],
+    })
+    class FullscreenHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FullscreenHostComponent],
+      providers: [
+        {
+          provide: NativeAppPlatformService,
+          useValue: mockPlatformService as unknown as NativeAppPlatformService,
+        },
+      ],
+    }).compileComponents();
+    const host = TestBed.createComponent(FullscreenHostComponent);
+    host.detectChanges();
+    const el = host.nativeElement as HTMLElement;
+
+    const button = el.querySelector<HTMLButtonElement>('button[aria-label="Enter full screen"]');
+    expect(button).toBeTruthy();
+    expect(el.querySelector('button[aria-label="Maximize"]')).toBeNull();
+    button?.click();
+    expect(mockPlatformService.toggleFullscreen).toHaveBeenCalledTimes(1);
+
+    mockPlatformService.windowState.update(s => ({ ...s, isFullscreen: true }));
+    host.detectChanges();
+    expect(el.querySelector('button[aria-label="Exit full screen"]')).toBeTruthy();
+  });
+
   it('should hide buttons when the corresponding inputs are false', () => {
     component.showClose.set(false);
     component.showMinimize.set(false);

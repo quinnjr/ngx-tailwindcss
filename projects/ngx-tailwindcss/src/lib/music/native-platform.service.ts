@@ -26,7 +26,8 @@ export class UnsupportedOnPlatformError extends Error {
  */
 export interface FileFilter {
   name: string;
-  extensions: string[];
+  // readonly so the `as const` MUSIC_FILE_FILTERS presets are assignable
+  extensions: readonly string[];
 }
 
 /**
@@ -58,6 +59,12 @@ export interface FileInfo {
   extension: string;
   size?: number;
   lastModified?: Date;
+  /**
+   * The picked `File` (browser only, where `path` is just the file name and
+   * cannot be read by path); pass it to `readFileObject()` /
+   * `readFileObjectBinary()` to read its contents
+   */
+  file?: File;
 }
 
 /**
@@ -271,11 +278,30 @@ export class NativePlatformService {
 
       if (tauri) {
         this.tauriDialog = tauri['dialog'] as TauriDialog;
-        this.tauriFs = tauri['fs'] as TauriFs;
         this.tauriPath = tauri['path'] as TauriPath;
-        this.tauriClipboard = tauri['clipboard'] as TauriClipboard;
         this.tauriShell = tauri['shell'] as TauriShell;
-        this.tauriWindow = tauri['window'] as TauriWindow;
+
+        // Tauri 2 (the supported peer) renamed several v1 APIs; map them onto
+        // the v1-shaped interfaces used below so neither version throws
+        // "is not a function"
+        const fs = tauri['fs'] as Record<string, unknown> | undefined;
+        this.tauriFs = fs
+          ? ({
+              ...fs,
+              readBinaryFile: fs['readBinaryFile'] ?? fs['readFile'],
+              writeBinaryFile: fs['writeBinaryFile'] ?? fs['writeFile'],
+              removeFile: fs['removeFile'] ?? fs['remove'],
+            } as unknown as TauriFs)
+          : null;
+        // v2: plugin-clipboard-manager is exposed as `clipboardManager`
+        this.tauriClipboard = (tauri['clipboardManager'] ?? tauri['clipboard']) as TauriClipboard;
+        // The window module exports no free `setTitle()` etc.: the methods live
+        // on the current window (v2 `getCurrentWindow()`, v1 `appWindow`)
+        const win = tauri['window'] as
+          { getCurrentWindow?: () => TauriWindow; appWindow?: TauriWindow } | undefined;
+        this.tauriWindow =
+          (typeof win?.getCurrentWindow === 'function' ? win.getCurrentWindow() : win?.appWindow) ??
+          null;
       }
     } catch (error) {
       console.warn('Failed to initialize Tauri APIs:', error);
@@ -288,7 +314,17 @@ export class NativePlatformService {
 
   /**
    * Open a file dialog
+   *
+   * Browser semantics: the picker is an `<input type="file">`, which honours
+   * `multiple` and `filters` (as its `accept` list) but has no title or
+   * starting directory, so `title` / `defaultPath` are not applied. It also
+   * cannot pick a directory itself (no path, and `webkitdirectory` yields the
+   * files inside it rather than the directory), so `directory: true` throws
+   * {@link UnsupportedOnPlatformError} instead of returning a file list in
+   * place of the requested directory.
+   *
    * @returns File info or null if cancelled
+   * @throws UnsupportedOnPlatformError for `directory: true` in the browser
    */
   async openFile(options: OpenFileOptions = {}): Promise<FileInfo | FileInfo[] | null> {
     const platform = this._platform();
@@ -299,6 +335,14 @@ export class NativePlatformService {
 
     if (platform === 'electron' && this.electronApi) {
       return this.openFileElectron(options);
+    }
+
+    if (options.directory) {
+      throw new UnsupportedOnPlatformError(
+        'openFile({ directory: true })',
+        platform,
+        'The browser file picker cannot select a directory.'
+      );
     }
 
     // Browser fallback using input element
@@ -353,9 +397,12 @@ export class NativePlatformService {
       input.type = 'file';
       input.multiple = options.multiple ?? false;
 
-      if (options.filters && options.filters.length > 0) {
-        const extensions = options.filters.flatMap(f => f.extensions.map(e => `.${e}`));
-        input.accept = extensions.join(',');
+      const extensions = options.filters?.flatMap(f => f.extensions) ?? [];
+      // '*' (e.g. MUSIC_FILE_FILTERS.all) means any file: `accept` has no
+      // wildcard extension (".*" would only match files with a literal "*"
+      // extension on some platforms), so leave it unrestricted
+      if (extensions.length > 0 && !extensions.includes('*')) {
+        input.accept = extensions.map(e => `.${e}`).join(',');
       }
 
       input.addEventListener('change', () => {
@@ -364,13 +411,14 @@ export class NativePlatformService {
           return;
         }
 
-        const files = [...input.files].map(file => ({
+        const files = [...input.files].map((file): FileInfo => ({
           path: file.name, // Browser doesn't expose full path
           name: file.name,
-          extension: file.name.split('.').pop() || '',
+          // No dot -> no extension (not the whole name), as in getFileInfo()
+          extension: file.name.includes('.') ? file.name.split('.').pop()! : '',
           size: file.size,
           lastModified: new Date(file.lastModified),
-          _file: file, // Store File object for reading
+          file, // The browser cannot read by path: expose the File for reading
         }));
 
         if (options.multiple) {
@@ -451,8 +499,10 @@ export class NativePlatformService {
       return readFile(path);
     }
 
-    // Browser fallback - path is actually a File object stored during open
-    throw new Error('File reading not supported in browser. Use the File API directly.');
+    // Browser: paths cannot be read; openFile() exposes the picked File instead
+    throw new Error(
+      'File reading not supported in browser. Pass the `file` from openFile() to readFileObject().'
+    );
   }
 
   /**
@@ -470,7 +520,9 @@ export class NativePlatformService {
       return readFile(path);
     }
 
-    throw new Error('Binary file reading not supported in browser. Use the File API directly.');
+    throw new Error(
+      'Binary file reading not supported in browser. Pass the `file` from openFile() to readFileObjectBinary().'
+    );
   }
 
   /**
@@ -648,7 +700,14 @@ export class NativePlatformService {
 
     if (platform === 'tauri' && this.tauriPath) {
       name = await this.tauriPath.basename(path);
-      extension = await this.tauriPath.extname(path);
+      try {
+        extension = await this.tauriPath.extname(path);
+      } catch {
+        // Tauri's extname rejects ("Couldn't get the extension of the file" /
+        // NoExtension) for any path without one — e.g. every directory picked
+        // with `openFile({ directory: true })` — instead of returning ''
+        extension = '';
+      }
     } else {
       const parts = path.split(/[/\\]/);
       name = parts.at(-1) ?? path;
@@ -759,8 +818,29 @@ export class NativePlatformService {
       return openExternal(path);
     }
 
-    // Browser fallback
-    window.open(path, '_blank');
+    // Browser fallback. Only navigable web schemes: a `javascript:` (or
+    // `data:`) URL would run script in a window that inherits this app's origin.
+    // The app's own scheme is also allowed so relative paths keep working when
+    // the app is served from file:, tauri:, capacitor: etc. — but never a
+    // script-capable scheme, even when the app itself runs from one (e.g. a
+    // `blob:` or `data:` document), since such a URL can carry arbitrary HTML.
+    const base = new URL(document.baseURI);
+    const url = new URL(path, base);
+    if (
+      // eslint-disable-next-line no-script-url -- scheme denylist, not a URL
+      ['javascript:', 'data:', 'vbscript:', 'blob:'].includes(url.protocol) ||
+      (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) &&
+        url.protocol !== base.protocol)
+    ) {
+      throw new UnsupportedOnPlatformError(
+        `openExternal (${url.protocol} URL)`,
+        'browser',
+        'Only http(s), mailto and tel URLs can be opened.'
+      );
+    }
+    // noopener: the opened page must not get a window.opener handle to this
+    // app (reverse tabnabbing)
+    window.open(url.href, '_blank', 'noopener,noreferrer');
   }
 
   // =========================================================================
@@ -903,7 +983,8 @@ export class NativePlatformService {
     const platform = this._platform();
 
     if (platform === 'tauri' && this.tauriDialog) {
-      return this.tauriDialog.message(message, { title, type: 'error' });
+      // v2 reads `kind`, v1 read `type`
+      return this.tauriDialog.message(message, { title, kind: 'error', type: 'error' });
     }
 
     if (platform === 'electron' && this.electronApi) {
@@ -942,7 +1023,11 @@ export class NativePlatformService {
     document.body.append(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously after click() can cancel the download in some
+    // browsers (the download starts asynchronously); defer it as FileSaver does
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 40_000);
   }
 
   /**

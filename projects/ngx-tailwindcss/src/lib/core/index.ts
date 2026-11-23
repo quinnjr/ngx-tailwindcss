@@ -11,3 +11,6 @@ export * from './provide-tw-theme';
 export * from './tw-class.service';
 export * from './aria.service';
 export * from './i18n.service';
+
+// Class binding helpers
+export * from './class-value';

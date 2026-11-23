@@ -6,7 +6,7 @@
 <div class="space-y-8">
   <!-- Basic -->
   <app-demo-section title="Basic Usage" [code]="basicCode">
-    <p class="text-slate-600">
+    <p class="text-slate-600 dark:text-slate-400">
       The scroll-to-top button appears in the bottom-right corner after scrolling down 400px (default threshold).
       Scroll down this page to see it in action!
     </p>
@@ -17,7 +17,7 @@
   <app-demo-section title="Variants" [code]="variantsCode">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <p class="mb-2 text-sm text-slate-600">Primary</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Primary</p>
         <div class="relative">
           <div #variantPrimary class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -28,7 +28,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">Secondary</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Secondary</p>
         <div class="relative">
           <div #variantSecondary class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -39,7 +39,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">Dark</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Dark</p>
         <div class="relative">
           <div #variantDark class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -57,7 +57,7 @@
   <app-demo-section title="Positions" [code]="positionsCode">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <p class="mb-2 text-sm text-slate-600">bottom-left</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">bottom-left</p>
         <div class="relative">
           <div #posLeft class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -68,7 +68,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">bottom-center</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">bottom-center</p>
         <div class="relative">
           <div #posCenter class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -79,7 +79,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">bottom-right (default)</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">bottom-right (default)</p>
         <div class="relative">
           <div #posRight class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -94,12 +94,12 @@
 
   <!-- Threshold -->
   <app-demo-section title="Custom Threshold" [code]="thresholdCode">
-    <p class="mb-4 text-slate-600">
+    <p class="mb-4 text-slate-600 dark:text-slate-400">
       Control when the button appears by setting a custom scroll threshold in pixels.
     </p>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <p class="mb-2 text-sm text-slate-600">Low threshold (50px) — appears quickly</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Low threshold (50px) — appears quickly</p>
         <div class="relative">
           <div #thresholdLow class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -110,7 +110,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">High threshold (300px) — appears later</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">High threshold (300px) — appears later</p>
         <div class="relative">
           <div #thresholdHigh class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -125,13 +125,13 @@
 
   <!-- Scroll Behavior -->
   <app-demo-section title="Scroll Behavior" [code]="behaviorCode">
-    <p class="mb-4 text-slate-600">
-      Choose between <code class="bg-slate-100 px-1 rounded">smooth</code> (animated) or
-      <code class="bg-slate-100 px-1 rounded">instant</code> scrolling.
+    <p class="mb-4 text-slate-600 dark:text-slate-400">
+      Choose between <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">smooth</code> (animated) or
+      <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">instant</code> scrolling.
     </p>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <p class="mb-2 text-sm text-slate-600">Smooth</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Smooth</p>
         <div class="relative">
           <div #behaviorSmooth class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -142,7 +142,7 @@
         </div>
       </div>
       <div>
-        <p class="mb-2 text-sm text-slate-600">Instant</p>
+        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Instant</p>
         <div class="relative">
           <div #behaviorInstant class="h-48 overflow-y-auto rounded-lg border border-slate-200 p-4 space-y-2">
             @for (line of fillerLines; track line) {
@@ -157,7 +157,7 @@
 
   <!-- Custom Target -->
   <app-demo-section title="Custom Scroll Target" [code]="customTargetCode">
-    <p class="mb-4 text-slate-600">
+    <p class="mb-4 text-slate-600 dark:text-slate-400">
       Target a specific scrollable container instead of the window.
     </p>
     <div class="relative max-w-md">

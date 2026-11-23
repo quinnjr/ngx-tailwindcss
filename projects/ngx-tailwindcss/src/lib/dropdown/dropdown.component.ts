@@ -2,7 +2,6 @@ import {
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
-  computed,
   contentChild,
   Directive,
   effect,
@@ -11,15 +10,23 @@ import {
   forwardRef,
   inject,
   Input,
+  OnChanges,
   OnDestroy,
   Output,
   PLATFORM_ID,
   Renderer2,
   signal,
+  SimpleChanges,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import {
+  pushEscapeLayer,
+  removeEscapeLayer,
+  shouldHandleEscape,
+} from '../overlay/escape-layer-stack';
+import { handlePortalTab } from '../overlay/portal-tab';
 
 export type DropdownPosition =
   'bottom-start' | 'bottom-end' | 'top-start' | 'top-end' | 'left' | 'right';
@@ -32,10 +39,16 @@ export type DropdownPosition =
   standalone: true,
   host: {
     class:
-      'block w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 focus:bg-slate-100 dark:focus:bg-slate-700 focus:text-slate-900 dark:focus:text-slate-100 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transition-colors cursor-pointer',
+      'block w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 focus:bg-slate-100 dark:focus:bg-slate-700 focus:text-slate-900 dark:focus:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400 disabled:opacity-50 disabled:pointer-events-none transition-colors cursor-pointer',
     role: 'menuitem',
     '[attr.tabindex]': 'disabled ? -1 : 0',
-    '[attr.aria-disabled]': 'disabled',
+    '[attr.aria-disabled]': 'disabled || null',
+    // The `disabled` input shadows the native property, so reflect it explicitly:
+    // a disabled <button> item must not fire its click handler (or close the menu)
+    '[attr.disabled]': 'disabled ? "" : null',
+    // Non-button items (e.g. links) cannot match `:disabled`
+    '[class.opacity-50]': 'disabled',
+    '[class.pointer-events-none]': 'disabled',
   },
 })
 export class TwDropdownItemDirective {
@@ -97,7 +110,7 @@ export class TwDropdownHeaderComponent {}
     class: 'inline-block text-left',
   },
 })
-export class TwDropdownComponent implements OnDestroy {
+export class TwDropdownComponent implements OnChanges, OnDestroy {
   private readonly twClass = inject(TwClassService);
   private readonly elementRef = inject(ElementRef);
   private readonly document = inject(DOCUMENT);
@@ -140,21 +153,26 @@ export class TwDropdownComponent implements OnDestroy {
   private portalHost: HTMLElement | null = null;
   private portalElement: HTMLElement | null = null;
   private menuContentElement: HTMLElement | null = null;
+  /** Original (hidden) parent of the menu content, restored on close */
+  private menuContentParent: HTMLElement | null = null;
   private clickOutsideListener: (() => void) | null = null;
   private scrollListener: (() => void) | null = null;
   private resizeListener: (() => void) | null = null;
   private keydownListener: (() => void) | null = null;
+  private escapeListener: ((event: KeyboardEvent) => void) | null = null;
   private menuClickListener: (() => void) | null = null;
+  private portalTabListener: (() => void) | null = null;
 
-  protected menuClasses = computed(() => {
-    const widthClass = this.width === 'auto' ? 'min-w-[10rem]' : this.width === 'trigger' ? '' : '';
+  /** A method, not a computed: `width`/`menuClass` are plain @Inputs a computed can't track */
+  protected menuClasses(): string {
+    const widthClass = this.width === 'auto' ? 'min-w-[10rem]' : '';
 
     return this.twClass.merge(
       'rounded-lg bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-slate-700 overflow-auto py-1',
       widthClass,
       this.menuClass
     );
-  });
+  }
 
   constructor() {
     // Create portal when open state changes
@@ -170,6 +188,12 @@ export class TwDropdownComponent implements OnDestroy {
     effect(() => {
       this.triggerDirective()?.expanded.set(this.isOpen());
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Disabling an open dropdown closes it: its trigger no longer toggles, so the menu
+    // (and its actionable items) would otherwise stay open on a disabled control
+    if (changes['disabled'] && this.disabled) this.close();
   }
 
   ngOnDestroy(): void {
@@ -193,19 +217,25 @@ export class TwDropdownComponent implements OnDestroy {
   }
 
   close(): void {
+    // Nothing to close (e.g. the deferred close after an item click already ran)
+    if (!this.isOpen()) return;
+
     // Restore trigger focus only when focus currently sits inside the menu,
     // so outside clicks don't have their focus stolen
     const shouldRestoreFocus = !!this.portalElement?.contains(this.document.activeElement);
 
+    // Leave the Escape stack right away (the portal itself is torn down by the effect)
+    removeEscapeLayer(this);
     this.isOpen.set(false);
     this.closed.emit();
 
     if (shouldRestoreFocus) {
-      const trigger = this.elementRef.nativeElement.querySelector(
-        '[twdropdowntrigger]'
-      ) as HTMLElement | null;
-      trigger?.focus();
+      this.getTriggerElement()?.focus();
     }
+  }
+
+  private getTriggerElement(): HTMLElement | null {
+    return this.elementRef.nativeElement.querySelector('[twdropdowntrigger]') as HTMLElement | null;
   }
 
   private getMenuItems(): HTMLElement[] {
@@ -214,6 +244,13 @@ export class TwDropdownComponent implements OnDestroy {
       '[twdropdownitem]:not([disabled]):not([aria-disabled="true"])'
     );
     return [...items];
+  }
+
+  /** Arrow/Home/End navigation applies only while focus is on the trigger or in the menu. */
+  private isFocusWithinDropdown(): boolean {
+    const active = this.document.activeElement;
+    if (!active || active === this.document.body) return true;
+    return !!this.portalElement?.contains(active) || this.elementRef.nativeElement.contains(active);
   }
 
   private moveItemFocus(key: string): void {
@@ -249,6 +286,9 @@ export class TwDropdownComponent implements OnDestroy {
 
   private createPortal(): void {
     if (!isPlatformBrowser(this.platformId)) return;
+    // close() + open() within one tick leaves the effect seeing only `true`: rebuild the
+    // existing portal (restoring its content and listeners) instead of stacking a second one
+    if (this.portalHost) this.destroyPortal();
 
     // Create portal host at body level
     this.portalHost = this.renderer.createElement('div');
@@ -289,6 +329,7 @@ export class TwDropdownComponent implements OnDestroy {
     // Move menu content to portal (not clone, to preserve Angular bindings)
     this.menuContentElement = this.elementRef.nativeElement.querySelector('tw-dropdown-menu');
     if (this.menuContentElement) {
+      this.menuContentParent = this.menuContentElement.parentElement;
       this.renderer.appendChild(this.portalElement, this.menuContentElement);
     }
 
@@ -315,22 +356,48 @@ export class TwDropdownComponent implements OnDestroy {
       }
     });
 
-    this.scrollListener = this.renderer.listen('window', 'scroll', () => {
+    // Capture phase: also follow the trigger when an enclosing container (e.g. a
+    // scrollable modal) scrolls, not only the window
+    const onScroll = (): void => {
       this.updatePosition();
-    });
+    };
+    this.document.addEventListener('scroll', onScroll, true);
+    this.scrollListener = () => {
+      this.document.removeEventListener('scroll', onScroll, true);
+    };
+
+    // Tab out of the portaled panel continues from the trigger (and is kept away from
+    // an enclosing modal's focus trap while inside)
+    const panel = this.portalElement;
+    if (panel) {
+      this.portalTabListener = this.renderer.listen(panel, 'keydown', (event: KeyboardEvent) => {
+        handlePortalTab(panel, event, () => {
+          this.close();
+        });
+      });
+    }
 
     this.resizeListener = this.renderer.listen('window', 'resize', () => {
       this.updatePosition();
     });
 
-    this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    // Escape closes only the topmost layer (via the shared layer stack) and is left to
+    // handlers inside the menu that already claimed it; marking it handled keeps an
+    // enclosing modal/sidebar open without suppressing other listeners
+    pushEscapeLayer(this);
+    this.escapeListener = (event: KeyboardEvent) => {
+      if (shouldHandleEscape(this, event)) {
         event.preventDefault();
         this.close();
-        return;
       }
+    };
+    this.document.addEventListener('keydown', this.escapeListener);
 
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    this.keydownListener = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => {
+      if (
+        ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) &&
+        this.isFocusWithinDropdown()
+      ) {
         event.preventDefault();
         this.moveItemFocus(event.key);
       }
@@ -338,28 +405,41 @@ export class TwDropdownComponent implements OnDestroy {
 
     // Handle clicks on dropdown items
     if (this.closeOnSelect && this.portalElement) {
-      this.menuClickListener = this.renderer.listen(
-        this.portalElement,
-        'click',
-        (event: MouseEvent) => {
-          const target = event.target as HTMLElement;
-          if (target.hasAttribute('twdropdownitem') || target.closest('[twdropdownitem]')) {
-            // Use setTimeout to allow the Angular click handler to fire first
-            setTimeout(() => {
-              this.close();
-            }, 0);
+      const portal = this.portalElement;
+      // Capture phase: runs before the item's own click handlers
+      const onMenuClick = (event: MouseEvent): void => {
+        const target = event.target as HTMLElement;
+        if (target.hasAttribute('twdropdownitem') || target.closest('[twdropdownitem]')) {
+          // Hand focus back to the trigger before the item's handler runs: a dialog it
+          // opens records the focused element to restore on close, and the item is
+          // about to be hidden (the handler can still move focus elsewhere)
+          if (portal.contains(this.document.activeElement)) {
+            this.getTriggerElement()?.focus();
           }
+          // Close after the item's Angular click handler has fired
+          setTimeout(() => {
+            this.close();
+          }, 0);
         }
-      );
+      };
+      portal.addEventListener('click', onMenuClick, true);
+      this.menuClickListener = () => {
+        portal.removeEventListener('click', onMenuClick, true);
+      };
     }
   }
 
   private destroyPortal(): void {
-    // Move menu content back to original location before destroying portal
-    if (this.menuContentElement && this.elementRef.nativeElement) {
-      this.renderer.appendChild(this.elementRef.nativeElement, this.menuContentElement);
+    // Move menu content back to its original (hidden) container before destroying
+    // the portal; appending to the host would leave the menu items visible inline
+    if (this.menuContentElement) {
+      this.renderer.appendChild(
+        this.menuContentParent ?? this.elementRef.nativeElement,
+        this.menuContentElement
+      );
     }
     this.menuContentElement = null;
+    this.menuContentParent = null;
 
     if (this.portalHost && this.document.body.contains(this.portalHost)) {
       this.renderer.removeChild(this.document.body, this.portalHost);
@@ -383,9 +463,18 @@ export class TwDropdownComponent implements OnDestroy {
       this.keydownListener();
       this.keydownListener = null;
     }
+    if (this.escapeListener) {
+      this.document.removeEventListener('keydown', this.escapeListener);
+      this.escapeListener = null;
+    }
+    removeEscapeLayer(this);
     if (this.menuClickListener) {
       this.menuClickListener();
       this.menuClickListener = null;
+    }
+    if (this.portalTabListener) {
+      this.portalTabListener();
+      this.portalTabListener = null;
     }
   }
 

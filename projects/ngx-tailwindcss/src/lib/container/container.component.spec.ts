@@ -57,89 +57,89 @@ describe('TwContainerComponent', () => {
     it('should apply sm size', () => {
       component.size.set('sm');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-(--breakpoint-sm)');
     });
 
     it('should apply md size', () => {
       component.size.set('md');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-(--breakpoint-md)');
     });
 
     it('should apply lg size', () => {
       component.size.set('lg');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-(--breakpoint-lg)');
     });
 
     it('should apply xl size by default', () => {
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-(--breakpoint-xl)');
     });
 
     it('should apply 2xl size', () => {
       component.size.set('2xl');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-(--breakpoint-2xl)');
     });
 
     it('should apply full size', () => {
       component.size.set('full');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-full');
     });
 
     it('should apply prose size', () => {
       component.size.set('prose');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('max-w-prose');
     });
   });
 
   describe('centered', () => {
     it('should center by default', () => {
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('mx-auto');
     });
 
     it('should not center when false', () => {
       component.centered.set(false);
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).not.toContain('mx-auto');
     });
   });
 
   describe('padding', () => {
     it('should apply md padding by default', () => {
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('px-4');
     });
 
     it('should apply sm padding', () => {
       component.padding.set('sm');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('px-2');
     });
 
     it('should apply lg padding', () => {
       component.padding.set('lg');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('px-6');
     });
 
     it('should apply no padding', () => {
       component.padding.set('none');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).not.toContain('px-');
     });
   });
@@ -148,13 +148,52 @@ describe('TwContainerComponent', () => {
     it('should apply custom class', () => {
       component.customClass.set('custom-class');
       fixture.detectChanges();
-      const inner = containerEl.querySelector('div');
+      const inner = containerEl;
       expect(inner?.className).toContain('custom-class');
     });
   });
 
   it('should have w-full class', () => {
-    const inner = containerEl.querySelector('div');
+    const inner = containerEl;
     expect(inner?.className).toContain('w-full');
+  });
+});
+
+describe('Container class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
+    @Component({
+      template: `<tw-container class="tw-test-box"><p>a</p></tw-container>`,
+      standalone: true,
+      imports: [TwContainerComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes such as `p-4 border-2`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      {
+        const host = fixture.debugElement.query(By.css('tw-container'))
+          .nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
+    } finally {
+      style.remove();
+    }
   });
 });

@@ -2,17 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
+  effect,
   inject,
   input,
   numberAttribute,
-  OnInit,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval } from 'rxjs';
+import { TwClassService } from '../core/tw-class.service';
 
 export type NoteDisplayVariant = 'default' | 'minimal' | 'led' | 'lcd' | 'meter';
 export type NoteDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
@@ -30,106 +29,16 @@ export interface NoteHistoryEntry extends DetectedNote {
   id: number;
 }
 
-// Standard tuning frequencies (A4 = 440Hz)
-const NOTE_FREQUENCIES: Record<string, number> = {
-  C0: 16.35,
-  'C#0': 17.32,
-  D0: 18.35,
-  'D#0': 19.45,
-  E0: 20.6,
-  F0: 21.83,
-  'F#0': 23.12,
-  G0: 24.5,
-  'G#0': 25.96,
-  A0: 27.5,
-  'A#0': 29.14,
-  B0: 30.87,
-  C1: 32.7,
-  'C#1': 34.65,
-  D1: 36.71,
-  'D#1': 38.89,
-  E1: 41.2,
-  F1: 43.65,
-  'F#1': 46.25,
-  G1: 49,
-  'G#1': 51.91,
-  A1: 55,
-  'A#1': 58.27,
-  B1: 61.74,
-  C2: 65.41,
-  'C#2': 69.3,
-  D2: 73.42,
-  'D#2': 77.78,
-  E2: 82.41,
-  F2: 87.31,
-  'F#2': 92.5,
-  G2: 98,
-  'G#2': 103.83,
-  A2: 110,
-  'A#2': 116.54,
-  B2: 123.47,
-  C3: 130.81,
-  'C#3': 138.59,
-  D3: 146.83,
-  'D#3': 155.56,
-  E3: 164.81,
-  F3: 174.61,
-  'F#3': 185,
-  G3: 196,
-  'G#3': 207.65,
-  A3: 220,
-  'A#3': 233.08,
-  B3: 246.94,
-  C4: 261.63,
-  'C#4': 277.18,
-  D4: 293.66,
-  'D#4': 311.13,
-  E4: 329.63,
-  F4: 349.23,
-  'F#4': 369.99,
-  G4: 392,
-  'G#4': 415.3,
-  A4: 440,
-  'A#4': 466.16,
-  B4: 493.88,
-  C5: 523.25,
-  'C#5': 554.37,
-  D5: 587.33,
-  'D#5': 622.25,
-  E5: 659.25,
-  F5: 698.46,
-  'F#5': 739.99,
-  G5: 783.99,
-  'G#5': 830.61,
-  A5: 880,
-  'A#5': 932.33,
-  B5: 987.77,
-  C6: 1046.5,
-  'C#6': 1108.73,
-  D6: 1174.66,
-  'D#6': 1244.51,
-  E6: 1318.51,
-  F6: 1396.91,
-  'F#6': 1479.98,
-  G6: 1567.98,
-  'G#6': 1661.22,
-  A6: 1760,
-  'A#6': 1864.66,
-  B6: 1975.53,
-  C7: 2093,
-  'C#7': 2217.46,
-  D7: 2349.32,
-  'D#7': 2489.02,
-  E7: 2637.02,
-  F7: 2793.83,
-  'F#7': 2959.96,
-  G7: 3135.96,
-  'G#7': 3322.44,
-  A7: 3520,
-  'A#7': 3729.31,
-  B7: 3951.07,
-  C8: 4186.01,
-};
+const NATURAL_SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+// Frequency of a named note (C#, Db, ...) for the given A4 reference, or null if unparseable
+function noteFrequency(note: string, octave: number, a4: number): number | null {
+  const match = /^([A-G])(#|b|♯|♭)?$/.exec(note);
+  if (!match || !Number.isFinite(octave)) return null;
+  const shift = match[2] === '#' || match[2] === '♯' ? 1 : match[2] ? -1 : 0;
+  const midi = (octave + 1) * 12 + NATURAL_SEMITONES[match[1]] + shift;
+  return a4 * 2 ** ((midi - 69) / 12);
+}
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -152,8 +61,8 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
     class: 'inline-block',
   },
 })
-export class TwNoteDisplayComponent implements OnInit {
-  private readonly destroyRef = inject(DestroyRef);
+export class TwNoteDisplayComponent {
+  private readonly twClass = inject(TwClassService);
 
   // Input modes - either provide frequency OR note object
   readonly frequency = input<number | null>(null);
@@ -185,21 +94,27 @@ export class TwNoteDisplayComponent implements OnInit {
   protected readonly noteHistory = signal<NoteHistoryEntry[]>([]);
   private historyIdCounter = 0;
 
-  ngOnInit(): void {
-    // Update note from frequency input periodically
-    interval(50)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.updateCurrentNote();
+  constructor() {
+    // Re-derive the current note whenever an input changes (no polling, so outputs only
+    // fire on actual changes and no timer keeps SSR / zone stability pending)
+    effect(() => {
+      const freq = this.frequency();
+      const noteInput = this.note();
+      const manualNote = this.noteName();
+      const manualOctave = this.octave();
+      this.referenceA4();
+      untracked(() => {
+        this.updateCurrentNote(freq, noteInput, manualNote, manualOctave);
       });
+    });
   }
 
-  private updateCurrentNote(): void {
-    const freq = this.frequency();
-    const noteInput = this.note();
-    const manualNote = this.noteName();
-    const manualOctave = this.octave();
-
+  private updateCurrentNote(
+    freq: number | null,
+    noteInput: DetectedNote | null,
+    manualNote: string | null,
+    manualOctave: number | null
+  ): void {
     let detected: DetectedNote | null = null;
 
     if (noteInput) {
@@ -207,7 +122,7 @@ export class TwNoteDisplayComponent implements OnInit {
     } else if (freq && freq > 0) {
       detected = this.frequencyToNote(freq);
     } else if (manualNote && manualOctave !== null) {
-      const noteFreq = NOTE_FREQUENCIES[`${manualNote}${manualOctave}`];
+      const noteFreq = noteFrequency(manualNote, manualOctave, this.referenceA4());
       if (noteFreq) {
         detected = {
           note: manualNote,
@@ -300,6 +215,22 @@ export class TwNoteDisplayComponent implements OnInit {
     return cents > 0 ? `+${cents}` : `${cents}`;
   });
 
+  /**
+   * Accessible name of the display. role="img" hides the visible cents, tuning status and
+   * frequency from assistive technology, so they are part of the name.
+   */
+  protected readonly ariaLabel = computed(() => {
+    const note = this.currentNote();
+    if (!note) return 'Note: none';
+    const parts = [`Note: ${this.displayNote()}${note.octave}`];
+    if (this.showCents()) {
+      const status = this.isFlat() ? 'flat' : this.isSharp() ? 'sharp' : 'in tune';
+      parts.push(`${this.displayCents()} cents`, status);
+    }
+    if (this.showFrequency()) parts.push(this.displayFrequency());
+    return parts.join(', ');
+  });
+
   protected readonly isInTune = computed(() => {
     const note = this.currentNote();
     if (!note) return false;
@@ -323,6 +254,18 @@ export class TwNoteDisplayComponent implements OnInit {
     return 50 + note.cents;
   });
 
+  /**
+   * Whether LED segment `i` (-5..5, 10 cents per segment) is lit. The centre segment means
+   * "in tune"; side segments only light when out of tune (beyond `centsTolerance`), with the
+   * first one lit for any flat/sharp reading so the bar always agrees with the in-tune check.
+   */
+  protected isLedLit(i: number): boolean {
+    if (i === 0) return this.isInTune();
+    const cents = this.currentNote()?.cents ?? 0;
+    if (i > 0) return this.isSharp() && (i === 1 || cents >= i * 10);
+    return this.isFlat() && (i === -1 || cents <= i * 10);
+  }
+
   protected readonly containerClasses = computed(() => {
     const variant = this.variant();
     const size = this.size();
@@ -344,9 +287,12 @@ export class TwNoteDisplayComponent implements OnInit {
       xl: 'gap-4 min-w-[220px]',
     };
 
-    return [base, variantClasses[variant], sizeClasses[size], this.classOverride()]
-      .filter(Boolean)
-      .join(' ');
+    return this.twClass.merge(
+      base,
+      variantClasses[variant],
+      sizeClasses[size],
+      this.classOverride()
+    );
   });
 
   protected readonly noteClasses = computed(() => {
@@ -385,8 +331,9 @@ export class TwNoteDisplayComponent implements OnInit {
     const variantClasses: Record<NoteDisplayVariant, string> = {
       default: 'text-slate-400',
       minimal: 'text-slate-500 dark:text-slate-400',
-      led: 'text-red-400/70',
-      lcd: 'text-lime-500/70',
+      // /70 was ~4.0-4.4:1 on the black / lime-950 surfaces at the small (non-large) size
+      led: 'text-red-400/80',
+      lcd: 'text-lime-500/80',
       meter: 'text-amber-500/70',
     };
 
@@ -397,25 +344,45 @@ export class TwNoteDisplayComponent implements OnInit {
     const variant = this.variant();
 
     const variantClasses: Record<NoteDisplayVariant, string> = {
-      default: 'text-slate-500',
+      default: 'text-slate-400',
       minimal: 'text-slate-600 dark:text-slate-400',
-      led: 'text-red-400/60',
-      lcd: 'text-lime-500/60',
-      meter: 'text-slate-500',
+      led: 'text-red-400/80',
+      lcd: 'text-lime-500/80',
+      meter: 'text-slate-400',
     };
 
     return ['text-sm font-mono', variantClasses[variant]].join(' ');
   });
 
-  protected readonly centsClasses = computed(() => {
-    const inTune = this.isInTune();
-    const sharp = this.isSharp();
-    const flat = this.isFlat();
+  // Secondary labels (meter scale, history heading, "waiting" text): the dark variants need a
+  // light grey to stay >= 4.5:1; minimal sits on the page so it follows its colour scheme
+  protected readonly mutedTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
 
-    if (inTune) return 'text-green-500';
-    if (sharp) return 'text-amber-500';
-    if (flat) return 'text-blue-500';
-    return 'text-slate-500';
+  // Flat / sharp / in-tune text colours, readable on the dark variants and, for the
+  // transparent minimal variant, on a light or dark page
+  protected readonly statusTextClasses = computed(() => {
+    const minimal = this.variant() === 'minimal';
+    return {
+      flat: minimal ? 'text-blue-700 dark:text-blue-400' : 'text-blue-400',
+      sharp: minimal ? 'text-amber-700 dark:text-amber-400' : 'text-amber-500',
+      inTune: minimal ? 'text-green-700 dark:text-green-400' : 'text-green-500',
+    };
+  });
+
+  // Fade of older history entries. `1 - i * 0.1` dropped the text below 4.5:1 from the
+  // fourth entry and hid entries entirely (opacity <= 0) beyond the tenth
+  protected historyOpacity(index: number): number {
+    return Math.max(0.85, 1 - index * 0.05);
+  }
+
+  protected readonly centsClasses = computed(() => {
+    const status = this.statusTextClasses();
+    if (this.isInTune()) return status.inTune;
+    if (this.isSharp()) return status.sharp;
+    if (this.isFlat()) return status.flat;
+    return this.mutedTextClasses();
   });
 
   protected readonly indicatorColor = computed(() => {
@@ -439,7 +406,7 @@ export class TwNoteDisplayComponent implements OnInit {
   }
 
   setNote(note: string, octave: number): void {
-    const freq = NOTE_FREQUENCIES[`${note}${octave}`];
+    const freq = noteFrequency(note, octave, this.referenceA4());
     if (freq) {
       const detected: DetectedNote = {
         note,

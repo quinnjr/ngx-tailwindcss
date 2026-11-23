@@ -186,6 +186,23 @@ describe('TwTableComponent', () => {
       expect(order().slice(0, 4)).toEqual([1, 6, 3, 5]);
     });
 
+    it('should sort strings alphabetically regardless of case, with natural numbers', () => {
+      component.data.set([
+        { id: 1, name: 'zoe', age: 1 },
+        { id: 2, name: 'Bob', age: 2 },
+        { id: 3, name: 'item10', age: 3 },
+        { id: 4, name: 'adam', age: 4 },
+        { id: 5, name: 'item9', age: 5 },
+      ]);
+      fixture.detectChanges();
+      nameSortButton().nativeElement.click();
+      fixture.detectChanges();
+      const names = bodyRows().map(row =>
+        row.queryAll(By.css('td'))[0].nativeElement.textContent.trim()
+      );
+      expect(names).toEqual(['adam', 'Bob', 'item9', 'item10', 'zoe']);
+    });
+
     it('should not render a sort button for non-sortable columns', () => {
       component.columns.set([{ field: 'name', header: 'Name', sortable: false }]);
       fixture.detectChanges();

@@ -115,6 +115,28 @@ describe('TwGraphicEQComponent', () => {
     expect(document.activeElement).toBe(toggle);
   });
 
+  it('should return focus to the Presets toggle when a menu preset is chosen', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    document.body.append(el);
+    const toggle = [...el.querySelectorAll('button')].find(
+      b => b.textContent?.trim() === 'Presets'
+    )!;
+    toggle.click();
+    fixture.detectChanges();
+
+    const rock = [...el.querySelectorAll<HTMLButtonElement>('button')].find(
+      b => b.querySelector('.font-medium')?.textContent?.trim() === 'Rock'
+    )!;
+    rock.focus();
+    rock.click();
+    fixture.detectChanges();
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(rock.isConnected).toBe(false);
+    expect(document.activeElement).toBe(toggle);
+    el.remove();
+  });
+
   it('should emit bandChange when a band is reset', () => {
     const changes: unknown[] = [];
     component.bandChange.subscribe(c => changes.push(c));

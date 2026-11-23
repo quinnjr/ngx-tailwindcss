@@ -7,6 +7,7 @@
     [attr.name]="name()"
     [attr.value]="value()"
     [attr.aria-checked]="isIndeterminate() ? 'mixed' : checked()"
+    [attr.aria-readonly]="readonly() ? true : null"
     [indeterminate]="isIndeterminate()"
     (change)="onCheckboxChange($event)"
     (focus)="onFocus.emit($event)"

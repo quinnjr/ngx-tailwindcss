@@ -449,6 +449,19 @@ describe('TwTreeComponent', () => {
       expect(component.nodes()[0].expanded).toBe(false);
     });
 
+    it('should move focus to the first/last visible node with Home/End', () => {
+      pressKey(rows()[0], 'ArrowRight'); // expand Documents
+      const nodeRows = rows();
+      const end = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+      nodeRows[1].nativeElement.dispatchEvent(end);
+      fixture.detectChanges();
+      expect(end.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(nodeRows.at(-1)!.nativeElement);
+
+      pressKey(nodeRows.at(-1)!, 'Home');
+      expect(document.activeElement).toBe(nodeRows[0].nativeElement);
+    });
+
     it('should select with Enter', () => {
       component.selectionMode.set('single');
       fixture.detectChanges();

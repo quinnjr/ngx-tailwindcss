@@ -163,6 +163,20 @@ describe('TwMixerComponent layout', () => {
     expect(fixture.debugElement.queryAll(By.css('button[title^="Scroll"]')).length).toBe(0);
   });
 
+  it('should let the unpaged sectioned layout scroll instead of clipping channels', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+
+    const strip = fixture.debugElement.query(By.directive(TwChannelStripComponent))
+      .nativeElement as HTMLElement;
+    let row = strip.parentElement;
+    while (row && !row.classList.contains('flex-1')) row = row.parentElement;
+    expect(row).not.toBeNull();
+    expect(row!.classList).toContain('overflow-x-auto');
+    expect(row!.classList).not.toContain('overflow-hidden');
+  });
+
   it('should expose each section header collapsed state to assistive technology', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

@@ -500,11 +500,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disabled or read-only while in use: a disabled `tw-piano` releases its held
   keys; `tw-note-input` cancels an in-progress drag when `editable` turns off;
   the `tw-score-editor` dialog actions are disabled when it is not editable; a
-  disabled `tw-looper` stops recording and playback; a disabled
+  disabled `tw-looper` stops recording and playback; a disabled or read-only
   `tw-bpm-display` closes its tempo editor without saving; a disabled
   `tw-slider` ends an in-progress drag; a disabled or read-only `tw-rating`
   drops its hover preview; a disabled `tw-splitter` ends an in-progress drag;
-  a disabled `tw-dropdown` closes
+  a disabled `tw-dropdown` closes; `twLongPress` does not fire when disabled
+  mid-press; `tw-shortcuts-editor` cancels recording when the shortcut being
+  recorded is filtered out
+- Music: `tw-piano` pointer, touch and keyboard release only end the keys they
+  pressed, so notes held by MIDI or the API are no longer cut off when the
+  pointer leaves the keyboard
+- Music: a disabled `tw-looper` releases its microphone and requests it again
+  for the next take
+- Native: the `tw-terminal` input stays focusable (read-only) while a command
+  is processing
 - `tw-tabs` keeps a keyboard tab stop (the first enabled tab) when the selected
   tab is disabled
 - Native: closing a `tw-tab-bar` tab no longer pulls focus back when the app

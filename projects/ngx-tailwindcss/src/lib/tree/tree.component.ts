@@ -314,6 +314,18 @@ export class TwTreeComponent {
         this.focusNodeAt(visible, Math.max(visible.indexOf(node) - 1, 0));
         break;
       }
+      case 'Home': {
+        // Prevented so the page doesn't scroll away from the focused tree
+        event.preventDefault();
+        this.focusNodeAt(this.getVisibleNodes(), 0);
+        break;
+      }
+      case 'End': {
+        event.preventDefault();
+        const visible = this.getVisibleNodes();
+        this.focusNodeAt(visible, visible.length - 1);
+        break;
+      }
       case 'ArrowRight': {
         event.preventDefault();
         if (node.children?.length && !node.expanded) {

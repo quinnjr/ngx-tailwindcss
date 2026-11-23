@@ -24,7 +24,9 @@
 
   <!-- Channel Strips with Sections -->
   @if (sections().length > 0 && showSectionHeaders()) {
-    <div class="flex gap-1 overflow-hidden flex-1">
+    <!-- Every channel is rendered here (no paging), so the row scrolls: clipping it left the
+         channels past the mixer's edge unreachable -->
+    <div class="flex gap-1 overflow-x-auto flex-1">
       @for (sectionGroup of channelsBySection(); track sectionGroup.section?.id ?? 'unsectioned') {
         <div class="flex flex-col">
           <!-- Section Header -->

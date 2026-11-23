@@ -201,7 +201,16 @@ export class TwTableComponent {
         const aEmpty = aVal === null || aVal === undefined;
         const bEmpty = bVal === null || bVal === undefined;
         if (aEmpty || bEmpty) return aEmpty === bEmpty ? 0 : aEmpty ? 1 : -1;
-        const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        // Strings compare by locale (code-unit `<` would put every "Zoe" before "adam"
+        // and "item10" before "item9")
+        const comparison =
+          typeof aVal === 'string' && typeof bVal === 'string'
+            ? aVal.localeCompare(bVal, undefined, { numeric: true })
+            : aVal < bVal
+              ? -1
+              : aVal > bVal
+                ? 1
+                : 0;
         return comparison * this.sortOrder();
       });
     }

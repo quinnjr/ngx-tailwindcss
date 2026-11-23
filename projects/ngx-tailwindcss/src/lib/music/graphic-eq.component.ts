@@ -834,6 +834,15 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     this.onTouched();
   }
 
+  /**
+   * A preset chosen from the menu closes it, removing the focused menu item: return
+   * focus to the Presets toggle instead of dropping it to the page body.
+   */
+  protected onPresetMenuSelect(preset: EQPreset, toggle: HTMLElement): void {
+    this.onPresetClick(preset);
+    toggle.focus();
+  }
+
   // Preset methods
   applyPreset(preset: EQPreset): void {
     const freqs = this.frequencies();

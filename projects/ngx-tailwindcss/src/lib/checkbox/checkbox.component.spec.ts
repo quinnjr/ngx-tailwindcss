@@ -224,6 +224,14 @@ describe('TwCheckboxComponent', () => {
       component.checkbox.toggle();
       expect(component.changeEvent).toBeNull();
     });
+
+    it('should expose the readonly state to assistive technology', () => {
+      const input = checkboxEl.querySelector('input')!;
+      expect(input.hasAttribute('aria-readonly')).toBe(false);
+      component.readonly.set(true);
+      fixture.detectChanges();
+      expect(input.getAttribute('aria-readonly')).toBe('true');
+    });
   });
 
   describe('checkbox interactions', () => {

@@ -44,7 +44,7 @@
         <button
           type="button"
           aria-label="Clear search"
-          (click)="searchQuery.set('')"
+          (click)="searchQuery.set(''); searchInput.focus()"
           class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
         >
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

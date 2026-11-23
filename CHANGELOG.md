@@ -398,6 +398,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   visible view and shows the hover time label; `tw-compressor-meter` places
   its 0 dB scale label correctly; `tw-channel-strip`, `tw-metronome`,
   `tw-bpm-display` and the `tw-mixer` scroll buttons show disabled styling
+- Disabled `tw-tree` nodes can no longer be expanded or collapsed by the
+  chevron or the arrow keys
+- Native: focus returns to the trigger after choosing a `tw-toolbar` dropdown
+  item or a `tw-tab-bar` overflow action; `tw-shortcuts-editor` keeps focus on
+  the shortcut when recording starts and ends
+- Music: `tw-note-input` `V` cycles voices and AltGr `#` toggles a sharp, and
+  its voice tooltips match the shortcuts; `tw-fader` scale, ticks and pointer
+  line up with the cap's travel; `tw-pan-control` knob, `tw-looper` and
+  `tw-pitch-display` show disabled styling; the `tw-waveform` hover time label
+  stays inside the view; `tw-parametric-eq` axis and node labels stay on the
+  canvas; `tw-oscilloscope` amplitude labels follow the gain; the
+  `tw-pitch-display` wheel labels and thumbs are visible
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

@@ -414,6 +414,75 @@ describe('TwToastContainerComponent', () => {
     expect(service.toasts().length).toBe(0);
   });
 
+  describe('focus on dismiss', () => {
+    const dismissButtons = () =>
+      fixture.debugElement
+        .queryAll(By.css('button[aria-label="Dismiss notification"]'))
+        .map(b => b.nativeElement as HTMLButtonElement);
+
+    beforeEach(() => {
+      document.body.append(fixture.nativeElement);
+    });
+
+    afterEach(() => {
+      fixture.nativeElement.remove();
+    });
+
+    it('should move focus to the next toast when the focused close button dismisses its toast', () => {
+      service.show({ message: 'Toast 1', duration: 0 });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const [first, second] = dismissButtons();
+
+      first.focus();
+      first.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(1);
+      expect(document.activeElement).toBe(second);
+    });
+
+    it('should return focus to where it came from when the last toast is dismissed', () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Toast 1', duration: 0 });
+      fixture.detectChanges();
+      const [close] = dismissButtons();
+
+      opener.focus();
+      close.focus();
+      close.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(0);
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+
+    it('should return focus to the origin after dismissing toasts one after another', () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Toast 1', duration: 0 });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const [first] = dismissButtons();
+
+      opener.focus();
+      first.focus();
+      first.click();
+      fixture.detectChanges();
+      const [second] = dismissButtons();
+      expect(document.activeElement).toBe(second);
+
+      second.click();
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(0);
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+  });
+
   describe('position classes', () => {
     it('should apply top-right position by default', () => {
       const container = fixture.debugElement.query(By.css('[class*="fixed"]'));

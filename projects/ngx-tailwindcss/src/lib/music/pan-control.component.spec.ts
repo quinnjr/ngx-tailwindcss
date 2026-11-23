@@ -61,6 +61,16 @@ describe('TwPanControlComponent', () => {
     expect(range.parentElement!.className).toContain('has-[:focus-visible]:ring-2');
   });
 
+  it('should let presses on the stereo-width cap reach the range input beneath', () => {
+    fixture.componentRef.setInput('variant', 'stereo-width');
+    fixture.detectChanges();
+
+    // The cap is painted above the invisible range input: it must not swallow drags
+    const range = hostEl.querySelector<HTMLInputElement>('input[type="range"]')!;
+    const cap = range.nextElementSibling as HTMLElement;
+    expect(cap.className).toContain('pointer-events-none');
+  });
+
   it('should leave stereo-width keyboard handling to the native range input', () => {
     fixture.componentRef.setInput('variant', 'stereo-width');
     fixture.detectChanges();

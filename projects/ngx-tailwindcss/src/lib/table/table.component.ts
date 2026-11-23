@@ -1,4 +1,5 @@
 import {
+  afterRenderEffect,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
@@ -72,6 +73,23 @@ const INTERACTIVE_SELECTOR = [
  * </tw-table>
  * ```
  */
+/**
+ * If `from` (the paginator button that changed page) has become disabled while focused,
+ * or focus already fell to the body, move focus to the current page button in the same
+ * group, else to the first enabled button there.
+ */
+function refocusFromDisabledButton(from: HTMLButtonElement): void {
+  const group = from.parentElement;
+  if (!from.disabled || !from.isConnected || !group) return;
+  const doc = from.ownerDocument;
+  const active = doc.activeElement;
+  if (active && active !== from && active !== doc.body) return;
+  (
+    group.querySelector<HTMLElement>('button[aria-current="page"]') ??
+    group.querySelector<HTMLElement>('button:not([disabled])')
+  )?.focus();
+}
+
 @Component({
   selector: 'tw-table',
   standalone: true,
@@ -81,6 +99,20 @@ const INTERACTIVE_SELECTOR = [
 })
 export class TwTableComponent {
   private readonly twClass = inject(TwClassService);
+
+  /** Focused paginator button whose activation changed the page */
+  private refocusFrom: HTMLButtonElement | null = null;
+
+  constructor() {
+    // Reaching the first/last page disables the Previous/Next button that got there,
+    // and a disabled button drops focus to the body: hand it to the current page instead
+    afterRenderEffect(() => {
+      this.currentPage();
+      const from = this.refocusFrom;
+      this.refocusFrom = null;
+      if (from) refocusFromDisabledButton(from);
+    });
+  }
 
   readonly data = input<any[]>([]);
   readonly columns = input<TableColumn[]>([]);
@@ -345,8 +377,13 @@ export class TwTableComponent {
     this.sortChange.emit({ field: this.sortField(), order: this.sortOrder() });
   }
 
-  goToPage(page: number): void {
+  goToPage(page: number, event?: Event): void {
     if (page < 1 || page > this.totalPages()) return;
+    const button = event?.currentTarget;
+    this.refocusFrom =
+      button instanceof HTMLButtonElement && button === button.ownerDocument.activeElement
+        ? button
+        : null;
     this.currentPage.set(page);
     this.pageChange.emit({ page, rows: this.pageSize() });
   }

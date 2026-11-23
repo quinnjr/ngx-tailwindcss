@@ -1,4 +1,4 @@
-import { Component, NgZone, provideZoneChangeDetection, signal } from '@angular/core';
+import { Component, NgZone, provideZoneChangeDetection, signal, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TwShortcutDirective } from './shortcut.directive';
@@ -26,6 +26,7 @@ import { TwToolbarComponent } from './toolbar.component';
 import { TwPropertyInspectorComponent } from './property-inspector.component';
 import { TwCommandPaletteComponent } from './command-palette.component';
 import { TwPromptDialogComponent } from './prompt-dialog.component';
+import { TwBreadcrumbsNavComponent } from './breadcrumbs.component';
 import {
   pushEscapeLayer,
   removeEscapeLayer,
@@ -1422,6 +1423,254 @@ describe('focus is kept when a popup item removes itself (round 27)', () => {
     TestBed.tick();
     expect(f.componentInstance.editingId()).toBeNull();
     expect(document.activeElement).toBe(el.querySelector('[data-shortcut-edit="save"]'));
+    el.remove();
+    f.destroy();
+  });
+});
+
+describe('focus is kept when a control swaps itself out (round 28)', () => {
+  function mount<T>(component: Type<T>) {
+    const f = TestBed.createComponent(component);
+    document.body.append(f.nativeElement);
+    return f;
+  }
+
+  function settle(f: { detectChanges(): void }): void {
+    f.detectChanges();
+    TestBed.tick();
+  }
+
+  async function startBreadcrumbsEdit() {
+    const f = mount(TwBreadcrumbsNavComponent);
+    f.componentRef.setInput('editable', true);
+    f.componentRef.setInput('items', [{ id: 'a', label: 'home' }]);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    el.querySelector<HTMLElement>('[data-breadcrumbs-edit]')!.click();
+    f.detectChanges();
+    await nextMacrotask();
+    const input = el.querySelector('input')!;
+    expect(document.activeElement).toBe(input);
+    return { f, el, input };
+  }
+
+  it('breadcrumbs: Enter leaves edit mode with focus on the Edit button', async () => {
+    const { f, el, input } = await startBreadcrumbsEdit();
+    press(input, { key: 'Enter' });
+    settle(f);
+    expect(el.querySelector('input')).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('[data-breadcrumbs-edit]'));
+    el.remove();
+    f.destroy();
+  });
+
+  it('breadcrumbs: Escape leaves edit mode, refocuses Edit and is claimed from dialogs', async () => {
+    const { f, el, input } = await startBreadcrumbsEdit();
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    input.dispatchEvent(escape);
+    settle(f);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(el.querySelector('input')).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('[data-breadcrumbs-edit]'));
+    el.remove();
+    f.destroy();
+  });
+
+  it('breadcrumbs: leaving the input for another control does not pull focus back', async () => {
+    const { f, el } = await startBreadcrumbsEdit();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    settle(f);
+    expect(el.querySelector('input')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+    el.remove();
+    f.destroy();
+  });
+
+  it('command palette: the clear button hands focus to the search input', () => {
+    const f = mount(TwCommandPaletteComponent);
+    f.detectChanges();
+    f.componentInstance.open();
+    (f.componentInstance as unknown as { searchQuery: { set(v: string): void } }).searchQuery.set(
+      'x'
+    );
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const clear = el.querySelector<HTMLElement>('[aria-label="Clear search"]')!;
+    clear.focus();
+    clear.click();
+    f.detectChanges();
+    expect(el.querySelector('[aria-label="Clear search"]')).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('input'));
+    el.remove();
+    f.destroy();
+  });
+
+  it('quick switcher: the clear button hands focus to the search input', () => {
+    const f = mount(TwQuickSwitcherComponent);
+    f.componentInstance.open();
+    f.componentInstance.searchQuery.set('x');
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    const clear = el.querySelector<HTMLElement>('[aria-label="Clear search"]')!;
+    clear.focus();
+    clear.click();
+    f.detectChanges();
+    expect(f.componentInstance.searchQuery()).toBe('');
+    expect(el.querySelector('[aria-label="Clear search"]')).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('input'));
+    el.remove();
+    f.destroy();
+  });
+
+  function openWizard(start: number) {
+    const f = mount(TwOnboardingWizardComponent);
+    f.componentRef.setInput('steps', [
+      { id: 'a', title: 'One' },
+      { id: 'b', title: 'Two' },
+      { id: 'c', title: 'Three' },
+    ]);
+    f.componentInstance.open(start);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    return { f, el, primary: el.querySelector<HTMLButtonElement>('[data-wizard-primary]')! };
+  }
+
+  it('onboarding: reaching the last step keeps focus on the Next/finish button', () => {
+    const { f, el, primary } = openWizard(1);
+    primary.focus();
+    primary.click();
+    f.detectChanges();
+    expect(f.componentInstance.currentIndex()).toBe(2);
+    expect(el.querySelector('[data-wizard-primary]')).toBe(primary);
+    expect(document.activeElement).toBe(primary);
+    expect(primary.textContent?.trim()).toBe(f.componentInstance.completeText());
+
+    let completed = false;
+    f.componentInstance.completed.subscribe(() => (completed = true));
+    primary.click();
+    expect(completed).toBe(true);
+    el.remove();
+    f.destroy();
+  });
+
+  it('onboarding: Previous onto the first step hands focus to Next', () => {
+    const { f, el, primary } = openWizard(1);
+    const previous = el.querySelector<HTMLButtonElement>('[data-wizard-previous]')!;
+    previous.focus();
+    previous.click();
+    f.detectChanges();
+    expect(f.componentInstance.currentIndex()).toBe(0);
+    expect(previous.disabled).toBe(true);
+    expect(document.activeElement).toBe(primary);
+    expect(primary.textContent?.trim()).toBe('Next');
+    el.remove();
+    f.destroy();
+  });
+
+  function openUpdateDialog() {
+    const f = mount(TwUpdateDialogComponent);
+    const info: UpdateDialogInfo = { currentVersion: '1.0.0', newVersion: '2.0.0' };
+    f.componentRef.setInput('updateInfo', info);
+    f.componentInstance.open(info);
+    f.detectChanges();
+    return { f, el: f.nativeElement as HTMLElement };
+  }
+
+  it('update dialog: focus follows the Download/Cancel swap', () => {
+    const { f, el } = openUpdateDialog();
+    const download = el.querySelector<HTMLElement>('[data-update-download]')!;
+    download.focus();
+    download.click();
+    settle(f);
+    expect(document.activeElement).toBe(el.querySelector('[data-update-cancel]'));
+
+    el.querySelector<HTMLElement>('[data-update-cancel]')!.click();
+    settle(f);
+    expect(document.activeElement).toBe(el.querySelector('[data-update-download]'));
+    el.remove();
+    f.destroy();
+  });
+
+  it('update dialog: cancelling does not take focus from another control', () => {
+    const { f, el } = openUpdateDialog();
+    f.componentInstance.startDownload();
+    settle(f);
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    f.componentInstance.cancelDownload();
+    settle(f);
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+    el.remove();
+    f.destroy();
+  });
+
+  function mountSearchBar() {
+    const f = mount(TwSearchBarComponent);
+    f.componentRef.setInput('suggestions', [{ id: 's', label: 'Settings' }]);
+    f.componentRef.setInput('filters', [{ id: 'f', label: 'Files' }]);
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    return { f, el, input: el.querySelector('input')! };
+  }
+
+  it('search bar: choosing a suggestion returns focus to the input and closes the list', () => {
+    const { f, el, input } = mountSearchBar();
+    input.focus();
+    f.detectChanges();
+    const suggestion = [...el.querySelectorAll<HTMLElement>('button')].find(b =>
+      b.textContent?.includes('Settings')
+    )!;
+    suggestion.focus();
+    suggestion.click();
+    f.detectChanges();
+    expect(document.activeElement).toBe(input);
+    expect(el.textContent).not.toContain('Settings');
+    el.remove();
+    f.destroy();
+  });
+
+  it('search bar: the clear button returns focus to the input', () => {
+    const { f, el, input } = mountSearchBar();
+    input.value = 'abc';
+    input.dispatchEvent(new Event('input'));
+    f.detectChanges();
+    const clear = el.querySelector<HTMLElement>('[aria-label="Clear search"]')!;
+    clear.focus();
+    clear.click();
+    f.detectChanges();
+    expect(el.querySelector('[aria-label="Clear search"]')).toBeNull();
+    expect(document.activeElement).toBe(input);
+    el.remove();
+    f.destroy();
+  });
+
+  it('search bar: removing a filter returns focus to the input without opening suggestions', () => {
+    const { f, el, input } = mountSearchBar();
+    const remove = el.querySelector<HTMLElement>('[aria-label="Remove filter Files"]')!;
+    remove.focus();
+    remove.click();
+    f.detectChanges();
+    expect(el.querySelector('[aria-label="Remove filter Files"]')).toBeNull();
+    expect(document.activeElement).toBe(input);
+    expect(el.textContent).not.toContain('Settings');
+    el.remove();
+    f.destroy();
+  });
+
+  it('search bar: focus elsewhere is not overridden', () => {
+    const { f, el } = mountSearchBar();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    el.querySelector<HTMLElement>('[aria-label="Remove filter Files"]')!.click();
+    f.detectChanges();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
     el.remove();
     f.destroy();
   });

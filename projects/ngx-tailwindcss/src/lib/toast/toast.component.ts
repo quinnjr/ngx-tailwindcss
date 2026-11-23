@@ -2,6 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
+  inject,
   Injectable,
   Input,
   signal,
@@ -118,14 +120,23 @@ export class TwToastService {
   }
 }
 
+/**
+ * Element focus came from when it entered each toast (keyed by toast host), so it
+ * can be handed back on dismissal. Weakly held: removed toasts are collected.
+ */
+const toastFocusOrigins = new WeakMap<Element, HTMLElement>();
+
 @Component({
   selector: 'tw-toast',
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toast.component.html',
+  host: { '(focusin)': 'onFocusIn($event)' },
 })
 export class TwToastComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   @Input() set variant(value: ToastVariant) {
     this._variant.set(value);
   }
@@ -181,8 +192,41 @@ export class TwToastComponent {
     return ['flex-shrink-0', variantClasses[variant]].join(' ');
   });
 
+  protected onFocusIn(event: FocusEvent): void {
+    const from = event.relatedTarget;
+    const host = this.elementRef.nativeElement;
+    if (!(from instanceof HTMLElement) || host.contains(from)) return;
+    // Focus handed over from another toast (Tab or dismissal hand-off) keeps that
+    // toast's origin, so the chain still ends where focus originally came from
+    const fromToast = from.closest('tw-toast');
+    const inherited = fromToast ? toastFocusOrigins.get(fromToast) : undefined;
+    const origin = fromToast ? inherited : from;
+    if (origin) {
+      toastFocusOrigins.set(host, origin);
+    }
+  }
+
   protected onDismiss(): void {
+    const host = this.elementRef.nativeElement;
+    // Dismissing removes the focused close button: move focus to a neighbouring
+    // toast (or back where it came from) rather than losing it to the body
+    const target = host.contains(host.ownerDocument.activeElement)
+      ? this.focusAfterDismiss()
+      : null;
     this.dismiss();
+    target?.focus();
+  }
+
+  private focusAfterDismiss(): HTMLElement | null {
+    const host = this.elementRef.nativeElement;
+    for (const step of ['nextElementSibling', 'previousElementSibling'] as const) {
+      for (let el = host[step]; el; el = el[step]) {
+        const button = el.tagName === 'TW-TOAST' ? el.querySelector<HTMLElement>('button') : null;
+        if (button) return button;
+      }
+    }
+    const origin = toastFocusOrigins.get(host);
+    return origin?.isConnected ? origin : null;
   }
 }
 

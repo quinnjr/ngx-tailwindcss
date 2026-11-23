@@ -212,7 +212,7 @@ export class NativeDemoComponent {
 
   // Terminal lines
   terminalLines: TerminalLine[] = [
-    { id: '1', content: '$ npm install ngx-tailwindcss', type: 'input', timestamp: new Date() },
+    { id: '1', content: '$ npm install @quinnjr/ngx-tailwindcss', type: 'input', timestamp: new Date() },
     { id: '2', content: 'added 127 packages in 4.2s', type: 'success', timestamp: new Date() },
     { id: '3', content: '$ ng serve', type: 'input', timestamp: new Date() },
     { id: '4', content: 'Compiling @angular/core : es2022 as esm2022', type: 'output', timestamp: new Date() },

@@ -156,6 +156,19 @@ describe('TwWaveformComponent', () => {
     expect(label().classList).not.toContain('top-1');
   });
 
+  it('should keep the hover time label at the top in a short view with zoom controls', () => {
+    // sm is 48px tall: below the controls (top-11 = 44px) the label was clipped away
+    fixture.componentRef.setInput('size', 'sm');
+    fixture.componentRef.setInput('duration', 60);
+    fixture.componentRef.setInput('zoomable', true);
+    internals.hoverPosition.set(0.5);
+    fixture.detectChanges();
+    const label = fixture.nativeElement.querySelector('.whitespace-nowrap') as HTMLElement;
+    expect(label.classList).toContain('top-1');
+    expect(label.classList).not.toContain('top-11');
+    expect(label.classList).toContain('z-10');
+  });
+
   it('should position the zoom scrollbar thumb at the visible window', () => {
     fixture.componentRef.setInput('zoomable', true);
     fixture.detectChanges();

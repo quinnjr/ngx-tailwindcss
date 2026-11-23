@@ -98,6 +98,7 @@
         class="flex justify-between px-8 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700"
       >
         <button
+          data-wizard-previous
           (click)="previous()"
           [disabled]="currentIndex() === 0"
           class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -105,21 +106,15 @@
           Previous
         </button>
 
-        @if (isLastStep()) {
-          <button
-            (click)="complete()"
-            class="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            {{ completeText() }}
-          </button>
-        } @else {
-          <button
-            (click)="next()"
-            class="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            Next
-          </button>
-        }
+        <!-- One button for Next and the final action, so reaching the last
+             step doesn't remove the focused control -->
+        <button
+          data-wizard-primary
+          (click)="isLastStep() ? complete() : next()"
+          class="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          {{ isLastStep() ? completeText() : 'Next' }}
+        </button>
       </div>
 
       <!-- Don't Show Again -->

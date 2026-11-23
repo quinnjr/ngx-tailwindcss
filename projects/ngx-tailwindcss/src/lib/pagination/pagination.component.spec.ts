@@ -86,6 +86,23 @@ describe('TwPaginationComponent', () => {
       const nextButton = [...buttons].at(-1)!;
       expect(nextButton.disabled || nextButton.className.includes('cursor-not-allowed')).toBe(true);
     });
+
+    it('should move focus to the current page when Next reaches the last page', () => {
+      document.body.append(fixture.nativeElement);
+      component.currentPage.set(9);
+      fixture.detectChanges();
+      const next = paginationEl.querySelector<HTMLButtonElement>('[aria-label="Next page"]')!;
+
+      next.focus();
+      next.click();
+      component.currentPage.set(component.pageChangeValue!);
+      fixture.detectChanges();
+
+      expect(next.disabled).toBe(true);
+      expect(document.activeElement).toBe(paginationEl.querySelector('[aria-current="page"]'));
+      expect(document.activeElement?.textContent?.trim()).toBe('10');
+      fixture.nativeElement.remove();
+    });
   });
 
   describe('showFirstLast', () => {

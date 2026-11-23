@@ -260,7 +260,7 @@ export const TW_OVERLAY_COMPONENTS = [TwOverlayComponent] as const;
  *
  * @example
  * ```typescript
- * import { TW_ALL } from 'ngx-tailwindcss';
+ * import { TW_ALL } from '@quinnjr/ngx-tailwindcss';
  *
  * @Component({
  *   imports: [...TW_ALL],

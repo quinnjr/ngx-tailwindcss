@@ -1,4 +1,13 @@
-import { Component, computed, HostListener, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwFocusTrapDirective } from '../directives';
 import { claimNativeEscape, trackNativeEscapeLayer } from './native-escape-layer.util';
@@ -33,6 +42,8 @@ export class TwOnboardingWizardComponent {
   protected readonly titleId = `tw-onboarding-title-${nextOnboardingId++}`;
 
   public readonly isOpen = signal(false);
+
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor() {
     trackNativeEscapeLayer(this, this.isOpen);
@@ -76,6 +87,13 @@ export class TwOnboardingWizardComponent {
 
   public previous(): void {
     if (this.currentIndex() > 0) {
+      // Reaching the first step disables Previous, which drops its focus;
+      // move focus on to the Next button instead
+      const host = this.elementRef.nativeElement;
+      const previousButton = host.querySelector<HTMLElement>('[data-wizard-previous]');
+      if (this.currentIndex() === 1 && previousButton === host.ownerDocument.activeElement) {
+        host.querySelector<HTMLElement>('[data-wizard-primary]')?.focus();
+      }
       this.currentIndex.update(i => i - 1);
       const step = this.currentStep();
       if (step) {

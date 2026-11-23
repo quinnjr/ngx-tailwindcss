@@ -323,6 +323,16 @@ export class TwBpmDisplayComponent implements OnDestroy {
     return ((current - min) / (max - min)) * 100;
   });
 
+  /**
+   * CSS left/width for a slider percentage, following the native thumb's centre: the
+   * (default 16px) thumb only travels the track minus its own width, so plain percentages
+   * put the fill end, value bubble and scale marks up to 8px off the thumb near the ends.
+   */
+  protected sliderOffset(percent: number): string {
+    const fraction = Math.max(0, Math.min(1, percent / 100));
+    return `calc(8px + ${fraction} * (100% - 16px))`;
+  }
+
   // Slider marks for common tempo points
   protected readonly sliderMarks = computed(() => {
     const min = this.minBpm();

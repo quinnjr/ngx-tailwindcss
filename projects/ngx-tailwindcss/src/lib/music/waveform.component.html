@@ -73,8 +73,12 @@
        edge: placed above it, the overflow-hidden container clipped it away.
        It shifts from left- to right-aligned across the view (translateX 0 to
        -100%) so it is never cut off at the edges, and drops below the zoom
-       controls (which would otherwise cover it at the right) when shown. -->
+       controls (which would otherwise cover it at the right) when shown and there
+       is room; in a short view (sm, 48px) it would be clipped there, so it stays
+       at the top, painted above the controls (it only shows while the pointer is
+       on the canvas, never on the controls). -->
   @if (showHoverTime() && hoverPosition() !== null && !isMini()) {
+    @let belowZoomControls = zoomable() && showZoomControls() && effectiveHeight() >= 68;
     @let hoverInView =
       (hoverPosition()! - visibleRange().start) / (visibleRange().end - visibleRange().start);
     @if (hoverInView >= 0 && hoverInView <= 1) {
@@ -83,9 +87,9 @@
         [style.left.%]="hoverInView * 100"
       >
         <div
-          class="absolute left-0 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
-          [class.top-1]="!(zoomable() && showZoomControls())"
-          [class.top-11]="zoomable() && showZoomControls()"
+          class="absolute left-0 z-10 px-2 py-0.5 bg-slate-800 text-white text-xs rounded whitespace-nowrap"
+          [class.top-1]="!belowZoomControls"
+          [class.top-11]="belowZoomControls"
           [style.transform]="'translateX(' + hoverInView * -100 + '%)'"
         >
           {{ formatTime(hoverPosition()! * duration()) }}

@@ -528,3 +528,21 @@ describe('TwRatingComponent (round 23)', () => {
     expect(fixture.componentInstance.control.touched).toBe(true);
   });
 });
+
+describe('TwRatingComponent (round 28)', () => {
+  it('should move focus to the first star when the clear button removes itself', () => {
+    const fixture = TestBed.createComponent(BlurUpdateRatingHostComponent);
+    fixture.detectChanges();
+    const clearButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      'button[aria-label="Clear rating"]'
+    );
+    clearButton.focus();
+    clearButton.click();
+    fixture.detectChanges();
+
+    const stars = fixture.nativeElement.querySelectorAll('[role="radio"]');
+    expect(fixture.nativeElement.querySelector('button[aria-label="Clear rating"]')).toBeNull();
+    expect(document.activeElement).toBe(stars[0]);
+    expect(stars[0].getAttribute('tabindex')).toBe('0');
+  });
+});

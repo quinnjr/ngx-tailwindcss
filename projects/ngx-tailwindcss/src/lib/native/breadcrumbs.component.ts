@@ -3,11 +3,13 @@ import {
   Component,
   ElementRef,
   inject,
+  Injector,
   input,
   output,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { refocusIfLost } from './native-focus.util';
 
 export interface NativeBreadcrumbItem {
   id: string;
@@ -46,6 +48,7 @@ export interface NativeBreadcrumbItem {
 })
 export class TwBreadcrumbsNavComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   // Inputs
   public readonly items = input<NativeBreadcrumbItem[]>([]);
@@ -88,9 +91,18 @@ export class TwBreadcrumbsNavComponent {
     }, 0);
   }
 
-  protected cancelEdit(): void {
+  /**
+   * Leave edit mode. Ending it from the keyboard (Enter/Escape) removes the
+   * focused input, so focus then returns to the Edit button.
+   */
+  protected cancelEdit(restoreFocus = false): void {
     this.isEditing.set(false);
     this.editPath.set('');
+    if (restoreFocus) {
+      refocusIfLost(this.injector, () =>
+        this.elementRef.nativeElement.querySelector<HTMLElement>('[data-breadcrumbs-edit]')
+      );
+    }
   }
 
   protected onPathInput(event: Event): void {
@@ -100,7 +112,7 @@ export class TwBreadcrumbsNavComponent {
 
   protected submitPath(): void {
     this.pathChange.emit(this.editPath());
-    this.cancelEdit();
+    this.cancelEdit(true);
   }
 
   protected async copyPath(): Promise<void> {

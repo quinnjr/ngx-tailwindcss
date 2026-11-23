@@ -369,4 +369,42 @@ describe('TwNoteInputComponent host', () => {
     // Inactive symbol buttons set their own text colour on the slate-700 dark fill
     expect(byLabel('Sharp')!.classList).toContain('dark:text-slate-300');
   });
+
+  it('disables Undo / Redo / Delete while not editable (they changed the notes)', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    const cmp = fixture.componentInstance;
+    fixture.detectChanges();
+    const n = note('note-0');
+    cmp.setNotes([n]);
+    cmp.setNotes([n, note('note-1', { x: 260 })]);
+    cmp.undo();
+    (cmp as unknown as NoteInputInternals).selectedNotes.set([n]);
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    for (const title of ['Undo', 'Redo', 'Delete']) {
+      const button = host.querySelector<HTMLButtonElement>(`button[title^="${title}"]`)!;
+      expect(button.disabled, title).toBe(true);
+      expect(button.classList, title).toContain('opacity-50');
+    }
+
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    for (const title of ['Undo', 'Redo', 'Delete']) {
+      expect(host.querySelector<HTMLButtonElement>(`button[title^="${title}"]`)!.disabled).toBe(
+        false
+      );
+    }
+  });
+
+  it('lists only shortcut keys that work in the status bar (flat is "-", not "♭")', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('# - = accidentals');
+    expect(text).not.toContain('# ♭ =');
+  });
 });

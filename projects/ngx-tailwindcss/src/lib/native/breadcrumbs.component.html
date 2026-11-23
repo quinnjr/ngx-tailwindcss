@@ -66,7 +66,7 @@
         [value]="editPath()"
         (input)="onPathInput($event)"
         (keydown.enter)="submitPath()"
-        (keydown.escape)="cancelEdit()"
+        (keydown.escape)="$event.preventDefault(); cancelEdit(true)"
         (blur)="cancelEdit()"
         #pathInput
       />
@@ -78,6 +78,7 @@
     <button
       type="button"
       class="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      data-breadcrumbs-edit
       [attr.aria-label]="'Edit path'"
       (click)="startEdit()"
     >

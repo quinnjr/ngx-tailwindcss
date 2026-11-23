@@ -193,6 +193,8 @@ export class TwCommandPaletteComponent implements OnInit, OnDestroy {
   protected clearSearch(): void {
     this.searchQuery.set('');
     this.selectedIndex.set(0);
+    // The clear button removes itself; keep focus in the search field
+    this.searchInput()?.nativeElement.focus();
   }
 
   protected selectCommand(command: CommandItem): void {

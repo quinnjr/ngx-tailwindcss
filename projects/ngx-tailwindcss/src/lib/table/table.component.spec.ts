@@ -374,6 +374,24 @@ describe('TwTableComponent', () => {
       expect(pager).toContain('Previous 1 ... 4 5 6 ... 10 Next');
     });
 
+    it('should move focus to the current page when Next reaches the last page', () => {
+      document.body.append(fixture.nativeElement);
+      const next = tableEl
+        .queryAll(By.css('button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .find(b => b.textContent?.trim() === 'Next')!;
+
+      next.focus();
+      next.click();
+      fixture.detectChanges();
+
+      expect(next.disabled).toBe(true);
+      const current = tableEl.query(By.css('button[aria-current="page"]')).nativeElement;
+      expect(current.textContent.trim()).toBe('2');
+      expect(document.activeElement).toBe(current);
+      fixture.nativeElement.remove();
+    });
+
     it('should expose the current page to assistive technology', () => {
       component.table.goToPage(2);
       fixture.detectChanges();

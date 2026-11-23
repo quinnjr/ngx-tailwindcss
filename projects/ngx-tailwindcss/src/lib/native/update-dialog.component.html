@@ -146,6 +146,7 @@
             </button>
           }
           <button
+            data-update-download
             (click)="startDownload()"
             class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           >
@@ -153,6 +154,7 @@
           </button>
         } @else {
           <button
+            data-update-cancel
             (click)="cancelDownload()"
             class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >

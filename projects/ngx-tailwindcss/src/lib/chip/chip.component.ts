@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   EventEmitter,
   inject,
   Input,
@@ -153,6 +154,7 @@ export class TwChipComponent {
 })
 export class TwChipsComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Chip values; supports `[(values)]` and also works uncontrolled */
   readonly values = model<any[]>([]);
@@ -198,6 +200,27 @@ export class TwChipsComponent {
     newValues.splice(index, 1);
     this.values.set(newValues);
     this.onRemove.emit({ value: removed, index });
+  }
+
+  /**
+   * Remove-button handler. Chips are tracked by index, so removing any chip but the
+   * last keeps the focused button (it now names the next chip); removing the last
+   * chip destroys the focused button, so move focus to the text input, or to the
+   * new last chip's remove button when adding is not allowed.
+   */
+  protected onChipRemove(index: number): void {
+    const wasLast = index === this.values().length - 1;
+    this.removeValue(index);
+    if (!wasLast) return;
+
+    const host = this.elementRef.nativeElement;
+    const textInput = host.querySelector<HTMLInputElement>('input');
+    if (textInput) {
+      textInput.focus();
+      return;
+    }
+    // The removed chip is still rendered until change detection runs
+    host.querySelectorAll<HTMLButtonElement>('tw-chip button')[index - 1]?.focus();
   }
 
   onAddChip(event: Event): void {

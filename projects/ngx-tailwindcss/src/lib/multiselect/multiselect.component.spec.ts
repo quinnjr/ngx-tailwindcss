@@ -729,3 +729,31 @@ describe('TwMultiSelectComponent (round 25)', () => {
     }
   });
 });
+
+describe('TwMultiSelectComponent (round 28)', () => {
+  it('should not emit both the selected and the active background on one option', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const press = (key: string): void => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    };
+
+    press('ArrowDown'); // opens
+    press('End');
+    press('Enter'); // selects the active (last) option
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    const option: HTMLElement = fixture.nativeElement.querySelector(`[id="${activeId}"]`);
+    expect(option.getAttribute('aria-selected')).toBe('true');
+    expect(option.classList).toContain('bg-slate-100');
+    expect(option.classList).toContain('dark:bg-slate-700');
+    expect(option.classList).not.toContain('bg-blue-50');
+    expect(option.classList).not.toContain('dark:bg-blue-900/30');
+
+    press('ArrowUp'); // selected option is no longer active
+    expect(option.classList).toContain('bg-blue-50');
+    expect(option.classList).toContain('dark:bg-blue-900/30');
+    expect(option.classList).not.toContain('bg-slate-100');
+  });
+});

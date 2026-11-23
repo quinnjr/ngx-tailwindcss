@@ -313,9 +313,10 @@
           [attr.aria-label]="'Stereo width: ' + internalValue() + '%'"
         />
 
-        <!-- Width Control Slider Cap -->
+        <!-- Width Control Slider Cap: pointer-events-none so presses on it reach the
+             range input beneath (painted above it, the cap swallowed drags started on it) -->
         <div
-          class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 transition-all"
+          class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 transition-all pointer-events-none"
           [class.cursor-ew-resize]="!isDisabled()"
         >
           <div

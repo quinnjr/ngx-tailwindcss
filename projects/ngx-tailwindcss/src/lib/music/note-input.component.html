@@ -168,8 +168,8 @@
         type="button"
         class="px-2 py-1 text-xs rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
         (click)="undo()"
-        [disabled]="undoStack().length === 0"
-        [class.opacity-50]="undoStack().length === 0"
+        [disabled]="!editable() || undoStack().length === 0"
+        [class.opacity-50]="!editable() || undoStack().length === 0"
         title="Undo (Ctrl+Z)"
       >
         Undo
@@ -178,8 +178,8 @@
         type="button"
         class="px-2 py-1 text-xs rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
         (click)="redo()"
-        [disabled]="redoStack().length === 0"
-        [class.opacity-50]="redoStack().length === 0"
+        [disabled]="!editable() || redoStack().length === 0"
+        [class.opacity-50]="!editable() || redoStack().length === 0"
         title="Redo (Ctrl+Shift+Z)"
       >
         Redo
@@ -188,8 +188,8 @@
         type="button"
         class="px-2 py-1 text-xs rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
         (click)="deleteSelectedNotes()"
-        [disabled]="selectedNotes().length === 0"
-        [class.opacity-50]="selectedNotes().length === 0"
+        [disabled]="!editable() || selectedNotes().length === 0"
+        [class.opacity-50]="!editable() || selectedNotes().length === 0"
         title="Delete (Del)"
       >
         Delete
@@ -469,7 +469,7 @@
     </div>
     <div class="flex items-center gap-4">
       <span class="text-slate-500 dark:text-slate-400">
-        Shortcuts: 1-5 duration • A-G notes • # ♭ = accidentals • Del delete • Ctrl+Z undo
+        Shortcuts: 1-5 duration • A-G notes • # - = accidentals • Del delete • Ctrl+Z undo
       </span>
     </div>
   </div>

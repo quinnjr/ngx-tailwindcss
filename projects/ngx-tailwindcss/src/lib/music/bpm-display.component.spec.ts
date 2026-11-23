@@ -121,6 +121,24 @@ describe('TwBpmDisplayComponent slider', () => {
     expect(slider.value).toBe('150');
     expect(slider.getAttribute('aria-label')).toBe('Tempo in BPM');
   });
+
+  it('should align the fill, value bubble and marks with the native thumb travel', async () => {
+    await TestBed.configureTestingModule({ imports: [TwBpmDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwBpmDisplayComponent);
+    fixture.componentRef.setInput('showSlider', true);
+    fixture.componentRef.setInput('minBpm', 60);
+    fixture.componentRef.setInput('maxBpm', 260);
+    fixture.componentRef.setInput('bpm', 260);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const style = (sel: string) => el.querySelector(sel)!.getAttribute('style') ?? '';
+
+    // The thumb centre spans the track minus half a (16px) thumb at each end
+    expect(style('.rounded-l-lg')).toContain('calc(8px + 1 * (100% - 16px))');
+    expect(style('.-top-4')).toContain('calc(8px + 1 * (100% - 16px))');
+    const mark60 = [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === '60')!;
+    expect(mark60.parentElement!.getAttribute('style')).toContain('calc(8px + 0 * (100% - 16px))');
+  });
 });
 
 describe('TwBpmDisplayComponent text colours', () => {

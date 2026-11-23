@@ -141,13 +141,30 @@ export class TwSearchBarComponent {
     }
   }
 
+  /**
+   * Clearing, choosing a suggestion or removing a filter removes the focused
+   * control; when focus was on it, move focus back to the input first (without
+   * reopening the suggestions) so keyboard users keep their place.
+   */
+  private keepFocusInSearchBar(): void {
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const inputEl = host.querySelector('input');
+    const active = host.ownerDocument.activeElement;
+    if (!inputEl || active === inputEl || !host.contains(active)) return;
+    const open = this.showSuggestions();
+    inputEl.focus();
+    this.showSuggestions.set(open);
+  }
+
   protected clearSearch(): void {
+    this.keepFocusInSearchBar();
     this.query.set('');
     this.queryChange.emit('');
     this.showSuggestions.set(false);
   }
 
   protected selectSuggestion(suggestion: SearchSuggestion): void {
+    this.keepFocusInSearchBar();
     this.query.set(suggestion.label);
     this.suggestionSelect.emit(suggestion);
     this.showSuggestions.set(false);
@@ -155,11 +172,13 @@ export class TwSearchBarComponent {
   }
 
   protected selectRecent(recent: string): void {
+    this.keepFocusInSearchBar();
     this.query.set(recent);
     this.submitSearch();
   }
 
   protected removeFilter(filter: SearchFilter): void {
+    this.keepFocusInSearchBar();
     this.activeFilters.update(filters => filters.filter(f => f.id !== filter.id));
     this.filterChange.emit(this.activeFilters());
   }

@@ -448,3 +448,36 @@ describe('TwChipsComponent (round 3)', () => {
     expect(remove.getAttribute('aria-label')).toBe('Remove Angular');
   });
 });
+
+describe('TwChipsComponent (round 28)', () => {
+  it('should move focus to the input when the last chip is removed by its button', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.detectChanges();
+    const buttons: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-chip button'),
+    ];
+    buttons[1].focus();
+    buttons[1].click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(1);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('input'));
+  });
+
+  it('should keep focus on a remove button when the last chip is removed and adding is off', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.componentInstance.allowAdd.set(false);
+    fixture.detectChanges();
+    const buttons: HTMLButtonElement[] = [
+      ...fixture.nativeElement.querySelectorAll('tw-chip button'),
+    ];
+    buttons[1].focus();
+    buttons[1].click();
+    fixture.detectChanges();
+
+    const remaining: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(1);
+    expect(document.activeElement).toBe(remaining);
+    expect(remaining.getAttribute('aria-label')).toBe('Remove Angular');
+  });
+});

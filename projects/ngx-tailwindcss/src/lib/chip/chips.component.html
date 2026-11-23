@@ -7,7 +7,7 @@
       [chipStyle]="chipStyle()"
       [size]="size()"
       [removable]="!disabled()"
-      (onRemove)="removeValue($index)"
+      (onRemove)="onChipRemove($index)"
     >
     </tw-chip>
   }

@@ -219,6 +219,16 @@ export class TwRatingComponent implements ControlValueAccessor {
     this.blur.emit(event);
   }
 
+  /**
+   * Clear button handler: the button is removed once the value is 0, so move focus
+   * to the (now tabbable) first star instead of dropping it to the document body.
+   */
+  protected onClearClick(event: Event): void {
+    const group = (event.currentTarget as HTMLElement | null)?.parentElement;
+    this.clear();
+    group?.querySelector<HTMLElement>('[role="radio"]')?.focus();
+  }
+
   clear(): void {
     this.value.set(0);
     this.onChangeFn(0);

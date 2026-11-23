@@ -15,6 +15,8 @@
             [attr.aria-label]="item.tooltip || item.label"
             [attr.title]="item.tooltip || item.label"
             [disabled]="item.disabled"
+            aria-haspopup="true"
+            [attr.aria-expanded]="openDropdownId === item.id"
             (click)="toggleDropdown(item)"
           >
             @if (item.icon) {
@@ -62,7 +64,7 @@
           [class]="getButtonClasses(item)"
           [class.bg-blue-100]="item.active"
           [class.dark:bg-blue-900/50]="item.active"
-          [class.text-blue-600]="item.active"
+          [class.text-blue-700]="item.active"
           [class.dark:text-blue-400]="item.active"
           [attr.aria-label]="item.tooltip || item.label"
           [attr.title]="item.tooltip || item.label"

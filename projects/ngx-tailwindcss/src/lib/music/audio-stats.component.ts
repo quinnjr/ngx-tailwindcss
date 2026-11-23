@@ -290,7 +290,8 @@ export class TwAudioStatsComponent {
       profile: info.codecProfile,
       bitrateMode: info.bitrateMode,
       encoder: info.encoder,
-      isLossy: codecInfo?.lossy ?? true,
+      // null for an unknown codec, so no Lossy/Lossless badge is claimed for it
+      isLossy: codecInfo ? codecInfo.lossy : null,
     };
   });
 

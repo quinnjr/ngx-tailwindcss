@@ -18,7 +18,22 @@ import { TwDropZoneDirective } from './drop-zone.directive';
 import { DockService } from './dock.service';
 import { SystemTrayService } from './system-tray.service';
 import { ElectronIpcRendererLike, setElectronIpcBridge } from './electron-bridge.util';
-import { DropEvent, FileTreeEvent, FileTreeNode, NativeMenuItem, TabItem } from './native.types';
+import { TwMenuBarComponent } from './menu-bar.component';
+import { TwNativeContextMenuComponent } from './context-menu.component';
+import { TwSettingsPanelComponent } from './settings-panel.component';
+import { TwSearchBarComponent } from './search-bar.component';
+import { TwToolbarComponent } from './toolbar.component';
+import { TwPropertyInspectorComponent } from './property-inspector.component';
+import { TwCommandPaletteComponent } from './command-palette.component';
+import { TwPromptDialogComponent } from './prompt-dialog.component';
+import {
+  DropEvent,
+  FileTreeEvent,
+  FileTreeNode,
+  NativeMenuBarItem,
+  NativeMenuItem,
+  TabItem,
+} from './native.types';
 
 @Component({
   template: `<button [twShortcut]="shortcut()" (shortcutTriggered)="count = count + 1">x</button>`,
@@ -654,5 +669,262 @@ describe('native keyboard operability (round 21)', () => {
     expect(document.activeElement).toBe(opener);
     fixture.nativeElement.remove();
     opener.remove();
+  });
+});
+
+describe('native defects (round 22)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('menu bar opens submenu items instead of selecting their parent', () => {
+    const menus: NativeMenuBarItem[] = [
+      {
+        id: 'file',
+        label: 'File',
+        items: [
+          { id: 'new', label: 'New' },
+          {
+            id: 'recent',
+            label: 'Open Recent',
+            type: 'submenu',
+            submenu: [
+              { id: 'a', label: 'a.txt' },
+              { id: 'b', label: 'b.txt' },
+            ],
+          },
+        ],
+      },
+    ];
+    const fixture = TestBed.createComponent(TwMenuBarComponent);
+    fixture.componentRef.setInput('items', menus);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    const selected = vi.fn();
+    fixture.componentInstance.itemSelect.subscribe(selected);
+    const el = fixture.nativeElement as HTMLElement;
+    const trigger = el.querySelector<HTMLElement>('[data-menubar-trigger]')!;
+
+    trigger.focus();
+    press(trigger, { key: 'ArrowDown' });
+    fixture.detectChanges();
+    const parent = el.querySelector<HTMLElement>('[role="menu"] [aria-haspopup="menu"]')!;
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
+
+    parent.focus();
+    press(parent, { key: 'ArrowRight' });
+    fixture.detectChanges();
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement?.textContent).toContain('a.txt');
+    expect(selected).not.toHaveBeenCalled();
+
+    // Arrows stay inside the submenu, ArrowLeft returns to its parent
+    press(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement?.textContent).toContain('b.txt');
+    press(document.activeElement!, { key: 'ArrowLeft' });
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(parent);
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
+
+    // Clicking the parent opens the submenu; clicking a child selects it
+    parent.click();
+    fixture.detectChanges();
+    expect(selected).not.toHaveBeenCalled();
+    const child = [...el.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(b =>
+      b.textContent?.includes('b.txt')
+    )!;
+    child.click();
+    fixture.detectChanges();
+    expect(selected).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
+    expect(el.querySelector('[role="menu"]')).toBeNull();
+    fixture.nativeElement.remove();
+  });
+
+  it('context menu shows and exposes the checked state of radio items', () => {
+    const fixture = TestBed.createComponent(TwNativeContextMenuComponent);
+    const items: NativeMenuItem[] = [
+      { id: 'small', label: 'Small', type: 'radio', checked: true },
+      { id: 'large', label: 'Large', type: 'radio', checked: false },
+    ];
+    fixture.componentRef.setInput('items', items);
+    fixture.detectChanges();
+    fixture.componentInstance.open(10, 10);
+    fixture.detectChanges();
+    const radios = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="menuitemradio"]'),
+    ];
+    expect(radios.map(r => r.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(radios[0].querySelector('svg')).not.toBeNull();
+    expect(radios[1].querySelector('svg')).toBeNull();
+    fixture.componentInstance.close();
+  });
+
+  it('settings panel highlights the category it shows before one is clicked', () => {
+    const fixture = TestBed.createComponent(TwSettingsPanelComponent);
+    fixture.componentRef.setInput('categories', [
+      { id: 'general', label: 'General' },
+      { id: 'editor', label: 'Editor' },
+    ]);
+    fixture.detectChanges();
+    const buttons = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('nav button'),
+    ];
+    expect(buttons[0].getAttribute('aria-current')).toBe('true');
+    expect(buttons[0].classList).toContain('bg-blue-50');
+    expect(buttons[1].hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('search bar suggestions stay open while keyboard focus moves into them', () => {
+    vi.useFakeTimers();
+    const fixture = TestBed.createComponent(TwSearchBarComponent);
+    fixture.componentRef.setInput('suggestions', [{ id: 's', label: 'Settings' }]);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    el.querySelector('input')!.focus();
+    fixture.detectChanges();
+
+    const suggestion = () =>
+      [...el.querySelectorAll<HTMLButtonElement>('button')].find(b =>
+        b.textContent?.includes('Settings')
+      );
+    suggestion()!.focus();
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(suggestion()).toBeDefined();
+    expect(document.activeElement).toBe(suggestion());
+
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(suggestion()).toBeUndefined();
+    outside.remove();
+    fixture.nativeElement.remove();
+  });
+
+  it('disclosure buttons expose their expanded state', () => {
+    const toolbar = TestBed.createComponent(TwToolbarComponent);
+    toolbar.componentRef.setInput('items', [
+      {
+        id: 'd',
+        type: 'dropdown',
+        label: 'More',
+        items: [{ id: 'x', type: 'button', label: 'X' }],
+      },
+    ]);
+    toolbar.detectChanges();
+    const trigger = (toolbar.nativeElement as HTMLElement).querySelector('button')!;
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    trigger.click();
+    toolbar.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const tabs = TestBed.createComponent(TwTabBarComponent);
+    tabs.componentRef.setInput('tabs', [{ id: 't', label: 'main.ts', dirty: true }]);
+    tabs.detectChanges();
+    const tabEl = tabs.nativeElement as HTMLElement;
+    expect(tabEl.querySelector('[role="tab"]')?.textContent).toContain('unsaved changes');
+    const more = tabEl.querySelector<HTMLButtonElement>('[aria-label="More tabs"]')!;
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    more.click();
+    tabs.detectChanges();
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+
+    const inspector = TestBed.createComponent(TwPropertyInspectorComponent);
+    inspector.componentRef.setInput('properties', [{ key: 'a', value: 1, type: 'number' }]);
+    inspector.detectChanges();
+    const category = (inspector.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-expanded]'
+    )!;
+    expect(category.getAttribute('aria-expanded')).toBe('true');
+    category.click();
+    inspector.detectChanges();
+    expect(category.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('small text meets 4.5:1 on its background', () => {
+    const about = TestBed.createComponent(TwAboutDialogComponent);
+    about.componentRef.setInput('open', true);
+    about.componentRef.setInput('copyright', 'Copyright Acme');
+    about.detectChanges();
+    const copyright = [...(about.nativeElement as HTMLElement).querySelectorAll('p')].find(p =>
+      p.textContent?.includes('Copyright Acme')
+    )!;
+    expect(copyright.classList).toContain('dark:text-gray-400');
+    expect(copyright.classList).not.toContain('dark:text-gray-500');
+
+    const prompt = TestBed.createComponent(TwPromptDialogComponent);
+    prompt.componentRef.setInput('required', true);
+    prompt.componentInstance.open();
+    prompt.componentInstance.confirm();
+    prompt.detectChanges();
+    const error = (prompt.nativeElement as HTMLElement).querySelector('[role="alert"]')!;
+    expect(error.classList).toContain('text-red-600');
+    expect(error.classList).not.toContain('text-red-500');
+
+    const palette = TestBed.createComponent(TwCommandPaletteComponent);
+    palette.detectChanges();
+    palette.componentInstance.open();
+    palette.detectChanges();
+    const paletteKbds = [...(palette.nativeElement as HTMLElement).querySelectorAll('kbd')];
+    expect(paletteKbds.length).toBeGreaterThan(0);
+    paletteKbds.forEach(kbd => {
+      expect(kbd.classList).toContain('text-gray-600');
+      expect(kbd.classList).toContain('dark:text-gray-300');
+    });
+
+    const switcher = TestBed.createComponent(TwQuickSwitcherComponent);
+    switcher.detectChanges();
+    const switcherKbds = [...(switcher.nativeElement as HTMLElement).querySelectorAll('kbd')];
+    expect(switcherKbds.length).toBe(3);
+    switcherKbds.forEach(kbd => {
+      expect(kbd.classList).toContain('text-slate-700');
+      expect(kbd.classList).toContain('dark:text-slate-200');
+    });
+
+    const menuBar = TestBed.createComponent(TwMenuBarComponent);
+    menuBar.componentRef.setInput('items', [
+      { id: 'f', label: 'File', items: [{ id: 's', label: 'Save', shortcut: 'Ctrl+S' }] },
+    ]);
+    menuBar.detectChanges();
+    (menuBar.nativeElement as HTMLElement).querySelector<HTMLElement>('button')!.click();
+    menuBar.detectChanges();
+    const shortcut = (menuBar.nativeElement as HTMLElement).querySelector(
+      '[role="menu"] .text-xs'
+    )!;
+    expect(shortcut.classList).toContain('opacity-75');
+    expect(shortcut.classList).not.toContain('opacity-60');
+
+    const toolbar = TestBed.createComponent(TwToolbarComponent);
+    toolbar.componentRef.setInput('items', [
+      { id: 't', type: 'toggle', label: 'Bold', active: true },
+    ]);
+    toolbar.detectChanges();
+    const toggle = (toolbar.nativeElement as HTMLElement).querySelector('button')!;
+    expect(toggle.classList).toContain('text-blue-700');
+    expect(toggle.classList).not.toContain('text-blue-600');
+
+    const editor = TestBed.createComponent(TwShortcutsEditorComponent);
+    editor.componentRef.setInput('shortcuts', [
+      { id: 'x', command: 'Cut', keys: [], defaultKeys: ['x'], isCustom: true },
+    ]);
+    editor.detectChanges();
+    const editorSpans = [...(editor.nativeElement as HTMLElement).querySelectorAll('span')];
+    const modified = editorSpans.find(s => s.textContent?.trim() === 'Modified')!;
+    expect(modified.classList).toContain('text-blue-700');
+    const notSet = editorSpans.find(s => s.textContent?.trim() === 'Not set')!;
+    expect(notSet.classList).toContain('text-slate-600');
+    expect(notSet.classList).toContain('dark:text-slate-300');
+
+    const log = TestBed.createComponent(TwLogViewerComponent);
+    log.componentRef.setInput('entries', [
+      { id: '1', level: 'error', message: 'boom', source: 'app', timestamp: new Date() },
+    ]);
+    log.detectChanges();
+    const cells = [...(log.nativeElement as HTMLElement).querySelectorAll('tbody td')];
+    expect(cells[0].classList).toContain('text-gray-600');
+    expect(cells[2].classList).toContain('text-gray-600');
   });
 });

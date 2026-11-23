@@ -662,3 +662,37 @@ describe('TwMultiSelectComponent (round 21)', () => {
     );
   });
 });
+
+@Component({
+  template: ` <tw-multiselect [options]="options" [formControl]="control"></tw-multiselect>
+    <button id="outside" type="button">Outside</button>`,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class BlurUpdateHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana' },
+  ];
+  control = new FormControl<unknown[]>([], { updateOn: 'blur' });
+}
+
+describe('TwMultiSelectComponent (round 22)', () => {
+  it('should commit updateOn blur values when focus leaves the component', () => {
+    const fixture = TestBed.createComponent(BlurUpdateHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('[role="option"]:not(.border-b)') as HTMLElement).click();
+    fixture.detectChanges();
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+
+    const outside = fixture.nativeElement.querySelector('#outside');
+    trigger.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+    expect(fixture.componentInstance.control.value).toEqual(['apple']);
+    expect(fixture.componentInstance.control.touched).toBe(true);
+  });
+});

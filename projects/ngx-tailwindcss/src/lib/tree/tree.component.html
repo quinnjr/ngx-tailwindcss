@@ -61,6 +61,7 @@
               class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-blue-600 focus:ring-blue-500"
               [checked]="isSelected(node)"
               [indeterminate]="isIndeterminate(node)"
+              [disabled]="!!node.disabled"
               (change)="onCheckboxChange(node, $event)"
               (click)="focusOwningItem($event); $event.stopPropagation()"
             />

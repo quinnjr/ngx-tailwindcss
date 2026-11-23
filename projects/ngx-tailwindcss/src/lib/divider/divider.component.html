@@ -1,6 +1,11 @@
 @if (orientationValue() === 'horizontal') {
   @if (labelValue()) {
-    <div [class]="containerClasses()" role="separator" aria-orientation="horizontal">
+    <div
+      [class]="containerClasses()"
+      role="separator"
+      aria-orientation="horizontal"
+      [attr.aria-label]="labelValue()"
+    >
       <div [class]="firstLineClasses()"></div>
       <span [class]="labelClasses()">{{ labelValue() }}</span>
       <div [class]="lastLineClasses()"></div>

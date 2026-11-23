@@ -155,6 +155,30 @@ describe('TwPianoChordComponent', () => {
   });
 });
 
+describe('TwPianoChordComponent minimal variant theme', () => {
+  it('draws the chord name and note names in the container colour so they follow a dark page', async () => {
+    await TestBed.configureTestingModule({ imports: [TwPianoChordComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwPianoChordComponent);
+    fixture.componentRef.setInput('chord', 'C');
+    fixture.componentRef.setInput('showNoteNames', true);
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const container = host.firstElementChild as HTMLElement;
+    // Fixed slate-700 on the transparent background was ~1.5:1 on a dark page
+    expect([...container.classList]).toEqual(
+      expect.arrayContaining(['text-[#334155]', 'dark:text-slate-200'])
+    );
+    const spans = [...host.querySelectorAll<HTMLElement>('span')];
+    expect(spans.length).toBeGreaterThan(1);
+    for (const span of spans) expect(span.style.color).toBe('currentcolor');
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(host.querySelector<HTMLElement>('span')!.style.color).toBe('rgb(31, 41, 55)');
+  });
+});
+
 describe('TwPianoChordComponent classOverride', () => {
   // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
   // simply appended (e.g. bg-slate-900 after bg-white) may never take effect

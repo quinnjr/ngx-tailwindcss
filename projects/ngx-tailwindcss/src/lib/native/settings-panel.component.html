@@ -31,13 +31,15 @@
     <nav class="flex-1 overflow-y-auto p-2">
       @for (category of categories(); track category.id) {
         <button
+          type="button"
           (click)="selectedCategoryId.set(category.id)"
-          [class.bg-blue-50]="selectedCategoryId() === category.id"
-          [class.dark:bg-blue-900/30]="selectedCategoryId() === category.id"
-          [class.text-blue-600]="selectedCategoryId() === category.id"
-          [class.dark:text-blue-400]="selectedCategoryId() === category.id"
-          [class.text-slate-700]="selectedCategoryId() !== category.id"
-          [class.dark:text-slate-300]="selectedCategoryId() !== category.id"
+          [attr.aria-current]="selectedCategory()?.id === category.id ? 'true' : null"
+          [class.bg-blue-50]="selectedCategory()?.id === category.id"
+          [class.dark:bg-blue-900/30]="selectedCategory()?.id === category.id"
+          [class.text-blue-600]="selectedCategory()?.id === category.id"
+          [class.dark:text-blue-400]="selectedCategory()?.id === category.id"
+          [class.text-slate-700]="selectedCategory()?.id !== category.id"
+          [class.dark:text-slate-300]="selectedCategory()?.id !== category.id"
           class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           <svg

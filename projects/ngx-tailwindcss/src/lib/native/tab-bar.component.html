@@ -46,7 +46,9 @@
 
           <!-- Dirty indicator -->
           @if (tab.dirty) {
-            <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+            <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"
+              ><span class="sr-only">(unsaved changes)</span></span
+            >
           }
         </button>
 
@@ -102,6 +104,8 @@
         type="button"
         class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         [attr.aria-label]="'More tabs'"
+        aria-haspopup="true"
+        [attr.aria-expanded]="overflowMenuOpen()"
         (click)="overflowMenuOpen.set(!overflowMenuOpen())"
       >
         <svg

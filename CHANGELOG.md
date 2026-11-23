@@ -304,6 +304,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step dots meet 3:1 and the current step is wider; dark-mode hover states
   keep their contrast on `tw-menu` shortcuts, `tw-table` rows and pager and
   `tw-tree` chevrons
+- Accessibility: `tw-select` and `tw-multiselect` triggers use
+  `role="combobox"`, so the active option and required state are announced;
+  `tw-radio-group` gains `ariaLabel`/`ariaLabelledby` inputs to name the
+  group; disabled `tw-dropdown` items are actually disabled; `tw-tree` focus
+  returns to the tree item after clicking its toggle or checkbox; a labelled
+  `tw-divider` exposes its label as the separator's accessible name
+- Native: `tw-log-viewer` uses a single roving tab stop and shows the
+  selected row; the quick switcher returns focus to the element that opened
+  it; the "All Files" file-dialog filter no longer restricts the picker, and
+  `FileFilter` accepts readonly presets
+- Music: `tw-note-input` keyboard note entry appends after the last note;
+  `tw-note-display`'s accessible name includes cents, tuning status and
+  frequency; `tw-chord-diagram` draws the top edge of the fretboard when the
+  diagram starts above the nut; `tw-graphic-eq` clears the active preset
+  after a manual band edit
+- Contrast: `tw-oscilloscope` and `tw-parametric-eq` light variants,
+  `tw-pan-control` chips, `tw-bpm-display` LED label, `tw-scrubber` markers,
+  `tw-sheet-music` zoom label and `tw-note-input` undo/redo buttons
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

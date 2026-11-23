@@ -25,6 +25,7 @@
           [attr.y]="getStaffLineY(3) + staffLineSpacing() * 0.5"
           [attr.font-size]="staffLineSpacing() * 5"
           [attr.fill]="colors().text"
+          [class]="minimalRoleClasses().text"
           font-family="serif"
           class="select-none"
         >
@@ -194,6 +195,7 @@
           x="15"
           [attr.y]="getStringY($index + 1) + 4"
           [attr.fill]="colors().text"
+          [class]="minimalRoleClasses().text"
           font-size="12"
           font-weight="bold"
           text-anchor="middle"
@@ -208,6 +210,7 @@
         x="15"
         [attr.y]="tabTop() - 8"
         [attr.fill]="colors().text"
+        [class]="minimalRoleClasses().text"
         font-size="10"
         font-weight="bold"
         text-anchor="middle"
@@ -259,6 +262,7 @@
             [attr.x]="getMeasureX(measureIndex) + 5"
             y="12"
             [attr.fill]="colors().text"
+            [class]="minimalRoleClasses().text"
             font-size="10"
             class="select-none opacity-80"
           >
@@ -323,6 +327,7 @@
                   [attr.x]="getBeatX(measureIndex, beat) + 10"
                   [attr.y]="getStringY(note.string) + 2"
                   [attr.fill]="colors().technique"
+                  [class]="minimalRoleClasses().technique"
                   font-size="10"
                   font-weight="bold"
                   class="select-none"
@@ -341,6 +346,7 @@
                       ' q 5 -8 10 0'
                     "
                     [attr.stroke]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     stroke-width="1.5"
                     fill="none"
                   />
@@ -348,6 +354,7 @@
                     [attr.x]="getBeatX(measureIndex, beat) + 20"
                     [attr.y]="getStringY(note.string) - 6"
                     [attr.fill]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     font-size="9"
                     class="select-none"
                   >
@@ -363,6 +370,7 @@
                     [attr.x2]="getBeatX(measureIndex, beat) + 20"
                     [attr.y2]="getStringY(note.string) - 4"
                     [attr.stroke]="colors().technique"
+                    [class]="minimalRoleClasses().technique"
                     stroke-width="1.5"
                   />
                 }
@@ -399,6 +407,7 @@
         [attr.x]="width() / 2"
         [attr.y]="height() / 2"
         [attr.fill]="colors().text"
+        [class]="minimalRoleClasses().text"
         font-size="14"
         text-anchor="middle"
         class="select-none opacity-80"

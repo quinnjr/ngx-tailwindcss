@@ -217,10 +217,15 @@
         <!-- Knob Shine -->
         <ellipse cx="42" cy="35" rx="15" ry="10" fill="white" opacity="0.08" />
 
-        <!-- L/R Labels -->
+        <!-- L/R Labels: on the dark knob body in the dial opening (at x=12/82 they sat on the
+             arc ends, under the cyan value arc, and partly off the knob on the page) -->
         @if (showLabels()) {
-          <text x="12" y="80" class="fill-slate-400 text-[10px] font-bold">L</text>
-          <text x="82" y="80" class="fill-slate-400 text-[10px] font-bold">R</text>
+          <text x="36" y="84" text-anchor="middle" class="fill-slate-400 text-[10px] font-bold">
+            L
+          </text>
+          <text x="64" y="84" text-anchor="middle" class="fill-slate-400 text-[10px] font-bold">
+            R
+          </text>
         }
       </svg>
     </div>

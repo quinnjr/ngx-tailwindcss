@@ -144,6 +144,49 @@ describe('TwChordDiagramComponent', () => {
   });
 });
 
+describe('TwChordDiagramComponent minimal variant theme', () => {
+  it('draws the name, nut and finger dots in the container colour so they follow a dark page', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwChordDiagramComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwChordDiagramComponent);
+    fixture.componentRef.setInput('chord', 'C');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const container = host.firstElementChild as HTMLElement;
+    // Fixed slate-700 on the transparent background was ~1.5:1 on a dark page
+    expect([...container.classList]).toEqual(
+      expect.arrayContaining(['text-[#334155]', 'dark:text-slate-200'])
+    );
+    const name = [...host.querySelectorAll('text')].find(t => t.textContent?.trim() === 'C')!;
+    expect(name.getAttribute('fill')).toBe('currentColor');
+    const dots = [...host.querySelectorAll('circle:not([fill="none"])')];
+    expect(dots.length).toBeGreaterThan(0);
+    for (const dot of dots) expect(dot.getAttribute('fill')).toBe('currentColor');
+    expect(host.querySelector('rect')?.getAttribute('fill')).toBe('currentColor');
+
+    // Finger numbers stay readable on the dots: white in light mode, dark on the light dots
+    fixture.componentRef.setInput('showFingerNumbers', true);
+    fixture.detectChanges();
+    const numbers = [...host.querySelectorAll('text.select-none')].filter(t =>
+      /^[1-4]$/.test(t.textContent?.trim() ?? '')
+    );
+    expect(numbers.length).toBeGreaterThan(0);
+    for (const n of numbers) {
+      expect([...n.classList]).toEqual(
+        expect.arrayContaining(['text-white', 'dark:text-slate-900', 'select-none'])
+      );
+    }
+
+    // The default variant keeps its fixed colours
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(name.getAttribute('fill')).toBe('#1E293B');
+    for (const n of numbers) expect(n.getAttribute('class')).toBe('select-none');
+  });
+});
+
 describe('TwChordDiagramComponent classOverride', () => {
   // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
   // simply appended (e.g. bg-slate-900 after bg-white) may never take effect

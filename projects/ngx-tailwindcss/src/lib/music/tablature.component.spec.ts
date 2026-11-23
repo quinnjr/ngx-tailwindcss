@@ -120,7 +120,43 @@ describe('TwTablatureComponent', () => {
     // indigo-500 technique marks were just under 4.5:1 on white
     fixture.componentRef.setInput('variant', 'minimal');
     fixture.detectChanges();
-    expect(text('h').getAttribute('fill')).toBe('#4F46E5');
+    expect(text('h').getAttribute('fill')).toBe('currentColor');
+    expect(text('h').classList).toContain('text-[#4F46E5]');
+  });
+
+  it('draws the minimal variant in theme-following colours, unchanged in light mode', () => {
+    // Fixed slate-600/700 and indigo-600 marks on the transparent background were unreadable
+    // on a dark page
+    fixture.componentRef.setInput('measures', [
+      { notes: [[{ string: 1, fret: 3, technique: 'hammer' }]] },
+    ]);
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const text = (t: string) =>
+      [...host.querySelectorAll('text')].find(el => el.textContent?.trim() === t)!;
+    const container = host.firstElementChild as HTMLElement;
+    expect([...container.classList]).toEqual(
+      expect.arrayContaining(['text-[#334155]', 'dark:text-slate-200'])
+    );
+    expect(text('3').getAttribute('fill')).toBe('currentColor');
+    expect(text('3').getAttribute('class') ?? '').not.toContain('text-');
+    for (const label of ['e', 'TAB']) {
+      expect(text(label).getAttribute('fill')).toBe('currentColor');
+      expect([...text(label).classList]).toEqual(
+        expect.arrayContaining(['text-[#475569]', 'dark:text-slate-400', 'select-none'])
+      );
+    }
+    expect([...text('h').classList]).toEqual(
+      expect.arrayContaining(['text-[#4F46E5]', 'dark:text-indigo-400', 'select-none'])
+    );
+
+    // Other variants keep their fixed colours and no role classes
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(text('3').getAttribute('fill')).toBe('#1E293B');
+    expect(text('e').getAttribute('fill')).toBe('#1E293B');
+    expect(text('e').getAttribute('class')).toBe('select-none');
   });
 });
 

@@ -72,9 +72,18 @@ export class TwSearchBarComponent {
 
   protected onBlur(): void {
     this.isFocused.set(false);
-    // Delay hiding suggestions to allow click events
+  }
+
+  /**
+   * Hide the suggestions once focus has left the whole search bar. Tabbing from
+   * the input into a suggestion keeps them open, so they stay keyboard-operable;
+   * the delay lets a click on a suggestion land first.
+   */
+  @HostListener('focusout')
+  protected onFocusOut(): void {
     setTimeout(() => {
-      if (!this.isFocused()) {
+      const host = this.elementRef.nativeElement as HTMLElement;
+      if (!this.isFocused() && !host.contains(host.ownerDocument.activeElement)) {
         this.showSuggestions.set(false);
       }
     }, 200);

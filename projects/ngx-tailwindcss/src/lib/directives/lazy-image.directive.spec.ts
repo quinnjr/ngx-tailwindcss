@@ -1,4 +1,4 @@
-import { Component, NgZone, provideZoneChangeDetection } from '@angular/core';
+import { Component, NgZone, provideZoneChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LazyImageEvent, TwLazyImageDirective } from './lazy-image.directive';
@@ -16,6 +16,16 @@ class TestHostComponent {
     this.events.push(event);
     this.loadedInZone.push(NgZone.isInAngularZone());
   }
+}
+
+@Component({
+  template: `<img [twLazyImage]="src()" alt="" (lazyLoaded)="events.push($event)" />`,
+  standalone: true,
+  imports: [TwLazyImageDirective],
+})
+class DynamicSrcHostComponent {
+  src = signal('/first.jpg');
+  events: LazyImageEvent[] = [];
 }
 
 /** Preload image stub that fires `load` asynchronously once a source is set */
@@ -66,5 +76,27 @@ describe('TwLazyImageDirective', () => {
     expect(img.getAttribute('src')).toBe('/real.jpg');
     expect(fixture.componentInstance.events).toEqual([{ loaded: true, src: '/real.jpg' }]);
     expect(fixture.componentInstance.loadedInZone).toEqual([true]);
+  });
+
+  it('should load the new source when twLazyImage changes after init', async () => {
+    const fixture = TestBed.createComponent(DynamicSrcHostComponent);
+    fixture.detectChanges();
+    const img: HTMLImageElement = fixture.nativeElement.querySelector('img');
+    const intersect = () => {
+      const entry: Partial<IntersectionObserverEntry> = { isIntersecting: true };
+      observerCallback!([entry as IntersectionObserverEntry], null as never);
+    };
+
+    intersect();
+    // Change the source while the first preload is still pending
+    fixture.componentInstance.src.set('/second.jpg');
+    fixture.detectChanges();
+    intersect();
+    await new Promise(resolve => {
+      setTimeout(resolve, 10);
+    });
+
+    expect(img.getAttribute('src')).toBe('/second.jpg');
+    expect(fixture.componentInstance.events).toEqual([{ loaded: true, src: '/second.jpg' }]);
   });
 });

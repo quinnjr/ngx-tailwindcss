@@ -361,4 +361,20 @@ describe('TwFaderComponent text colours', () => {
     expect(scale().className).toContain('text-slate-400');
     expect(scale().className).not.toContain('text-slate-500');
   });
+
+  it('should not dim the dB unit of the chipless minimal readout', async () => {
+    await TestBed.configureTestingModule({ imports: [TwFaderComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwFaderComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const unit = () => [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === 'dB')!;
+
+    // On its dark chip the dimmed unit keeps 4.5:1
+    expect(unit().classList).toContain('opacity-70');
+
+    // Minimal has no chip: slate-700 at 70% opacity is ~4.3:1 on a white page
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(unit().classList).not.toContain('opacity-70');
+  });
 });

@@ -581,7 +581,7 @@ describe('native selected states are not overridden by static classes', () => {
     for (const tab of tabs) {
       expectExclusive(
         tab,
-        ['text-blue-600', 'dark:text-blue-400'],
+        ['text-blue-700', 'dark:text-blue-400'],
         ['text-slate-600', 'dark:text-slate-400'],
         tab.getAttribute('aria-pressed') === 'true'
       );
@@ -626,7 +626,7 @@ describe('native selected states are not overridden by static classes', () => {
     const on = el.querySelector('button[aria-label="On"]')!;
     const off = el.querySelector('button[aria-label="Off"]')!;
     const groups = [
-      ['text-blue-600', 'dark:text-blue-400'],
+      ['text-blue-700', 'dark:text-blue-400'],
       ['text-gray-700', 'dark:text-gray-300'],
     ];
     expectExclusive(on, groups[0], groups[1], true);

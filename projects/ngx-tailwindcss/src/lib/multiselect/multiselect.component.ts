@@ -587,11 +587,15 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
    * Closes the dropdown when keyboard focus moves to an element outside the component
    * (e.g. Tab), so the open panel does not linger over the page. A null relatedTarget
    * (clicks on non-focusable options) is left to the document click handler.
+   * Focus leaving the component also marks the control as touched, which commits
+   * pending values of `updateOn: 'blur'` form controls.
    */
   @HostListener('focusout', ['$event'])
   protected onFocusOut(event: FocusEvent): void {
     const next = event.relatedTarget as Node | null;
-    if (this.isOpen() && next && !this.elementRef.nativeElement.contains(next)) {
+    if (next && this.elementRef.nativeElement.contains(next)) return;
+    this.onTouchedFn();
+    if (this.isOpen() && next) {
       this.closeDropdown();
     }
   }

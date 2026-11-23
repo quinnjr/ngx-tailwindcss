@@ -222,14 +222,17 @@ export class TwChordDiagramComponent {
         };
       }
       case 'minimal': {
+        // Drawn on the page's own background: the name, nut and finger dots use currentColor
+        // (the container's slate-700, lightened on a dark page where it was unreadable) and the
+        // finger numbers use fingerTextClasses, inverted against the dots
         return {
           background: 'transparent',
           string: '#94A3B8',
           fret: '#CBD5E1',
-          nut: '#334155',
-          finger: '#334155',
-          fingerText: '#FFFFFF',
-          text: '#334155',
+          nut: 'currentColor',
+          finger: 'currentColor',
+          fingerText: 'currentColor',
+          text: 'currentColor',
           muted: '#EF4444',
           // Open-string ring: green-500 was ~2.3:1 on white, green-600 keeps >= 3:1
           open: '#16A34A',
@@ -265,12 +268,17 @@ export class TwChordDiagramComponent {
     }
   });
 
+  /** Finger-number colour for the minimal variant, whose dots follow the page theme */
+  protected readonly fingerTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-white dark:text-slate-900' : ''
+  );
+
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-lg';
     const variantClasses: Record<ChordDiagramVariant, string> = {
       default: 'bg-white border border-slate-200 shadow-sm',
       dark: 'bg-slate-800 border border-slate-700',
-      minimal: 'bg-transparent',
+      minimal: 'bg-transparent text-[#334155] dark:text-slate-200',
       detailed: 'bg-amber-50 border border-amber-200',
     };
     return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());

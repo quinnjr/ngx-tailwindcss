@@ -134,6 +134,30 @@ describe('TwPanControlComponent', () => {
     expect(litSpans(100)).toEqual([[0, 217]]);
   });
 
+  it('should draw the knob L/R labels on the dark knob body, clear of the arc and indicator', () => {
+    fixture.componentRef.setInput('variant', 'knob');
+    fixture.detectChanges();
+    const labels = [...hostEl.querySelectorAll<SVGTextElement>('svg text')];
+    expect(labels.map(t => t.textContent?.trim())).toEqual(['L', 'R']);
+    for (const label of labels) {
+      const x = Number(label.getAttribute('x'));
+      const y = Number(label.getAttribute('y'));
+      expect(label.getAttribute('text-anchor')).toBe('middle');
+      // Glyph box (~6 wide, ~7 tall above the baseline) stays inside the r=40 body, so it is
+      // off the r=43-49 arc ring and the page
+      for (const [px, py] of [
+        [x - 3, y],
+        [x + 3, y],
+        [x - 3, y - 7],
+        [x + 3, y - 7],
+      ]) {
+        expect(Math.hypot(px - 50, py - 50)).toBeLessThan(40);
+      }
+      // ...and below the indicator dot's lowest reach (cy 72.6 + r 4 at either end stop)
+      expect(y - 7).toBeGreaterThan(76.7);
+    }
+  });
+
   it('should keep its text readable on the page in light and dark mode', () => {
     fixture.componentRef.setInput('label', 'Pan');
     fixture.detectChanges();

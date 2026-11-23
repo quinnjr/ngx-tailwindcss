@@ -29,6 +29,20 @@ describe('TwAudioStatsComponent', () => {
     expect(el.textContent).not.toContain('Lossy');
   });
 
+  it('should not claim a lossy/lossless badge for an unknown or missing codec', () => {
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Lossy');
+
+    // e.g. Dolby TrueHD is lossless but not in the codec table
+    fixture.componentRef.setInput('codec', 'TrueHD');
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Lossy');
+
+    fixture.componentRef.setInput('codec', 'mp3');
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Lossy');
+  });
+
   it('should rate lossless formats given without a matching codec as lossless', () => {
     fixture.componentRef.setInput('format', 'flac');
     fixture.componentRef.setInput('showStorageEstimate', true);

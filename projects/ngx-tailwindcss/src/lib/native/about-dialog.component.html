@@ -52,7 +52,7 @@
 
       <!-- Copyright -->
       @if (copyright()) {
-        <p class="px-6 mt-4 text-xs text-gray-500 dark:text-gray-500">
+        <p class="px-6 mt-4 text-xs text-gray-500 dark:text-gray-400">
           {{ copyright() }}
         </p>
       }
@@ -60,7 +60,7 @@
       <!-- Credits -->
       @if (credits().length > 0) {
         <div class="px-6 mt-4">
-          <p class="text-xs text-gray-500 dark:text-gray-500 mb-2">Credits</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Credits</p>
           <div class="text-sm text-gray-600 dark:text-gray-400">
             @for (credit of credits(); track credit) {
               <p>{{ credit }}</p>

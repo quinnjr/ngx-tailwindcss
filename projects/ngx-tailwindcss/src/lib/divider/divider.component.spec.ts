@@ -153,6 +153,11 @@ describe('TwDividerComponent', () => {
       expect(separator?.getAttribute('aria-orientation')).toBe('horizontal');
     });
 
+    it('should name the separator with the label (separator children are presentational)', () => {
+      const separator = dividerEl.querySelector('[role="separator"]');
+      expect(separator?.getAttribute('aria-label')).toBe('OR');
+    });
+
     it('should keep the label readable in dark mode', () => {
       expect(dividerEl.querySelector('span')?.className).toContain('dark:text-slate-400');
     });

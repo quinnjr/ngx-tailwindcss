@@ -125,6 +125,24 @@ describe('TwGraphicEQComponent', () => {
     expect(internals.currentPreset()).toBeNull();
   });
 
+  it('should stop showing a preset as current when the form writes different values', () => {
+    component.applyPreset(component.getPresetById('rock')!);
+    const rockValues = internals.bands().map((b: { frequency: number; gain: number }) => ({
+      frequency: b.frequency,
+      gain: b.gain,
+    }));
+
+    // Echo of the same values keeps the preset
+    component.writeValue(rockValues);
+    expect(internals.currentPreset()?.id).toBe('rock');
+
+    // A form reset flattens the bands: the "Rock" badge/pressed state must go
+    component.writeValue(null);
+    fixture.detectChanges();
+    expect(internals.currentPreset()).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[aria-pressed="true"]').length).toBe(0);
+  });
+
   it('should clamp preset gains to the configured range', () => {
     fixture.componentRef.setInput('minGain', -3);
     fixture.componentRef.setInput('maxGain', 3);

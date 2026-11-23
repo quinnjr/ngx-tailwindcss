@@ -386,7 +386,9 @@ export class TwPianoChordComponent {
           fingerCircle: '#1E40AF',
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
-          text: '#334155',
+          // On the page's own background: the container's slate-700, lightened on a dark page
+          // where the fixed colour was unreadable
+          text: 'currentColor',
           // slate-400 was ~2.6:1 on the white keys
           noteLabel: '#64748B',
           // Key label on a chord (active) key: slate-500 was ~3.1:1 on blue-200
@@ -436,7 +438,7 @@ export class TwPianoChordComponent {
     const variantClasses: Record<PianoChordVariant, string> = {
       default: 'bg-white border border-slate-200 shadow-sm',
       dark: 'bg-slate-800 border border-slate-700',
-      minimal: 'bg-transparent',
+      minimal: 'bg-transparent text-[#334155] dark:text-slate-200',
       colorful: 'bg-amber-50 border border-amber-200',
     };
     return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());

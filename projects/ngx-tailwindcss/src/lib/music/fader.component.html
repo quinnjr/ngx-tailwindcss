@@ -223,7 +223,9 @@
       [class.border]="variant() === 'channel'"
       [class.border-slate-700]="variant() === 'channel'"
     >
-      {{ displayValue() }} <span class="text-[10px] opacity-70">dB</span>
+      <!-- No dimming on the chipless minimal variant: slate-700 at 70% is ~4.3:1 on white -->
+      {{ displayValue() }}
+      <span class="text-[10px]" [class.opacity-70]="variant() !== 'minimal'">dB</span>
     </div>
   }
 </div>

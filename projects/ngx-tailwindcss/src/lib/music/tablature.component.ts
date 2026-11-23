@@ -179,13 +179,16 @@ export class TwTablatureComponent {
         };
       }
       case 'minimal': {
+        // Drawn on the page's own background: the text, notes and techniques use currentColor,
+        // set by the container (notes) and minimalRoleClasses (text, techniques) to the former
+        // fixed colours in light mode and lighter shades on a dark page, where the fixed dark
+        // colours were unreadable
         return {
           background: 'transparent',
           line: '#CBD5E1',
-          text: '#475569',
-          note: '#334155',
-          // indigo-500 was ~4.5:1 (just under) on white at 10px
-          technique: '#4F46E5',
+          text: 'currentColor',
+          note: 'currentColor',
+          technique: 'currentColor',
           barLine: '#94A3B8',
         };
       }
@@ -212,12 +215,23 @@ export class TwTablatureComponent {
     }
   });
 
+  /** Colour classes for the minimal variant's text and technique marks (drawn in currentColor) */
+  protected readonly minimalRoleClasses = computed(() =>
+    this.variant() === 'minimal'
+      ? {
+          text: 'text-[#475569] dark:text-slate-400',
+          // indigo-500 was ~4.5:1 (just under) on white at 10px
+          technique: 'text-[#4F46E5] dark:text-indigo-400',
+        }
+      : { text: '', technique: '' }
+  );
+
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-lg overflow-x-auto';
     const variantClasses: Record<TablatureVariant, string> = {
       default: 'bg-white border border-slate-200 shadow-sm',
       dark: 'bg-slate-800 border border-slate-700',
-      minimal: 'bg-transparent',
+      minimal: 'bg-transparent text-[#334155] dark:text-slate-200',
       printed: 'bg-[#FFFFF8] border border-slate-200',
     };
     return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());

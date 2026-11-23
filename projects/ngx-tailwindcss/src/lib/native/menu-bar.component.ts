@@ -50,6 +50,8 @@ export class TwMenuBarComponent {
   // State
   protected readonly openMenuId = signal<string | null>(null);
   protected readonly hoveredItemId = signal<string | null>(null);
+  /** Submenu item (`type: 'submenu'`) whose nested menu is open. */
+  protected readonly openSubmenuId = signal<string | null>(null);
   /** Index of the top-level item that holds the roving tabindex. */
   protected readonly focusedMenuIndex = signal(0);
   /**
@@ -116,9 +118,15 @@ export class TwMenuBarComponent {
 
   /** Keyboard handling inside an open dropdown menu. */
   protected onMenuKeydown(event: KeyboardEvent, index: number): void {
-    const items = this.getMenuItemElements();
-    const current = items.indexOf(event.target as HTMLElement);
+    const target = event.target as HTMLElement;
+    const menu = target.closest('[role="menu"]');
+    const items = this.getMenuItemElements(menu);
+    const current = items.indexOf(target);
     const count = this.items().length;
+    // The open submenu's parent item, when focus is inside a nested submenu
+    const submenuParent = menu?.parentElement?.closest('[role="menu"]')
+      ? menu.parentElement.querySelector<HTMLElement>(':scope > [role^="menuitem"]')
+      : null;
 
     switch (event.key) {
       case 'ArrowDown': {
@@ -138,15 +146,29 @@ export class TwMenuBarComponent {
         break;
       }
       case 'ArrowRight': {
-        this.moveToMenu((index + 1) % count, true);
+        if (target.hasAttribute('aria-haspopup')) {
+          this.openSubmenu(target);
+        } else {
+          this.moveToMenu((index + 1) % count, true);
+        }
         break;
       }
       case 'ArrowLeft': {
-        this.moveToMenu((index - 1 + count) % count, true);
+        if (submenuParent) {
+          this.openSubmenuId.set(null);
+          submenuParent.focus();
+        } else {
+          this.moveToMenu((index - 1 + count) % count, true);
+        }
         break;
       }
       case 'Escape': {
-        this.focusTrigger(index);
+        if (submenuParent) {
+          this.openSubmenuId.set(null);
+          submenuParent.focus();
+        } else {
+          this.focusTrigger(index);
+        }
         break;
       }
       case 'Tab': {
@@ -171,11 +193,24 @@ export class TwMenuBarComponent {
     }
   }
 
+  /** Open the nested menu of a submenu item and focus its first item. */
+  private openSubmenu(parent: HTMLElement): void {
+    this.openSubmenuId.set(parent.dataset['menuItemId'] ?? null);
+    afterNextRender(
+      () => {
+        const submenu = parent.parentElement?.querySelector(':scope > [role="menu"]');
+        this.getMenuItemElements(submenu)[0]?.focus();
+      },
+      { injector: this.injector }
+    );
+  }
+
   private openMenuAt(index: number, focus: 'first' | 'last'): void {
     const menu = this.items()[index];
     if (!menu) return;
     this.focusedMenuIndex.set(index);
     if (this.openMenuId() !== menu.id) {
+      this.openSubmenuId.set(null);
       this.openMenuId.set(menu.id);
       this.menuOpen.emit(menu.id);
     }
@@ -202,12 +237,20 @@ export class TwMenuBarComponent {
     ];
   }
 
-  private getMenuItemElements(): HTMLElement[] {
-    return [
-      ...this.elementRef.nativeElement.querySelectorAll<HTMLElement>(
-        '[role="menu"] [role^="menuitem"]:not([disabled])'
-      ),
-    ];
+  /** Enabled items that belong directly to `menu` (the open dropdown by default), not to a submenu. */
+  private getMenuItemElements(
+    menu: Element | null | undefined = this.elementRef.nativeElement.querySelector('[role="menu"]')
+  ): HTMLElement[] {
+    if (!menu) return [];
+    return [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([disabled])')].filter(
+      el => el.closest('[role="menu"]') === menu
+    );
+  }
+
+  /** Pointer hover on a dropdown item: highlight it and open/close submenus. */
+  protected onItemHover(item: NativeMenuItem): void {
+    this.hoveredItemId.set(item.id);
+    this.openSubmenuId.set(item.type === 'submenu' && item.submenu?.length ? item.id : null);
   }
 
   protected toggleMenu(menuId: string): void {
@@ -216,6 +259,7 @@ export class TwMenuBarComponent {
     if (this.openMenuId() === menuId) {
       this.closeMenu();
     } else {
+      this.openSubmenuId.set(null);
       this.openMenuId.set(menuId);
       this.menuOpen.emit(menuId);
     }
@@ -224,20 +268,29 @@ export class TwMenuBarComponent {
   protected onMenuHover(menuId: string): void {
     // Only switch menus on hover if a menu is already open
     if (this.openMenuId() !== null && this.openMenuId() !== menuId) {
+      this.openSubmenuId.set(null);
       this.openMenuId.set(menuId);
       this.menuOpen.emit(menuId);
     }
   }
 
   protected closeMenu(): void {
+    this.openSubmenuId.set(null);
     if (this.openMenuId() !== null) {
       this.openMenuId.set(null);
       this.menuClose.emit();
     }
   }
 
-  protected selectItem(item: NativeMenuItem): void {
+  protected selectItem(item: NativeMenuItem, event?: MouseEvent): void {
     if (item.disabled) return;
+
+    // Activating a submenu parent opens its submenu rather than selecting it
+    if (item.type === 'submenu' && item.submenu?.length) {
+      const parent = event?.currentTarget as HTMLElement | undefined;
+      if (parent) this.openSubmenu(parent);
+      return;
+    }
 
     // Return focus to the menubar before running the action, so an action
     // that moves focus (e.g. opening a dialog) isn't overridden afterwards

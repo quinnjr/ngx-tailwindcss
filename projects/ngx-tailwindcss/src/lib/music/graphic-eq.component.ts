@@ -940,15 +940,14 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   // ControlValueAccessor
   writeValue(value: EQBandValue[] | null): void {
-    if (value) {
-      const gains = this.frequencies().map(freq => {
-        const band = value.find(b => b.frequency === freq);
-        return band?.gain ?? 0;
-      });
-      this.bandValues.set(gains);
-    } else {
-      this.bandValues.set(this.frequencies().map(() => 0));
+    const gains = this.frequencies().map(freq => value?.find(b => b.frequency === freq)?.gain ?? 0);
+    // New values from the form (e.g. reset/setValue) no longer match the
+    // applied preset: stop showing it as the current/pressed preset
+    const current = this.bandValues();
+    if (gains.some((gain, i) => gain !== (current[i] ?? 0))) {
+      this.currentPreset.set(null);
     }
+    this.bandValues.set(gains);
   }
 
   registerOnChange(fn: (value: EQBandValue[]) => void): void {

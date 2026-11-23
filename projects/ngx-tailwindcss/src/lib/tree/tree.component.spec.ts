@@ -246,6 +246,22 @@ describe('TwTreeComponent', () => {
         expect(component.onNodeSelectSpy).not.toHaveBeenCalled();
       }
     });
+
+    it('should disable the checkbox of a disabled node so it cannot visibly toggle', () => {
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      const item = treeEl
+        .queryAll(By.css('[role="treeitem"]'))
+        .find(el => el.nativeElement.getAttribute('aria-label') === 'Disabled Node')!;
+      const checkbox = item.query(By.css('input[type="checkbox"]'))
+        .nativeElement as HTMLInputElement;
+      expect(checkbox.disabled).toBe(true);
+      checkbox.click();
+      fixture.detectChanges();
+      expect(checkbox.checked).toBe(false);
+      expect(item.nativeElement.getAttribute('aria-checked')).toBe('false');
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('clearSelection', () => {

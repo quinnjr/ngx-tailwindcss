@@ -244,4 +244,22 @@ describe('TwPianoComponent', () => {
     const group = (fixture.nativeElement as HTMLElement).querySelector('[role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Piano keyboard');
   });
+
+  it('ignores MIDI note-ons while disabled but still releases held keys', () => {
+    const internals = piano as unknown as { handleMidiMessage: (e: { data: Uint8Array }) => void };
+    const ons: NoteEvent[] = [];
+    const offs: NoteEvent[] = [];
+    piano.noteOn.subscribe(e => ons.push(e));
+    piano.noteOff.subscribe(e => offs.push(e));
+
+    internals.handleMidiMessage({ data: new Uint8Array([0x90, 60, 100]) });
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    internals.handleMidiMessage({ data: new Uint8Array([0x90, 62, 100]) });
+    internals.handleMidiMessage({ data: new Uint8Array([0x80, 60, 0]) });
+
+    expect(ons.map(e => e.midi)).toEqual([60]);
+    expect(offs.map(e => e.midi)).toEqual([60]);
+    expect(piano.getActiveNotes()).toEqual([]);
+  });
 });

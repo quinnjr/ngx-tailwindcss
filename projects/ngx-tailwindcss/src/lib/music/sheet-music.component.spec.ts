@@ -280,6 +280,20 @@ describe('TwSheetMusicComponent', () => {
     expect(errors).toEqual(['Failed to parse MusicXML', 'Failed to parse MusicXML']);
     errorSpy.mockRestore();
   });
+
+  it('keeps keyboard focus on the zoom controls when Zoom out reaches the minimum', () => {
+    fixture.componentRef.setInput('minZoom', 0.9);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const zoomOut = host.querySelector<HTMLButtonElement>('[aria-label="Zoom out"]')!;
+    zoomOut.focus();
+    zoomOut.click();
+    fixture.detectChanges();
+    expect(zoomOut.disabled).toBe(true);
+    expect(document.activeElement).toBe(host.querySelector('[aria-label="Zoom in"]'));
+    host.remove();
+  });
 });
 
 describe('parseMusicXML accidentals', () => {

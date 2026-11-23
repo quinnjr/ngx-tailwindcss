@@ -4,7 +4,7 @@
     <div class="zoom-controls absolute top-2 right-2 z-20 no-print">
       <button
         type="button"
-        (click)="zoomOut()"
+        (click)="keepFocus($event); zoomOut()"
         [disabled]="currentZoom() <= minZoom()"
         title="Zoom Out"
         aria-label="Zoom out"
@@ -14,7 +14,7 @@
       <span class="zoom-display">{{ Math.round(currentZoom() * 100) }}%</span>
       <button
         type="button"
-        (click)="zoomIn()"
+        (click)="keepFocus($event); zoomIn()"
         [disabled]="currentZoom() >= maxZoom()"
         title="Zoom In"
         aria-label="Zoom in"
@@ -339,7 +339,7 @@
                 type="button"
                 class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() === 0"
-                (click)="prevPage()"
+                (click)="keepFocus($event); prevPage()"
               >
                 ← Prev
               </button>
@@ -350,7 +350,7 @@
                 type="button"
                 class="px-3 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 [disabled]="currentPage() >= totalLines() - 1"
-                (click)="nextPage()"
+                (click)="keepFocus($event); nextPage()"
               >
                 Next →
               </button>

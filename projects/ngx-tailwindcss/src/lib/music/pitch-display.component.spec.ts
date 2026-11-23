@@ -328,4 +328,22 @@ describe('TwPitchDisplayComponent drag listener cleanup', () => {
     expect(globalRemove).not.toHaveBeenCalledWith('mousemove', expect.any(Function));
     globalRemove.mockRestore();
   });
+
+  it('should not change disabled buttons colour on hover', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwPitchDisplayComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwPitchDisplayComponent);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.componentRef.setInput('showPresets', true);
+    fixture.detectChanges();
+    const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button.disabled).toBe(true);
+      // Hover fills only apply while enabled, so disabled buttons stay visibly inert
+      const hover = [...button.classList].filter(c => c.includes('hover:'));
+      for (const c of hover) expect(c).toMatch(/enabled:hover:/);
+    }
+  });
 });

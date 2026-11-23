@@ -6,6 +6,7 @@ import {
   ElementRef,
   HostListener,
   inject,
+  Injector,
   input,
   linkedSignal,
   numberAttribute,
@@ -30,6 +31,7 @@ import {
   spellMidiPitch,
 } from './note.component';
 import { PlacedNote, TwNoteInputComponent } from './note-input.component';
+import { retainFocusAfterAction } from './focus-retain';
 import {
   getMeasureKeySignatures,
   MeasureData,
@@ -153,6 +155,7 @@ const NOTE_TO_CHROMATIC: Record<NoteName, number> = {
 })
 export class TwScoreEditorComponent implements OnInit {
   private readonly elementRef = inject(ElementRef);
+  private readonly injector = inject(Injector);
 
   // ==================== INPUTS ====================
 
@@ -226,6 +229,7 @@ export class TwScoreEditorComponent implements OnInit {
   // The open dialog (add part / transpose / export) and the element focused before it opened
   private readonly openDialog = viewChild<ElementRef<HTMLElement>>('dialog');
   private dialogReturnFocus: HTMLElement | null = null;
+  private readonly lyricsToggle = viewChild<ElementRef<HTMLButtonElement>>('lyricsToggle');
 
   // ==================== COMPUTED ====================
 
@@ -1685,6 +1689,23 @@ export class TwScoreEditorComponent implements OnInit {
   }
 
   // ==================== HELPERS ====================
+
+  /**
+   * Before a toolbar / part / lyrics-panel button's action: when the action disables or
+   * removes the focused button (Undo at the bottom of the history, Remove part, the lyrics
+   * panel's Apply / Close), keep keyboard focus in the editor instead of the page body
+   */
+  protected keepFocus(event: Event, fallback?: 'part' | 'lyrics'): void {
+    retainFocusAfterAction(event, this.injector, () => {
+      if (fallback === 'lyrics') return this.lyricsToggle()?.nativeElement;
+      // Removed part: the (now selected) remaining part's Remove button, else Add part
+      const host = this.elementRef.nativeElement as HTMLElement;
+      return (
+        host.querySelector<HTMLElement>('.part-item.selected .part-btn.delete:not([disabled])') ??
+        host.querySelector<HTMLElement>('.add-part-btn')
+      );
+    });
+  }
 
   private emitScoreChanged(): void {
     this.scoreChanged.emit(this.scoreData());

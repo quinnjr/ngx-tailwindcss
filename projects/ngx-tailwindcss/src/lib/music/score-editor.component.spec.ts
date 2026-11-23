@@ -551,6 +551,45 @@ describe('TwScoreEditorComponent', () => {
     // slate-500 (#64748b) was ~4.4:1 on the selected row's #eff6ff
     expect(/color:\s*(#[0-9a-f]+)/i.exec(rule)?.[1]).toBe('#475569');
   });
+
+  it('keeps keyboard focus in the editor when Undo, Remove part or the lyrics panel go away', () => {
+    createWith(score([placed('n1')]));
+    document.body.append(fixture.nativeElement);
+    const root = fixture.nativeElement as HTMLElement;
+    editor.addPart('flute');
+    fixture.detectChanges();
+
+    // Removing a part removed its focused Remove button
+    const removes = () => [...root.querySelectorAll<HTMLButtonElement>('.part-btn.delete')];
+    removes()[1].focus();
+    removes()[1].click();
+    fixture.detectChanges();
+    expect(editor.parts()).toHaveLength(1);
+    expect(document.activeElement).toBe(root.querySelector('.add-part-btn'));
+
+    // Undo at the bottom of the history disables itself: focus moves to Redo
+    const undo = root.querySelector<HTMLButtonElement>('.toolbar-btn[title^="Undo"]')!;
+    while (!undo.disabled) {
+      undo.focus();
+      undo.click();
+      fixture.detectChanges();
+    }
+    expect(document.activeElement).toBe(root.querySelector('.toolbar-btn[title^="Redo"]'));
+
+    // Closing the lyrics panel returns focus to its toolbar toggle
+    const toggle = [...root.querySelectorAll<HTMLButtonElement>('.toolbar-btn')].find(b =>
+      b.textContent?.includes('Lyrics')
+    )!;
+    toggle.click();
+    fixture.detectChanges();
+    const close = root.querySelector<HTMLButtonElement>('[aria-label="Close lyrics editor"]')!;
+    close.focus();
+    close.click();
+    fixture.detectChanges();
+    expect(root.querySelector('.lyrics-editor-panel')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+    root.remove();
+  });
 });
 
 describe('TwScoreEditorComponent accessible name', () => {

@@ -99,14 +99,36 @@ describe('TwTransportComponent icon contrast', () => {
       const cls = el.querySelector(`[aria-label="${label}"]`)!.className.split(/\s+/);
       expect(cls).toEqual(
         expect.arrayContaining([
-          'hover:from-slate-200',
-          'hover:to-slate-300',
-          'dark:hover:from-slate-500',
-          'dark:hover:to-slate-600',
+          'enabled:hover:from-slate-200',
+          'enabled:hover:to-slate-300',
+          'dark:enabled:hover:from-slate-500',
+          'dark:enabled:hover:to-slate-600',
         ])
       );
-      expect(cls).not.toContain('hover:to-slate-500');
+      expect(cls).not.toContain('enabled:hover:to-slate-500');
     }
     fixture.destroy();
+  });
+
+  it('should not change disabled button colours on hover', async () => {
+    await TestBed.configureTestingModule({ imports: [TwTransportComponent] }).compileComponents();
+    for (const variant of ['modern', 'compact', 'minimal', 'classic']) {
+      const fixture = TestBed.createComponent(TwTransportComponent);
+      fixture.componentRef.setInput('variant', variant);
+      fixture.componentRef.setInput('showShuffle', true);
+      fixture.componentRef.setInput('showRecord', true);
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+      const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+      expect(buttons.length).toBeGreaterThan(5);
+      for (const button of buttons) {
+        expect(button.disabled).toBe(true);
+        const live = [...button.classList].filter(
+          c => /(^|:)hover:/.test(c) && !c.includes('enabled:hover:')
+        );
+        expect(live, `${variant} ${button.getAttribute('aria-label')}`).toEqual([]);
+      }
+      fixture.destroy();
+    }
   });
 });

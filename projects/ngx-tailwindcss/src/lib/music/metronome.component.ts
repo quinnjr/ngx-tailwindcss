@@ -121,16 +121,16 @@ const ACCENT_DOT_CURRENT_LIGHT: Record<AccentLevel, string> = {
   strong: 'bg-red-700 dark:bg-red-400',
 };
 const ACCENT_DOT_HOVER: Record<AccentLevel, string> = {
-  none: 'hover:bg-slate-400',
-  soft: 'hover:bg-blue-400',
-  medium: 'hover:bg-amber-400',
-  strong: 'hover:bg-red-400',
+  none: 'enabled:hover:bg-slate-400',
+  soft: 'enabled:hover:bg-blue-400',
+  medium: 'enabled:hover:bg-amber-400',
+  strong: 'enabled:hover:bg-red-400',
 };
 const ACCENT_DOT_HOVER_LIGHT: Record<AccentLevel, string> = {
-  none: 'hover:bg-slate-700 dark:hover:bg-slate-400',
-  soft: 'hover:bg-blue-700 dark:hover:bg-blue-400',
-  medium: 'hover:bg-amber-700 dark:hover:bg-amber-400',
-  strong: 'hover:bg-red-700 dark:hover:bg-red-400',
+  none: 'enabled:hover:bg-slate-700 dark:enabled:hover:bg-slate-400',
+  soft: 'enabled:hover:bg-blue-700 dark:enabled:hover:bg-blue-400',
+  medium: 'enabled:hover:bg-amber-700 dark:enabled:hover:bg-amber-400',
+  strong: 'enabled:hover:bg-red-700 dark:enabled:hover:bg-red-400',
 };
 
 @Component({

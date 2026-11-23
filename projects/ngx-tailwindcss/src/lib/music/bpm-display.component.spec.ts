@@ -218,6 +218,10 @@ describe('TwBpmDisplayComponent disabled', () => {
     for (const control of controls) {
       expect(control.disabled).toBe(true);
       expect(control.classList).toContain('disabled:opacity-50');
+      // Hovering a disabled control must not change its colour as if it were live
+      expect(
+        [...control.classList].filter(c => /(^|:)hover:/.test(c) && !c.includes('enabled:hover:'))
+      ).toEqual([]);
     }
   });
 });

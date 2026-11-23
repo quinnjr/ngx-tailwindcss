@@ -410,6 +410,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stays inside the view; `tw-parametric-eq` axis and node labels stay on the
   canvas; `tw-oscilloscope` amplitude labels follow the gain; the
   `tw-pitch-display` wheel labels and thumbs are visible
+- Focus is kept when the focused control disappears or becomes disabled:
+  native breadcrumbs, command palette, quick switcher, onboarding wizard,
+  update dialog and search bar; toasts dismissed one after another;
+  `tw-pagination` and `tw-table` pager buttons; `tw-rating` clear; removing
+  the last `tw-chip`; dismissing a `tw-alert` moves focus to the next control
+  on the page
+- Native: Escape in the `tw-breadcrumbs` path editor no longer closes the
+  surrounding dialog
+- `tw-multiselect` options that are both keyboard-active and selected show one
+  background
+- Music: `tw-note-input` undo, redo and delete honour `editable=false`, and its
+  help text shows the real flat key; `tw-bpm-display` slider fill, value
+  bubble and marks line up with the thumb; the `tw-pan-control` stereo-width
+  cap passes pointer input through; the `tw-waveform` hover label is visible in
+  short views
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

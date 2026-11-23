@@ -204,6 +204,22 @@ describe('TwAlertComponent', () => {
 
       expect(alertEl.className).toContain('hidden');
     });
+
+    it('should move focus to the next control instead of losing it when dismissed', () => {
+      component.dismissible.set(true);
+      fixture.detectChanges();
+      const after = document.createElement('button');
+      after.textContent = 'After';
+      fixture.nativeElement.append(after);
+
+      const dismissBtn = alertEl.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!;
+      dismissBtn.focus();
+      dismissBtn.click();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(after);
+      after.remove();
+    });
   });
 
   describe('aria-live', () => {

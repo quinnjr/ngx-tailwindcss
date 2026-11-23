@@ -79,9 +79,9 @@
         class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-red-600]="state() === 'recording'"
-        [class.hover:bg-red-500]="state() === 'recording'"
+        [class.enabled:hover:bg-red-500]="state() === 'recording'"
         [class.bg-red-500/20]="state() !== 'recording'"
-        [class.hover:bg-red-500/30]="state() !== 'recording'"
+        [class.enabled:hover:bg-red-500/30]="state() !== 'recording'"
         [class.ring-2]="state() === 'recording'"
         [class.ring-red-400]="state() === 'recording'"
         [disabled]="disabled()"
@@ -105,9 +105,9 @@
         class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-green-600]="state() === 'playing'"
-        [class.hover:bg-green-700]="state() === 'playing'"
+        [class.enabled:hover:bg-green-700]="state() === 'playing'"
         [class.bg-slate-700]="state() !== 'playing'"
-        [class.hover:bg-slate-600]="state() !== 'playing'"
+        [class.enabled:hover:bg-slate-600]="state() !== 'playing'"
         [disabled]="disabled() || layers().length === 0"
         [class.opacity-50]="layers().length === 0"
         (click)="state() === 'playing' ? stop() : play()"
@@ -131,9 +131,9 @@
         class="rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [class.bg-amber-600]="state() === 'overdubbing'"
-        [class.hover:bg-amber-700]="state() === 'overdubbing'"
+        [class.enabled:hover:bg-amber-700]="state() === 'overdubbing'"
         [class.bg-amber-500/20]="state() !== 'overdubbing'"
-        [class.hover:bg-amber-500/30]="state() !== 'overdubbing' && canOverdub()"
+        [class.enabled:hover:bg-amber-500/30]="state() !== 'overdubbing' && canOverdub()"
         [class.ring-2]="state() === 'overdubbing'"
         [class.ring-amber-400]="state() === 'overdubbing'"
         [disabled]="disabled() || !canOverdub()"
@@ -157,7 +157,7 @@
       <!-- Clear Button -->
       <button
         type="button"
-        class="rounded-full flex items-center justify-center transition-all bg-slate-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="rounded-full flex items-center justify-center transition-all bg-slate-700 enabled:hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
         [class]="buttonSizeClasses()"
         [disabled]="disabled() || layers().length === 0"
         [class.opacity-50]="layers().length === 0"
@@ -186,7 +186,7 @@
     <div class="flex items-center justify-center gap-2">
       <button
         type="button"
-        class="px-3 py-1 rounded text-xs bg-slate-700 hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
+        class="px-3 py-1 rounded text-xs bg-slate-700 enabled:hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
         [disabled]="disabled() || !canUndo()"
         (click)="undo()"
       >
@@ -207,7 +207,7 @@
       </button>
       <button
         type="button"
-        class="px-3 py-1 rounded text-xs bg-slate-700 hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
+        class="px-3 py-1 rounded text-xs bg-slate-700 enabled:hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
         [disabled]="disabled() || !canRedo()"
         (click)="redo()"
       >
@@ -246,7 +246,7 @@
             [class.text-white]="layer.muted"
             [class.bg-slate-700]="!layer.muted"
             [class.text-slate-300]="!layer.muted"
-            [class.hover:bg-slate-600]="!layer.muted"
+            [class.enabled:hover:bg-slate-600]="!layer.muted"
             [disabled]="disabled()"
             (click)="toggleLayerMute(layer.id)"
             [attr.aria-label]="(layer.muted ? 'Unmute ' : 'Mute ') + layer.name"
@@ -274,7 +274,7 @@
           <!-- Delete Button -->
           <button
             type="button"
-            class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-6 h-6 rounded flex items-center justify-center enabled:hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             [class]="deleteButtonClass()"
             [disabled]="disabled()"
             (click)="deleteLayer(layer.id)"
@@ -328,7 +328,7 @@
           [class.text-white]="playbackSpeed() === 0.5"
           [class.bg-slate-700]="playbackSpeed() !== 0.5"
           [class.text-slate-300]="playbackSpeed() !== 0.5"
-          [class.hover:bg-slate-600]="playbackSpeed() !== 0.5"
+          [class.enabled:hover:bg-slate-600]="playbackSpeed() !== 0.5"
           [attr.aria-pressed]="playbackSpeed() === 0.5"
           [disabled]="disabled()"
           (click)="setPlaybackSpeed(0.5)"
@@ -342,7 +342,7 @@
           [class.text-white]="playbackSpeed() === 1"
           [class.bg-slate-700]="playbackSpeed() !== 1"
           [class.text-slate-300]="playbackSpeed() !== 1"
-          [class.hover:bg-slate-600]="playbackSpeed() !== 1"
+          [class.enabled:hover:bg-slate-600]="playbackSpeed() !== 1"
           [attr.aria-pressed]="playbackSpeed() === 1"
           [disabled]="disabled()"
           (click)="setPlaybackSpeed(1)"
@@ -356,7 +356,7 @@
           [class.text-white]="playbackSpeed() === 2"
           [class.bg-slate-700]="playbackSpeed() !== 2"
           [class.text-slate-300]="playbackSpeed() !== 2"
-          [class.hover:bg-slate-600]="playbackSpeed() !== 2"
+          [class.enabled:hover:bg-slate-600]="playbackSpeed() !== 2"
           [attr.aria-pressed]="playbackSpeed() === 2"
           [disabled]="disabled()"
           (click)="setPlaybackSpeed(2)"

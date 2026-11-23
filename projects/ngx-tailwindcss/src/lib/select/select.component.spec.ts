@@ -773,3 +773,40 @@ describe('TwSelectComponent (round 26)', () => {
     expect(selected.className).not.toContain('ring-2');
   });
 });
+
+describe('TwSelectComponent (round 29)', () => {
+  it('should return focus to the trigger when an option is clicked', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    const option: HTMLButtonElement = fixture.nativeElement.querySelectorAll('[role="option"]')[1];
+    option.focus();
+    option.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="option"]')).toBeNull();
+    expect(fixture.componentInstance.onChangeSpy).toHaveBeenCalledWith({
+      label: 'Option 2',
+      value: '2',
+    });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('should keep the dropdown open and focus put when a disabled option is clicked', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    const disabled: HTMLButtonElement =
+      fixture.nativeElement.querySelectorAll('[role="option"]')[3];
+    disabled.focus();
+    disabled.click();
+    fixture.detectChanges();
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.componentInstance.onChangeSpy).not.toHaveBeenCalled();
+  });
+});

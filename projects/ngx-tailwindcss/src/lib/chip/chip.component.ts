@@ -220,7 +220,15 @@ export class TwChipsComponent {
       return;
     }
     // The removed chip is still rendered until change detection runs
-    host.querySelectorAll<HTMLButtonElement>('tw-chip button')[index - 1]?.focus();
+    const previous = host.querySelectorAll<HTMLButtonElement>('tw-chip button')[index - 1];
+    if (previous) {
+      previous.focus();
+      return;
+    }
+    // No chips and no input left: focus the list itself rather than dropping to <body>
+    const list = host.querySelector<HTMLElement>('[role="list"]');
+    list?.setAttribute('tabindex', '-1');
+    list?.focus();
   }
 
   onAddChip(event: Event): void {

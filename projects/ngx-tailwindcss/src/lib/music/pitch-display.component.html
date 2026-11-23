@@ -16,7 +16,7 @@
           [class.text-white]="internalKeyLock()"
           [class.bg-slate-700]="!internalKeyLock()"
           [class.text-slate-300]="!internalKeyLock()"
-          [class.hover:bg-slate-600]="!internalKeyLock()"
+          [class.enabled:hover:bg-slate-600]="!internalKeyLock()"
           [attr.aria-pressed]="internalKeyLock()"
           [disabled]="disabled()"
           (click)="toggleKeyLock()"
@@ -53,7 +53,7 @@
       <!-- Down Button -->
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+        class="w-8 h-8 rounded-full bg-slate-700 enabled:hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() <= -24"
         (click)="onSemitonesDown()"
         aria-label="Semitone down"
@@ -77,7 +77,7 @@
       <!-- Up Button -->
       <button
         type="button"
-        class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+        class="w-8 h-8 rounded-full bg-slate-700 enabled:hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() >= 24"
         (click)="onSemitonesUp()"
         aria-label="Semitone up"

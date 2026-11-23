@@ -31,7 +31,7 @@
         [class.text-white]="isSynced()"
         [class.bg-slate-700]="!isSynced()"
         [class.text-slate-300]="!isSynced()"
-        [class.hover:bg-slate-600]="!isSynced()"
+        [class.enabled:hover:bg-slate-600]="!isSynced()"
         [disabled]="disabled()"
         (click)="toggleSync()"
         title="Toggle Sync"
@@ -354,7 +354,7 @@
           [class]="
             internalBpm() === preset
               ? 'bg-blue-500 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              : 'bg-slate-700 text-slate-300 enabled:hover:bg-slate-600'
           "
           [disabled]="disabled()"
           (click)="setBpmValue(preset)"

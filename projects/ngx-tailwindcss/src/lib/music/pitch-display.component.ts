@@ -547,7 +547,7 @@ export class TwPitchDisplayComponent {
   protected presetButtonClass(semitones: number, activeBg: string): string {
     return this.isPresetActive(semitones)
       ? `${activeBg} text-white`
-      : 'bg-slate-700 hover:bg-slate-600 text-slate-300';
+      : 'bg-slate-700 enabled:hover:bg-slate-600 text-slate-300';
   }
 
   protected readonly centsValueClasses = computed(() => {

@@ -568,6 +568,8 @@ export class TwPianoComponent implements OnDestroy {
   }
 
   private handleMidiNoteOn(midiNote: number, velocity: number): void {
+    // A disabled piano plays nothing (note-offs still release keys held before disabling)
+    if (this.disabled()) return;
     const key = this.midiToKey(midiNote);
     if (!key) return;
 

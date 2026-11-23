@@ -361,6 +361,10 @@ describe('TwMetronomeComponent disabled', () => {
     for (const control of controls) {
       expect(control.disabled).toBe(true);
       expect(control.classList).toContain('disabled:opacity-50');
+      // Hovering a disabled control must not change its colour as if it were live
+      expect(
+        [...control.classList].filter(c => /(^|:)hover:/.test(c) && !c.includes('enabled:hover:'))
+      ).toEqual([]);
     }
     fixture.destroy();
   });
@@ -381,7 +385,7 @@ describe('TwMetronomeComponent beat dot contrast', () => {
     expect(dots()[0].classList).toContain('bg-red-600');
     expect(dots()[1].classList).toContain('bg-slate-500');
     expect(dots()[2].classList).toContain('bg-amber-600');
-    expect(dots()[1].classList).toContain('hover:bg-slate-400');
+    expect(dots()[1].classList).toContain('enabled:hover:bg-slate-400');
     dots()[1].click();
     fixture.detectChanges();
     expect(dots()[1].classList).toContain('bg-blue-500');
@@ -395,9 +399,9 @@ describe('TwMetronomeComponent beat dot contrast', () => {
     // fading to a -400 shade (~2.6:1 on white)
     fixture.componentRef.setInput('variant', 'minimal');
     fixture.detectChanges();
-    expect(dots()[1].classList).toContain('hover:bg-blue-700');
-    expect(dots()[1].classList).toContain('dark:hover:bg-blue-400');
-    expect(dots()[1].classList).not.toContain('hover:bg-blue-400');
+    expect(dots()[1].classList).toContain('enabled:hover:bg-blue-700');
+    expect(dots()[1].classList).toContain('dark:enabled:hover:bg-blue-400');
+    expect(dots()[1].classList).not.toContain('enabled:hover:bg-blue-400');
     fixture.destroy();
   });
 });

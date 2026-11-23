@@ -1515,6 +1515,10 @@ describe('focus is kept when a control swaps itself out (round 28)', () => {
     f.detectChanges();
     const el = f.nativeElement as HTMLElement;
     const clear = el.querySelector<HTMLElement>('[aria-label="Clear search"]')!;
+    // Icon-only control: its glyph must reach 3:1 on white
+    const icon = clear.querySelector('svg')!;
+    expect(icon.classList).toContain('text-slate-500');
+    expect(icon.classList).not.toContain('text-slate-400');
     clear.focus();
     clear.click();
     f.detectChanges();

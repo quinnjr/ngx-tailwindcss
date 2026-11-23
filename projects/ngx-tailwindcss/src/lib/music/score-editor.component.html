@@ -28,7 +28,7 @@
           type="button"
           class="toolbar-btn"
           [disabled]="!editable() || !canUndo()"
-          (click)="undo()"
+          (click)="keepFocus($event); undo()"
           title="Undo (Ctrl+Z)"
           aria-label="Undo"
         >
@@ -38,7 +38,7 @@
           type="button"
           class="toolbar-btn"
           [disabled]="!editable() || !canRedo()"
-          (click)="redo()"
+          (click)="keepFocus($event); redo()"
           title="Redo (Ctrl+Shift+Z)"
           aria-label="Redo"
         >
@@ -158,6 +158,7 @@
       @if (showLyricsEditor()) {
         <div class="toolbar-group">
           <button
+            #lyricsToggle
             type="button"
             class="toolbar-btn"
             [class.active]="editingLyrics()"
@@ -243,7 +244,7 @@
                 <button
                   type="button"
                   class="part-btn delete"
-                  (click)="removePart(part.id); $event.stopPropagation()"
+                  (click)="keepFocus($event, 'part'); removePart(part.id); $event.stopPropagation()"
                   [disabled]="!editable() || parts().length <= 1"
                   title="Remove"
                   [attr.aria-label]="'Remove ' + part.name"
@@ -570,11 +571,15 @@
             type="button"
             class="btn-primary"
             [disabled]="!editable()"
-            (click)="applyLyrics(); editingLyrics.set(false)"
+            (click)="keepFocus($event, 'lyrics'); applyLyrics(); editingLyrics.set(false)"
           >
             Apply
           </button>
-          <button type="button" aria-label="Close lyrics editor" (click)="editingLyrics.set(false)">
+          <button
+            type="button"
+            aria-label="Close lyrics editor"
+            (click)="keepFocus($event, 'lyrics'); editingLyrics.set(false)"
+          >
             ×
           </button>
         </div>

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   Injectable,
@@ -126,6 +127,26 @@ export class TwToastService {
  */
 const toastFocusOrigins = new WeakMap<Element, HTMLElement>();
 
+/**
+ * Where focus should go when the toast `host` (which holds focus) is removed: the first
+ * button of the nearest following, else preceding, toast that is not also being removed,
+ * else back where focus came from.
+ */
+function focusTargetAfterRemoval(
+  host: Element,
+  isRemoved: (toast: Element) => boolean = () => false
+): HTMLElement | null {
+  for (const step of ['nextElementSibling', 'previousElementSibling'] as const) {
+    for (let el = host[step]; el; el = el[step]) {
+      if (el.tagName !== 'TW-TOAST' || isRemoved(el)) continue;
+      const button = el.querySelector<HTMLElement>('button');
+      if (button) return button;
+    }
+  }
+  const origin = toastFocusOrigins.get(host);
+  return origin?.isConnected ? origin : null;
+}
+
 @Component({
   selector: 'tw-toast',
   standalone: true,
@@ -218,15 +239,7 @@ export class TwToastComponent {
   }
 
   private focusAfterDismiss(): HTMLElement | null {
-    const host = this.elementRef.nativeElement;
-    for (const step of ['nextElementSibling', 'previousElementSibling'] as const) {
-      for (let el = host[step]; el; el = el[step]) {
-        const button = el.tagName === 'TW-TOAST' ? el.querySelector<HTMLElement>('button') : null;
-        if (button) return button;
-      }
-    }
-    const origin = toastFocusOrigins.get(host);
-    return origin?.isConnected ? origin : null;
+    return focusTargetAfterRemoval(this.elementRef.nativeElement);
   }
 }
 
@@ -259,10 +272,26 @@ export class TwToastContainerComponent {
   protected toasts;
   protected position;
 
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   constructor(toastService: TwToastService) {
     this.toastService = toastService;
     this.toasts = this.toastService.toasts;
     this.position = this.toastService.position;
+
+    // A toast removed while it holds focus (auto-dismiss timer, eviction, dismissAll,
+    // service.dismiss) would drop focus to the body. This view effect runs before the
+    // template removes the toast, so hand focus to a surviving toast or the origin first.
+    effect(() => {
+      const ids = new Set(this.toasts().map(t => t.id));
+      const container = this.elementRef.nativeElement;
+      const active = container.ownerDocument?.activeElement;
+      const toast = active?.closest?.('tw-toast[data-toast-id]');
+      if (!toast || !container.contains(toast)) return;
+      const isRemoved = (el: Element) => !ids.has(el.getAttribute('data-toast-id') ?? '');
+      if (!isRemoved(toast)) return;
+      focusTargetAfterRemoval(toast, isRemoved)?.focus();
+    });
   }
 
   protected containerClasses = computed(() => {

@@ -314,14 +314,14 @@ describe('TwLooperComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     // white on green-500 was ~2.3:1, on amber-500 ~2.1:1
     const stop = el.querySelector('[aria-label="Stop"]')!;
-    expect(stop.classList).toContain('hover:bg-green-700');
-    expect(stop.classList).not.toContain('hover:bg-green-500');
+    expect(stop.classList).toContain('enabled:hover:bg-green-700');
+    expect(stop.classList).not.toContain('enabled:hover:bg-green-500');
 
     internals.state.set('overdubbing');
     fixture.detectChanges();
     const overdub = el.querySelector('[aria-label="Stop Overdub"]')!;
-    expect(overdub.classList).toContain('hover:bg-amber-700');
-    expect(overdub.classList).not.toContain('hover:bg-amber-500');
+    expect(overdub.classList).toContain('enabled:hover:bg-amber-700');
+    expect(overdub.classList).not.toContain('enabled:hover:bg-amber-500');
     internals.state.set('idle');
   });
 
@@ -338,9 +338,9 @@ describe('TwLooperComponent', () => {
     fixture.componentRef.setInput('variant', 'minimal');
     fixture.detectChanges();
     const del = el.querySelector('[aria-label="Delete L1"]')!;
-    expect(del.classList).toContain('hover:text-red-700');
-    expect(del.classList).toContain('dark:hover:text-red-500');
-    expect(del.classList).not.toContain('hover:text-red-500');
+    expect(del.classList).toContain('enabled:hover:text-red-700');
+    expect(del.classList).toContain('dark:enabled:hover:text-red-500');
+    expect(del.classList).not.toContain('enabled:hover:text-red-500');
     expect(del.classList).toContain('text-slate-600');
     internals.layers.set([]);
   });
@@ -395,6 +395,22 @@ describe('TwLooperComponent', () => {
       expect(button.classList).toContain('disabled:opacity-50');
       // Size classes from the [class] binding are kept alongside
       expect(button.classList).toContain('rounded-full');
+    }
+    internals.layers.set([]);
+  });
+
+  it('should not change disabled buttons colour on hover', () => {
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
+    fixture.componentRef.setInput('disabled', true);
+    fixture.componentRef.setInput('showSpeedControl', true);
+    fixture.detectChanges();
+    const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      // Hover fills only apply while enabled, so disabled buttons stay visibly inert
+      const hover = [...button.classList].filter(c => c.includes('hover:'));
+      for (const c of hover)
+        expect(c, button.getAttribute('aria-label') ?? '').toMatch(/enabled:hover:/);
     }
     internals.layers.set([]);
   });

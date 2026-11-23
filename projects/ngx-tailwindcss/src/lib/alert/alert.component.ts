@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   EventEmitter,
   inject,
   Input,
@@ -16,6 +17,16 @@ import { twClassValue } from '../core/class-value';
 
 export type AlertVariant = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 export type AlertStyle = 'solid' | 'soft' | 'outlined' | 'accent';
+
+/** Elements that can receive keyboard focus (used to hand focus on after dismissal) */
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
 
 const ALERT_BASE_CLASSES = `
   relative flex gap-3
@@ -135,6 +146,7 @@ const ICON_COLORS: Record<AlertVariant, Record<AlertStyle, string>> = {
 })
 export class TwAlertComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Color variant */
   readonly variant = input<AlertVariant>('info');
@@ -227,8 +239,30 @@ export class TwAlertComponent {
   });
 
   protected onDismiss(): void {
+    const host = this.elementRef.nativeElement;
+    const hadFocus = host.contains(host.ownerDocument.activeElement);
     this.dismissed.set(true);
     this.dismiss.emit();
+    // Dismissing hides the alert, including the focused dismiss button: unless a
+    // (dismiss) handler moved focus, hand it to the next control on the page (or
+    // the previous one) instead of losing it to the document body
+    if (hadFocus && host.contains(host.ownerDocument.activeElement)) {
+      this.focusTargetAfterDismiss()?.focus();
+    }
+  }
+
+  private focusTargetAfterDismiss(): HTMLElement | null {
+    const host = this.elementRef.nativeElement;
+    const candidates = [
+      ...host.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    ].filter(el => !host.contains(el) && !el.closest('[hidden], [inert], [aria-hidden="true"]'));
+    const next = candidates.find(
+      el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    const previous = candidates.filter(
+      el => host.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING
+    );
+    return next ?? previous.at(-1) ?? null;
   }
 
   /** Programmatically dismiss the alert */

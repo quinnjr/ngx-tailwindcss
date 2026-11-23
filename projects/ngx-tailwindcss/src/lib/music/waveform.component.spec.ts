@@ -239,4 +239,18 @@ describe('TwWaveformComponent', () => {
     expect(canvas.classList).toContain('focus-visible:outline-2');
     expect(canvas.classList).toContain('focus-visible:-outline-offset-2');
   });
+
+  it('should not change the disabled zoom buttons colour on hover', () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.detectChanges();
+    // At 100% zoom, Zoom out is disabled: its hover fill must not apply
+    const out = fixture.nativeElement.querySelector('[aria-label="Zoom out"]') as HTMLButtonElement;
+    expect(out.disabled).toBe(true);
+    for (const label of ['Zoom out', 'Zoom in']) {
+      const button = fixture.nativeElement.querySelector(`[aria-label="${label}"]`) as HTMLElement;
+      const hover = [...button.classList].filter(c => c.includes('hover:'));
+      expect(hover.length, label).toBeGreaterThan(0);
+      for (const c of hover) expect(c, label).toMatch(/^enabled:hover:/);
+    }
+  });
 });

@@ -118,6 +118,11 @@ describe('TwMixerComponent layout', () => {
     expect(right.classList).not.toContain('opacity-50');
     expect(right.classList).toContain('disabled:opacity-50');
     expect(right.classList).toContain('disabled:cursor-not-allowed');
+    // A disabled (e.g. scrolled-to-the-end) button must not light up on hover
+    expect(right.classList).toContain('enabled:hover:bg-slate-700');
+    expect(right.classList).toContain('enabled:hover:text-white');
+    expect(right.classList).not.toContain('hover:bg-slate-700');
+    expect(right.classList).not.toContain('hover:text-white');
   });
 
   it('should not show no-op scroll buttons when the sectioned layout shows every channel', async () => {

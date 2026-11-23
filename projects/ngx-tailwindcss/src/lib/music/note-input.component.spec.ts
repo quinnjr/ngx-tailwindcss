@@ -407,4 +407,44 @@ describe('TwNoteInputComponent host', () => {
     expect(text).toContain('# - = accidentals');
     expect(text).not.toContain('# ♭ =');
   });
+
+  it('places no MIDI notes while not editable', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+    const internals = fixture.componentInstance as unknown as NoteInputInternals;
+    internals.handleMidiMessage({ data: new Uint8Array([0x90, 60, 100]) });
+    expect(internals.notes()).toEqual([]);
+  });
+
+  it('keeps keyboard focus in the toolbar when Delete / Undo disable themselves', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    const cmp = fixture.componentInstance;
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    document.body.append(host);
+    const button = (title: string) =>
+      host.querySelector<HTMLButtonElement>(`button[title^="${title}"]`)!;
+    const n = note('note-0');
+    cmp.setNotes([n]);
+    (cmp as unknown as NoteInputInternals).selectedNotes.set([n]);
+    fixture.detectChanges();
+
+    button('Delete').focus();
+    button('Delete').click();
+    fixture.detectChanges();
+    expect(button('Delete').disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Undo'));
+
+    // Undo back to the empty history: Undo disables itself, focus moves to Redo
+    while (!button('Undo').disabled) {
+      button('Undo').focus();
+      button('Undo').click();
+      fixture.detectChanges();
+    }
+    expect(document.activeElement).toBe(button('Redo'));
+    host.remove();
+  });
 });

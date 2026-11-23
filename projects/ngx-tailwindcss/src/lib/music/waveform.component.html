@@ -131,7 +131,7 @@
       <!-- Zoom Out -->
       <button
         type="button"
-        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 enabled:hover:text-white enabled:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="!canZoomOut()"
         (click)="zoomOut()"
         title="Zoom Out"
@@ -154,7 +154,7 @@
       <!-- Zoom In -->
       <button
         type="button"
-        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-6 h-6 rounded flex items-center justify-center text-slate-400 enabled:hover:text-white enabled:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="!canZoomIn()"
         (click)="zoomIn()"
         title="Zoom In"

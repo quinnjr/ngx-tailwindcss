@@ -33,6 +33,23 @@ describe('TwGraphicEQComponent', () => {
     expect(labels()).toEqual(['+24', '+12', '0', '-12', '-24']);
   });
 
+  it('should list custom presets given without a category in the preset menu', () => {
+    fixture.componentRef.setInput('customPresets', [
+      { id: 'mine', name: 'My Curve', values: { 1000: 3 } },
+    ]);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('button[aria-expanded]')!
+      .click();
+    fixture.detectChanges();
+
+    const names = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button .font-medium'),
+    ].map(el => el.textContent?.trim());
+    expect(names).toContain('My Curve');
+    expect(fixture.nativeElement.textContent).toContain('Custom');
+  });
+
   it('should honor the forms disabled state', () => {
     component.setDisabledState(true);
     fixture.detectChanges();

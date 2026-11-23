@@ -470,6 +470,15 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     return grouped;
   });
 
+  // Menu sections: the enabled categories, plus "Custom" for custom presets given
+  // without a category (always available, but they had no section to appear in)
+  protected readonly menuCategories = computed(() => {
+    const categories = this.presetCategories();
+    return !categories.includes('custom') && this.presetsByCategory().has('custom')
+      ? [...categories, 'custom' as const]
+      : categories;
+  });
+
   // Category display names
   protected readonly categoryNames: Record<EQPresetCategory, string> = {
     flat: 'Flat',

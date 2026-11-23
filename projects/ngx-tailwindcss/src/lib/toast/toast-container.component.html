@@ -1,6 +1,7 @@
 <div [class]="containerClasses()" aria-live="polite" aria-atomic="false">
   @for (toast of toasts(); track toast.id) {
     <tw-toast
+      [attr.data-toast-id]="toast.id"
       [variant]="toast.variant || 'info'"
       [title]="toast.title || ''"
       [message]="toast.message"

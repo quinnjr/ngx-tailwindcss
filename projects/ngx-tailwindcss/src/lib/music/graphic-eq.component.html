@@ -55,7 +55,7 @@
               </div>
 
               <!-- Preset Categories -->
-              @for (category of presetCategories(); track category) {
+              @for (category of menuCategories(); track category) {
                 @if (presetsByCategory().get(category); as categoryPresets) {
                   @if (categoryPresets.length > 0) {
                     <div class="py-1">

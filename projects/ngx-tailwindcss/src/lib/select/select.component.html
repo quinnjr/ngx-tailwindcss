@@ -81,7 +81,7 @@
                     [attr.aria-disabled]="option.disabled || null"
                     role="option"
                     tabindex="-1"
-                    (click)="selectOption(option)"
+                    (click)="onOptionClick(option)"
                   >
                     @if (showCheckmark() && isSelected(option)) {
                       <svg
@@ -114,7 +114,7 @@
                 [attr.aria-disabled]="option.disabled || null"
                 role="option"
                 tabindex="-1"
-                (click)="selectOption(option)"
+                (click)="onOptionClick(option)"
               >
                 @if (showCheckmark() && isSelected(option)) {
                   <svg
@@ -191,7 +191,7 @@
                 [attr.aria-disabled]="option.disabled || null"
                 role="option"
                 tabindex="-1"
-                (click)="selectOption(option)"
+                (click)="onOptionClick(option)"
               >
                 @if (showCheckmark() && isSelected(option)) {
                   <svg
@@ -224,7 +224,7 @@
             [attr.aria-disabled]="option.disabled || null"
             role="option"
             tabindex="-1"
-            (click)="selectOption(option)"
+            (click)="onOptionClick(option)"
           >
             @if (showCheckmark() && isSelected(option)) {
               <svg

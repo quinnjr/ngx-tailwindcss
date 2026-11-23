@@ -459,6 +459,33 @@ describe('TwToastContainerComponent', () => {
       opener.remove();
     });
 
+    it('should keep focus when an auto-dismiss timer removes the focused toast', async () => {
+      const opener = document.createElement('button');
+      document.body.append(opener);
+      service.show({ message: 'Undo?', duration: 5, action: { label: 'Undo', onClick: () => {} } });
+      service.show({ message: 'Toast 2', duration: 0 });
+      fixture.detectChanges();
+      const action = fixture.debugElement
+        .queryAll(By.css('tw-toast button'))
+        .map(b => b.nativeElement as HTMLButtonElement)
+        .find(b => b.textContent?.trim() === 'Undo')!;
+
+      opener.focus();
+      action.focus();
+      await new Promise<void>(resolve => {
+        setTimeout(resolve, 20);
+      });
+      fixture.detectChanges();
+
+      expect(service.toasts().length).toBe(1);
+      expect(document.activeElement).toBe(dismissButtons()[0]);
+
+      service.dismissAll();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+
     it('should return focus to the origin after dismissing toasts one after another', () => {
       const opener = document.createElement('button');
       document.body.append(opener);

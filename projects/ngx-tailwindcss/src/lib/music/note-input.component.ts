@@ -5,6 +5,8 @@ import {
   effect,
   ElementRef,
   HostListener,
+  inject,
+  Injector,
   input,
   numberAttribute,
   OnDestroy,
@@ -14,6 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { retainFocusAfterAction } from './focus-retain';
 
 import {
   ClefType,
@@ -117,6 +120,7 @@ const NOTE_SHORTCUTS: Record<string, NoteName> = {
   },
 })
 export class TwNoteInputComponent implements OnDestroy {
+  private readonly injector = inject(Injector);
   private readonly staffContainer = viewChild<ElementRef<HTMLDivElement>>('staffContainer');
 
   // Staff configuration (pass-through to tw-staff)
@@ -760,8 +764,8 @@ export class TwNoteInputComponent implements OnDestroy {
     const noteNumber = data[1];
     const velocity = data[2];
 
-    // Note On (0x9) with velocity > 0
-    if (command === 9 && velocity > 0) {
+    // Note On (0x9) with velocity > 0; read-only (editable false) places nothing
+    if (command === 9 && velocity > 0 && this.editable()) {
       // Place note at current cursor position or next available
       const hover = this.hoverPosition();
       const x = hover?.x ?? this.getNextNotePosition();
@@ -1073,6 +1077,12 @@ export class TwNoteInputComponent implements OnDestroy {
     this.undoStack.update(s => [...s, [...this.notes()]]);
     this.notes.set(nextState);
     this.notesChanged.emit(this.notes());
+  }
+
+  /** Toolbar Undo / Redo / Delete: keep keyboard focus when the action disables the button */
+  protected runAction(event: Event, action: 'undo' | 'redo' | 'deleteSelectedNotes'): void {
+    retainFocusAfterAction(event, this.injector);
+    this[action]();
   }
 
   // ==================== PUBLIC API ====================

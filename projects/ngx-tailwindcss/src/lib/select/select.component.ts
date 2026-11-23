@@ -343,6 +343,16 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     this.onTouchedFn();
   }
 
+  /**
+   * Option click handler: clicking an option focuses it and selecting closes the
+   * dropdown, which removes that option, so return focus to the trigger.
+   */
+  protected onOptionClick(option: SelectOption): void {
+    if (option.disabled) return;
+    this.selectOption(option);
+    this.triggerButton?.nativeElement.focus();
+  }
+
   onFilterInput(event: Event): void {
     const inputEl = event.target as HTMLInputElement;
     this.filterValue.set(inputEl.value);

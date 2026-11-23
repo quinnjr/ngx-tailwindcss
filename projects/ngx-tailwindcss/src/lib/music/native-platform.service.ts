@@ -314,7 +314,17 @@ export class NativePlatformService {
 
   /**
    * Open a file dialog
+   *
+   * Browser semantics: the picker is an `<input type="file">`, which honours
+   * `multiple` and `filters` (as its `accept` list) but has no title or
+   * starting directory, so `title` / `defaultPath` are not applied. It also
+   * cannot pick a directory itself (no path, and `webkitdirectory` yields the
+   * files inside it rather than the directory), so `directory: true` throws
+   * {@link UnsupportedOnPlatformError} instead of returning a file list in
+   * place of the requested directory.
+   *
    * @returns File info or null if cancelled
+   * @throws UnsupportedOnPlatformError for `directory: true` in the browser
    */
   async openFile(options: OpenFileOptions = {}): Promise<FileInfo | FileInfo[] | null> {
     const platform = this._platform();
@@ -325,6 +335,14 @@ export class NativePlatformService {
 
     if (platform === 'electron' && this.electronApi) {
       return this.openFileElectron(options);
+    }
+
+    if (options.directory) {
+      throw new UnsupportedOnPlatformError(
+        'openFile({ directory: true })',
+        platform,
+        'The browser file picker cannot select a directory.'
+      );
     }
 
     // Browser fallback using input element

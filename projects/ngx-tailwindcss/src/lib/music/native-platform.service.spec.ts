@@ -1,6 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FileInfo, MUSIC_FILE_FILTERS, NativePlatformService } from './native-platform.service';
+import {
+  FileInfo,
+  MUSIC_FILE_FILTERS,
+  NativePlatformService,
+  UnsupportedOnPlatformError,
+} from './native-platform.service';
 
 describe('NativePlatformService', () => {
   afterEach(() => {
@@ -165,6 +170,18 @@ describe('NativePlatformService', () => {
 
       void service.openFile({ filters: [MUSIC_FILE_FILTERS.midi, MUSIC_FILE_FILTERS.all] });
       expect((click.mock.contexts[1] as HTMLInputElement).accept).toBe('');
+    });
+
+    it('should reject directory picking instead of silently opening a file picker', async () => {
+      const click = vi
+        .spyOn(HTMLInputElement.prototype, 'click')
+        .mockImplementation(() => undefined);
+      const service = TestBed.inject(NativePlatformService);
+
+      await expect(service.openFile({ directory: true })).rejects.toBeInstanceOf(
+        UnsupportedOnPlatformError
+      );
+      expect(click).not.toHaveBeenCalled();
     });
   });
 

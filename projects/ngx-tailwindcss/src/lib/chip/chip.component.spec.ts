@@ -481,3 +481,21 @@ describe('TwChipsComponent (round 28)', () => {
     expect(remaining.getAttribute('aria-label')).toBe('Remove Angular');
   });
 });
+
+describe('TwChipsComponent (round 29)', () => {
+  it('should focus the chip list when the only chip is removed and adding is off', () => {
+    const fixture = TestBed.createComponent(ChipsTestComponent);
+    fixture.componentInstance.values.set(['Angular']);
+    fixture.componentInstance.allowAdd.set(false);
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('tw-chip button');
+    button.focus();
+    button.click();
+    fixture.detectChanges();
+
+    const list: HTMLElement = fixture.nativeElement.querySelector('[role="list"]');
+    expect(fixture.nativeElement.querySelectorAll('tw-chip').length).toBe(0);
+    expect(document.activeElement).toBe(list);
+    expect(list.getAttribute('tabindex')).toBe('-1');
+  });
+});

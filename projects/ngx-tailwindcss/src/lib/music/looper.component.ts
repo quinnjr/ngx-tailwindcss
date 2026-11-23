@@ -920,8 +920,8 @@ export class TwLooperComponent implements OnDestroy {
   // Layer delete icon on hover: red-500 on its red-500/20 hover fill is ~2.6:1 on a light page
   protected readonly deleteButtonClass = computed(() =>
     this.variant() === 'minimal'
-      ? 'text-slate-600 dark:text-slate-400 hover:text-red-700 dark:hover:text-red-500'
-      : 'text-slate-400 hover:text-red-500'
+      ? 'text-slate-600 dark:text-slate-400 enabled:hover:text-red-700 dark:enabled:hover:text-red-500'
+      : 'text-slate-400 enabled:hover:text-red-500'
   );
 
   // Idle record icon: red-500 on its red-500/20 (hover /30) button is ~2.5-2.9:1 on a

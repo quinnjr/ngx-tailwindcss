@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   inject,
+  Injector,
   input,
   linkedSignal,
   numberAttribute,
@@ -13,6 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
+import { retainFocusAfterAction } from './focus-retain';
 import {
   ClefType,
   getStaffLayout,
@@ -742,6 +744,7 @@ export const SAMPLE_MUSIC: SheetMusicData = {
 })
 export class TwSheetMusicComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly injector = inject(Injector);
 
   readonly music = input<SheetMusicData | null>(null);
   readonly variant = input<SheetMusicVariant>('default');
@@ -1108,6 +1111,12 @@ export class TwSheetMusicComponent {
 
   protected getMeasureGlobalIndex(lineIndex: number, measureInLineIndex: number): number {
     return lineIndex * this.measuresPerLine() + measureInLineIndex;
+  }
+
+  // Zoom out / in at the limit and Prev / Next at the first / last line disable the
+  // focused button: keep keyboard focus on the other one instead of the page body
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
   }
 
   // Pagination for 'pages' layout

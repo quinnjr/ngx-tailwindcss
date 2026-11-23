@@ -494,14 +494,15 @@ export class TwBpmDisplayComponent implements OnDestroy {
     const variant = this.variant();
 
     const variantClasses: Record<BpmDisplayVariant, string> = {
-      default: 'bg-slate-700 hover:bg-slate-600 text-white',
+      default: 'bg-slate-700 enabled:hover:bg-slate-600 text-white',
       minimal:
-        'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white',
-      led: 'bg-slate-800 hover:bg-slate-700 text-red-400 border border-red-900/50',
-      digital: 'bg-slate-800 hover:bg-slate-700 text-cyan-400',
-      analog: 'bg-amber-900/50 hover:bg-amber-800/50 text-amber-300 border border-amber-700/50',
-      light: 'bg-blue-600 hover:bg-blue-700 text-white',
-      highContrast: 'bg-white hover:bg-yellow-400 text-black border-2 border-white',
+        'bg-slate-200 dark:bg-slate-700 enabled:hover:bg-slate-300 dark:enabled:hover:bg-slate-600 text-slate-800 dark:text-white',
+      led: 'bg-slate-800 enabled:hover:bg-slate-700 text-red-400 border border-red-900/50',
+      digital: 'bg-slate-800 enabled:hover:bg-slate-700 text-cyan-400',
+      analog:
+        'bg-amber-900/50 enabled:hover:bg-amber-800/50 text-amber-300 border border-amber-700/50',
+      light: 'bg-blue-600 enabled:hover:bg-blue-700 text-white',
+      highContrast: 'bg-white enabled:hover:bg-yellow-400 text-black border-2 border-white',
     };
 
     return [

@@ -40,7 +40,13 @@ export type DropdownPosition =
       'block w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 focus:bg-slate-100 dark:focus:bg-slate-700 focus:text-slate-900 dark:focus:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400 disabled:opacity-50 disabled:pointer-events-none transition-colors cursor-pointer',
     role: 'menuitem',
     '[attr.tabindex]': 'disabled ? -1 : 0',
-    '[attr.aria-disabled]': 'disabled',
+    '[attr.aria-disabled]': 'disabled || null',
+    // The `disabled` input shadows the native property, so reflect it explicitly:
+    // a disabled <button> item must not fire its click handler (or close the menu)
+    '[attr.disabled]': 'disabled ? "" : null',
+    // Non-button items (e.g. links) cannot match `:disabled`
+    '[class.opacity-50]': 'disabled',
+    '[class.pointer-events-none]': 'disabled',
   },
 })
 export class TwDropdownItemDirective {

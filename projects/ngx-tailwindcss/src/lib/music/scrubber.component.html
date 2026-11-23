@@ -37,6 +37,7 @@
         @for (marker of markers(); track marker.time) {
           <div
             [class]="markerClasses()"
+            [style.background-color]="marker.color || null"
             [style.left.%]="(marker.time / duration()) * 100"
             [attr.title]="marker.label"
           ></div>

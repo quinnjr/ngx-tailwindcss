@@ -1,8 +1,4 @@
-<div
-  [class]="containerClasses()"
-  role="img"
-  [attr.aria-label]="'Note: ' + (displayNote() || 'none') + displayOctave()"
->
+<div [class]="containerClasses()" role="img" [attr.aria-label]="ariaLabel()">
   <!-- Note Name Display -->
   <div class="flex items-baseline justify-center">
     <span [class]="noteClasses()">{{ displayNote() }}</span>

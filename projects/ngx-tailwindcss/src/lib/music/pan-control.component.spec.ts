@@ -148,5 +148,17 @@ describe('TwPanControlComponent', () => {
     // Off L/R chips sit on slate-700, where slate-400 is ~3.9:1
     expect(span('L').className).toContain('text-slate-300');
     expect(span('R').className).toContain('text-slate-300');
+
+    // Active chips: white on cyan-500 was ~2.4:1
+    component.writeValue(-50);
+    fixture.detectChanges();
+    expect(span('L').className).toContain('bg-cyan-400');
+    expect(span('L').className).toContain('text-slate-900');
+    expect(span('L').className).not.toContain('text-white');
+    component.writeValue(50);
+    fixture.detectChanges();
+    expect(span('R').className).toContain('bg-cyan-400');
+    expect(span('R').className).toContain('text-slate-900');
+    expect(span('L').className).toContain('text-slate-300');
   });
 });

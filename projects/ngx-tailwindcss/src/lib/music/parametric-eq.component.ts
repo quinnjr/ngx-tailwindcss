@@ -166,6 +166,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           gridText: '#94A3B8',
           nodeText: '#FFFFFF',
           curve: '#3B82F6',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curveFill: 'rgba(59, 130, 246, 0.2)',
           spectrum: 'rgba(59, 130, 246, 0.3)',
         };
@@ -176,6 +178,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           grid: '#44403C',
           gridText: '#A8A29E', // stone-400
           nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#F59E0B',
           curveFill: 'rgba(245, 158, 11, 0.2)',
           spectrum: 'rgba(245, 158, 11, 0.3)',
@@ -187,6 +191,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           grid: '#1E1E1E',
           gridText: '#999999',
           nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#00FFFF',
           curveFill: 'rgba(0, 255, 255, 0.15)',
           spectrum: 'rgba(255, 0, 255, 0.3)',
@@ -198,6 +204,10 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           grid: '#E2E8F0',
           gridText: '#64748B',
           nodeText: '#0F172A',
+          // Dark node outlines: white ones vanish on the white plot, leaving the
+          // orange/yellow/green nodes at ~2-2.8:1 and the selected node unmarked
+          nodeStroke: 'rgba(15,23,42,0.6)',
+          nodeStrokeSelected: '#0F172A',
           curve: '#2563EB',
           curveFill: 'rgba(37, 99, 235, 0.15)',
           spectrum: 'rgba(37, 99, 235, 0.2)',
@@ -209,6 +219,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           grid: '#FFFFFF',
           gridText: '#FFFFFF',
           nodeText: '#FFFFFF',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curve: '#FFFF00',
           curveFill: 'rgba(255, 255, 0, 0.3)',
           spectrum: 'rgba(0, 255, 0, 0.4)',
@@ -221,6 +233,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           gridText: '#94A3B8',
           nodeText: '#FFFFFF',
           curve: '#10B981',
+          nodeStroke: 'rgba(255,255,255,0.5)',
+          nodeStrokeSelected: '#FFFFFF',
           curveFill: 'rgba(16, 185, 129, 0.2)',
           spectrum: 'rgba(16, 185, 129, 0.3)',
         };
@@ -595,7 +609,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
 
       // Draw node circle
       this.ctx.fillStyle = band.color || '#fff';
-      this.ctx.strokeStyle = isSelected ? '#fff' : 'rgba(255,255,255,0.5)';
+      this.ctx.strokeStyle = isSelected
+        ? this.colors().nodeStrokeSelected
+        : this.colors().nodeStroke;
       this.ctx.lineWidth = isSelected ? 3 : 2;
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius, 0, Math.PI * 2);

@@ -552,5 +552,27 @@ describe('TwTreeComponent', () => {
       const checkbox = treeEl.query(By.css('input[type="checkbox"]')).nativeElement;
       expect(checkbox.getAttribute('tabindex')).toBe('-1');
     });
+
+    it('should hand focus to the treeitem after a click on its toggle or checkbox', () => {
+      const toggle = rows()[0].query(By.css('button')).nativeElement as HTMLButtonElement;
+      toggle.focus(); // what a mouse press on the button does in most browsers
+      toggle.click();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(rows()[0].nativeElement);
+
+      // Arrow keys work right away from the clicked row
+      pressKey(rows()[0], 'ArrowDown');
+      expect(focusedLabel()).toBe('Work');
+
+      component.selectionMode.set('checkbox');
+      fixture.detectChanges();
+      const checkbox = rows()[1].query(By.css('input[type="checkbox"]'))
+        .nativeElement as HTMLInputElement;
+      checkbox.focus();
+      checkbox.click();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(rows()[1].nativeElement);
+      expect(rows()[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+    });
   });
 });

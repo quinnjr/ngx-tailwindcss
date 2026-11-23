@@ -470,7 +470,8 @@ export class TwBpmDisplayComponent implements OnDestroy {
     const variantClasses: Record<BpmDisplayVariant, { fill: string; bubble: string }> = {
       default: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
       minimal: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
-      led: { fill: 'bg-red-500', bubble: 'bg-red-500 text-white' },
+      // white on red-500 was ~3.8:1
+      led: { fill: 'bg-red-500', bubble: 'bg-red-600 text-white' },
       digital: { fill: 'bg-cyan-500', bubble: 'bg-cyan-500 text-slate-950' },
       analog: { fill: 'bg-amber-500', bubble: 'bg-amber-500 text-slate-950' },
       light: { fill: 'bg-blue-600', bubble: 'bg-blue-600 text-white' },

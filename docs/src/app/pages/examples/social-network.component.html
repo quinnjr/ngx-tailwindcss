@@ -30,12 +30,12 @@
         <!-- Actions -->
         <div class="flex items-center gap-2">
           <app-theme-toggle></app-theme-toggle>
-          <tw-button variant="ghost" size="sm" (click)="currentView.set('feed')">
+          <tw-button aria-label="Home" variant="ghost" size="sm" (click)="currentView.set('feed')">
             <fa-icon [icon]="icons.home" class="w-6 h-6 text-slate-600 dark:text-zinc-300"></fa-icon>
           </tw-button>
 
           <div class="relative">
-            <tw-button variant="ghost" size="sm" (click)="toggleNotifications()">
+            <tw-button aria-label="Notifications" variant="ghost" size="sm" (click)="toggleNotifications()">
               <fa-icon [icon]="icons.bell" class="w-6 h-6 text-slate-600 dark:text-zinc-300"></fa-icon>
             </tw-button>
             @if (unreadNotifications() > 0) {
@@ -77,7 +77,7 @@
             }
           </div>
 
-          <tw-button variant="ghost" size="sm" (click)="toggleMessages()">
+          <tw-button aria-label="Messages" variant="ghost" size="sm" (click)="toggleMessages()">
             <fa-icon [icon]="icons.comment" class="w-6 h-6 text-slate-600 dark:text-zinc-300"></fa-icon>
           </tw-button>
 
@@ -215,7 +215,7 @@
                   <p class="text-sm text-slate-600 dark:text-zinc-400">&#64;{{ post.author.username }} · {{ post.timestamp }}</p>
                 </div>
               </div>
-              <tw-button variant="ghost" size="sm">
+              <tw-button aria-label="More options" variant="ghost" size="sm">
                 <fa-icon [icon]="icons.ellipsisV" class="w-5 h-5 text-slate-400 dark:text-zinc-500"></fa-icon>
               </tw-button>
             </div>

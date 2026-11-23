@@ -154,6 +154,12 @@ describe('TwBpmDisplayComponent text colours', () => {
     expect(bubble().className).toContain('text-slate-950');
     expect(span('BPM').className).toContain('text-cyan-500');
     expect(span('BPM').className).not.toContain('/60');
+
+    // led: white on red-500 was ~3.8:1
+    fixture.componentRef.setInput('variant', 'led');
+    fixture.detectChanges();
+    expect(bubble().className).toContain('bg-red-600');
+    expect(bubble().className).not.toContain('bg-red-500');
   });
 });
 

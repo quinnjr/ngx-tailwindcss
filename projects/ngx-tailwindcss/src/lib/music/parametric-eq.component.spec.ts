@@ -195,4 +195,37 @@ describe('TwParametricEQComponent', () => {
     expect(chip().classList).toContain('ring-slate-900');
     expect(chip().classList).not.toContain('ring-white');
   });
+  it('should outline band nodes visibly on the light variant plot', () => {
+    const strokes: unknown[] = [];
+    const state: Record<string | symbol, unknown> = {};
+    internals.ctx = new Proxy(state, {
+      get: (target, prop) =>
+        prop === 'stroke'
+          ? () => strokes.push(target['strokeStyle'])
+          : prop in target
+            ? target[prop]
+            : vi.fn(),
+      set: (target, prop, value) => {
+        target[prop] = value;
+        return true;
+      },
+    });
+    const node = (): unknown[] => strokes.filter((_s, i) => i % 2 === 1); // [Q line, node] per band
+
+    internals.selectBand(internals.bands()[0]);
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    strokes.length = 0;
+    internals.drawBandNodes();
+    expect(node()[0]).toBe('#0F172A');
+    expect(node()[1]).toBe('rgba(15,23,42,0.6)');
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    strokes.length = 0;
+    internals.drawBandNodes();
+    expect(node()[0]).toBe('#FFFFFF');
+    expect(node()[1]).toBe('rgba(255,255,255,0.5)');
+    internals.ctx = null;
+  });
 });

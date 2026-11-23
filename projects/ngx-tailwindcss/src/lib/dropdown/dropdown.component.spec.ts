@@ -623,3 +623,54 @@ describe('TwDropdownComponent scrolling container', () => {
     fixture.destroy();
   });
 });
+
+@Component({
+  template: `
+    <tw-dropdown>
+      <button twDropdownTrigger class="dd-trigger">Open</button>
+      <tw-dropdown-menu>
+        <button twDropdownItem class="dd-enabled" (click)="clicks.push('enabled')">On</button>
+        <button
+          twDropdownItem
+          class="dd-disabled"
+          [disabled]="true"
+          (click)="clicks.push('disabled')"
+        >
+          Off
+        </button>
+      </tw-dropdown-menu>
+    </tw-dropdown>
+  `,
+  standalone: true,
+  imports: [
+    TwDropdownComponent,
+    TwDropdownItemDirective,
+    TwDropdownMenuComponent,
+    TwDropdownTriggerDirective,
+  ],
+})
+class DisabledItemHostComponent {
+  clicks: string[] = [];
+}
+
+describe('TwDropdownItemDirective disabled', () => {
+  it('should natively disable a disabled button item so it cannot be activated', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DisabledItemHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DisabledItemHostComponent);
+    fixture.detectChanges();
+
+    const item = fixture.nativeElement.querySelector('.dd-disabled') as HTMLButtonElement;
+    expect(item.disabled).toBe(true);
+    expect(item.getAttribute('aria-disabled')).toBe('true');
+    item.click();
+    expect(fixture.componentInstance.clicks).toEqual([]);
+
+    const enabled = fixture.nativeElement.querySelector('.dd-enabled') as HTMLButtonElement;
+    expect(enabled.disabled).toBe(false);
+    expect(enabled.hasAttribute('aria-disabled')).toBe(false);
+    fixture.destroy();
+  });
+});

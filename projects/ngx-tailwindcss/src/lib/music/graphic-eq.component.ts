@@ -740,6 +740,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
     event.preventDefault();
     gain = Math.max(this.minGain(), Math.min(this.maxGain(), gain));
+    this.clearPresetIfEdited(bandIndex, gain);
 
     this.bandValues.update(values => {
       const newValues = [...values];
@@ -762,6 +763,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     let gain = minGain + percentage * (maxGain - minGain);
     gain = Math.round(gain / step) * step;
     gain = Math.max(minGain, Math.min(maxGain, gain));
+    this.clearPresetIfEdited(bandIndex, gain);
 
     this.bandValues.update(values => {
       const newValues = [...values];
@@ -774,6 +776,16 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     this.emitValues();
   }
 
+  /**
+   * A manual band edit means the values no longer match the applied preset:
+   * stop showing it as the current/pressed preset.
+   */
+  private clearPresetIfEdited(bandIndex: number, gain: number): void {
+    if ((this.bandValues()[bandIndex] ?? 0) !== gain) {
+      this.currentPreset.set(null);
+    }
+  }
+
   private emitValues(): void {
     const values = this.bands().map(b => ({ frequency: b.frequency, gain: b.gain }));
     this.onChange(values);
@@ -782,6 +794,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
 
   protected resetBand(bandIndex: number): void {
     if (!this.interactive() || this.isDisabled()) return;
+    this.clearPresetIfEdited(bandIndex, 0);
     this.bandValues.update(values => {
       const newValues = [...values];
       newValues[bandIndex] = 0;

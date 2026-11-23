@@ -114,10 +114,14 @@
               class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500"
               [class.bg-red-50]="entry.level === 'error' || entry.level === 'fatal'"
               [class.dark:bg-red-900/20]="entry.level === 'error' || entry.level === 'fatal'"
-              tabindex="0"
+              [class.border-l-4]="selectedEntry()?.id === entry.id"
+              [class.border-l-blue-600]="selectedEntry()?.id === entry.id"
+              [class.dark:border-l-blue-400]="selectedEntry()?.id === entry.id"
+              [attr.aria-current]="selectedEntry()?.id === entry.id ? 'true' : null"
+              [attr.tabindex]="entry.id === tabStopEntryId() ? 0 : -1"
+              (focus)="focusedEntryId.set(entry.id)"
               (click)="selectEntry(entry)"
-              (keydown.enter)="selectEntry(entry)"
-              (keydown.space)="$event.preventDefault(); selectEntry(entry)"
+              (keydown)="onRowKeydown(entry, $event)"
             >
               <!-- Timestamp -->
               <td

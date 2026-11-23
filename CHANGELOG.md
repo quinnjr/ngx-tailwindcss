@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`@quinnjr/ngx-tailwindcss/styles/theme.css`); previously the export pointed
   at a file that was not in the package
 - `rxjs` (`^7.4.0`) is now a declared peer dependency
+- `@angular/platform-browser` is now a declared peer dependency (public types
+  reference `SafeHtml`)
 - `tw-button` gains a `type` input (`'button' | 'submit' | 'reset'`, default
   `'button'`): `type="submit"` submits and `type="reset"` resets the enclosing
   `<form>`. Previously a `tw-button` could not submit a form. A
@@ -286,10 +288,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   icon, `tw-graphic-eq` preset descriptions, `tw-metronome` beat dots,
   `tw-transport` hover icons, `tw-piano-chord` active key labels and
   `tw-score-editor` part names
+- `twMidiLearn` applies later changes to its range, curve, inverted, channel
+  and CC inputs to its existing mapping
+- `tw-lead-sheet`: the `with-staff` display mode and measure `melody` are
+  documented as not yet supported (`with-staff` renders like `chords-only`
+  and logs a one-time dev-mode warning)
+- Keyboard: `tw-waveform` keyboard seeking pans a zoomed view to the seek
+  position; `tw-parametric-eq` bands adjust Q with PageUp/PageDown;
+  `tw-graphic-eq` preset menu exposes `aria-expanded` and closes on Escape;
+  `tw-vu-meter` latched clip indicators can be reset with a focusable button;
+  native `tw-tab-bar` tabs reorder with Ctrl/Cmd+Shift+PageUp/PageDown;
+  `tw-log-viewer` rows are focusable; in the native quick switcher, Enter on
+  a focused button activates that button
+- Accessibility: `tw-rating` announces half-step values; onboarding wizard
+  step dots meet 3:1 and the current step is wider; dark-mode hover states
+  keep their contrast on `tw-menu` shortcuts, `tw-table` rows and pager and
+  `tw-tree` chevrons
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,
-  headings and inline code on the docs site are readable in dark mode
+  headings and inline code on the docs site are readable in dark mode;
+  icon-only buttons and links in the docs demos and examples have accessible
+  names
 
 ## [1.1.1] - 2026-11-23
 

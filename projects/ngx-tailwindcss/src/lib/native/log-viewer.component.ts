@@ -115,6 +115,60 @@ export class TwLogViewerComponent implements AfterViewChecked {
     // Filter change triggers computed update automatically
   }
 
+  /** Row last focused; with the selection, it anchors the single row tab stop. */
+  protected readonly focusedEntryId = signal<string | null>(null);
+
+  /**
+   * Roving tabindex: only one row is in the Tab order (a long log would
+   * otherwise need one Tab per entry to get past it); arrows move between rows.
+   */
+  protected readonly tabStopEntryId = computed(() => {
+    const entries = this.filteredEntries();
+    const isShown = (id: string | null | undefined) =>
+      id != null && entries.some(entry => entry.id === id);
+    const focused = this.focusedEntryId();
+    if (isShown(focused)) return focused;
+    const selected = this.selectedEntry()?.id;
+    if (isShown(selected)) return selected;
+    return entries[0]?.id ?? null;
+  });
+
+  protected onRowKeydown(entry: LogEntry, event: KeyboardEvent): void {
+    const row = event.currentTarget as HTMLElement;
+    const rows = [...(row.parentElement?.children ?? [])] as HTMLElement[];
+    const index = rows.indexOf(row);
+    let target: HTMLElement | undefined;
+    switch (event.key) {
+      case 'Enter':
+      case ' ': {
+        event.preventDefault();
+        this.selectEntry(entry);
+        return;
+      }
+      case 'ArrowDown': {
+        target = rows[index + 1];
+        break;
+      }
+      case 'ArrowUp': {
+        target = rows[index - 1];
+        break;
+      }
+      case 'Home': {
+        target = rows[0];
+        break;
+      }
+      case 'End': {
+        target = rows.at(-1);
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+    event.preventDefault();
+    target?.focus();
+  }
+
   protected selectEntry(entry: LogEntry): void {
     this.selectedEntry.set(entry);
     this.entrySelect.emit(entry);

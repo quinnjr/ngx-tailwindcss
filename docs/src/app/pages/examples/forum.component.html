@@ -34,7 +34,7 @@
         <!-- User Menu -->
         <div class="flex items-center gap-3">
           <app-theme-toggle></app-theme-toggle>
-          <tw-button variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-300">
+          <tw-button aria-label="Notifications" variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-300">
             <fa-icon [icon]="icons.bell" class="w-5 h-5"></fa-icon>
           </tw-button>
           <tw-avatar [initials]="currentUser.avatar" size="md"></tw-avatar>

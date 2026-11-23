@@ -131,4 +131,21 @@ describe('TwScrubberComponent', () => {
       expect(time.className).toContain('text-white');
     }
   });
+
+  it('should draw chapter markers in their own colour, or at 3:1 on the track by default', () => {
+    fixture.componentRef.setInput('showMarkers', true);
+    fixture.componentRef.setInput('markers', [
+      { time: 20, label: 'Intro' },
+      { time: 100, label: 'Chorus', color: 'rgb(255, 0, 0)' },
+    ]);
+    fixture.detectChanges();
+    const markers = [...slider().querySelectorAll<HTMLElement>('[title]')];
+    expect(markers.map(m => m.title)).toEqual(['Intro', 'Chorus']);
+    // yellow-500 was ~1.6:1 on the light slate-200 track
+    expect(markers[0].className).toContain('bg-slate-900');
+    expect(markers[0].className).not.toContain('bg-yellow-500');
+    expect(markers[0].style.backgroundColor).toBe('');
+    // the marker's `color` was ignored
+    expect(markers[1].style.backgroundColor).toBe('rgb(255, 0, 0)');
+  });
 });

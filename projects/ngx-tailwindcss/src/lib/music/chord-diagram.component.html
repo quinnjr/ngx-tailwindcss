@@ -62,6 +62,19 @@
       </text>
     }
 
+    <!-- Top of the grid when it starts above the nut (the nut draws it otherwise) -->
+    @if (displayBaseFret() > 1) {
+      <line
+        class="grid-top"
+        [attr.x1]="dimensions().gridLeft"
+        [attr.y1]="getFretY(0)"
+        [attr.x2]="dimensions().gridLeft + (stringCount() - 1) * dimensions().stringSpacing"
+        [attr.y2]="getFretY(0)"
+        [attr.stroke]="colors().fret"
+        stroke-width="1"
+      />
+    }
+
     <!-- Fret Lines -->
     @for (fret of frets(); track fret) {
       <line

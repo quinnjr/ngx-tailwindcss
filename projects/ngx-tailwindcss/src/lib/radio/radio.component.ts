@@ -187,6 +187,12 @@ export class TwRadioGroupComponent implements ControlValueAccessor, AfterContent
   /** Whether all radios are disabled */
   readonly disabled = input(false, { transform: booleanAttribute });
 
+  /** Accessible name of the radio group */
+  readonly ariaLabel = input<string | null>(null);
+
+  /** Id(s) of the element(s) naming the radio group (e.g. a visible heading) */
+  readonly ariaLabelledby = input<string | null>(null);
+
   /** Change event */
   readonly onChange = output<any>();
 

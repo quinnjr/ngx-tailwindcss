@@ -103,6 +103,28 @@ describe('TwGraphicEQComponent', () => {
     expect(Number(end[1])).toBeCloseTo(120, 6);
   });
 
+  it('should stop showing a preset as current once a band is edited', () => {
+    component.applyPreset(component.getPresetById('rock')!);
+    fixture.detectChanges();
+    expect(internals.currentPreset()?.id).toBe('rock');
+
+    // A key that cannot change the value (already at max) keeps the preset
+    internals.bandValues.update((v: number[]) => v.map((g, i) => (i === 3 ? 12 : g)));
+    internals.currentPreset.set(component.getPresetById('rock')!);
+    internals.onBandKeydown(new KeyboardEvent('keydown', { key: 'End' }), 3);
+    expect(internals.currentPreset()?.id).toBe('rock');
+
+    internals.onBandKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }), 0);
+    fixture.detectChanges();
+    expect(internals.currentPreset()).toBeNull();
+    const pressed = fixture.nativeElement.querySelectorAll('[aria-pressed="true"]');
+    expect(pressed.length).toBe(0);
+
+    component.applyPreset(component.getPresetById('rock')!);
+    internals.resetBand(0);
+    expect(internals.currentPreset()).toBeNull();
+  });
+
   it('should clamp preset gains to the configured range', () => {
     fixture.componentRef.setInput('minGain', -3);
     fixture.componentRef.setInput('maxGain', 3);

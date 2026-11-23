@@ -140,6 +140,8 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   protected readonly listboxId = `tw-multiselect-listbox-${Math.random().toString(36).slice(2, 9)}`;
   protected readonly triggerId = `${this.listboxId}-trigger`;
   protected readonly selectAllId = `${this.listboxId}-select-all`;
+  /** Id of the displayed value; names the combobox when there is no label */
+  protected readonly valueId = `${this.listboxId}-value`;
 
   private onChangeFn: (value: unknown[]) => void = () => {};
   private onTouchedFn: () => void = () => {};

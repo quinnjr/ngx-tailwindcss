@@ -94,4 +94,42 @@ describe('TwOscilloscopeComponent', () => {
 
     fixture.destroy();
   });
+  it('should draw canvas text (No Signal, labels) at readable contrast', async () => {
+    const texts: Array<{ text: string; fillStyle: unknown }> = [];
+    const state: Record<string | symbol, unknown> = {};
+    const ctx = new Proxy(state, {
+      get: (target, prop) => {
+        if (prop === 'canvas') return undefined;
+        if (prop === 'fillText') {
+          return (text: string) => texts.push({ text, fillStyle: target['fillStyle'] });
+        }
+        return prop in target ? target[prop] : vi.fn();
+      },
+      set: (target, prop, value) => {
+        target[prop] = value;
+        return true;
+      },
+    }) as unknown as CanvasRenderingContext2D;
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+    vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
+
+    await TestBed.configureTestingModule({
+      imports: [TwOscilloscopeComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwOscilloscopeComponent);
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('showLabels', true);
+    fixture.detectChanges();
+
+    const noSignal = texts.find(t => t.text === 'No Signal');
+    expect(noSignal?.fillStyle).toBe('#2563EB');
+    expect(texts.find(t => t.text === '+1')?.fillStyle).toBe('#2563EB');
+
+    texts.length = 0;
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(texts.find(t => t.text === 'No Signal')?.fillStyle).toBe('#22D3EE');
+
+    fixture.destroy();
+  });
 });

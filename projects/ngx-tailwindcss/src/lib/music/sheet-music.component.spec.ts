@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -65,6 +67,16 @@ describe('TwSheetMusicComponent', () => {
     expect(
       (fixture.componentInstance as unknown as { noteStaffTop: () => number }).noteStaffTop()
     ).toBe((160 - 48) / 2);
+  });
+
+  it('draws the zoom percentage >= 4.5:1 on the light zoom controls', () => {
+    const scss = readFileSync(
+      join(process.cwd(), 'projects/ngx-tailwindcss/src/lib/music/sheet-music.component.scss'),
+      'utf8'
+    );
+    // First (light) .zoom-display rule: slate-500 (#64748b) was ~4.3:1 on the slate-100 controls
+    const rule = /\.zoom-display\s*\{([^}]*)\}/.exec(scss)?.[1] ?? '';
+    expect(/color:\s*(#[0-9a-f]+)/i.exec(rule)?.[1]).toBe('#475569');
   });
 
   it('keeps the playback cursor in unscaled coordinates when zoomed', () => {

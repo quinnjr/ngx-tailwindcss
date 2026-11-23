@@ -15,7 +15,9 @@
       #triggerButton
       type="button"
       [id]="triggerId"
+      role="combobox"
       [class]="triggerClasses()"
+      [attr.aria-labelledby]="label() ? null : valueId"
       [disabled]="_disabled()"
       (click)="toggleDropdown()"
       [attr.aria-expanded]="isOpen()"
@@ -23,7 +25,7 @@
       [attr.aria-controls]="isOpen() ? listboxId : null"
       [attr.aria-activedescendant]="activeOptionId()"
     >
-      <span class="flex-1 text-left truncate">
+      <span [id]="valueId" class="flex-1 text-left truncate">
         {{ displayText() }}
       </span>
 

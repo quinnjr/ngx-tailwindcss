@@ -93,6 +93,28 @@ describe('TwNoteInputComponent', () => {
     expect(internals.selectedNotes()).toHaveLength(2);
   });
 
+  it('places typed notes one after another instead of on top of each other', () => {
+    keydown({ key: 'c' });
+    keydown({ key: 'd' });
+    keydown({ key: 'e' });
+    const placed = internals.notes();
+    expect(placed.map(n => n.name)).toEqual(['C', 'D', 'E']);
+    expect(placed[1].x).toBeGreaterThan(placed[0].x);
+    expect(placed[2].x).toBeGreaterThan(placed[1].x);
+    expect(placed[2].beat).toBeGreaterThan(placed[0].beat);
+  });
+
+  it('gives the Undo and Redo buttons their own text colour on the dark toolbar', () => {
+    const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].filter(
+      b => ['Undo', 'Redo'].includes(b.textContent?.trim() ?? '')
+    );
+    expect(buttons).toHaveLength(2);
+    for (const b of buttons) {
+      expect(b.classList).toContain('text-slate-700');
+      expect(b.classList).toContain('dark:text-slate-200');
+    }
+  });
+
   it('Shift+2 switches to voice 2 without changing the duration', () => {
     keydown({ key: '@', code: 'Digit2', shiftKey: true });
     expect(internals.currentVoice()).toBe(2);

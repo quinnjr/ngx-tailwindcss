@@ -26,7 +26,8 @@ export class UnsupportedOnPlatformError extends Error {
  */
 export interface FileFilter {
   name: string;
-  extensions: string[];
+  // readonly so the `as const` MUSIC_FILE_FILTERS presets are assignable
+  extensions: readonly string[];
 }
 
 /**
@@ -372,9 +373,12 @@ export class NativePlatformService {
       input.type = 'file';
       input.multiple = options.multiple ?? false;
 
-      if (options.filters && options.filters.length > 0) {
-        const extensions = options.filters.flatMap(f => f.extensions.map(e => `.${e}`));
-        input.accept = extensions.join(',');
+      const extensions = options.filters?.flatMap(f => f.extensions) ?? [];
+      // '*' (e.g. MUSIC_FILE_FILTERS.all) means any file: `accept` has no
+      // wildcard extension (".*" would only match files with a literal "*"
+      // extension on some platforms), so leave it unrestricted
+      if (extensions.length > 0 && !extensions.includes('*')) {
+        input.accept = extensions.map(e => `.${e}`).join(',');
       }
 
       input.addEventListener('change', () => {

@@ -454,3 +454,31 @@ describe('TwRadioGroupComponent (nested groups)', () => {
     expect(outer.touched).toBe(true);
   });
 });
+
+@Component({
+  template: `
+    <h3 id="shipping-heading">Shipping</h3>
+    <tw-radio-group ariaLabelledby="shipping-heading">
+      <tw-radio-button value="a" label="A"></tw-radio-button>
+    </tw-radio-group>
+    <tw-radio-group ariaLabel="Payment">
+      <tw-radio-button value="b" label="B"></tw-radio-button>
+    </tw-radio-group>
+  `,
+  standalone: true,
+  imports: [TwRadioGroupComponent, TwRadioButtonComponent],
+})
+class NamedGroupHostComponent {}
+
+describe('TwRadioGroupComponent (round 21)', () => {
+  it('should give the radiogroup an accessible name', () => {
+    const fixture = TestBed.createComponent(NamedGroupHostComponent);
+    fixture.detectChanges();
+    const groups = [
+      ...fixture.nativeElement.querySelectorAll('[role="radiogroup"]'),
+    ] as HTMLElement[];
+    expect(groups[0].getAttribute('aria-labelledby')).toBe('shipping-heading');
+    expect(groups[0].getAttribute('aria-label')).toBeNull();
+    expect(groups[1].getAttribute('aria-label')).toBe('Payment');
+  });
+});

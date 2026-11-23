@@ -82,13 +82,13 @@ export class ButtonDemoComponent {
   <fa-icon [icon]="faTrash" twButtonIconEnd></fa-icon>
 </tw-button>`;
 
-  iconOnlyCode = `<tw-button variant="primary" [iconOnly]="true" size="sm">
+  iconOnlyCode = `<tw-button variant="primary" [iconOnly]="true" size="sm" aria-label="Add">
   <fa-icon [icon]="faPlus" twButtonIcon></fa-icon>
 </tw-button>
-<tw-button variant="secondary" [iconOnly]="true">
+<tw-button variant="secondary" [iconOnly]="true" aria-label="Like">
   <fa-icon [icon]="faHeart" twButtonIcon></fa-icon>
 </tw-button>
-<tw-button variant="ghost" [iconOnly]="true" size="lg">
+<tw-button variant="ghost" [iconOnly]="true" size="lg" aria-label="Settings">
   <fa-icon [icon]="faGear" twButtonIcon></fa-icon>
 </tw-button>`;
 

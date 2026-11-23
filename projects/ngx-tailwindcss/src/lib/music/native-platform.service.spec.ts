@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NativePlatformService } from './native-platform.service';
+import { MUSIC_FILE_FILTERS, NativePlatformService } from './native-platform.service';
 
 describe('NativePlatformService', () => {
   afterEach(() => {
@@ -135,6 +135,19 @@ describe('NativePlatformService', () => {
 
       const infos = (await result) as Array<{ name: string; extension: string }>;
       expect(infos.map(f => f.extension)).toEqual(['', 'mid']);
+    });
+
+    it('should not restrict the picker when an "All Files" filter is included', () => {
+      const click = vi
+        .spyOn(HTMLInputElement.prototype, 'click')
+        .mockImplementation(() => undefined);
+      const service = TestBed.inject(NativePlatformService);
+
+      void service.openFile({ filters: [MUSIC_FILE_FILTERS.midi] });
+      expect((click.mock.contexts[0] as HTMLInputElement).accept).toBe('.mid,.midi');
+
+      void service.openFile({ filters: [MUSIC_FILE_FILTERS.midi, MUSIC_FILE_FILTERS.all] });
+      expect((click.mock.contexts[1] as HTMLInputElement).accept).toBe('');
     });
   });
 

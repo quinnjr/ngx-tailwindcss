@@ -146,6 +146,8 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   private readonly _disabled = signal(false);
 
   protected readonly listboxId = `tw-select-listbox-${Math.random().toString(36).slice(2)}`;
+  /** Id of the displayed value; names the combobox when there is no label */
+  protected readonly valueId = `${this.listboxId}-value`;
 
   private onChangeFn: (value: any) => void = () => {};
   private onTouchedFn: () => void = () => {};

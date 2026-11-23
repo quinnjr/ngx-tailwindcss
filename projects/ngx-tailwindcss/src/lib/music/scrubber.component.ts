@@ -206,7 +206,14 @@ export class TwScrubberComponent implements OnDestroy {
   });
 
   protected readonly markerClasses = computed(() => {
-    return 'absolute top-0 bottom-0 w-0.5 bg-yellow-500 -translate-x-1/2 pointer-events-none';
+    const variant = this.variant();
+    // On the slate tracks yellow-500 was ~1.6:1 (light mode); slate-900/white keep 3:1 on the
+    // track, buffered range and blue progress fill
+    const color =
+      variant === 'youtube' || variant === 'spotify'
+        ? 'bg-yellow-500'
+        : 'bg-slate-900 dark:bg-white';
+    return `absolute top-0 bottom-0 w-0.5 ${color} -translate-x-1/2 pointer-events-none`;
   });
 
   protected readonly hoverPreviewClasses = computed(() => {

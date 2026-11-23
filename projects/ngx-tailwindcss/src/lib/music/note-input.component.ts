@@ -673,16 +673,12 @@ export class TwNoteInputComponent implements OnDestroy {
         note: name,
       });
     } else {
-      // Place at first available position, in the octave that sits on the current clef's staff
-      const x = this.contentStartX() + 20;
+      // Place after the last note (like MIDI input; a fixed position stacked every typed note
+      // on top of the previous one), in the octave that sits on the current clef's staff
+      const x = this.getNextNotePosition();
+      const { measure, beat } = this.xToMeasureBeat(x);
       const octave = Math.round((CLEF_TOP_LINE_STEPS[this.clef()] - 7 - STEP_INDEX[name]) / 7);
-      this.placeNote({
-        x,
-        note: name,
-        octave,
-        measure: 0,
-        beat: 0,
-      });
+      this.placeNote({ x, note: name, octave, measure, beat });
     }
   }
 

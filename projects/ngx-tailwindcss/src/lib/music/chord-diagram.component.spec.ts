@@ -55,6 +55,24 @@ describe('TwChordDiagramComponent', () => {
     expect(barre).not.toBeNull();
   });
 
+  it('closes the top of the grid when the diagram starts above the nut', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    expect(host.querySelector('line.grid-top')).toBeNull();
+
+    fixture.componentRef.setInput('chord', {
+      name: 'A (5fr)',
+      baseFret: 5,
+      fingerings: [{ string: 1, fret: 5, finger: 1 }],
+    });
+    fixture.detectChanges();
+    const top = host.querySelector('line.grid-top')!;
+    expect(top).not.toBeNull();
+    // Same y as the strings' top end (md: grid top 52 + nut 4)
+    const stringTop = host.querySelector('line[stroke-width="2"]')!.getAttribute('y1');
+    expect(top.getAttribute('y1')).toBe(stringTop);
+  });
+
   it('draws the F barre across the strings it covers (not off the right edge)', () => {
     fixture.componentRef.setInput('chord', 'F');
     fixture.detectChanges();

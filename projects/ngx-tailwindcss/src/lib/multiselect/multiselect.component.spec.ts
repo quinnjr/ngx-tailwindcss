@@ -638,3 +638,27 @@ describe('TwMultiSelectComponent (round 19)', () => {
     outside.remove();
   });
 });
+
+describe('TwMultiSelectComponent (round 21)', () => {
+  it('should expose the trigger as a combobox so aria-activedescendant is announced', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.getAttribute('role')).toBe('combobox');
+    // Unlabelled: named by its displayed value text
+    const labelledBy = trigger.getAttribute('aria-labelledby');
+    expect(trigger.querySelector(`[id="${labelledBy}"]`)?.textContent?.trim()).toBe(
+      'Select options'
+    );
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.detectChanges();
+    const activeId = trigger.getAttribute('aria-activedescendant');
+    expect(activeId).toBeTruthy();
+    expect(fixture.nativeElement.querySelector(`[id="${activeId}"]`)?.getAttribute('role')).toBe(
+      'option'
+    );
+  });
+});

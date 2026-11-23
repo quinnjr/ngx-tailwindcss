@@ -215,6 +215,22 @@ export class TwNoteDisplayComponent {
     return cents > 0 ? `+${cents}` : `${cents}`;
   });
 
+  /**
+   * Accessible name of the display. role="img" hides the visible cents, tuning status and
+   * frequency from assistive technology, so they are part of the name.
+   */
+  protected readonly ariaLabel = computed(() => {
+    const note = this.currentNote();
+    if (!note) return 'Note: none';
+    const parts = [`Note: ${this.displayNote()}${note.octave}`];
+    if (this.showCents()) {
+      const status = this.isFlat() ? 'flat' : this.isSharp() ? 'sharp' : 'in tune';
+      parts.push(`${this.displayCents()} cents`, status);
+    }
+    if (this.showFrequency()) parts.push(this.displayFrequency());
+    return parts.join(', ');
+  });
+
   protected readonly isInTune = computed(() => {
     const note = this.currentNote();
     if (!note) return false;

@@ -264,6 +264,14 @@ export class TwTreeComponent {
     }
   }
 
+  /**
+   * A click on the row's (tabindex=-1) toggle or checkbox focuses that control, which
+   * has no focus indicator and ignores the tree's arrow keys: hand focus to its treeitem.
+   */
+  protected focusOwningItem(event: Event): void {
+    (event.currentTarget as HTMLElement).closest<HTMLElement>('[role="treeitem"]')?.focus();
+  }
+
   protected nodeTabIndex(node: TreeNode): number {
     const focused = this.focusedNode();
     if (focused) {

@@ -13,8 +13,11 @@
       #triggerButton
       type="button"
       [id]="inputId()"
+      role="combobox"
       [class]="triggerClasses()"
       [disabled]="isDisabled()"
+      [attr.aria-labelledby]="label() ? null : valueId"
+      [attr.aria-required]="required() || null"
       [attr.aria-expanded]="isOpen()"
       aria-haspopup="listbox"
       [attr.aria-controls]="isOpen() ? listboxId : null"
@@ -25,7 +28,7 @@
       (keydown)="onKeydown($event)"
       (blur)="onTriggerBlur()"
     >
-      <span [class]="valueDisplayClasses()">
+      <span [id]="valueId" [class]="valueDisplayClasses()">
         @if (selectedOption()) {
           {{ selectedOption()?.label }}
         } @else {

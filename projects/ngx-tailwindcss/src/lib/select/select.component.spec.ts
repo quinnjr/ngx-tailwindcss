@@ -693,3 +693,26 @@ describe('TwSelectComponent (round 19)', () => {
     outside.remove();
   });
 });
+
+describe('TwSelectComponent (round 21)', () => {
+  it('should expose the trigger as a combobox so aria-activedescendant is announced', () => {
+    const fixture = TestBed.createComponent(RequiredErrorHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.getAttribute('role')).toBe('combobox');
+    expect(trigger.getAttribute('aria-required')).toBe('true');
+    // Named by the <label for>, not by its value text
+    expect(trigger.getAttribute('aria-labelledby')).toBeNull();
+  });
+
+  it('should name an unlabelled combobox by its displayed value', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(trigger.getAttribute('role')).toBe('combobox');
+    expect(trigger.getAttribute('aria-required')).toBeNull();
+    const labelledBy = trigger.getAttribute('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    expect(trigger.querySelector(`[id="${labelledBy}"]`)?.textContent?.trim()).toBeTruthy();
+  });
+});

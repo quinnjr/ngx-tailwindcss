@@ -11,10 +11,11 @@
     (click)="onBackdropClick($event)"
   ></div>
 
-  <!-- Switcher Panel -->
+  <!-- Switcher Panel: the overlay is hidden rather than destroyed, so the trap
+       is toggled with it to return focus to the opener on close -->
   <div
     class="relative w-full max-w-xl bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
-    twFocusTrap
+    [twFocusTrap]="isOpen()"
     [focusTrapAutoFocus]="false"
     (click)="$event.stopPropagation()"
   >

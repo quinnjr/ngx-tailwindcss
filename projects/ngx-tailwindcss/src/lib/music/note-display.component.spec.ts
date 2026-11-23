@@ -33,6 +33,25 @@ describe('TwNoteDisplayComponent', () => {
     expect(changes[1]).toMatchObject({ note: 'C', octave: 4 });
   });
 
+  it('includes the cents, tuning status and frequency in its accessible name', () => {
+    const host = () =>
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[role="img"]')!
+        .getAttribute('aria-label');
+    fixture.detectChanges();
+    expect(host()).toBe('Note: none');
+
+    // role="img" hides the visible "+20 ¢ SHARP 445.1 Hz" from assistive technology
+    fixture.componentRef.setInput('frequency', 440 * 2 ** (20 / 1200));
+    fixture.detectChanges();
+    expect(host()).toBe('Note: A4, +20 cents, sharp, 445.1 Hz');
+
+    fixture.componentRef.setInput('showFrequency', false);
+    fixture.componentRef.setInput('frequency', 440);
+    fixture.detectChanges();
+    expect(host()).toBe('Note: A4, ±0 cents, in tune');
+  });
+
   it('shows the detected note without waiting for a timer', () => {
     fixture.componentRef.setInput('frequency', 466.16);
     fixture.detectChanges();

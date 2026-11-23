@@ -66,6 +66,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: string;
         line: string;
         centerLine: string;
+        // Canvas text (labels, "No Signal"): >= 4.5:1 on the background
+        text: string;
         glow?: string;
       }
     > = {
@@ -74,12 +76,14 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#1E3A5F',
         line: '#22D3EE',
         centerLine: '#334155',
+        text: '#22D3EE',
       },
       retro: {
         background: '#0A1A0A',
         grid: '#1A3A1A',
         line: '#00FF00',
         centerLine: '#0A2A0A',
+        text: '#00FF00',
         glow: '#00FF0066',
       },
       neon: {
@@ -87,6 +91,7 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#2A0A2A',
         line: '#FF00FF',
         centerLine: '#1A001A',
+        text: '#FF00FF',
         glow: '#FF00FF66',
       },
       minimal: {
@@ -94,6 +99,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
         grid: '#E2E8F0',
         line: '#3B82F6',
         centerLine: '#CBD5E1',
+        // blue-600: the blue-500 trace colour is only ~3.7:1 on white
+        text: '#2563EB',
       },
     };
 
@@ -345,8 +352,9 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     this.ctx.lineTo(this.width(), this.height() / 2);
     this.ctx.stroke();
 
-    // "No signal" text
-    this.ctx.fillStyle = `${colors.line}80`;
+    // "No signal" text: full strength (the half-transparent trace colour was
+    // ~1.9-4.1:1 on the variant backgrounds)
+    this.ctx.fillStyle = colors.text;
     this.ctx.font = '12px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('No Signal', this.width() / 2, this.height() / 2 - 20);
@@ -357,7 +365,7 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
 
     const colors = this.colors();
 
-    this.ctx.fillStyle = colors.line;
+    this.ctx.fillStyle = colors.text;
     this.ctx.font = '10px monospace';
     this.ctx.textAlign = 'left';
 

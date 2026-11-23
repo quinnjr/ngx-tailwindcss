@@ -15,16 +15,16 @@
     <div class="h-10 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 flex items-center px-3 gap-3 select-none">
       <!-- Traffic lights (macOS style) -->
       <div class="flex items-center gap-1.5">
-        <button
+        <button aria-label="Close"
           class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center group"
           routerLink="/">
           <fa-icon [icon]="icons.close" class="text-[6px] text-red-900 opacity-0 group-hover:opacity-100"></fa-icon>
         </button>
-        <button
+        <button aria-label="Minimize"
           class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center group">
           <fa-icon [icon]="icons.minimize" class="text-[6px] text-yellow-900 opacity-0 group-hover:opacity-100"></fa-icon>
         </button>
-        <button
+        <button [attr.aria-label]="isWindowMaximized() ? 'Restore' : 'Maximize'"
           (click)="toggleMaximize()"
           class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center group">
           <fa-icon [icon]="isWindowMaximized() ? icons.windowMin : icons.windowMax" class="text-[6px] text-green-900 opacity-0 group-hover:opacity-100"></fa-icon>
@@ -43,18 +43,18 @@
 
       <!-- Navigation buttons -->
       <div class="flex items-center gap-1">
-        <button
+        <button aria-label="Back"
           (click)="goBack()"
           class="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 disabled:opacity-30"
           [disabled]="breadcrumbs().length <= 1">
           <fa-icon [icon]="icons.chevronLeft" class="text-sm"></fa-icon>
         </button>
-        <button
+        <button aria-label="Forward"
           class="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 disabled:opacity-30"
           disabled>
           <fa-icon [icon]="icons.chevronRight" class="text-sm"></fa-icon>
         </button>
-        <button
+        <button aria-label="Up one level"
           (click)="goUp()"
           class="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
           [disabled]="breadcrumbs().length <= 1">
@@ -102,19 +102,19 @@
 
       <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
 
-      <button
+      <button aria-label="Cut"
         (click)="cutSelected()"
         [disabled]="selectedCount() === 0"
         class="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors disabled:opacity-30">
         <fa-icon [icon]="icons.cut" class="text-sm"></fa-icon>
       </button>
-      <button
+      <button aria-label="Copy"
         (click)="copySelected()"
         [disabled]="selectedCount() === 0"
         class="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors disabled:opacity-30">
         <fa-icon [icon]="icons.copy" class="text-sm"></fa-icon>
       </button>
-      <button
+      <button aria-label="Paste"
         (click)="paste()"
         [disabled]="clipboardItems().length === 0"
         class="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors disabled:opacity-30">
@@ -123,7 +123,7 @@
 
       <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
 
-      <button
+      <button aria-label="Delete"
         (click)="deleteSelected()"
         [disabled]="selectedCount() === 0"
         class="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 rounded transition-colors disabled:opacity-30">
@@ -164,7 +164,7 @@
 
       <!-- View mode toggle -->
       <div class="flex items-center rounded overflow-hidden border border-zinc-200 dark:border-zinc-700">
-        <button
+        <button aria-label="Grid view"
           (click)="viewMode.set('grid')"
           class="p-1.5 transition-colors"
           [class.bg-blue-500]="viewMode() === 'grid'"
@@ -173,7 +173,7 @@
           [class.dark:text-zinc-400]="viewMode() !== 'grid'">
           <fa-icon [icon]="icons.grid" class="text-sm"></fa-icon>
         </button>
-        <button
+        <button aria-label="List view"
           (click)="viewMode.set('list')"
           class="p-1.5 transition-colors"
           [class.bg-blue-500]="viewMode() === 'list'"

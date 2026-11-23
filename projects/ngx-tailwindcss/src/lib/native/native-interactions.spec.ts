@@ -111,7 +111,7 @@ describe('TwQuickSwitcherComponent recent items', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
 
-    el.querySelector<HTMLElement>('[twFocusTrap]')!.click();
+    el.querySelector<HTMLElement>('[role="dialog"] > .max-w-xl')!.click();
     expect(fixture.componentInstance.isOpen()).toBe(true);
 
     // The backdrop covers the whole overlay, so it is what a user clicks
@@ -598,5 +598,61 @@ describe('native keyboard operability (round 20)', () => {
     expect(picked).toEqual([]);
     options[1].click();
     expect(picked).toEqual(['beta']);
+  });
+});
+
+describe('native keyboard operability (round 21)', () => {
+  it('log viewer rows use a single roving tab stop and show the selection', () => {
+    const fixture = TestBed.createComponent(TwLogViewerComponent);
+    fixture.componentRef.setInput(
+      'entries',
+      ['1', '2', '3'].map(id => ({
+        id,
+        level: 'info' as const,
+        message: `m${id}`,
+        timestamp: new Date(),
+      }))
+    );
+    fixture.detectChanges();
+    document.body.append(fixture.nativeElement);
+    const rows = () => [...fixture.nativeElement.querySelectorAll('tbody tr')] as HTMLElement[];
+    expect(rows().map(row => row.tabIndex)).toEqual([0, -1, -1]);
+
+    rows()[0].focus();
+    press(rows()[0], { key: 'ArrowDown' });
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(rows()[1]);
+    expect(rows().map(row => row.tabIndex)).toEqual([-1, 0, -1]);
+
+    press(rows()[1], { key: 'End' });
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(rows()[2]);
+
+    press(rows()[2], { key: 'Enter' });
+    fixture.detectChanges();
+    expect(rows()[2].getAttribute('aria-current')).toBe('true');
+    expect(rows()[2].classList).toContain('border-l-4');
+    expect(rows()[0].hasAttribute('aria-current')).toBe(false);
+    fixture.nativeElement.remove();
+  });
+
+  it('quick switcher returns focus to the opener when it closes', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const fixture = TestBed.createComponent(TwQuickSwitcherComponent);
+    document.body.append(fixture.nativeElement);
+    fixture.detectChanges();
+
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('input') as HTMLInputElement).focus();
+    expect(document.activeElement).not.toBe(opener);
+
+    press(document.body, { key: 'Escape' });
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(opener);
+    fixture.nativeElement.remove();
+    opener.remove();
   });
 });

@@ -152,13 +152,13 @@
           <div class="flex items-center gap-3">
             <!-- View Toggle -->
             <div class="flex gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-              <tw-button
+              <tw-button aria-label="Grid view"
                 [variant]="viewMode() === 'grid' ? 'primary' : 'ghost'"
                 size="sm"
                 (click)="viewMode.set('grid')">
                 <fa-icon [icon]="icons.grid" class="text-sm"></fa-icon>
               </tw-button>
-              <tw-button
+              <tw-button aria-label="List view"
                 [variant]="viewMode() === 'list' ? 'primary' : 'ghost'"
                 size="sm"
                 (click)="viewMode.set('list')">
@@ -241,7 +241,7 @@
                         </h3>
                         <p class="text-sm text-slate-600 dark:text-zinc-400 mt-1">{{ product.brand }}</p>
                       </div>
-                      <tw-button variant="ghost" size="sm" class="text-slate-500 dark:text-zinc-400">
+                      <tw-button aria-label="Add to wishlist" variant="ghost" size="sm" class="text-slate-500 dark:text-zinc-400">
                         <fa-icon [icon]="icons.heartEmpty"></fa-icon>
                       </tw-button>
                     </div>
@@ -338,7 +338,7 @@
 
                   <div class="text-right">
                     <p class="font-bold text-slate-900 dark:text-zinc-100">${{ (item.product.price * item.quantity).toFixed(2) }}</p>
-                    <tw-button variant="ghost" size="sm" (click)="removeFromCart(item)">
+                    <tw-button aria-label="Remove from cart" variant="ghost" size="sm" (click)="removeFromCart(item)">
                       <fa-icon [icon]="icons.trash" class="text-rose-600"></fa-icon>
                     </tw-button>
                   </div>

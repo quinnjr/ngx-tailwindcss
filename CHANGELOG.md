@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-23
+
+### 🐛 Fixed
+
+- Unused components are now tree-shaken from consumer bundles. `TW_ALL` and
+  `TW_DIRECTIVES` were top-level arrays built with spread, which bundlers treat
+  as side-effectful, so every component, directive and service in the library
+  was kept in every app. An app importing only `TwButtonComponent` drops from
+  1.36 MB to 128 kB of `main.js` (#66)
+- Restore the published package name `@quinnjr/ngx-tailwindcss` and
+  `publishConfig.access: public`, which were dropped on `develop` after 1.1.0
+
+### 🛠 CI/CD & Tooling
+
+- Build against Angular 22.3 (library peer range unchanged:
+  `^19 || ^20 || ^21 || ^22`) (#64)
+- Lint rule rejecting top-level array spread in library source, to keep the
+  tree-shaking fix from regressing (#66)
+- Fix the CI formatting check and enforce LF line endings via
+  `.gitattributes` (#65)
+
 ## [1.1.0] - 2026-07-27
 
 A full-project conformance and efficiency audit found 255 gaps between what

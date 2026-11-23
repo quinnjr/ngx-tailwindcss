@@ -105,6 +105,39 @@ describe('TwMetronomeComponent accent pattern', () => {
   });
 });
 
+@Component({
+  template: `<tw-metronome
+    [accentFirstBeat]="accentFirst()"
+    [showAccentConfig]="true"
+  ></tw-metronome>`,
+  standalone: true,
+  imports: [TwMetronomeComponent],
+})
+class AccentFirstHostComponent {
+  accentFirst = signal(false);
+}
+
+describe('TwMetronomeComponent accentFirstBeat', () => {
+  it('should not accent any beat when accentFirstBeat is false and no pattern is bound', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AccentFirstHostComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(AccentFirstHostComponent);
+    const el = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    const levels = () =>
+      [...el.querySelectorAll('button')]
+        .filter(b => b.title.startsWith('Click to cycle accent'))
+        .map(b => b.title.split(': ')[1]);
+
+    expect(levels()).toEqual(['none', 'none', 'none', 'none']);
+
+    fixture.componentInstance.accentFirst.set(true);
+    fixture.detectChanges();
+    expect(levels()[0]).toBe('strong');
+  });
+});
+
 describe('TwMetronomeComponent subdivisions', () => {
   const frequencies: number[] = [];
   let currentTime = 0;

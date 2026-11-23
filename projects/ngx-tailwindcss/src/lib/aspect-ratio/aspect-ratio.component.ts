@@ -49,6 +49,8 @@ const RATIO_CLASSES: Record<string, string> = {
         translate: none;
         rotate: none;
         scale: none;
+        /* Don't clip the inner element's shadow/ring; it clips its own content */
+        overflow: visible;
       }
       :host ::ng-deep > div > * {
         position: absolute;

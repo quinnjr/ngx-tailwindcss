@@ -175,6 +175,43 @@ describe('TwSheetMusicComponent', () => {
     expect(sharps(staves[0])).toBe(2);
     expect(sharps(staves[1])).toBe(2);
   });
+
+  it('keeps the pages layout on an existing line when the music changes', () => {
+    const note = { name: 'C', octave: 5, duration: 'whole' } as const;
+    const music = (measures: number): SheetMusicData => ({
+      clef: 'treble',
+      keySignature: 'C',
+      timeSignature: '4/4',
+      measures: Array.from({ length: measures }, () => ({ notes: [note] })),
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    const pageLabel = (): string =>
+      [...host.querySelectorAll('span')]
+        .map(s => s.textContent?.trim() ?? '')
+        .find(t => t.startsWith('Line')) ?? '';
+    fixture.componentRef.setInput('layout', 'pages');
+    fixture.componentRef.setInput('measuresPerLine', 1);
+    fixture.componentRef.setInput('music', music(4));
+    fixture.detectChanges();
+    const next = [...host.querySelectorAll('button')].find(b => b.textContent?.includes('Next'))!;
+    next.click();
+    next.click();
+    next.click();
+    fixture.detectChanges();
+    expect(pageLabel()).toBe('Line 4 of 4');
+
+    // Fewer lines (measuresPerLine grows): clamp to the last line
+    fixture.componentRef.setInput('measuresPerLine', 2);
+    fixture.detectChanges();
+    expect(pageLabel()).toBe('Line 2 of 2');
+    expect(host.querySelectorAll('tw-staff')).toHaveLength(1);
+
+    // Another piece: start from its first line
+    fixture.componentRef.setInput('music', music(2));
+    fixture.detectChanges();
+    expect(pageLabel()).toBe('Line 1 of 1');
+    expect(host.querySelectorAll('tw-staff')).toHaveLength(1);
+  });
 });
 
 describe('parseMusicXML accidentals', () => {

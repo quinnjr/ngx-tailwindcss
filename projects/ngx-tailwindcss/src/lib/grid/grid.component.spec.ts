@@ -340,3 +340,34 @@ describe('TwSimpleGridComponent', () => {
     });
   });
 });
+
+describe('Grid host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-grid><span>x</span></tw-grid
+        ><tw-simple-grid><span>x</span></tw-simple-grid>`,
+      standalone: true,
+      imports: [TwGridComponent, TwSimpleGridComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-grid')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-simple-grid'))
+        .nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+  });
+});

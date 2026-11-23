@@ -161,6 +161,10 @@ export class TwSpacerComponent {
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })

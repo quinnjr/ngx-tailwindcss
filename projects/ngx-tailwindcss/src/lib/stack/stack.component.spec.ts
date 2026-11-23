@@ -231,3 +231,39 @@ describe('Stack static class attribute', () => {
     }
   });
 });
+
+describe('Stack host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-stack><span>x</span></tw-stack
+        ><tw-vstack><span>x</span></tw-vstack
+        ><tw-hstack><span>x</span></tw-hstack>`,
+      standalone: true,
+      imports: [TwStackComponent, TwVStackComponent, TwHStackComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-stack')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-vstack')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+  });
+});

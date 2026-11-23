@@ -59,7 +59,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="px-2 py-1 rounded bg-slate-700/50 cursor-default"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <span [class]="valueClasses()">{{ stat.value }}</span>
           </div>
@@ -73,7 +78,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="flex items-center justify-between p-2 rounded bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <div class="flex items-center gap-2">
               @switch (stat.key) {
@@ -214,7 +224,12 @@
           @for (stat of stats(); track stat.key) {
             <div
               class="p-2 rounded bg-slate-800/50 border border-slate-700/50"
+              role="button"
+              tabindex="0"
+              [attr.aria-label]="stat.label + ': ' + stat.value"
               (click)="onStatClick(stat.key)"
+              (keydown.enter)="onStatKeydown($event, stat.key)"
+              (keydown.space)="onStatKeydown($event, stat.key)"
             >
               <div class="text-[10px] uppercase tracking-wider mb-0.5" [class]="labelClasses()">
                 {{ stat.label }}
@@ -248,7 +263,12 @@
         @for (stat of stats(); track stat.key) {
           <div
             class="flex items-center justify-between cursor-default"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="stat.label + ': ' + stat.value"
             (click)="onStatClick(stat.key)"
+            (keydown.enter)="onStatKeydown($event, stat.key)"
+            (keydown.space)="onStatKeydown($event, stat.key)"
           >
             <span [class]="labelClasses()">{{ stat.label }}</span>
             <span [class]="valueClasses()">{{ stat.value }}</span>

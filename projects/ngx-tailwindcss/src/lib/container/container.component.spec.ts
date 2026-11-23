@@ -158,3 +158,30 @@ describe('TwContainerComponent', () => {
     expect(inner?.className).toContain('w-full');
   });
 });
+
+describe('Container host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-container><span>x</span></tw-container>`,
+      standalone: true,
+      imports: [TwContainerComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-container')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+    // The size cap lives on the inner element, so a forwarded max-w-* still centers
+    const host = fixture.debugElement.query(By.css('tw-container')).nativeElement as HTMLElement;
+    expect(getComputedStyle(host).maxWidth).toBe('none');
+  });
+});

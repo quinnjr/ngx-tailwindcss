@@ -24,6 +24,7 @@ import {
   removeEscapeLayer,
   shouldHandleEscape,
 } from '../overlay/escape-layer-stack';
+import { handlePortalTab } from '../overlay/portal-tab';
 
 export type DropdownPosition =
   'bottom-start' | 'bottom-end' | 'top-start' | 'top-end' | 'left' | 'right';
@@ -152,6 +153,7 @@ export class TwDropdownComponent implements OnDestroy {
   private keydownListener: (() => void) | null = null;
   private escapeListener: ((event: KeyboardEvent) => void) | null = null;
   private menuClickListener: (() => void) | null = null;
+  private portalTabListener: (() => void) | null = null;
 
   /** A method, not a computed: `width`/`menuClass` are plain @Inputs a computed can't track */
   protected menuClasses(): string {
@@ -337,9 +339,26 @@ export class TwDropdownComponent implements OnDestroy {
       }
     });
 
-    this.scrollListener = this.renderer.listen('window', 'scroll', () => {
+    // Capture phase: also follow the trigger when an enclosing container (e.g. a
+    // scrollable modal) scrolls, not only the window
+    const onScroll = (): void => {
       this.updatePosition();
-    });
+    };
+    this.document.addEventListener('scroll', onScroll, true);
+    this.scrollListener = () => {
+      this.document.removeEventListener('scroll', onScroll, true);
+    };
+
+    // Tab out of the portaled panel continues from the trigger (and is kept away from
+    // an enclosing modal's focus trap while inside)
+    const panel = this.portalElement;
+    if (panel) {
+      this.portalTabListener = this.renderer.listen(panel, 'keydown', (event: KeyboardEvent) => {
+        handlePortalTab(panel, event, () => {
+          this.close();
+        });
+      });
+    }
 
     this.resizeListener = this.renderer.listen('window', 'resize', () => {
       this.updatePosition();
@@ -435,6 +454,10 @@ export class TwDropdownComponent implements OnDestroy {
     if (this.menuClickListener) {
       this.menuClickListener();
       this.menuClickListener = null;
+    }
+    if (this.portalTabListener) {
+      this.portalTabListener();
+      this.portalTabListener = null;
     }
   }
 

@@ -169,3 +169,27 @@ describe('TwColumnsComponent', () => {
     });
   });
 });
+
+describe('Columns host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-columns><span>x</span></tw-columns>`,
+      standalone: true,
+      imports: [TwColumnsComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-columns')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+  });
+});

@@ -142,7 +142,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   protected readonly pendulumAngle = signal(0);
   protected readonly tapTimes = signal<number[]>([]);
   // Working accent pattern: tracks the accentPattern input (or, when none is
-  // bound, the first preset of the current time signature) but can be edited
+  // bound, the default pattern of the current time signature) but can be edited
   // locally (beat clicks, presets). Edits are emitted via accentPatternChange,
   // so [(accentPattern)] two-way binding works.
   protected readonly internalAccentPattern = linkedSignal<AccentLevel[]>(() => {
@@ -150,12 +150,12 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     if (custom && custom.length > 0) {
       return [...custom];
     }
-    const presets = ACCENT_PRESETS[this.currentTimeSignature()];
-    return presets && presets.length > 0 ? [...presets[0].pattern] : [];
+    return this.defaultAccentPattern(this.currentTimeSignature());
   });
-  protected readonly selectedPresetIndex = linkedSignal(() => {
+  // -1 when the default pattern is not a preset (accentFirstBeat=false)
+  protected readonly selectedPresetIndex = linkedSignal<number>(() => {
     this.currentTimeSignature();
-    return 0;
+    return this.accentFirstBeat() ? 0 : -1;
   });
   /** True when the AudioContext could not resume without a user gesture (e.g. autoStart). */
   protected readonly needsGesture = signal(false);
@@ -473,12 +473,27 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
     this.subBeatCounter = 0;
 
     // Update accent pattern for new time signature
-    const presets = ACCENT_PRESETS[sig];
-    if (presets && presets.length > 0) {
-      this.internalAccentPattern.set([...presets[0].pattern]);
-      this.selectedPresetIndex.set(0);
-      this.accentPatternChange.emit(this.internalAccentPattern());
+    const pattern = this.defaultAccentPattern(sig);
+    if (pattern.length > 0) {
+      this.internalAccentPattern.set(pattern);
+      this.selectedPresetIndex.set(this.accentFirstBeat() ? 0 : -1);
+      this.accentPatternChange.emit(pattern);
     }
+  }
+
+  /**
+   * Default pattern when no accentPattern is bound: the first preset of the
+   * time signature, or (accentFirstBeat=false) no accents at all.
+   */
+  private defaultAccentPattern(sig: TimeSignature): AccentLevel[] {
+    const presets = ACCENT_PRESETS[sig];
+    if (!presets || presets.length === 0) {
+      return [];
+    }
+    if (!this.accentFirstBeat()) {
+      return presets[0].pattern.map((): AccentLevel => 'none');
+    }
+    return [...presets[0].pattern];
   }
 
   // Cycle accent level for a beat

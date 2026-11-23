@@ -128,7 +128,8 @@ describe('TwAspectRatioComponent static class attribute', () => {
     class StaticClassHostComponent {}
 
     const style = document.createElement('style');
-    style.textContent = '.tw-test-frame { border: 3px solid red; padding: 10px; }';
+    style.textContent =
+      '.tw-test-frame { border: 3px solid red; padding: 10px; overflow: hidden; box-shadow: 0 0 4px red; }';
     document.head.append(style);
 
     try {
@@ -146,6 +147,9 @@ describe('TwAspectRatioComponent static class attribute', () => {
       expect(getComputedStyle(host).borderTopWidth).toBe('0px');
       expect(getComputedStyle(host).paddingTop).toBe('0px');
       expect(getComputedStyle(inner).borderTopWidth).toBe('3px');
+      // The host must not clip the inner element's shadow; the inner element clips its content
+      expect(getComputedStyle(host).overflow).toBe('visible');
+      expect(getComputedStyle(inner).overflow).toBe('hidden');
     } finally {
       style.remove();
     }

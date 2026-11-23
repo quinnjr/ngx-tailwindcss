@@ -138,13 +138,15 @@ export class TwImageComponent {
 
   protected containerStyles = computed(() => {
     const styles: Record<string, string> = {};
+    // Bare numbers are pixels; anything else (`10rem`, `50%`, `auto`) is a CSS length as-is
+    const toLength = (value: string) => (/^\d*\.?\d+$/.test(value.trim()) ? `${value}px` : value);
     const w = this.width();
     const h = this.height();
     if (w) {
-      styles['width'] = w.includes('px') || w.includes('%') ? w : `${w}px`;
+      styles['width'] = toLength(w);
     }
     if (h) {
-      styles['height'] = h.includes('px') || h.includes('%') ? h : `${h}px`;
+      styles['height'] = toLength(h);
     }
     return styles;
   });

@@ -112,7 +112,9 @@ export class TwTabBarComponent {
     const variant = this.variant();
     const isActive = tab.id === this.activeTabId();
 
-    const base = 'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors';
+    // A closable tab leaves room on the right for the close button laid over it
+    const closable = tab.closable !== false && !tab.pinned;
+    const base = `flex items-center gap-1.5 pl-3 ${closable ? 'pr-8' : 'pr-3'} py-1.5 text-sm transition-colors`;
 
     const variantClasses: Record<TabBarVariant, { active: string; inactive: string }> = {
       default: {

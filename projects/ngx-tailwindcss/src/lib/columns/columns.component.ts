@@ -126,6 +126,10 @@ const TAILWIND_COLOR_TOKEN = /^[a-z]+-\d{2,3}$/;
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })

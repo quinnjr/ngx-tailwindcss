@@ -762,12 +762,16 @@ export class NativePlatformService {
     // Browser fallback. Only navigable web schemes: a `javascript:` (or
     // `data:`) URL would run script in a window that inherits this app's origin.
     // The app's own scheme is also allowed so relative paths keep working when
-    // the app is served from file:, tauri:, capacitor: etc.
+    // the app is served from file:, tauri:, capacitor: etc. — but never a
+    // script-capable scheme, even when the app itself runs from one (e.g. a
+    // `blob:` or `data:` document), since such a URL can carry arbitrary HTML.
     const base = new URL(document.baseURI);
     const url = new URL(path, base);
     if (
-      !['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) &&
-      url.protocol !== base.protocol
+      // eslint-disable-next-line no-script-url -- scheme denylist, not a URL
+      ['javascript:', 'data:', 'vbscript:', 'blob:'].includes(url.protocol) ||
+      (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) &&
+        url.protocol !== base.protocol)
     ) {
       throw new UnsupportedOnPlatformError(
         `openExternal (${url.protocol} URL)`,

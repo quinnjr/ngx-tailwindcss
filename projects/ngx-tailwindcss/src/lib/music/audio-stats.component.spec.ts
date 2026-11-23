@@ -28,4 +28,22 @@ describe('TwAudioStatsComponent', () => {
     expect(el.textContent).toContain('Lossless');
     expect(el.textContent).not.toContain('Lossy');
   });
+
+  it('should make stat items keyboard-operable buttons that emit infoClick', () => {
+    fixture.componentRef.setInput('duration', 90);
+    fixture.detectChanges();
+    const emitted: string[] = [];
+    fixture.componentInstance.infoClick.subscribe(k => emitted.push(k));
+
+    const item = el.querySelector<HTMLElement>('[role="button"]')!;
+    expect(item.tabIndex).toBe(0);
+    expect(item.getAttribute('aria-label')).toContain('Duration');
+
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    item.dispatchEvent(enter);
+    item.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', cancelable: true }));
+
+    expect(emitted).toEqual(['duration', 'duration']);
+    expect(enter.defaultPrevented).toBe(true);
+  });
 });

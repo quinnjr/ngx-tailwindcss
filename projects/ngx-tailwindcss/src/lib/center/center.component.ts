@@ -47,6 +47,10 @@ import { TwClassService } from '../core/tw-class.service';
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })
@@ -113,6 +117,8 @@ export class TwCenterComponent {
         translate: none;
         rotate: none;
         scale: none;
+        /* Don't clip the inner element's shadow/ring; it clips its own content */
+        overflow: visible;
       }
     `,
   ],
@@ -169,6 +175,8 @@ export class TwSquareComponent {
         translate: none;
         rotate: none;
         scale: none;
+        /* Don't clip the inner element's shadow/ring; it clips its own content */
+        overflow: visible;
       }
     `,
   ],

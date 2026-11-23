@@ -76,5 +76,22 @@ describe('NativePlatformService', () => {
         base.remove();
       }
     });
+
+    it('should refuse blob: URLs even when the app itself is served from blob:', async () => {
+      const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const baseURI = vi
+        .spyOn(document, 'baseURI', 'get')
+        .mockReturnValue('blob:https://example.com/0b5e4c1a-0000-4000-8000-000000000000');
+      try {
+        const service = TestBed.inject(NativePlatformService);
+
+        await expect(
+          service.openExternal('blob:https://example.com/11111111-0000-4000-8000-000000000000')
+        ).rejects.toThrow(/not supported/);
+        expect(open).not.toHaveBeenCalled();
+      } finally {
+        baseURI.mockRestore();
+      }
+    });
   });
 });

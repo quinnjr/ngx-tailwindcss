@@ -87,6 +87,19 @@ export class TwShortcutsEditorComponent {
     event.preventDefault();
     event.stopPropagation();
 
+    // A bare Escape cancels recording (focus is lost when recording starts,
+    // so this is the only keyboard way out); Shift+Escape etc. still record
+    if (
+      event.key === 'Escape' &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey
+    ) {
+      this.cancelEdit();
+      return;
+    }
+
     const keys: string[] = [];
     if (event.metaKey) keys.push('Meta');
     if (event.ctrlKey) keys.push('Ctrl');

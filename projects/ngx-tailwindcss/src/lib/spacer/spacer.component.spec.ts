@@ -284,3 +284,27 @@ describe('TwWrapComponent', () => {
     });
   });
 });
+
+describe('Wrap host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-wrap><span>x</span></tw-wrap>`,
+      standalone: true,
+      imports: [TwWrapComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-wrap')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+  });
+});

@@ -221,6 +221,13 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
     const eventKey = event.key.length === 1 ? event.key.toUpperCase() : event.key;
     if (eventKey === shortcut.key) return true;
 
+    // The physical-key fallbacks below are only for keys whose character was
+    // changed by a modifier. A layout that types a different ASCII letter,
+    // digit or punctuation mark at that position (QWERTZ types 'z' at KeyY,
+    // AZERTY 'a' at KeyQ) means a different shortcut: Ctrl+Z must not fire
+    // `ctrl+y` too.
+    if (/^[A-Z0-9]$/.test(eventKey) || Object.hasOwn(PUNCTUATION_CODES, eventKey)) return false;
+
     // Modifiers such as Option (macOS) or AltGr change `event.key` (e.g. Option+S
     // yields 'ß'), so fall back to the physical key code for letters and digits.
     if (/^[A-Z]$/.test(shortcut.key)) return event.code === `Key${shortcut.key}`;

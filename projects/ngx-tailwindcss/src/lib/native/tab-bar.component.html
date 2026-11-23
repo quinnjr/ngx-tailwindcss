@@ -49,23 +49,25 @@
           @if (tab.dirty) {
             <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
           }
-
-          <!-- Close button -->
-          @if (tab.closable !== false && !tab.pinned) {
-            <button
-              type="button"
-              class="ml-1 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
-              [attr.aria-label]="'Close ' + tab.label"
-              (click)="closeTab(tab, i, $event)"
-            >
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                <path
-                  d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
-                />
-              </svg>
-            </button>
-          }
         </button>
+
+        <!-- Close button: a sibling laid over the tab's right padding, since a
+             button nested in the tab button is invalid HTML (the parser splits
+             it, breaking SSR hydration) and unreachable for assistive tech -->
+        @if (tab.closable !== false && !tab.pinned) {
+          <button
+            type="button"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+            [attr.aria-label]="'Close ' + tab.label"
+            (click)="closeTab(tab, i, $event)"
+          >
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+              <path
+                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
+              />
+            </svg>
+          </button>
+        }
 
         <!-- Active indicator (for underline variant) -->
         @if (variant() === 'underline' && tab.id === activeTabId()) {

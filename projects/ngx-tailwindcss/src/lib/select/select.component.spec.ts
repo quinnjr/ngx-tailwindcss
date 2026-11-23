@@ -119,6 +119,25 @@ describe('TwSelectComponent', () => {
       expect(component.onToggleSpy).toHaveBeenCalledWith(false);
     });
 
+    it('should emit onToggle(false) when a selection or outside click closes the dropdown', () => {
+      const triggerButton = selectEl.query(By.css('button'));
+      triggerButton.nativeElement.click();
+      fixture.detectChanges();
+      selectEl.queryAll(By.css('[role="option"]'))[0].nativeElement.click();
+      fixture.detectChanges();
+      expect(component.onToggleSpy.mock.calls).toEqual([[true], [false]]);
+
+      triggerButton.nativeElement.click();
+      fixture.detectChanges();
+      document.body.click();
+      fixture.detectChanges();
+      expect(component.onToggleSpy.mock.calls).toEqual([[true], [false], [true], [false]]);
+
+      // Further outside clicks while closed must not re-emit
+      document.body.click();
+      expect(component.onToggleSpy).toHaveBeenCalledTimes(4);
+    });
+
     it('should not open dropdown when disabled', () => {
       component.disabled.set(true);
       fixture.detectChanges();

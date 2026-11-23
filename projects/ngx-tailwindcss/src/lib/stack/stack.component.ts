@@ -90,6 +90,10 @@ const JUSTIFY_CLASSES: Record<StackJustify, string> = {
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })
@@ -156,6 +160,10 @@ export class TwStackComponent {
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })
@@ -202,6 +210,10 @@ export class TwVStackComponent {
         translate: none;
         rotate: none;
         scale: none;
+      }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
       }
     `,
   ],

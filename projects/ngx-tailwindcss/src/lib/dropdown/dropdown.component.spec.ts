@@ -483,3 +483,133 @@ describe('TwDropdownComponent item opening a modal', () => {
     }
   });
 });
+
+@Component({
+  template: `
+    <tw-modal [open]="true">
+      <tw-dropdown>
+        <button twDropdownTrigger class="dd-trigger">Open</button>
+        <tw-dropdown-menu>
+          <button twDropdownItem class="dd-first">First</button>
+          <button twDropdownItem class="dd-last">Last</button>
+        </tw-dropdown-menu>
+      </tw-dropdown>
+      <button class="after">After</button>
+    </tw-modal>
+  `,
+  standalone: true,
+  imports: [
+    TwModalComponent,
+    TwDropdownComponent,
+    TwDropdownItemDirective,
+    TwDropdownMenuComponent,
+    TwDropdownTriggerDirective,
+  ],
+})
+class DropdownTabInModalHostComponent {
+  @ViewChild(TwDropdownComponent) dropdown!: TwDropdownComponent;
+}
+
+describe('TwDropdownComponent Tab key', () => {
+  // The modal's focus trap only counts laid-out elements; jsdom has no layout
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(10);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(10);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const tab = (target: HTMLElement, shiftKey = false): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  async function setup(): Promise<ComponentFixture<DropdownTabInModalHostComponent>> {
+    await TestBed.configureTestingModule({
+      imports: [DropdownTabInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DropdownTabInModalHostComponent);
+    fixture.detectChanges();
+    document.querySelector<HTMLElement>('.dd-trigger')!.click();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('should keep Tab between menu items away from an enclosing modal focus trap', async () => {
+    const fixture = await setup();
+    const first = document.querySelector<HTMLElement>('.dd-first')!;
+    first.focus();
+
+    const event = tab(first);
+
+    // The browser's default action moves to the next item; the modal must not pull focus back
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(first);
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(true);
+    fixture.destroy();
+  });
+
+  it('should close and continue from the trigger when tabbing past the last item', async () => {
+    const fixture = await setup();
+    const last = document.querySelector<HTMLElement>('.dd-last')!;
+    last.focus();
+
+    const event = tab(last);
+    fixture.detectChanges();
+
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(false);
+    // Focus is on the trigger, from where the default action moves on to the next element
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector('.dd-trigger'));
+    fixture.destroy();
+  });
+
+  it('should close and stop on the trigger on Shift+Tab from the first item', async () => {
+    const fixture = await setup();
+    const first = document.querySelector<HTMLElement>('.dd-first')!;
+    first.focus();
+
+    const event = tab(first, true);
+    fixture.detectChanges();
+
+    expect(isDropdownOpen(fixture.componentInstance.dropdown)).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('.dd-trigger'));
+    fixture.destroy();
+  });
+});
+
+describe('TwDropdownComponent scrolling container', () => {
+  it('should follow the trigger when an enclosing container (not the window) scrolls', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DropdownTabInModalHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DropdownTabInModalHostComponent);
+    fixture.detectChanges();
+    document.querySelector<HTMLElement>('.dd-trigger')!.click();
+    fixture.detectChanges();
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+    const container = fixture.debugElement.query(By.directive(TwDropdownComponent))
+      .nativeElement as HTMLElement;
+    vi.spyOn(container.querySelector('div')!, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(20, 100, 80, 30)
+    );
+
+    // `scroll` from an element does not bubble to the window
+    document.querySelector('.after')!.dispatchEvent(new Event('scroll'));
+
+    expect(menu.style.top).toBe('134px');
+    vi.restoreAllMocks();
+    fixture.destroy();
+  });
+});

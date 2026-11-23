@@ -292,3 +292,82 @@ describe('Electron dock/tray menu clicks', () => {
     expect(inZone).toBe(true);
   });
 });
+
+describe('TwShortcutDirective on non-QWERTY layouts', () => {
+  function setup(shortcut: string) {
+    const fixture = TestBed.createComponent(ShortcutHostComponent);
+    fixture.componentInstance.shortcut.set(shortcut);
+    fixture.detectChanges();
+    return { fixture, button: fixture.nativeElement.querySelector('button') as HTMLElement };
+  }
+
+  it('does not fire ctrl+y for QWERTZ Ctrl+Z (typed at KeyY)', () => {
+    const { fixture, button } = setup('ctrl+y');
+    press(button, { key: 'z', code: 'KeyY', ctrlKey: true });
+    expect(fixture.componentInstance.count).toBe(0);
+    press(button, { key: 'y', code: 'KeyZ', ctrlKey: true });
+    expect(fixture.componentInstance.count).toBe(1);
+  });
+
+  it('does not fire ctrl+/ for QWERTZ Ctrl+- (typed at Slash)', () => {
+    const { fixture, button } = setup('ctrl+/');
+    press(button, { key: '-', code: 'Slash', ctrlKey: true });
+    expect(fixture.componentInstance.count).toBe(0);
+  });
+
+  it('still falls back to the physical key for non-ASCII characters', () => {
+    const { fixture, button } = setup('alt+s');
+    press(button, { key: 'ß', code: 'KeyS', altKey: true });
+    expect(fixture.componentInstance.count).toBe(1);
+  });
+});
+
+describe('TwShortcutsEditorComponent recording', () => {
+  it('cancels recording on a bare Escape instead of binding it', () => {
+    vi.useFakeTimers();
+    try {
+      const fixture = TestBed.createComponent(TwShortcutsEditorComponent);
+      const save: ShortcutBinding = {
+        id: 'save',
+        command: 'Save',
+        keys: ['Ctrl', 'S'],
+        defaultKeys: ['Ctrl', 'S'],
+      };
+      fixture.componentRef.setInput('shortcuts', [save]);
+      fixture.detectChanges();
+      const editor = fixture.componentInstance;
+      const changes: unknown[] = [];
+      editor.shortcutChanged.subscribe(e => changes.push(e));
+
+      editor.startEdit(save);
+      editor.handleKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+      vi.advanceTimersByTime(1000);
+
+      expect(editor.editingId()).toBeNull();
+      expect(changes).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('TwTabBarComponent close button', () => {
+  it('is not nested inside the tab button', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.componentRef.setInput('tabs', [{ id: 'one', label: 'One' }]);
+    fixture.detectChanges();
+    const closes: unknown[] = [];
+    fixture.componentInstance.tabClose.subscribe(e => closes.push(e));
+    const selects: unknown[] = [];
+    fixture.componentInstance.tabSelect.subscribe(e => selects.push(e));
+
+    const close = fixture.nativeElement.querySelector(
+      '[aria-label="Close One"]'
+    ) as HTMLButtonElement;
+    expect(close.parentElement?.closest('button')).toBeNull();
+
+    close.click();
+    expect(closes.length).toBe(1);
+    expect(selects.length).toBe(0);
+  });
+});

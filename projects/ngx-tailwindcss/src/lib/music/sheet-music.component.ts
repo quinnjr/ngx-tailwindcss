@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   input,
+  linkedSignal,
   numberAttribute,
   output,
   signal,
@@ -772,7 +773,15 @@ export class TwSheetMusicComponent {
   readonly zoomChange = output<number>();
   readonly parseError = output<string>();
 
-  protected readonly currentPage = signal(0);
+  // Page ('pages' layout): back to the first line when the music changes, and kept within
+  // the lines there are (e.g. when measuresPerLine grows)
+  protected readonly currentPage = linkedSignal<{ music: SheetMusicData; lines: number }, number>({
+    source: () => ({ music: this.musicData(), lines: this.totalLines() }),
+    computation: (source, previous) =>
+      previous?.source.music === source.music
+        ? Math.max(0, Math.min(previous.value, source.lines - 1))
+        : 0,
+  });
   protected readonly currentZoom = signal(1);
 
   // Parse imported notation

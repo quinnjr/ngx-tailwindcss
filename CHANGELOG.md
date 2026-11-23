@@ -66,7 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tw-container`, `tw-center`, `tw-square`, `tw-circle`, `tw-bleed`,
   `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer paint a static `class`
   twice: padding, borders, backgrounds, shadows, opacity and transforms apply
-  only to the inner element (`tw-circle` backgrounds are no longer square)
+  only to the inner element (`tw-circle` backgrounds are no longer square).
+  The inner element fills a host stretched or grown by its flex/grid parent,
+  `tw-aspect-ratio`/`tw-square`/`tw-circle` no longer clip their own shadow
+  with a forwarded `overflow-hidden`, and a forwarded `max-w-*` on
+  `tw-container` keeps the container centered
+- `tw-image` `width`/`height` accept CSS lengths (`10rem`, `auto`); only bare
+  numbers get a `px` suffix
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs

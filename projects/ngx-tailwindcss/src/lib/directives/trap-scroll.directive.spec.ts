@@ -54,3 +54,56 @@ describe('TwTrapScrollDirective', () => {
     expect(wheel(el, 10, 0).defaultPrevented).toBe(true);
   });
 });
+
+@Component({
+  template: `
+    <div twTrapScroll data-testid="outer">
+      <pre data-testid="inner" style="overflow-x: auto; overflow-y: auto">wide content</pre>
+    </div>
+  `,
+  standalone: true,
+  imports: [TwTrapScrollDirective],
+})
+class NestedHostComponent {}
+
+describe('TwTrapScrollDirective with a scrollable descendant', () => {
+  let outer: HTMLElement;
+  let inner: HTMLElement;
+
+  beforeEach(() => {
+    const fixture = TestBed.createComponent(NestedHostComponent);
+    fixture.detectChanges();
+    outer = fixture.nativeElement.querySelector('[data-testid="outer"]');
+    inner = fixture.nativeElement.querySelector('[data-testid="inner"]');
+    // The host itself does not scroll
+    setMetrics(outer, {
+      scrollTop: 0,
+      clientHeight: 100,
+      scrollHeight: 100,
+      scrollLeft: 0,
+      clientWidth: 100,
+      scrollWidth: 100,
+    });
+  });
+
+  it('should let a scrollable descendant take the wheel', () => {
+    setMetrics(inner, { scrollLeft: 0, clientWidth: 100, scrollWidth: 400 });
+    expect(wheel(inner, 10, 0).defaultPrevented).toBe(false);
+  });
+
+  it('should block the wheel once the descendant reaches its edge', () => {
+    setMetrics(inner, { scrollLeft: 300, clientWidth: 100, scrollWidth: 400 });
+    expect(wheel(inner, 10, 0).defaultPrevented).toBe(true);
+  });
+
+  it('should still block the wheel on non-scrollable content', () => {
+    expect(wheel(outer, 0, 10).defaultPrevented).toBe(true);
+  });
+
+  it('should let touch scrolling reach a scrollable descendant', () => {
+    setMetrics(inner, { clientWidth: 100, scrollWidth: 400 });
+    const event = new TouchEvent('touchmove', { cancelable: true, bubbles: true });
+    inner.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+});

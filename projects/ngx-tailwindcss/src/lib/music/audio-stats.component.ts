@@ -464,6 +464,11 @@ export class TwAudioStatsComponent {
     this.infoClick.emit(key);
   }
 
+  protected onStatKeydown(event: Event, key: string): void {
+    event.preventDefault();
+    this.onStatClick(key);
+  }
+
   // Computed classes
   protected readonly containerClasses = computed(() => {
     const variant = this.variant();

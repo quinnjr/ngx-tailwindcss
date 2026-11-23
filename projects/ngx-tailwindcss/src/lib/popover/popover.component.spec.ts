@@ -494,3 +494,76 @@ describe('TwPopoverComponent', () => {
     });
   });
 });
+
+describe('TwPopoverComponent Tab key', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.popover.show();
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+  });
+
+  const tab = (target: HTMLElement, shiftKey = false): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  it('should close and continue from the trigger when tabbing out of the portaled panel', () => {
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.focus();
+
+    const event = tab(action);
+    fixture.detectChanges();
+
+    // Without this, Tab would leave the panel at the end of <body> with the popover open
+    expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector('[twPopoverTrigger]'));
+  });
+
+  it('should stop on the trigger on Shift+Tab from the first focusable element', () => {
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.focus();
+
+    const event = tab(action, true);
+    fixture.detectChanges();
+
+    expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('[twPopoverTrigger]'));
+  });
+
+  it('should keep Tab within the panel from reaching document listeners (outer focus traps)', () => {
+    const extra = document.createElement('button');
+    const action = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="action"]')!;
+    action.after(extra);
+    action.focus();
+    const documentListener = vi.fn();
+    document.addEventListener('keydown', documentListener);
+
+    try {
+      tab(action);
+      expect(documentListener).not.toHaveBeenCalled();
+      expect(isPopoverVisible(fixture.componentInstance.popover)).toBe(true);
+    } finally {
+      document.removeEventListener('keydown', documentListener);
+      extra.remove();
+    }
+  });
+});

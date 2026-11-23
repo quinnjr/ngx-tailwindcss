@@ -383,21 +383,23 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
 
   toggleSelectAll(): void {
     const enabledOptions = this.enabledOptions();
+    const enabledValues = new Set(enabledOptions.map(opt => opt.value));
+    // Selections on disabled options are locked: Select All must not add or remove them
+    const locked = [...this.selectedValues()].filter(value => !enabledValues.has(value));
 
+    let values: unknown[];
     if (this.selectedEnabledCount() >= this.selectAllTarget()) {
       // Deselect all
-      this.selectedValues.set(new Set());
-      this.onChangeFn([]);
-      this.selectionChange.emit([]);
+      values = locked;
     } else {
       // Select all (respecting max selections)
       const max = this.maxSelections();
       const toSelect = max > 0 ? enabledOptions.slice(0, max) : enabledOptions;
-      const values = toSelect.map(opt => opt.value);
-      this.selectedValues.set(new Set(values));
-      this.onChangeFn(values);
-      this.selectionChange.emit(values);
+      values = [...locked, ...toSelect.map(opt => opt.value)];
     }
+    this.selectedValues.set(new Set(values));
+    this.onChangeFn(values);
+    this.selectionChange.emit(values);
   }
 
   isSelected(option: MultiSelectOption): boolean {

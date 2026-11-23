@@ -65,6 +65,12 @@ const CONTAINER_PADDING: Record<string, string> = {
         rotate: none;
         scale: none;
         width: 100%;
+        /* The width cap belongs to the inner element, which centers itself within the host */
+        max-width: none;
+      }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
       }
     `,
   ],

@@ -451,3 +451,38 @@ describe('TwMultiSelectComponent (round 4)', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 });
+
+@Component({
+  template: ` <tw-multiselect [options]="options" [formControl]="control"></tw-multiselect> `,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class LockedSelectionHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana', disabled: true },
+    { label: 'Cherry', value: 'cherry' },
+  ];
+  control = new FormControl<unknown[]>(['banana']);
+}
+
+describe('TwMultiSelectComponent (round 5)', () => {
+  it('should keep selections on disabled options when using Select All', () => {
+    const fixture = TestBed.createComponent(LockedSelectionHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    trigger.click();
+    fixture.detectChanges();
+    const selectAll = [...fixture.nativeElement.querySelectorAll('[role="option"]')].find(
+      (el: HTMLElement) => el.textContent?.includes('Select All')
+    ) as HTMLElement;
+
+    selectAll.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual(['banana', 'apple', 'cherry']);
+
+    selectAll.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.control.value).toEqual(['banana']);
+  });
+});

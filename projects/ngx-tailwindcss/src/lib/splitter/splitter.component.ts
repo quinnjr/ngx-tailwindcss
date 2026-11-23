@@ -68,6 +68,17 @@ const KEYBOARD_RESIZE_STEP = 2;
       :host {
         display: block;
         height: 100%;
+        /* A static class attribute also stays on the host: paint it once, on the inner element */
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+        opacity: 1;
+        filter: none;
+        transform: none;
+        translate: none;
+        rotate: none;
+        scale: none;
       }
     `,
   ],

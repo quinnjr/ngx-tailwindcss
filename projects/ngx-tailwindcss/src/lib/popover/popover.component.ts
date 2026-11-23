@@ -25,6 +25,7 @@ import {
   removeEscapeLayer,
   shouldHandleEscape,
 } from '../overlay/escape-layer-stack';
+import { handlePortalTab } from '../overlay/portal-tab';
 
 let nextPopoverId = 0;
 
@@ -121,6 +122,7 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
   private keydownListener: ((event: KeyboardEvent) => void) | null = null;
   private portalMouseEnterListener: (() => void) | null = null;
   private portalMouseLeaveListener: (() => void) | null = null;
+  private portalTabListener: (() => void) | null = null;
 
   protected get hasFooter(): boolean {
     return !!this.footerTemplate;
@@ -352,9 +354,26 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
       });
     }
 
-    this.scrollListener = this.renderer.listen('window', 'scroll', () => {
+    // Capture phase: also follow the trigger when an enclosing container (e.g. a
+    // scrollable modal) scrolls, not only the window
+    const onScroll = (): void => {
       this.updatePosition();
-    });
+    };
+    this.document.addEventListener('scroll', onScroll, true);
+    this.scrollListener = () => {
+      this.document.removeEventListener('scroll', onScroll, true);
+    };
+
+    // Tab out of the portaled panel continues from the trigger (and is kept away from
+    // an enclosing modal's focus trap while inside)
+    const panel = this.portalElement;
+    if (panel) {
+      this.portalTabListener = this.renderer.listen(panel, 'keydown', (event: KeyboardEvent) => {
+        handlePortalTab(panel, event, () => {
+          this.hide();
+        });
+      });
+    }
 
     this.resizeListener = this.renderer.listen('window', 'resize', () => {
       this.updatePosition();
@@ -515,6 +534,10 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
     if (this.portalMouseLeaveListener) {
       this.portalMouseLeaveListener();
       this.portalMouseLeaveListener = null;
+    }
+    if (this.portalTabListener) {
+      this.portalTabListener();
+      this.portalTabListener = null;
     }
   }
 

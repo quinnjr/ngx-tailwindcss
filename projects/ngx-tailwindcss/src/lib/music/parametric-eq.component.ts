@@ -763,6 +763,16 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
       : `${Math.round(band.frequency)} hertz`;
   }
 
+  /**
+   * Visible label of a band's select button. Dragging a node produces
+   * fractional frequencies, so sub-kHz values are rounded like everywhere else.
+   */
+  protected bandButtonLabel(band: EQBand): string {
+    return band.frequency >= 1000
+      ? `${(band.frequency / 1000).toFixed(1)}kHz`
+      : `${Math.round(band.frequency)}Hz`;
+  }
+
   /** Accessible name of a band's enable switch (its state is exposed via aria-checked) */
   protected bandToggleLabel(band: EQBand): string {
     return `Enable EQ band at ${this.bandFrequencyLabel(band)}`;

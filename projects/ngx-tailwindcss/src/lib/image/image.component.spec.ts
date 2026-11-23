@@ -114,6 +114,15 @@ describe('TwImageComponent', () => {
       const container = imageEl.query(By.css('div'));
       expect(container.nativeElement.style.width).toBe('50%');
     });
+
+    it('should pass non-pixel CSS lengths through unchanged', () => {
+      component.width.set('10rem');
+      component.height.set('8em');
+      fixture.detectChanges();
+      const container = imageEl.query(By.css('div'));
+      expect(container.nativeElement.style.width).toBe('10rem');
+      expect(container.nativeElement.style.height).toBe('8em');
+    });
   });
 
   describe('object fit', () => {

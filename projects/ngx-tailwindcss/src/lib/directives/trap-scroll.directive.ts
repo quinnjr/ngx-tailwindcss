@@ -12,6 +12,52 @@ import {
 /** Sub-pixel slack when checking whether the element is scrolled to an edge */
 const SCROLL_EDGE_TOLERANCE = 1;
 
+const SCROLLABLE_OVERFLOW = new Set(['auto', 'scroll', 'overlay']);
+
+/** Whether the element has overflowing content it lets the user scroll (on either axis) */
+function isScrollContainer(element: Element): boolean {
+  const style = getComputedStyle(element);
+  return (
+    (SCROLLABLE_OVERFLOW.has(style.overflowY) && element.scrollHeight > element.clientHeight) ||
+    (SCROLLABLE_OVERFLOW.has(style.overflowX) && element.scrollWidth > element.clientWidth)
+  );
+}
+
+/**
+ * Whether the element can still scroll by `delta` along the given axis.
+ * `checkOverflow` requires a scrollable overflow style (used for descendants;
+ * the host itself is trusted to be the scroll container).
+ */
+function canScroll(
+  element: Element,
+  vertical: boolean,
+  delta: number,
+  checkOverflow: boolean
+): boolean {
+  if (checkOverflow) {
+    const style = getComputedStyle(element);
+    if (!SCROLLABLE_OVERFLOW.has(vertical ? style.overflowY : style.overflowX)) return false;
+  }
+
+  if (vertical) {
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    // scrollTop can be fractional on zoomed / high-DPI displays
+    return delta < 0
+      ? scrollTop > SCROLL_EDGE_TOLERANCE
+      : scrollTop + clientHeight < scrollHeight - SCROLL_EDGE_TOLERANCE;
+  }
+
+  // In RTL, scrollLeft runs from 0 (right edge) to -(scrollWidth - clientWidth)
+  const { scrollLeft, scrollWidth, clientWidth } = element;
+  const maxScroll = scrollWidth - clientWidth;
+  const isRtl = getComputedStyle(element).direction === 'rtl';
+  const minLeft = isRtl ? -maxScroll : 0;
+  const maxLeft = isRtl ? 0 : maxScroll;
+  return delta < 0
+    ? scrollLeft > minLeft + SCROLL_EDGE_TOLERANCE
+    : scrollLeft < maxLeft - SCROLL_EDGE_TOLERANCE;
+}
+
 /**
  * Directive to trap scroll within an element, preventing scroll propagation to parent
  * Useful for dropdowns, modals, and scrollable panels
@@ -49,39 +95,27 @@ export class TwTrapScrollDirective implements OnInit, OnDestroy {
     if (this.trapScrollDisabled) return;
 
     const element = this.el.nativeElement;
-    const { scrollTop, scrollHeight, clientHeight, scrollLeft, scrollWidth, clientWidth } = element;
-
     const isVertical = Math.abs(event.deltaY) > Math.abs(event.deltaX);
-    const isHorizontal = !isVertical;
 
-    if (isHorizontal && this.trapScrollAllowHorizontal) {
+    if (!isVertical && this.trapScrollAllowHorizontal) {
       return;
     }
 
-    if (isVertical) {
-      const atTop = scrollTop <= SCROLL_EDGE_TOLERANCE;
-      // scrollTop can be fractional on zoomed / high-DPI displays
-      const atBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_EDGE_TOLERANCE;
-      const scrollingUp = event.deltaY < 0;
-      const scrollingDown = event.deltaY > 0;
+    const delta = isVertical ? event.deltaY : event.deltaX;
+    if (delta === 0) return;
 
-      if ((atTop && scrollingUp) || (atBottom && scrollingDown)) {
-        event.preventDefault();
-      }
-    } else {
-      // In RTL, scrollLeft runs from 0 (right edge) to -(scrollWidth - clientWidth)
-      const maxScroll = scrollWidth - clientWidth;
-      const isRtl = getComputedStyle(element).direction === 'rtl';
-      const minLeft = isRtl ? -maxScroll : 0;
-      const maxLeft = isRtl ? 0 : maxScroll;
-      const atLeft = scrollLeft <= minLeft + SCROLL_EDGE_TOLERANCE;
-      const atRight = scrollLeft >= maxLeft - SCROLL_EDGE_TOLERANCE;
-      const scrollingLeft = event.deltaX < 0;
-      const scrollingRight = event.deltaX > 0;
+    // A scrollable descendant (e.g. a code block or list) under the pointer scrolls
+    // first; only block the wheel once nothing inside the host can take it
+    for (
+      let node = event.target instanceof Element ? event.target : null;
+      node && node !== element && element.contains(node);
+      node = node.parentElement
+    ) {
+      if (canScroll(node, isVertical, delta, true)) return;
+    }
 
-      if ((atLeft && scrollingLeft) || (atRight && scrollingRight)) {
-        event.preventDefault();
-      }
+    if (!canScroll(element, isVertical, delta, false)) {
+      event.preventDefault();
     }
   };
 
@@ -90,11 +124,19 @@ export class TwTrapScrollDirective implements OnInit, OnDestroy {
 
     const element = this.el.nativeElement;
 
-    // If element is not scrollable, prevent all touch scroll
+    // If element is not scrollable, prevent all touch scroll, unless the touch
+    // is on a scrollable descendant
     if (
       element.scrollHeight <= element.clientHeight &&
       element.scrollWidth <= element.clientWidth
     ) {
+      for (
+        let node = event.target instanceof Element ? event.target : null;
+        node && node !== element && element.contains(node);
+        node = node.parentElement
+      ) {
+        if (isScrollContainer(node)) return;
+      }
       event.preventDefault();
     }
   };

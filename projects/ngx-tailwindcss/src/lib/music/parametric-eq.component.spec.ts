@@ -89,6 +89,20 @@ describe('TwParametricEQComponent', () => {
     expect(emitted.length).toBe(0);
   });
 
+  it('should round dragged (fractional) frequencies in the band button labels', () => {
+    const bands = fixture.componentInstance.bands();
+    fixture.componentRef.setInput('bands', [
+      { ...bands[0], frequency: 247.3829104 },
+      { ...bands[1], frequency: 1234.567 },
+    ]);
+    fixture.detectChanges();
+
+    const labels = [
+      ...fixture.nativeElement.querySelectorAll('button[aria-current], button:not([role])'),
+    ].map((el: any) => el.textContent.trim());
+    expect(labels).toEqual(['247Hz', '1.2kHz']);
+  });
+
   it('should not touch the canvas during SSR', async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({

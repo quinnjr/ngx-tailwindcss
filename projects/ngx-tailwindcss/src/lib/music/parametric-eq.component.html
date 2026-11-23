@@ -52,7 +52,7 @@
           [attr.aria-label]="bandAriaLabel(band)"
           [attr.aria-current]="selectedBandId() === band.id ? 'true' : null"
         >
-          {{ band.frequency >= 1000 ? (band.frequency / 1000).toFixed(1) + 'k' : band.frequency }}Hz
+          {{ bandButtonLabel(band) }}
         </button>
       </div>
     }

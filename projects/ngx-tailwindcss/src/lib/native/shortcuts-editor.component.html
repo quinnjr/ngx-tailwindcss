@@ -65,7 +65,12 @@
             >
               <span class="text-sm text-slate-500">Press keys...</span>
               <span class="font-mono text-sm">{{ recordedKeys().join(' + ') || '...' }}</span>
-              <button (click)="cancelEdit()" class="ml-2 text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                aria-label="Cancel recording"
+                (click)="cancelEdit()"
+                class="ml-2 text-slate-400 hover:text-slate-600"
+              >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"

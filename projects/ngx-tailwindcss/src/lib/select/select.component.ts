@@ -300,13 +300,11 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   toggleDropdown(): void {
     if (this.isDisabled()) return;
 
-    const willOpen = !this.isOpen();
-    if (willOpen) {
-      this.openDropdown();
-    } else {
+    if (this.isOpen()) {
       this.closeDropdown();
+    } else {
+      this.openDropdown();
     }
-    this.onToggle.emit(willOpen);
   }
 
   selectOption(option: SelectOption): void {
@@ -429,7 +427,9 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private openDropdown(): void {
+    if (this.isOpen()) return;
     this.isOpen.set(true);
+    this.onToggle.emit(true);
     const options = this.navigableOptions();
     const selectedIndex = options.findIndex(option => this.isSelected(option));
     // Start on the selected option, else the first enabled one
@@ -448,6 +448,8 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   private closeDropdown(): void {
+    // Every close path (toggle, selection, Escape, outside click) reports onToggle(false)
+    if (this.isOpen()) this.onToggle.emit(false);
     this.isOpen.set(false);
     this.filterValue.set('');
     this.activeIndex.set(-1);

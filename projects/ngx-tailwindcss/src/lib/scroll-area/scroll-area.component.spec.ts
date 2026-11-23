@@ -164,3 +164,50 @@ describe('TwScrollAreaComponent', () => {
     });
   });
 });
+
+describe('TwScrollAreaComponent static class attribute', () => {
+  it('forwards a static class to the inner element without painting it on the host too', async () => {
+    @Component({
+      template: `<tw-scroll-area class="tw-test-box p-4 extra"><div>Item</div></tw-scroll-area>`,
+      standalone: true,
+      imports: [TwScrollAreaComponent],
+    })
+    class StaticClassHostComponent {}
+
+    // Stand-in for utility classes defined by the app's stylesheet
+    const style = document.createElement('style');
+    style.textContent =
+      '.tw-test-box { padding: 16px; border: 2px solid red; background: red; opacity: 0.5; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [StaticClassHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-scroll-area'))
+        .nativeElement as HTMLElement;
+      const inner = host.querySelector<HTMLElement>(':scope > div')!;
+
+      // Angular keeps the static class on the host as well as passing it to the input
+      expect(host.classList.contains('tw-test-box')).toBe(true);
+      expect(inner.className).toContain('tw-test-box');
+      expect(inner.className).toContain('p-4');
+
+      const hostStyle = getComputedStyle(host);
+      expect(hostStyle.paddingTop).toBe('0px');
+      expect(hostStyle.borderTopWidth).toBe('0px');
+      expect(hostStyle.opacity).toBe('1');
+
+      const innerStyle = getComputedStyle(inner);
+      expect(innerStyle.paddingTop).toBe('16px');
+      expect(innerStyle.borderTopWidth).toBe('2px');
+    } finally {
+      style.remove();
+    }
+  });
+});

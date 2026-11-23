@@ -232,7 +232,7 @@ describe('TwCircleComponent static class attribute', () => {
     class CircleStaticClassHostComponent {}
 
     const style = document.createElement('style');
-    style.textContent = '.tw-test-fill { background: blue; margin: 8px; }';
+    style.textContent = '.tw-test-fill { background: blue; margin: 8px; overflow: hidden; }';
     document.head.append(style);
 
     try {
@@ -252,9 +252,35 @@ describe('TwCircleComponent static class attribute', () => {
       const hostStyle = getComputedStyle(host);
       expect(hostStyle.backgroundColor).not.toBe('rgb(0, 0, 255)');
       expect(hostStyle.marginLeft).toBe('0px');
+      // A forwarded overflow-hidden must not clip the inner circle's shadow on the host
+      expect(hostStyle.overflow).toBe('visible');
       expect(getComputedStyle(inner).backgroundColor).toBe('rgb(0, 0, 255)');
     } finally {
       style.remove();
+    }
+  });
+});
+
+describe('Center host sizing', () => {
+  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+    @Component({
+      template: `<tw-center><span>x</span></tw-center>`,
+      standalone: true,
+      imports: [TwCenterComponent],
+    })
+    class FillHostComponent {}
+
+    await TestBed.configureTestingModule({
+      imports: [FillHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+
+    {
+      const host = fixture.debugElement.query(By.css('tw-center')).nativeElement as HTMLElement;
+      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
     }
   });
 });

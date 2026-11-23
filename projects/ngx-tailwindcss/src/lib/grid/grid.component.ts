@@ -165,6 +165,10 @@ const GAP_Y_CLASSES: Record<GridGap, string> = {
         rotate: none;
         scale: none;
       }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
+      }
     `,
   ],
 })
@@ -273,6 +277,10 @@ export class TwGridComponent {
         translate: none;
         rotate: none;
         scale: none;
+      }
+      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
+      :host > div {
+        height: 100%;
       }
     `,
   ],

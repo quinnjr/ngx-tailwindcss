@@ -76,9 +76,13 @@ export class TwToolbarComponent {
       large: 'p-2',
     };
 
+    // An active toggle gets its blue text from the template bindings; a static
+    // grey text class here would win the cascade and hide the active state
+    const textClasses =
+      item.type === 'toggle' && item.active ? '' : ' text-gray-700 dark:text-gray-300';
     const stateClasses = item.disabled
       ? 'opacity-50 cursor-not-allowed'
-      : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300';
+      : `hover:bg-gray-200 dark:hover:bg-gray-700${textClasses}`;
 
     return `${base} ${sizeClasses[variant]} ${stateClasses}`;
   }

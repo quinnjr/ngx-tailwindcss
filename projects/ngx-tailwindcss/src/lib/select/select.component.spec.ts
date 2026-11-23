@@ -89,6 +89,14 @@ describe('TwSelectComponent', () => {
     expect(component.select).toBeTruthy();
   });
 
+  it('should render the chevron with a >=3:1 contrast colour', () => {
+    const chevron = selectEl.query(By.css('button svg')).nativeElement as SVGElement;
+    const cls = chevron.getAttribute('class') ?? '';
+    expect(cls).toContain('text-slate-500');
+    expect(cls).toContain('dark:text-slate-400');
+    expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+  });
+
   it('should render placeholder text', () => {
     const triggerButton = selectEl.query(By.css('button'));
     expect(triggerButton.nativeElement.textContent).toContain('Select an option');

@@ -91,6 +91,46 @@ describe('TwTabsComponent', () => {
       const tabList = fixture.debugElement.query(By.css('[role="tablist"]'));
       expect(tabList).toBeTruthy();
     });
+
+    const activeTabClasses = (variant: TabsVariant): string[] => {
+      const f = TestBed.createComponent(TestHostComponent);
+      f.componentInstance.variant = variant;
+      f.detectChanges();
+      return (
+        f.debugElement.query(By.css('[role="tab"][aria-selected="true"]'))
+          .nativeElement as HTMLElement
+      ).className.split(/\s+/);
+    };
+
+    it('should keep the active pill white-on-blue in dark mode and on hover', () => {
+      const cls = activeTabClasses('pills');
+      // Inactive dark:text-slate-400 / dark:hover:bg-slate-800 would otherwise outrank the
+      // unprefixed active colours in dark mode (slate-400 on blue-600 is ~2.2:1)
+      expect(cls).toEqual(
+        expect.arrayContaining([
+          'dark:text-white',
+          'dark:hover:text-white',
+          'dark:hover:bg-blue-700',
+        ])
+      );
+      expect(cls).not.toContain('dark:text-slate-400');
+      expect(cls).not.toContain('dark:hover:bg-slate-800');
+    });
+
+    it('should keep the active line tab indicator while hovered', () => {
+      const cls = activeTabClasses('line');
+      expect(cls).toEqual(
+        expect.arrayContaining([
+          'hover:border-blue-500',
+          'hover:text-blue-600',
+          'dark:hover:text-blue-400',
+        ])
+      );
+      expect(cls).not.toContain('hover:border-slate-300');
+      expect(cls).not.toContain('hover:text-slate-900');
+      expect(cls).not.toContain('dark:hover:border-slate-600');
+      expect(cls).not.toContain('dark:hover:text-slate-100');
+    });
   });
 
   describe('sizes', () => {

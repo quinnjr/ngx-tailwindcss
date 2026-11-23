@@ -64,6 +64,80 @@ describe('NativePlatformService', () => {
     });
   });
 
+  describe('Tauri 2 API shape', () => {
+    afterEach(() => {
+      delete (window as unknown as Record<string, unknown>)['__TAURI__'];
+    });
+
+    it('should call window methods on the current window and use the renamed v2 APIs', async () => {
+      const currentWindow = {
+        setTitle: vi.fn().mockResolvedValue(undefined),
+        minimize: vi.fn().mockResolvedValue(undefined),
+        isMaximized: vi.fn().mockResolvedValue(false),
+        maximize: vi.fn().mockResolvedValue(undefined),
+        unmaximize: vi.fn().mockResolvedValue(undefined),
+        isFullscreen: vi.fn().mockResolvedValue(false),
+        setFullscreen: vi.fn().mockResolvedValue(undefined),
+      };
+      const fs = {
+        readFile: vi.fn().mockResolvedValue(new Uint8Array([1])),
+        writeFile: vi.fn().mockResolvedValue(undefined),
+        remove: vi.fn().mockResolvedValue(undefined),
+      };
+      const clipboardManager = { readText: vi.fn().mockResolvedValue('clip') };
+      const dialog = { message: vi.fn().mockResolvedValue(undefined) };
+      (window as unknown as Record<string, unknown>)['__TAURI__'] = {
+        // v2: no free setTitle()/minimize() on the module
+        window: { getCurrentWindow: () => currentWindow },
+        fs,
+        clipboardManager,
+        dialog,
+      };
+      const service = TestBed.inject(NativePlatformService);
+
+      await service.setWindowTitle('Score');
+      await service.minimizeWindow();
+      await service.toggleMaximize();
+      await service.toggleFullscreen();
+      expect(currentWindow.setTitle).toHaveBeenCalledWith('Score');
+      expect(currentWindow.minimize).toHaveBeenCalled();
+      expect(currentWindow.maximize).toHaveBeenCalled();
+      expect(currentWindow.setFullscreen).toHaveBeenCalledWith(true);
+
+      await expect(service.readBinaryFile('/a.mid')).resolves.toEqual(new Uint8Array([1]));
+      await service.writeBinaryFile('/b.mid', new Uint8Array([2]));
+      await service.deleteFile('/c.mid');
+      expect(fs.writeFile).toHaveBeenCalledWith('/b.mid', new Uint8Array([2]));
+      expect(fs.remove).toHaveBeenCalledWith('/c.mid');
+
+      await expect(service.readClipboardText()).resolves.toBe('clip');
+
+      await service.showError('Boom');
+      expect(dialog.message).toHaveBeenCalledWith(
+        'Boom',
+        expect.objectContaining({ kind: 'error' })
+      );
+    });
+  });
+
+  describe('openFile (browser)', () => {
+    it('should report no extension for a file name without a dot', async () => {
+      const click = vi
+        .spyOn(HTMLInputElement.prototype, 'click')
+        .mockImplementation(() => undefined);
+      const service = TestBed.inject(NativePlatformService);
+      const result = service.openFile({ multiple: true });
+
+      const input = click.mock.contexts[0] as HTMLInputElement;
+      const files = [new File(['a'], 'Makefile'), new File(['b'], 'song.mid')];
+      Object.defineProperty(input, 'files', { value: files });
+      input.dispatchEvent(new Event('change'));
+
+      const infos = (await result) as Array<{ name: string; extension: string }>;
+      expect(infos.map(f => f.extension)).toEqual(['', 'mid']);
+    });
+  });
+
   describe('openExternal (browser)', () => {
     it('should open http(s) URLs in a new window without an opener', async () => {
       const open = vi.spyOn(window, 'open').mockImplementation(() => null);

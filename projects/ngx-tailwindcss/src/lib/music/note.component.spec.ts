@@ -107,3 +107,18 @@ describe('accidental helpers', () => {
     expect(spellMidiPitch(61, 'Eb')).toEqual({ name: 'D', octave: 4, alteration: -1 });
   });
 });
+
+describe('TwNoteComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteComponent);
+    fixture.componentRef.setInput('classOverride', 'absolute');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('absolute');
+    expect(classes).not.toContain('relative');
+  });
+});

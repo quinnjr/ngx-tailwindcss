@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 // ==================== TYPES ====================
 
@@ -190,6 +192,8 @@ const PEDAL_SYMBOLS: Record<PedalType, { symbol?: string; text?: string }> = {
   },
 })
 export class TwMusicalSymbolComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Symbol type inputs
   readonly category = input<SymbolCategory>('dynamic');
   readonly dynamic = input<DynamicType | null>(null);
@@ -331,7 +335,7 @@ export class TwMusicalSymbolComponent {
 
   protected readonly containerClasses = computed(() => {
     const base = 'relative';
-    return [base, this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, this.classOverride());
   });
 
   // SVG dimensions for container

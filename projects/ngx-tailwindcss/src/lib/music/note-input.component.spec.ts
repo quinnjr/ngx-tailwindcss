@@ -274,3 +274,16 @@ describe('TwNoteInputComponent clefs and layout', () => {
     expect(del.classList).not.toContain('text-red-600');
   });
 });
+
+describe('TwNoteInputComponent host', () => {
+  it('shows a focus indicator and has an accessible name on the focusable host', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteInputComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteInputComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.tabIndex).toBe(0);
+    expect(host.classList).toContain('focus-visible:ring-2');
+    expect(host.getAttribute('role')).toBe('group');
+    expect(host.getAttribute('aria-label')).toBe('Note input');
+  });
+});

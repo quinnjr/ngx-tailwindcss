@@ -18,8 +18,7 @@
       <!-- Static classes for Tailwind JIT detection: bg-white dark:bg-slate-800 -->
       <div
         #modalPanel
-        class="relative w-full bg-white dark:bg-slate-800 rounded-xl shadow-2xl"
-        [ngClass]="sizeAndCustomClasses()"
+        [class]="panelClasses()"
         [@panelAnimation]
         twFocusTrap
         [focusTrapAutoFocus]="_autoFocus()"

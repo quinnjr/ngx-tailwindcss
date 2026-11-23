@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 import { type ClefType, getKeySignatureAlteration, type KeySignature } from './staff.component';
 
 export type NoteDuration = 'whole' | 'half' | 'quarter' | 'eighth' | 'sixteenth' | 'thirtysecond';
@@ -254,6 +256,8 @@ const CLEF_POSITION_OFFSETS: Record<ClefType, number> = {
   },
 })
 export class TwNoteComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Note properties
   readonly name = input<NoteName>('C');
   readonly octave = input(4, { transform: numberAttribute });
@@ -421,7 +425,7 @@ export class TwNoteComponent {
 
   protected readonly containerClasses = computed(() => {
     const base = 'relative';
-    return [base, this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, this.classOverride());
   });
 
   // Helper to get dot positions

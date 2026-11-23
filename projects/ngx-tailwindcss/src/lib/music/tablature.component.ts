@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 import { createAccidentalContext, NoteAccidental, NoteDuration, NoteName } from './note.component';
 
 export type TablatureVariant = 'default' | 'minimal' | 'printed' | 'dark';
@@ -99,6 +101,8 @@ const TECHNIQUE_SYMBOLS: Record<TablatureTechnique, string> = {
   },
 })
 export class TwTablatureComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly measures = input<TabMeasure[]>([]);
   readonly stringCount = input(6, { transform: numberAttribute }); // 6 for guitar, 4 for bass
   readonly width = input(800, { transform: numberAttribute });
@@ -216,7 +220,7 @@ export class TwTablatureComponent {
       minimal: 'bg-transparent',
       printed: 'bg-[#FFFFF8] border border-slate-200',
     };
-    return [base, variantClasses[this.variant()], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());
   });
 
   protected readonly stringLabels = computed(() => {

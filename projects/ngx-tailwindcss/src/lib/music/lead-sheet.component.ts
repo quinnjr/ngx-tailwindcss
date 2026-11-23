@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
   output,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 import { KeySignature, StaffTimeSignature } from './staff.component';
 import { ChordDefinition, COMMON_CHORDS, TwChordDiagramComponent } from './chord-diagram.component';
@@ -143,6 +145,8 @@ const SLASH_PATTERNS: Record<string, SlashPattern> = {
   },
 })
 export class TwLeadSheetComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly data = input<LeadSheetData | null>(null);
   readonly variant = input<LeadSheetVariant>('default');
   readonly style = input<LeadSheetStyle>('standard');
@@ -180,7 +184,7 @@ export class TwLeadSheetComponent {
       fakebook: 'bg-[#FFF9E6] border border-amber-300 font-serif',
     };
 
-    return [base, variantClasses[variant], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[variant], this.classOverride());
   });
 
   protected readonly textClasses = computed(() => {

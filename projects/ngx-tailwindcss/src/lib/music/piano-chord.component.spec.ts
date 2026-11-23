@@ -128,3 +128,20 @@ describe('TwPianoChordComponent', () => {
     expect(fills()).toEqual(['#DB2777', '#7C3AED', '#7C3AED']);
   });
 });
+
+describe('TwPianoChordComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwPianoChordComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwPianoChordComponent);
+    fixture.componentRef.setInput('classOverride', 'bg-slate-900 p-4');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('bg-slate-900');
+    expect(classes).toContain('p-4');
+    expect(classes).not.toContain('bg-white');
+    expect(classes).not.toContain('p-2');
+  });
+});

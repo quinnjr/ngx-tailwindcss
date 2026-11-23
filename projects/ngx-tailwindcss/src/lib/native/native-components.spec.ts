@@ -16,12 +16,15 @@ import { TwLogViewerComponent } from './log-viewer.component';
 import { TwUpdateDialogComponent } from './update-dialog.component';
 import { TwPropertyInspectorComponent } from './property-inspector.component';
 import { TwBreadcrumbsNavComponent } from './breadcrumbs.component';
+import { TwPreferencesDialogComponent } from './preferences-dialog.component';
+import { TwToolbarComponent } from './toolbar.component';
+import { TwTabBarComponent } from './tab-bar.component';
 import {
   SettingItem,
   TwSettingsPanelComponent,
   TwSettingTemplateDirective,
 } from './settings-panel.component';
-import { NativeMenuItem, SidebarItem } from './native.types';
+import { NativeMenuItem, SidebarItem, ToolbarItem } from './native.types';
 
 @Component({
   template: `
@@ -549,5 +552,132 @@ describe('native toggle state and control contrast', () => {
     )!;
     expect(reset.classList).toContain('text-slate-500');
     expect(reset.classList).not.toContain('text-slate-400');
+  });
+});
+
+// Tailwind 4 emits same-property utilities in a fixed (alphabetical) order, so a
+// static grey text/border class would always beat the conditional selected one.
+describe('native selected states are not overridden by static classes', () => {
+  const expectExclusive = (el: Element, on: string[], off: string[], selected: boolean) => {
+    for (const c of on) expect(el.classList.contains(c)).toBe(selected);
+    for (const c of off) expect(el.classList.contains(c)).toBe(!selected);
+  };
+
+  it('preferences dialog selected tab shows its blue text', () => {
+    const fixture = TestBed.createComponent(TwPreferencesDialogComponent);
+    fixture.componentRef.setInput('tabs', [
+      { id: 'general', label: 'General' },
+      { id: 'advanced', label: 'Advanced' },
+    ]);
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    const tabs = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button[aria-pressed]'
+      ),
+    ];
+    expect(tabs.length).toBe(2);
+    for (const tab of tabs) {
+      expectExclusive(
+        tab,
+        ['text-blue-600', 'dark:text-blue-400'],
+        ['text-slate-600', 'dark:text-slate-400'],
+        tab.getAttribute('aria-pressed') === 'true'
+      );
+    }
+  });
+
+  it('settings panel selected category shows its blue text', () => {
+    const fixture = TestBed.createComponent(TwSettingsPanelComponent);
+    fixture.componentRef.setInput('categories', [
+      { id: 'a', label: 'Alpha' },
+      { id: 'b', label: 'Beta' },
+    ]);
+    fixture.detectChanges();
+    const buttons = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('nav button'),
+    ];
+    expect(buttons.length).toBe(2);
+    buttons[1].click();
+    fixture.detectChanges();
+    expectExclusive(
+      buttons[1],
+      ['text-blue-600', 'dark:text-blue-400'],
+      ['text-slate-700', 'dark:text-slate-300'],
+      true
+    );
+    expectExclusive(
+      buttons[0],
+      ['text-blue-600', 'dark:text-blue-400'],
+      ['text-slate-700', 'dark:text-slate-300'],
+      false
+    );
+  });
+
+  it('toolbar active toggle shows its blue text', () => {
+    const fixture = TestBed.createComponent(TwToolbarComponent);
+    fixture.componentRef.setInput('items', [
+      { id: 'on', type: 'toggle', label: 'On', active: true },
+      { id: 'off', type: 'toggle', label: 'Off', active: false },
+    ] as ToolbarItem[]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const on = el.querySelector('button[aria-label="On"]')!;
+    const off = el.querySelector('button[aria-label="Off"]')!;
+    const groups = [
+      ['text-blue-600', 'dark:text-blue-400'],
+      ['text-gray-700', 'dark:text-gray-300'],
+    ];
+    expectExclusive(on, groups[0], groups[1], true);
+    expectExclusive(off, groups[0], groups[1], false);
+  });
+
+  it('prompt dialog shows a red border while invalid', () => {
+    const fixture = TestBed.createComponent(TwPromptDialogComponent);
+    fixture.componentRef.setInput('minLength', 3);
+    fixture.componentInstance.open('');
+    fixture.detectChanges();
+    const input = (fixture.nativeElement as HTMLElement).querySelector('input')!;
+    expectExclusive(
+      input,
+      ['border-red-500'],
+      ['border-slate-200', 'dark:border-slate-700'],
+      false
+    );
+    input.value = 'ab';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expectExclusive(input, ['border-red-500'], ['border-slate-200', 'dark:border-slate-700'], true);
+  });
+
+  it('collapsed sidebar active icon is legible on its blue fill', () => {
+    const fixture = TestBed.createComponent(TwSidebarNavComponent);
+    fixture.componentRef.setInput('items', [
+      { id: 'a', label: 'A', icon: 'A', active: true, children: [{ id: 'c', label: 'C' }] },
+    ] as SidebarItem[]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const icon = () => el.querySelector('button span.flex-shrink-0')!;
+    expect(icon().classList).toContain('text-blue-600');
+    expect(icon().classList).not.toContain('text-white');
+    expect(el.querySelector('button svg.transition-transform')!.classList).toContain(
+      'text-gray-500'
+    );
+
+    fixture.componentRef.setInput('collapsed', true);
+    fixture.detectChanges();
+    expect(icon().classList).toContain('text-white');
+    expect(icon().classList).not.toContain('text-blue-600');
+    expect(icon().classList).not.toContain('dark:text-blue-400');
+  });
+
+  it('tab pin indicator inherits the tab text colour', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.componentRef.setInput('variant', 'pills');
+    fixture.componentRef.setInput('tabs', [{ id: 'p', label: 'Pinned', pinned: true }]);
+    fixture.componentRef.setInput('activeTabId', 'p');
+    fixture.detectChanges();
+    const pin = (fixture.nativeElement as HTMLElement).querySelector('[role="tab"] svg')!;
+    expect(pin.classList).not.toContain('text-gray-400');
   });
 });

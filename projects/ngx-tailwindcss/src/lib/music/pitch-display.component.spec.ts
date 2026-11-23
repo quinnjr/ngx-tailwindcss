@@ -176,6 +176,52 @@ describe('TwPitchDisplayComponent', () => {
     expect(key.classList).toContain('bg-slate-700');
     expect(key.classList).toContain('text-slate-300');
   });
+
+  it('should colour the vertical pitch wheel thumb when bent', () => {
+    fixture.componentRef.setInput('showPitchWheel', true);
+    fixture.componentRef.setInput('pitchBendStyle', 'vertical');
+    fixture.detectChanges();
+    const thumb = (): HTMLElement =>
+      fixture.nativeElement.querySelector('.h-6.bg-gradient-to-b') as HTMLElement;
+    // Static slate stops are emitted after amber/blue in Tailwind 4 and always won
+    expect(thumb().classList).toContain('from-slate-500');
+    component.setPitchBend(1);
+    fixture.detectChanges();
+    expect(thumb().classList).toContain('from-amber-500');
+    expect(thumb().classList).not.toContain('from-slate-500');
+    expect(thumb().classList).not.toContain('to-slate-600');
+    component.setPitchBend(-1);
+    fixture.detectChanges();
+    expect(thumb().classList).toContain('from-blue-500');
+    expect(thumb().classList).not.toContain('from-slate-500');
+  });
+
+  it('should give the icon-only semitone buttons and cents slider accessible names', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('button[aria-label="Semitone down"]')).not.toBeNull();
+    expect(el.querySelector('button[aria-label="Semitone up"]')).not.toBeNull();
+    expect(el.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('Cents');
+  });
+
+  it('should expose the key lock toggle state', () => {
+    fixture.componentRef.setInput('showKeyLock', true);
+    fixture.detectChanges();
+    const key = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(b =>
+      b.textContent?.includes('KEY')
+    )!;
+    expect(key.getAttribute('aria-pressed')).toBe('false');
+    key.click();
+    fixture.detectChanges();
+    expect(key.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('should render the dj cents readout at full strength', () => {
+    fixture.componentRef.setInput('variant', 'dj');
+    fixture.detectChanges();
+    // cyan-500 at 70% was ~4.2:1 on the dj gradient
+    expect(internals.centsValueClasses()).toContain('text-cyan-500');
+    expect(internals.centsValueClasses()).not.toContain('/70');
+  });
 });
 
 describe('TwPitchDisplayComponent drag listener cleanup', () => {

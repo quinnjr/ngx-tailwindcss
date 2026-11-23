@@ -117,7 +117,8 @@
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                class="p-2 rounded hover:bg-slate-700 transition-colors"
+                class="p-2 rounded transition-colors"
+                [class]="iconButtonHoverClass()"
                 (click)="toggleMute()"
                 [attr.aria-label]="isMuted() ? 'Unmute' : 'Mute'"
                 [attr.aria-pressed]="isMuted()"
@@ -219,7 +220,8 @@
             @if (showVolume()) {
               <button
                 type="button"
-                class="p-1 rounded hover:bg-slate-700 transition-colors"
+                class="p-1 rounded transition-colors"
+                [class]="iconButtonHoverClass()"
                 (click)="toggleMute()"
                 [attr.aria-label]="isMuted() ? 'Unmute' : 'Mute'"
                 [attr.aria-pressed]="isMuted()"

@@ -185,6 +185,16 @@ describe('TwInputComponent', () => {
 
       expect(inputEl.className).toContain('border-rose-500');
     });
+
+    it('should keep the error border in dark mode for every variant', () => {
+      component.error.set('Required');
+      for (const variant of ['default', 'filled', 'outlined', 'underlined'] as const) {
+        component.variant.set(variant);
+        fixture.detectChanges();
+        expect(inputEl.className).toContain('dark:border-rose-500');
+        expect(inputEl.className).not.toContain('dark:border-slate-600');
+      }
+    });
   });
 
   describe('native validation attributes', () => {
@@ -218,6 +228,17 @@ describe('TwInputComponent', () => {
     it('should not show clear button by default', () => {
       const clearBtn = fixture.debugElement.query(By.css('button[aria-label="Clear input"]'));
       expect(clearBtn).toBeNull();
+    });
+
+    it('should render the clear icon with a >=3:1 contrast colour', () => {
+      component.clearable.set(true);
+      component.input.writeValue('abc');
+      fixture.detectChanges();
+      const clearBtn = fixture.debugElement.query(By.css('button[aria-label="Clear input"]'));
+      const cls = (clearBtn.nativeElement as HTMLElement).className;
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
     });
   });
 });
@@ -339,6 +360,13 @@ describe('TwTextareaComponent', () => {
     fixture.detectChanges();
 
     expect(textareaEl.className).toContain('border-rose-500');
+  });
+
+  it('should keep the error border in dark mode', () => {
+    component.error.set('Required');
+    fixture.detectChanges();
+    expect(textareaEl.className).toContain('dark:border-rose-500');
+    expect(textareaEl.className).not.toContain('dark:border-slate-600');
   });
 
   describe('showCount', () => {
@@ -581,6 +609,15 @@ describe('TwInputComponent wrapper focus indicator', () => {
     const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
     expect(wrapper.className).toContain('focus-within:border-rose-500');
     expect(wrapper.className).not.toMatch(/(^|\s)focus:/);
+  });
+
+  it('should keep the wrapper error border in dark mode', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.componentInstance.error.set('Bad');
+    fixture.detectChanges();
+    const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+    expect(wrapper.className).toContain('dark:border-rose-500');
+    expect(wrapper.className).not.toContain('dark:border-slate-600');
   });
 
   it('should use focus-within on the wrapper of a clearable input', () => {

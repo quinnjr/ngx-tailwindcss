@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   effect,
+  inject,
   input,
   numberAttribute,
   output,
@@ -10,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type NoteDisplayVariant = 'default' | 'minimal' | 'led' | 'lcd' | 'meter';
 export type NoteDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
@@ -60,6 +62,8 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
   },
 })
 export class TwNoteDisplayComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Input modes - either provide frequency OR note object
   readonly frequency = input<number | null>(null);
   readonly note = input<DetectedNote | null>(null);
@@ -267,9 +271,12 @@ export class TwNoteDisplayComponent {
       xl: 'gap-4 min-w-[220px]',
     };
 
-    return [base, variantClasses[variant], sizeClasses[size], this.classOverride()]
-      .filter(Boolean)
-      .join(' ');
+    return this.twClass.merge(
+      base,
+      variantClasses[variant],
+      sizeClasses[size],
+      this.classOverride()
+    );
   });
 
   protected readonly noteClasses = computed(() => {

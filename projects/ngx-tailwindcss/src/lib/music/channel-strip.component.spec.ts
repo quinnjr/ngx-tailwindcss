@@ -95,21 +95,39 @@ describe('TwChannelStripComponent', () => {
     expect(text('GAIN').className).toContain('text-slate-600');
   });
 
-  it('should scope dark mode to the always-dark strips so nested dials and meters stay readable', () => {
+  it('should render nested dials and meters with dark-surface colours without a dark page', () => {
+    // A `dark` class on the strip only works with class-based dark mode; under the default
+    // prefers-color-scheme strategy the nested volume readout (text-slate-700) and meter
+    // scale / L/R labels (text-slate-500) stayed dark text on the dark strip (~1.5:1)
+    fixture.componentRef.setInput('stereo', true);
     const el = fixture.nativeElement as HTMLElement;
-    const container = () => el.firstElementChild as HTMLElement;
-    // The volume readout (text-slate-700 dark:text-slate-300) and the meter's L/R
-    // labels follow the page scheme: on a light page they were dark text on the strip
-    expect(el.querySelector('tw-volume-dial')).not.toBeNull();
+    const readout = () => el.querySelector<HTMLElement>('tw-volume-dial div.font-mono')!;
+    const scale = () => el.querySelector<HTMLElement>('tw-vu-meter .-left-6')!;
+    const lr = () =>
+      [...el.querySelectorAll<HTMLElement>('tw-vu-meter div')].find(
+        d => d.textContent?.replaceAll(/\s/g, '') === 'LR'
+      )!;
+    const darkOnlyText = (node: HTMLElement) =>
+      [...node.classList].filter(c => /^text-slate-\d/.test(c));
+
     for (const variant of ['default', 'compact', 'vintage']) {
       fixture.componentRef.setInput('variant', variant);
       fixture.detectChanges();
-      expect(container().classList).toContain('dark');
+      expect(el.querySelector('.dark')).toBeNull();
+      expect(darkOnlyText(readout())).toEqual(['text-slate-300']);
+      expect(darkOnlyText(scale())).toEqual(['text-slate-400']);
+      expect(darkOnlyText(lr())).toEqual(['text-slate-400']);
+      // Dial graphics use their dark colours too (no light knob on the dark strip)
+      expect(el.querySelector('tw-volume-dial circle')!.getAttribute('class')).not.toMatch(
+        /dark:|fill-(white|slate-100|amber-50)(\s|$)/
+      );
     }
 
     // Minimal is transparent and must keep following the page
     fixture.componentRef.setInput('variant', 'minimal');
     fixture.detectChanges();
-    expect(container().classList).not.toContain('dark');
+    expect(readout().className).toContain('text-slate-700');
+    expect(readout().className).toContain('dark:text-slate-300');
+    expect(scale().className).toContain('text-slate-500');
   });
 });

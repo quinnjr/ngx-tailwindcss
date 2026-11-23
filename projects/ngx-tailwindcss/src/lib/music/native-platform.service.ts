@@ -271,11 +271,30 @@ export class NativePlatformService {
 
       if (tauri) {
         this.tauriDialog = tauri['dialog'] as TauriDialog;
-        this.tauriFs = tauri['fs'] as TauriFs;
         this.tauriPath = tauri['path'] as TauriPath;
-        this.tauriClipboard = tauri['clipboard'] as TauriClipboard;
         this.tauriShell = tauri['shell'] as TauriShell;
-        this.tauriWindow = tauri['window'] as TauriWindow;
+
+        // Tauri 2 (the supported peer) renamed several v1 APIs; map them onto
+        // the v1-shaped interfaces used below so neither version throws
+        // "is not a function"
+        const fs = tauri['fs'] as Record<string, unknown> | undefined;
+        this.tauriFs = fs
+          ? ({
+              ...fs,
+              readBinaryFile: fs['readBinaryFile'] ?? fs['readFile'],
+              writeBinaryFile: fs['writeBinaryFile'] ?? fs['writeFile'],
+              removeFile: fs['removeFile'] ?? fs['remove'],
+            } as unknown as TauriFs)
+          : null;
+        // v2: plugin-clipboard-manager is exposed as `clipboardManager`
+        this.tauriClipboard = (tauri['clipboardManager'] ?? tauri['clipboard']) as TauriClipboard;
+        // The window module exports no free `setTitle()` etc.: the methods live
+        // on the current window (v2 `getCurrentWindow()`, v1 `appWindow`)
+        const win = tauri['window'] as
+          { getCurrentWindow?: () => TauriWindow; appWindow?: TauriWindow } | undefined;
+        this.tauriWindow =
+          (typeof win?.getCurrentWindow === 'function' ? win.getCurrentWindow() : win?.appWindow) ??
+          null;
       }
     } catch (error) {
       console.warn('Failed to initialize Tauri APIs:', error);
@@ -367,7 +386,8 @@ export class NativePlatformService {
         const files = [...input.files].map(file => ({
           path: file.name, // Browser doesn't expose full path
           name: file.name,
-          extension: file.name.split('.').pop() || '',
+          // No dot -> no extension (not the whole name), as in getFileInfo()
+          extension: file.name.includes('.') ? file.name.split('.').pop()! : '',
           size: file.size,
           lastModified: new Date(file.lastModified),
           _file: file, // Store File object for reading
@@ -931,7 +951,8 @@ export class NativePlatformService {
     const platform = this._platform();
 
     if (platform === 'tauri' && this.tauriDialog) {
-      return this.tauriDialog.message(message, { title, type: 'error' });
+      // v2 reads `kind`, v1 read `type`
+      return this.tauriDialog.message(message, { title, kind: 'error', type: 'error' });
     }
 
     if (platform === 'electron' && this.electronApi) {

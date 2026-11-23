@@ -16,6 +16,8 @@ import { TwClassService } from '../core/tw-class.service';
 export type VuMeterVariant = 'led' | 'gradient' | 'solid' | 'retro' | 'light' | 'highContrast';
 export type VuMeterOrientation = 'vertical' | 'horizontal';
 export type VuMeterMode = 'peak' | 'rms' | 'both';
+/** Background around the meter: 'auto' follows the page colour scheme, 'dark' is an always-dark surface */
+export type VuMeterSurface = 'auto' | 'dark';
 
 interface MeterSegment {
   index: number;
@@ -91,6 +93,12 @@ export class TwVuMeterComponent {
 
   // Class overrides
   readonly classOverride = input('');
+  /**
+   * Set 'dark' when the meter sits on an always-dark surface (e.g. a channel strip): the
+   * text around the meter (vertical scale, labels) then uses light colours whatever the
+   * page's colour scheme
+   */
+  readonly surface = input<VuMeterSurface>('auto');
 
   // Outputs
   readonly clipDetected = output<{ channel: number }>();
@@ -289,8 +297,16 @@ export class TwVuMeterComponent {
   });
 
   protected readonly labelClasses = computed(() => {
-    return 'text-xs font-medium text-slate-600 dark:text-slate-400';
+    return this.surface() === 'dark'
+      ? 'text-xs font-medium text-slate-400'
+      : 'text-xs font-medium text-slate-600 dark:text-slate-400';
   });
+
+  // Text outside the meter surface (vertical scale, channel and mode labels) sits on
+  // the surrounding background
+  protected readonly surroundTextClass = computed(() =>
+    this.surface() === 'dark' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'
+  );
 
   // The horizontal scale sits inside the meter surface, so its colour follows that
   // surface (e.g. slate-500 is below 4.5:1 on the always-dark led background, and

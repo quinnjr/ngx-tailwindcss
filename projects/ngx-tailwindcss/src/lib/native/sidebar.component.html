@@ -87,8 +87,9 @@
       @if (item.icon) {
         <span
           class="flex-shrink-0 text-lg"
-          [class.text-blue-600]="item.active"
-          [class.dark:text-blue-400]="item.active"
+          [class.text-blue-600]="item.active && !isCollapsed()"
+          [class.dark:text-blue-400]="item.active && !isCollapsed()"
+          [class.text-white]="item.active && isCollapsed()"
           [class.text-gray-500]="!item.active"
           [class.dark:text-gray-400]="!item.active"
         >
@@ -122,7 +123,7 @@
       <!-- Expand/collapse arrow for items with children -->
       @if (item.children?.length && !isCollapsed()) {
         <svg
-          class="w-4 h-4 text-gray-400 transition-transform"
+          class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform"
           [class.rotate-90]="item.expanded"
           fill="none"
           stroke="currentColor"

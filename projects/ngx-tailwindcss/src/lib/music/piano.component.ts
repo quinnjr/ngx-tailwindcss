@@ -345,7 +345,9 @@ export class TwPianoComponent implements OnDestroy {
 
   protected labelClasses(keyType: 'white' | 'black'): string {
     if (keyType === 'white') {
-      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-600';
+      // dark: the 'minimal' white keys turn slate-400 (pressed) / blue-300 (highlighted) in
+      // dark mode, where slate-600 is only ~3.0:1 / ~4.2:1
+      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-600 dark:text-slate-800';
     }
     return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-medium text-slate-300';
   }

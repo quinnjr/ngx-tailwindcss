@@ -340,7 +340,14 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   });
 
   protected readonly canvasClasses = computed(() => {
-    return this.twClass.merge('block', this.seekable() ? 'cursor-pointer' : '');
+    // Seekable canvas is a focusable slider: the UA focus ring is drawn outside
+    // it and clipped by the overflow-hidden container, so draw one inside
+    return this.twClass.merge(
+      'block',
+      this.seekable()
+        ? 'cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-400'
+        : ''
+    );
   });
 
   protected readonly colors = computed(() => COLOR_SCHEMES[this.colorScheme()]);

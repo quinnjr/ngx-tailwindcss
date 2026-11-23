@@ -135,6 +135,28 @@ describe('TwModalComponent', () => {
     });
   });
 
+  describe('panelClass', () => {
+    it('should let panelClass replace the base background, radius and shadow', () => {
+      component.isOpen.set(true);
+      fixture.detectChanges();
+      component.modal.panelClass = 'bg-slate-900 dark:bg-black rounded-none shadow-none';
+      fixture.detectChanges();
+
+      const cls = (
+        fixture.debugElement.query(By.css('[role="dialog"]')).nativeElement as HTMLElement
+      ).className.split(/\s+/);
+      expect(cls).toEqual(
+        expect.arrayContaining(['bg-slate-900', 'dark:bg-black', 'rounded-none', 'shadow-none'])
+      );
+      // Tailwind emits bg-white after bg-slate-900, so a leftover base class would win
+      expect(cls).not.toContain('bg-white');
+      expect(cls).not.toContain('dark:bg-slate-800');
+      expect(cls).not.toContain('rounded-xl');
+      expect(cls).not.toContain('shadow-2xl');
+      expect(cls).toContain('max-w-md');
+    });
+  });
+
   describe('close button', () => {
     it('should show close button by default', () => {
       component.isOpen.set(true);

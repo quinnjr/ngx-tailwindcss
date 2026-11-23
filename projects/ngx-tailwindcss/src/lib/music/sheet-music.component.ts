@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   effect,
+  inject,
   input,
   linkedSignal,
   numberAttribute,
@@ -11,6 +12,7 @@ import {
   untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 import {
   ClefType,
   getStaffLayout,
@@ -739,6 +741,8 @@ export const SAMPLE_MUSIC: SheetMusicData = {
   },
 })
 export class TwSheetMusicComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly music = input<SheetMusicData | null>(null);
   readonly variant = input<SheetMusicVariant>('default');
   readonly layout = input<SheetMusicLayout>('scroll');
@@ -921,15 +925,13 @@ export class TwSheetMusicComponent {
 
     const printClasses = isPrint ? 'print:shadow-none print:border-none print:rounded-none' : '';
 
-    return [
+    return this.twClass.merge(
       base,
       layoutClasses[layout],
       variantClasses[this.variant()],
       printClasses,
-      this.classOverride(),
-    ]
-      .filter(Boolean)
-      .join(' ');
+      this.classOverride()
+    );
   });
 
   protected readonly wrapperClasses = computed(() => {

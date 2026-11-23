@@ -217,14 +217,6 @@ export class TwModalComponent implements OnDestroy {
     );
   });
 
-  /**
-   * Returns only the size and custom panel classes (not base styling)
-   * Base styling with dark: variants is in the template for Tailwind JIT detection
-   */
-  protected readonly sizeAndCustomClasses = computed(() => {
-    return this.twClass.merge(MODAL_SIZES[this._size()], this._panelClass());
-  });
-
   /** Whether the current pointer press started outside the panel (on the backdrop) */
   private pointerDownOnBackdrop = false;
 

@@ -180,8 +180,9 @@
                   @for (chord of measure.chords; track $index; let chordIndex = $index) {
                     <div class="relative">
                       <span
-                        class="font-semibold text-lg"
+                        class="text-lg"
                         [class]="textClasses().chord"
+                        [class.font-semibold]="variant() !== 'fakebook'"
                         [class.font-mono]="variant() !== 'fakebook'"
                         [class.cursor-pointer]="interactive() || showChordDiagrams()"
                         [class.hover:underline]="interactive()"

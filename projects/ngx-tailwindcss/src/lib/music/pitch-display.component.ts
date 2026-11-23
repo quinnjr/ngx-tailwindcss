@@ -543,7 +543,8 @@ export class TwPitchDisplayComponent {
       minimal: 'text-slate-600 dark:text-slate-400 font-mono',
       digital: 'text-green-500/70 font-mono',
       wheel: 'text-slate-400 font-mono',
-      dj: 'text-cyan-500/70 font-mono',
+      // Full strength: cyan-500 at 70% was ~4.2-4.5:1 on the dj gradient
+      dj: 'text-cyan-500 font-mono',
       light: 'text-slate-500 font-mono',
       highContrast: 'text-white font-mono',
     };

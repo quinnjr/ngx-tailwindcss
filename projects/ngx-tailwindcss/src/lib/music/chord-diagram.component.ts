@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type ChordDiagramVariant = 'default' | 'minimal' | 'detailed' | 'dark';
 export type ChordDiagramSize = 'sm' | 'md' | 'lg';
@@ -114,6 +116,8 @@ export const COMMON_CHORDS: Record<string, ChordDefinition> = {
   },
 })
 export class TwChordDiagramComponent {
+  private readonly twClass = inject(TwClassService);
+
   // Expose Math for template
   protected readonly Math = Math;
 
@@ -269,7 +273,7 @@ export class TwChordDiagramComponent {
       minimal: 'bg-transparent',
       detailed: 'bg-amber-50 border border-amber-200',
     };
-    return [base, variantClasses[this.variant()], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());
   });
 
   protected getStringX(stringNum: number): number {

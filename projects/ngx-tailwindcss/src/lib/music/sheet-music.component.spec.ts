@@ -397,3 +397,31 @@ describe('TwSheetMusicComponent interaction', () => {
     expect(tie.length).toBe(1);
   });
 });
+
+describe('TwSheetMusicComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwSheetMusicComponent);
+    fixture.componentRef.setInput('classOverride', 'bg-slate-900');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('bg-slate-900');
+    expect(classes).not.toContain('bg-white');
+  });
+});
+
+describe('TwSheetMusicComponent zoom controls', () => {
+  it('names the symbol-only zoom buttons by their action', async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwSheetMusicComponent);
+    fixture.componentRef.setInput('variant', 'printed');
+    fixture.detectChanges();
+    const labels = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.zoom-controls button'),
+    ].map(b => b.getAttribute('aria-label'));
+    expect(labels).toEqual(['Zoom out', 'Zoom in', 'Reset zoom', 'Print']);
+  });
+});

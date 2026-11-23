@@ -82,6 +82,25 @@ describe('TwLeadSheetComponent', () => {
     expect(clicks).toHaveLength(1);
   });
 
+  it('renders fakebook chord symbols bold (a static font-semibold would always win)', () => {
+    fixture.componentRef.setInput('data', {
+      sections: [{ measures: [{ chords: [{ chord: 'G' }] }] }],
+    });
+    const chord = (): HTMLElement =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('span')].find(
+        s => s.textContent?.trim() === 'G'
+      )!;
+    fixture.componentRef.setInput('variant', 'fakebook');
+    fixture.detectChanges();
+    expect(chord().classList).toContain('font-bold');
+    expect(chord().classList).not.toContain('font-semibold');
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(chord().classList).toContain('font-semibold');
+    expect(chord().classList).not.toContain('font-bold');
+  });
+
   it('gives each clickable measure its own focusable button, not wrapping the chords', () => {
     const measureClicks: unknown[] = [];
     fixture.componentInstance.measureClick.subscribe(m => measureClicks.push(m));
@@ -149,5 +168,22 @@ describe('TwLeadSheetComponent', () => {
     fixture.componentRef.setInput('variant', 'dark');
     fixture.detectChanges();
     expect(rest().parentElement!.classList).toContain('text-slate-400');
+  });
+});
+
+describe('TwLeadSheetComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwLeadSheetComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwLeadSheetComponent);
+    fixture.componentRef.setInput('classOverride', 'bg-slate-900 p-2');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('bg-slate-900');
+    expect(classes).toContain('p-2');
+    expect(classes).not.toContain('bg-white');
+    expect(classes).not.toContain('p-6');
   });
 });

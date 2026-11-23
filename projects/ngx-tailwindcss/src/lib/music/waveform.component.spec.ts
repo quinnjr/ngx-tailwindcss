@@ -139,4 +139,14 @@ describe('TwWaveformComponent', () => {
     expect(time.classList).toContain('text-slate-300');
     expect(time.classList).not.toContain('text-slate-500');
   });
+
+  it('should draw a visible focus ring inside the seekable canvas', () => {
+    fixture.componentRef.setInput('seekable', true);
+    fixture.detectChanges();
+    const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+    // An outside ring is clipped by the overflow-hidden container
+    expect(canvas.parentElement!.className).toContain('overflow-hidden');
+    expect(canvas.classList).toContain('focus-visible:outline-2');
+    expect(canvas.classList).toContain('focus-visible:-outline-offset-2');
+  });
 });

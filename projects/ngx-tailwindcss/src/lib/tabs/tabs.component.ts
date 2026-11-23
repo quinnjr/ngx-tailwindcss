@@ -28,7 +28,9 @@ const TABS_VARIANTS: Record<TabsVariant, { list: string; tab: string; activeTab:
   line: {
     list: 'border-b border-slate-200 dark:border-slate-700 gap-2',
     tab: 'border-b-2 border-transparent -mb-px text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600',
-    activeTab: 'border-blue-500 text-blue-600 dark:text-blue-400',
+    // Hover overrides keep the active state visible while the pointer is over it
+    activeTab:
+      'border-blue-500 text-blue-600 dark:text-blue-400 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400',
   },
   enclosed: {
     list: 'border-b border-slate-200 dark:border-slate-700 gap-1',
@@ -39,7 +41,9 @@ const TABS_VARIANTS: Record<TabsVariant, { list: string; tab: string; activeTab:
   pills: {
     list: 'gap-2',
     tab: 'rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800',
-    activeTab: 'bg-blue-600 text-white hover:bg-blue-700 hover:text-white',
+    // dark: overrides replace the inactive dark:text-slate-400 / dark:hover:bg-slate-800
+    activeTab:
+      'bg-blue-600 text-white hover:bg-blue-700 hover:text-white dark:text-white dark:hover:text-white dark:hover:bg-blue-700',
   },
   'soft-rounded': {
     list: 'bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg gap-2',

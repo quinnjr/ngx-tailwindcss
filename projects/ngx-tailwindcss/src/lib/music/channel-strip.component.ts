@@ -137,21 +137,18 @@ export class TwChannelStripComponent implements ControlValueAccessor {
       lg: 'p-4 gap-4 min-w-[100px]',
     };
 
-    // The non-minimal strips are always dark, so scope the `dark:` variant to them: the
-    // nested dials and meters follow the page scheme and otherwise rendered their
-    // light-mode text (volume readout, meter scale, L/R labels) on the dark strip
-    const darkSurface = variant === 'minimal' ? '' : 'dark';
-
-    return [
-      baseClasses,
-      darkSurface,
-      variantClasses[variant],
-      sizeClasses[size],
-      this.classOverride(),
-    ]
+    return [baseClasses, variantClasses[variant], sizeClasses[size], this.classOverride()]
       .filter(Boolean)
       .join(' ');
   });
+
+  // The non-minimal strips are always dark, so the nested dials and meters are told so:
+  // following the page scheme they rendered light-mode text (volume readout, meter
+  // scale, L/R labels) on the dark strip. An explicit input works whatever the
+  // consumer's dark-mode strategy, unlike scoping the `dark:` variant with a class.
+  protected readonly nestedSurface = computed(() =>
+    this.variant() === 'minimal' ? 'auto' : 'dark'
+  );
 
   protected readonly buttonSize = computed(() => {
     const size = this.size();

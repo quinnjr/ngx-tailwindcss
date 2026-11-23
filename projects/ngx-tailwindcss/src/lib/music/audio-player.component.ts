@@ -154,6 +154,14 @@ export class TwAudioPlayerComponent implements OnDestroy {
       .join(' ');
   });
 
+  // Hover fill for the mute button, whose icon takes the theme's text colour: a fixed
+  // slate-700 hid the dark icon of the light (and, on a light page, transparent) theme
+  protected readonly iconButtonHoverClass = computed(() => {
+    const theme = this.theme();
+    if (theme === 'dark') return 'hover:bg-slate-700';
+    return theme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700';
+  });
+
   protected readonly textClasses = computed(() => {
     const theme = this.theme();
     if (theme === 'transparent') {

@@ -52,3 +52,20 @@ describe('TwMusicalSymbolComponent ornaments', () => {
     expect(data('invertedTurn')).toBe('\u{1D198}');
   });
 });
+
+describe('TwMusicalSymbolComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwMusicalSymbolComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwMusicalSymbolComponent);
+    fixture.componentRef.setInput('classOverride', 'absolute');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('absolute');
+    expect(classes).not.toContain('relative');
+  });
+});

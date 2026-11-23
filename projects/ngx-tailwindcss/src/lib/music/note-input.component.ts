@@ -107,7 +107,12 @@ const NOTE_SHORTCUTS: Record<string, NoteName> = {
   templateUrl: './note-input.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'block outline-none',
+    // The focusable host is where keyboard input is entered: it needs a visible focus
+    // indicator (outline-none removed the browser's) and an accessible name
+    class:
+      'block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+    role: 'group',
+    'aria-label': 'Note input',
     '[attr.tabindex]': '0',
   },
 })

@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type ClefType = 'treble' | 'bass' | 'alto' | 'tenor' | 'percussion';
 export type StaffVariant = 'default' | 'printed' | 'handwritten' | 'minimal';
@@ -119,6 +121,8 @@ const CLEF_PATHS = {
   },
 })
 export class TwStaffComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly clef = input<ClefType>('treble');
   readonly keySignature = input<KeySignature>('C');
   readonly timeSignature = input<StaffTimeSignature | null>('4/4');
@@ -223,7 +227,7 @@ export class TwStaffComponent {
       handwritten: 'bg-[#FDF6E3] shadow-inner',
       minimal: 'bg-transparent',
     };
-    return [base, variantClasses[variant], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[variant], this.classOverride());
   });
 
   protected readonly clefPath = computed(() => {

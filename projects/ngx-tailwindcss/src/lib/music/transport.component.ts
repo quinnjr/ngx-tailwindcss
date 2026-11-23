@@ -160,8 +160,9 @@ export class TwTransportComponent {
       }
       case 'classic': {
         if (isPrimary) {
+          // The play/pause icon needs 3:1: white on green-400/500 was ~1.8-2.2:1
           variantClasses =
-            'bg-gradient-to-b from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white shadow-md border border-green-700 focus:ring-green-400';
+            'bg-gradient-to-b from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md border border-green-800 focus:ring-green-400';
         } else if (type === 'record') {
           variantClasses =
             'bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 hover:from-slate-400 hover:to-slate-500 text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 focus:ring-slate-400';
@@ -178,7 +179,8 @@ export class TwTransportComponent {
       }
       case 'compact': {
         if (isPrimary) {
-          variantClasses = 'bg-emerald-500 hover:bg-emerald-400 text-white focus:ring-emerald-400';
+          // White on emerald-500 (hover 400) was ~2.5:1 (1.9:1) for the play/pause icon
+          variantClasses = 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-400';
         } else if (type === 'record') {
           variantClasses = 'bg-slate-800 hover:bg-slate-700 text-slate-400 focus:ring-slate-400';
         } else if (type === 'toggle') {
@@ -216,7 +218,15 @@ export class TwTransportComponent {
         break;
       }
       case 'record-active': {
-        colorClass = 'text-red-500 animate-pulse';
+        // The red dot is the recording indicator and needs 3:1 on its button: red-500
+        // was ~1.5-2.6:1 on the classic slate gradients and ~2.7:1 on dark modern slate-700
+        const recordColors: Record<TransportVariant, string> = {
+          modern: 'text-red-600 dark:text-red-400',
+          minimal: 'text-red-500',
+          classic: 'text-red-800 dark:text-red-300',
+          compact: 'text-red-500',
+        };
+        colorClass = `${recordColors[this.variant()]} animate-pulse`;
 
         break;
       }

@@ -44,3 +44,18 @@ describe('TwStaffComponent', () => {
     expect(bassY - trebleY).toBe(10);
   });
 });
+
+describe('TwStaffComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwStaffComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwStaffComponent);
+    fixture.componentRef.setInput('classOverride', 'bg-slate-900');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('bg-slate-900');
+    expect(classes).not.toContain('bg-white');
+  });
+});

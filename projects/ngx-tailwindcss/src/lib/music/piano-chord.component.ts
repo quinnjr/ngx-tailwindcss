@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   numberAttribute,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwClassService } from '../core/tw-class.service';
 
 export type PianoChordVariant = 'default' | 'minimal' | 'dark' | 'colorful';
 export type PianoChordSize = 'sm' | 'md' | 'lg';
@@ -296,6 +298,8 @@ function toKey(note: string, octave: number): { note: string; octave: number } {
   },
 })
 export class TwPianoChordComponent {
+  private readonly twClass = inject(TwClassService);
+
   readonly chord = input<string | null>(null);
   readonly customChord = input<PianoChordDefinition | null>(null);
   readonly variant = input<PianoChordVariant>('default');
@@ -427,7 +431,7 @@ export class TwPianoChordComponent {
       minimal: 'bg-transparent',
       colorful: 'bg-amber-50 border border-amber-200',
     };
-    return [base, variantClasses[this.variant()], this.classOverride()].filter(Boolean).join(' ');
+    return this.twClass.merge(base, variantClasses[this.variant()], this.classOverride());
   });
 
   protected readonly whiteKeys = computed(() => {

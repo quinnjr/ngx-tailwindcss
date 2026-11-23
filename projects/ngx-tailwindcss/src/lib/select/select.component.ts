@@ -249,7 +249,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
 
   protected chevronClasses = computed(() => {
     return this.twClass.merge(
-      'w-5 h-5 text-slate-400 transition-transform duration-200 flex-shrink-0 ml-2',
+      'w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform duration-200 flex-shrink-0 ml-2',
       this.isOpen() ? 'rotate-180' : ''
     );
   });

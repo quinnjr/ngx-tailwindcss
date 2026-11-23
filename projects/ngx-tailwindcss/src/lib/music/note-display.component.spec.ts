@@ -152,3 +152,20 @@ describe('TwNoteDisplayComponent', () => {
     }
   });
 });
+
+describe('TwNoteDisplayComponent classOverride', () => {
+  // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
+  // simply appended (e.g. bg-slate-900 after bg-white) may never take effect
+  it('replaces conflicting default utilities instead of appending to them', async () => {
+    await TestBed.configureTestingModule({ imports: [TwNoteDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwNoteDisplayComponent);
+    fixture.componentRef.setInput('classOverride', 'bg-black p-2');
+    const classes = (fixture.componentInstance as unknown as { containerClasses: () => string })
+      .containerClasses()
+      .split(' ');
+    expect(classes).toContain('bg-black');
+    expect(classes).toContain('p-2');
+    expect(classes).not.toContain('bg-slate-800');
+    expect(classes).not.toContain('p-4');
+  });
+});

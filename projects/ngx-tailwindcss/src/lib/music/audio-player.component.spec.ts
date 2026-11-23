@@ -139,4 +139,16 @@ describe('TwAudioPlayerComponent', () => {
     expect(title().className).toContain('text-slate-900');
     expect(title().className).toContain('dark:text-white');
   });
+
+  it('should keep the mute icon visible on hover in the light theme', () => {
+    const mute = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[aria-label="Mute"]')!;
+    expect(mute().className).toContain('hover:bg-slate-700');
+
+    // The icon is slate-900 here: a slate-700 hover fill hid it (~1.6:1)
+    fixture.componentRef.setInput('theme', 'light');
+    fixture.detectChanges();
+    expect(mute().className).toContain('hover:bg-slate-100');
+    expect(mute().className).not.toContain('hover:bg-slate-700');
+  });
 });

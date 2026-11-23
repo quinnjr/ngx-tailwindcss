@@ -48,10 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `warning` look different: solid `warning` buttons, badges, alerts and
   chips and the `tw-progress` inside value use dark text on amber instead of
   white, and `warning` buttons lighten on hover; solid `success` and `info`
-  buttons, badges, alerts and progress bars use the darker 700 shade
+  buttons, badges, alerts, chips and progress bars use the darker 700 shade
   (`emerald-700`, `cyan-700`) instead of 600; outline `success`/`warning`/`info`
-  badge and chip text is one shade darker. Override with `class` if you relied
-  on the old colours
+  badge and chip text is one shade darker. The default `TW_CONFIG` theme
+  status colours (`success`, `warning`, `info`) follow the same palette.
+  Override with `class` if you relied on the old colours
 
 ### 🐛 Fixed
 
@@ -190,6 +191,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-select variant="filled"` is applied (the input had no effect)
 - Channel strips render their nested controls in dark mode, so their labels
   stay readable on the strip's fixed dark surface
+- Graphics contrast (3:1): close/dismiss icons in `tw-modal`, `tw-toast`,
+  `tw-sidebar` and the native icon buttons, `tw-toast` variant icons, the
+  `tw-menu` submenu chevron, `tw-rating` stars and the music components'
+  icons, scales and diagram marks
+- `tw-volume-dial` no longer emits after it is destroyed when a form writes a
+  value during teardown (e.g. collapsing a mixer section)
+- Native (Tauri) `getFileInfo`/`openFile` no longer fail for paths without a
+  file extension
+- `tw-log-viewer` auto-scroll and `tw-code-viewer` wrap toggles show their
+  active state (static colour classes overrode the conditional ones); the
+  wrap toggle exposes `aria-pressed`
 - `tw-timeline` connectors run through the centre of icon markers instead of
   their left edge (vertical) or top (horizontal)
 - Native services, music components and audio services: many correctness and

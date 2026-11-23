@@ -53,7 +53,9 @@
             [class.dark:bg-blue-900/40]="selectedTabId() === tab.id"
             [class.text-blue-600]="selectedTabId() === tab.id"
             [class.dark:text-blue-400]="selectedTabId() === tab.id"
-            class="flex flex-col items-center gap-1.5 px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            [class.text-slate-600]="selectedTabId() !== tab.id"
+            [class.dark:text-slate-400]="selectedTabId() !== tab.id"
+            class="flex flex-col items-center gap-1.5 px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

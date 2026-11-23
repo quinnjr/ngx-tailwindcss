@@ -20,6 +20,8 @@ import { MobileSupportService, TouchTrackingState } from './mobile-support.servi
 
 export type DialVariant = 'modern' | 'vintage' | 'minimal' | 'led' | 'light' | 'highContrast';
 export type DialSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+/** Background the dial sits on: 'auto' follows the page colour scheme, 'dark' is an always-dark surface */
+export type DialSurface = 'auto' | 'dark';
 
 const DIAL_SIZES: Record<
   DialSize,
@@ -72,6 +74,43 @@ const DIAL_VARIANTS: Record<
     knob: 'fill-black stroke-white stroke-2',
     indicator: 'stroke-yellow-400',
   },
+};
+
+// The variants' `dark:` colours as plain utilities, for a dial on an always-dark surface:
+// a `dark:` variant only applies when the page itself is in dark mode, and whether that is
+// a media query or a class is up to the consumer. Written out in full so Tailwind's source
+// scan generates them.
+const DIAL_DARK_SURFACE_VARIANTS: Record<
+  DialVariant,
+  { track: string; fill: string; knob: string; indicator: string }
+> = {
+  modern: {
+    track: 'stroke-slate-700',
+    fill: 'stroke-blue-500',
+    knob: 'fill-slate-800 stroke-slate-600',
+    indicator: 'stroke-blue-500',
+  },
+  vintage: {
+    track: 'stroke-amber-900/30',
+    fill: 'stroke-amber-500',
+    knob: 'fill-amber-950 stroke-amber-700',
+    indicator: 'stroke-amber-600',
+  },
+  minimal: {
+    track: 'stroke-slate-800',
+    fill: 'stroke-slate-400',
+    knob: 'fill-slate-900 stroke-slate-700',
+    indicator: 'stroke-slate-200',
+  },
+  led: {
+    track: 'stroke-slate-900',
+    fill: 'stroke-emerald-500',
+    knob: 'fill-black stroke-slate-800',
+    indicator: 'stroke-emerald-400',
+  },
+  // Always-light and high-contrast dials bring their own background
+  light: DIAL_VARIANTS.light,
+  highContrast: DIAL_VARIANTS.highContrast,
 };
 
 /**
@@ -133,6 +172,8 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   readonly centerDetent = input(false);
   readonly detentValue = input(50);
   readonly classOverride = input('');
+  /** Set 'dark' when the dial sits on an always-dark surface (e.g. a channel strip) */
+  readonly surface = input<DialSurface>('auto');
 
   // Custom sizing via CSS variables (overrides size prop)
   readonly customSize = input<number | null>(null); // Override dial size in pixels
@@ -185,7 +226,20 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
       fontSize: baseConfig.fontSize,
     };
   });
-  protected readonly variantConfig = computed(() => DIAL_VARIANTS[this.variant()]);
+  protected readonly variantConfig = computed(() =>
+    this.surface() === 'dark'
+      ? DIAL_DARK_SURFACE_VARIANTS[this.variant()]
+      : DIAL_VARIANTS[this.variant()]
+  );
+
+  protected readonly tickClasses = computed(() =>
+    this.surface() === 'dark'
+      ? { major: 'stroke-slate-500', minor: 'stroke-slate-600' }
+      : {
+          major: 'stroke-slate-400 dark:stroke-slate-500',
+          minor: 'stroke-slate-300 dark:stroke-slate-600',
+        }
+  );
   protected readonly center = computed(() => this.sizeConfig().size / 2);
   protected readonly radius = computed(() => this.center() - this.sizeConfig().strokeWidth - 4);
   protected readonly knobRadius = computed(() => this.radius() * 0.55);
@@ -216,10 +270,9 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   });
 
   protected readonly valueClasses = computed(() => {
-    return this.twClass.merge(
-      'mt-1 font-mono font-medium text-slate-700 dark:text-slate-300',
-      this.sizeConfig().fontSize
-    );
+    const color =
+      this.surface() === 'dark' ? 'text-slate-300' : 'text-slate-700 dark:text-slate-300';
+    return this.twClass.merge(`mt-1 font-mono font-medium ${color}`, this.sizeConfig().fontSize);
   });
 
   protected readonly displayValue = computed(() => {

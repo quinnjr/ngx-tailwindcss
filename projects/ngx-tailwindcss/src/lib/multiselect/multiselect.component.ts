@@ -285,7 +285,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   protected clearButtonClasses = computed(() =>
     [
       'absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded',
-      'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300',
+      'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
       MULTISELECT_SIZES[this.size()].clear,
     ].join(' ')

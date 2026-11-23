@@ -144,6 +144,8 @@ describe('TwPianoComponent', () => {
     expect(octaveLabels().classList).not.toContain('text-slate-500');
     const whiteLabel = host.querySelector('button[aria-label="C4"] span')!;
     expect(whiteLabel.classList).toContain('text-slate-600');
+    // minimal white keys are slate-400 / blue-300 when pressed / highlighted in dark mode
+    expect(whiteLabel.classList).toContain('dark:text-slate-800');
 
     fixture.componentRef.setInput('variant', 'minimal');
     fixture.detectChanges();

@@ -20,6 +20,7 @@ interface Person {
       [subtitle]="subtitle()"
       [paginator]="false"
       [showGlobalFilter]="false"
+      [containerClass]="containerClass()"
       data-testid="test-datatables"
     >
     </tw-datatables>
@@ -39,6 +40,7 @@ class TestHostComponent {
   ]);
   title = signal('People');
   subtitle = signal('');
+  containerClass = signal('');
 }
 
 describe('TwDatatablesComponent', () => {
@@ -58,6 +60,20 @@ describe('TwDatatablesComponent', () => {
 
   it('should create the datatables wrapper', () => {
     expect(component.datatables).toBeTruthy();
+  });
+
+  it('should let containerClass override the base surface classes', () => {
+    component.containerClass.set('bg-slate-50 dark:bg-slate-950 p-2');
+    fixture.detectChanges();
+
+    const cls = (
+      fixture.debugElement.query(By.css('section')).nativeElement as HTMLElement
+    ).className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(['bg-slate-50', 'dark:bg-slate-950', 'p-2']));
+    // Tailwind emits bg-white after bg-slate-50, so a leftover base class would win
+    expect(cls).not.toContain('bg-white');
+    expect(cls).not.toContain('dark:bg-slate-900');
+    expect(cls).not.toContain('p-6');
   });
 
   it('should render the title', () => {

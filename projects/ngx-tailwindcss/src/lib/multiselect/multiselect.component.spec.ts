@@ -395,6 +395,20 @@ describe('TwMultiSelectComponent clear button', () => {
     expect(fixture.nativeElement.querySelectorAll('button button').length).toBe(0);
   });
 
+  it('should render the clear icon and chevron with >=3:1 contrast colours', () => {
+    const fixture = TestBed.createComponent(ClearButtonHostComponent);
+    fixture.detectChanges();
+    const clear: HTMLElement = fixture.nativeElement.querySelector(
+      '[aria-label="Clear all selections"]'
+    );
+    const chevron = fixture.nativeElement.querySelector('[aria-haspopup] svg') as SVGElement;
+    for (const cls of [clear.className, chevron.getAttribute('class') ?? '']) {
+      expect(cls).toContain('text-slate-500');
+      expect(cls).toContain('dark:text-slate-400');
+      expect(cls).not.toMatch(/(^|\s)text-slate-400/);
+    }
+  });
+
   it('should clear the selection without opening the dropdown and refocus the trigger', () => {
     const fixture = TestBed.createComponent(ClearButtonHostComponent);
     document.body.append(fixture.nativeElement);

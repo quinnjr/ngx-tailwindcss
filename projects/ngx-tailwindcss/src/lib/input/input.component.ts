@@ -47,7 +47,10 @@ const INPUT_SIZES: Record<InputSize, string> = {
   lg: 'text-base px-4 py-3 min-h-12',
 };
 
-const INPUT_ERROR_CLASSES = 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
+// `dark:border-rose-500` replaces the variants' `dark:border-slate-600`, which would
+// otherwise override the error border in dark mode (dark: utilities are emitted later)
+const INPUT_ERROR_CLASSES =
+  'border-rose-500 dark:border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
 
 /**
  * Variant classes for the wrapper rendered around the input when it has a
@@ -67,7 +70,7 @@ const INPUT_WRAPPER_VARIANTS: Record<InputVariant, string> = {
 };
 
 const INPUT_WRAPPER_ERROR_CLASSES =
-  'border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500/20';
+  'border-rose-500 dark:border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500/20';
 
 const LABEL_REQUIRED_CLASSES = "after:content-['*'] after:ml-0.5 after:text-rose-500";
 

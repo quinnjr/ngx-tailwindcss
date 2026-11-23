@@ -17,6 +17,7 @@
           [class.bg-slate-700]="!internalKeyLock()"
           [class.text-slate-300]="!internalKeyLock()"
           [class.hover:bg-slate-600]="!internalKeyLock()"
+          [attr.aria-pressed]="internalKeyLock()"
           [disabled]="disabled()"
           (click)="toggleKeyLock()"
           title="Key Lock - Preserve key when changing tempo"
@@ -55,6 +56,7 @@
         class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() <= -24"
         (click)="onSemitonesDown()"
+        aria-label="Semitone down"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path>
@@ -78,6 +80,7 @@
         class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
         [disabled]="disabled() || internalSemitones() >= 24"
         (click)="onSemitonesUp()"
+        aria-label="Semitone up"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
@@ -119,6 +122,7 @@
           min="-50"
           max="50"
           step="1"
+          aria-label="Cents"
           class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
           style="accent-color: var(--accent-color, #3b82f6)"
           [disabled]="disabled()"
@@ -196,8 +200,10 @@
 
             <!-- Thumb -->
             <div
-              class="absolute left-1 right-1 h-6 bg-gradient-to-b from-slate-500 to-slate-600 rounded shadow-lg transition-all"
+              class="absolute left-1 right-1 h-6 bg-gradient-to-b rounded shadow-lg transition-all"
               [class.duration-100]="!isDragging()"
+              [class.from-slate-500]="Math.abs(internalPitchBend()) <= 0.1"
+              [class.to-slate-600]="Math.abs(internalPitchBend()) <= 0.1"
               [class.from-amber-500]="internalPitchBend() > 0.1"
               [class.to-amber-600]="internalPitchBend() > 0.1"
               [class.from-blue-500]="internalPitchBend() < -0.1"

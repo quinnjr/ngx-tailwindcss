@@ -304,6 +304,62 @@ describe('AudioContextService', () => {
     });
   });
 
+  describe('createAnalyser decibel range', () => {
+    // Mirrors the Web Audio spec: a write that leaves minDecibels >= maxDecibels
+    // throws IndexSizeError. Real nodes start at -100 / -30 dB.
+    class StrictAnalyserNode extends MockAudioNode {
+      fftSize = 2048;
+      smoothingTimeConstant = 0.8;
+      frequencyBinCount = 1024;
+      private min = -100;
+      private max = -30;
+      get minDecibels(): number {
+        return this.min;
+      }
+      set minDecibels(value: number) {
+        if (value >= this.max) throw new DOMException('min >= max', 'IndexSizeError');
+        this.min = value;
+      }
+      get maxDecibels(): number {
+        return this.max;
+      }
+      set maxDecibels(value: number) {
+        if (value <= this.min) throw new DOMException('max <= min', 'IndexSizeError');
+        this.max = value;
+      }
+    }
+
+    class StrictAudioContext extends MockAudioContext {
+      override createAnalyser = vi.fn(() => new StrictAnalyserNode());
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', StrictAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('applies a range above the node default max without throwing', () => {
+      const analyser = service.createAnalyser({ minDecibels: -20, maxDecibels: 0 });
+      expect(analyser.minDecibels).toBe(-20);
+      expect(analyser.maxDecibels).toBe(0);
+    });
+
+    it('applies the default range', () => {
+      const analyser = service.createAnalyser();
+      expect(analyser.minDecibels).toBe(-90);
+      expect(analyser.maxDecibels).toBe(-10);
+    });
+
+    it('applies a range below the node default min without throwing', () => {
+      const analyser = service.createAnalyser({ minDecibels: -140, maxDecibels: -110 });
+      expect(analyser.minDecibels).toBe(-140);
+      expect(analyser.maxDecibels).toBe(-110);
+    });
+  });
+
   describe('signals', () => {
     it('should have state signal', () => {
       expect(service.state).toBeDefined();

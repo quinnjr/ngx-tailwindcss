@@ -35,6 +35,10 @@ export type MultiSelectSize = 'sm' | 'md' | 'lg';
 export type MultiSelectVariant = 'default' | 'filled';
 export type MultiSelectAppendTo = 'body' | 'self';
 
+/** Keyboard-navigation sentinel for the "Select All" row */
+const SELECT_ALL = Symbol('select-all');
+type NavItem = MultiSelectOption | typeof SELECT_ALL;
+
 const MULTISELECT_SIZES: Record<MultiSelectSize, { trigger: string; text: string; clear: string }> =
   {
     // `clear` offsets the clear button over its reserved slot: padding + chevron (w-5) + gap-2
@@ -135,6 +139,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
 
   protected readonly listboxId = `tw-multiselect-listbox-${Math.random().toString(36).slice(2, 9)}`;
   protected readonly triggerId = `${this.listboxId}-trigger`;
+  protected readonly selectAllId = `${this.listboxId}-select-all`;
 
   private onChangeFn: (value: unknown[]) => void = () => {};
   private onTouchedFn: () => void = () => {};
@@ -227,11 +232,26 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     return this.filteredOptions();
   });
 
+  /** Whether the "Select All" row is rendered */
+  protected showSelectAllRow = computed(
+    () => this.showSelectAll() && !this.selectAllLimited() && this.allOptions().length > 0
+  );
+
+  /** Select All has nothing to toggle when every option is disabled */
+  protected selectAllDisabled = computed(() => this.enabledOptions().length === 0);
+
+  /** Keyboard-navigable rows in display order: Select All (when shown), then visible options */
+  private navItems = computed<NavItem[]>(() =>
+    this.showSelectAllRow() ? [SELECT_ALL, ...this.visibleOptions()] : this.visibleOptions()
+  );
+
   protected activeOptionId = computed(() => {
-    const index = this.activeIndex();
-    if (index < 0 || index >= this.visibleOptions().length) return null;
-    return `${this.listboxId}-option-${index}`;
+    const item = this.navItems()[this.activeIndex()];
+    if (item === undefined) return null;
+    return item === SELECT_ALL ? this.selectAllId : this.optionId(item);
   });
+
+  protected isSelectAllActive = computed(() => this.navItems()[this.activeIndex()] === SELECT_ALL);
 
   protected triggerClasses = computed(() => {
     const sizeClasses = MULTISELECT_SIZES[this.size()].trigger;
@@ -431,7 +451,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
 
   protected isActive(option: MultiSelectOption): boolean {
     const index = this.activeIndex();
-    return index >= 0 && this.visibleOptions()[index] === option;
+    return index >= 0 && this.navItems()[index] === option;
   }
 
   protected optionId(option: MultiSelectOption): string | null {
@@ -511,9 +531,11 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
         if (isFilterInput) event.preventDefault();
         if (this.isOpen() && this.activeIndex() >= 0) {
           event.preventDefault();
-          const option = this.visibleOptions()[this.activeIndex()];
-          if (option) {
-            this.toggleOption(option);
+          const item = this.navItems()[this.activeIndex()];
+          if (item === SELECT_ALL) {
+            if (!this.selectAllDisabled()) this.toggleSelectAll();
+          } else if (item) {
+            this.toggleOption(item);
           }
         }
         break;
@@ -521,27 +543,31 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     }
   }
 
+  private isNavItemDisabled(item: NavItem): boolean {
+    return item === SELECT_ALL ? this.selectAllDisabled() : !!item.disabled;
+  }
+
   private moveActiveIndex(delta: number): void {
-    const options = this.visibleOptions();
-    if (options.length === 0) return;
+    const items = this.navItems();
+    if (items.length === 0) return;
 
     let index = this.activeIndex();
-    for (const _ of options) {
-      index = (index + delta + options.length) % options.length;
-      if (!options[index].disabled) break;
+    for (const _ of items) {
+      index = (index + delta + items.length) % items.length;
+      if (!this.isNavItemDisabled(items[index])) break;
     }
     this.activeIndex.set(index);
   }
 
   private setActiveToEdge(first: boolean): void {
-    const options = this.visibleOptions();
+    const items = this.navItems();
     if (first) {
-      const index = options.findIndex(opt => !opt.disabled);
+      const index = items.findIndex(item => !this.isNavItemDisabled(item));
       if (index >= 0) this.activeIndex.set(index);
       return;
     }
-    for (let i = options.length - 1; i >= 0; i--) {
-      if (!options[i].disabled) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (!this.isNavItemDisabled(items[i])) {
         this.activeIndex.set(i);
         return;
       }

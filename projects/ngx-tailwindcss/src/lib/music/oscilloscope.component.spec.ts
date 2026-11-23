@@ -51,4 +51,47 @@ describe('TwOscilloscopeComponent', () => {
 
     fixture.destroy();
   });
+
+  it('should arm a fresh single sweep when switching back to single mode', async () => {
+    const ctx = new Proxy(
+      {},
+      {
+        get: (_target, prop) => (prop === 'canvas' ? undefined : vi.fn()),
+        set: () => true,
+      }
+    ) as unknown as CanvasRenderingContext2D;
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+    vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
+
+    const getByteTimeDomainData = vi.fn((data: Uint8Array) => {
+      data.fill(100);
+      data.fill(200, 4);
+    });
+    const analyser = {
+      fftSize: 32,
+      context: { sampleRate: 44_100 },
+      getByteTimeDomainData,
+    } as unknown as AnalyserNode;
+
+    await TestBed.configureTestingModule({
+      imports: [TwOscilloscopeComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwOscilloscopeComponent);
+    fixture.componentRef.setInput('analyserNode', analyser);
+    fixture.componentRef.setInput('triggerMode', 'single');
+    fixture.detectChanges();
+    expect(getByteTimeDomainData).toHaveBeenCalledTimes(1);
+
+    fixture.componentRef.setInput('triggerMode', 'auto');
+    fixture.detectChanges();
+    expect(getByteTimeDomainData).toHaveBeenCalledTimes(2);
+
+    // Back to single: a new sweep is captured, not the previous data re-frozen
+    fixture.componentRef.setInput('triggerMode', 'single');
+    fixture.detectChanges();
+    expect(getByteTimeDomainData).toHaveBeenCalledTimes(3);
+    expect((fixture.componentInstance as any).singleFrozen).toBe(true);
+
+    fixture.destroy();
+  });
 });

@@ -126,6 +126,11 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
     if (changes['analyserNode']) {
       this.setupAnalyser();
     }
+    // Switching the trigger mode (e.g. back to 'single' after 'auto') arms a
+    // fresh sweep instead of re-freezing on a stale capture
+    if (changes['triggerMode'] && !changes['triggerMode'].firstChange) {
+      this.singleFrozen = false;
+    }
     // Restart the loop: covers late-bound analysers and redraws the static
     // no-signal frame after size/variant changes
     if (this.ctx) {

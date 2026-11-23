@@ -23,6 +23,7 @@ import {
   removeEscapeLayer,
   shouldHandleEscape,
 } from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type ImageFit = 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
 export type ImageBorderRadius = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
@@ -98,8 +99,6 @@ export class TwImageComponent {
   protected zoomLevel = signal(1);
   protected rotation = signal(0);
 
-  private previousOverflow = '';
-
   private readonly thumbnail = viewChild<ElementRef<HTMLImageElement>>('thumbnail');
 
   // Expose Math to template
@@ -137,8 +136,8 @@ export class TwImageComponent {
     // Restore body scrolling if the component is destroyed while the preview is open
     inject(DestroyRef).onDestroy(() => {
       removeEscapeLayer(this);
-      if (this.previewVisible() && isPlatformBrowser(this.platformId)) {
-        this.document.body.style.overflow = this.previousOverflow;
+      if (isPlatformBrowser(this.platformId)) {
+        unlockBodyScroll(this.document, this);
       }
     });
   }
@@ -241,7 +240,6 @@ export class TwImageComponent {
   }
 
   openPreview(): void {
-    // Re-opening while open would overwrite the saved overflow with 'hidden'
     if (this.previewVisible()) return;
     this.previewVisible.set(true);
     this.zoomLevel.set(1);
@@ -249,8 +247,9 @@ export class TwImageComponent {
     pushEscapeLayer(this);
     this.onShow.emit();
     if (isPlatformBrowser(this.platformId)) {
-      this.previousOverflow = this.document.body.style.overflow;
-      this.document.body.style.overflow = 'hidden';
+      // Shared, ref-counted lock: stays correct when stacked with a modal/sidebar
+      // that closes in a different order
+      lockBodyScroll(this.document, this);
     }
   }
 
@@ -260,7 +259,7 @@ export class TwImageComponent {
     removeEscapeLayer(this);
     this.onHide.emit();
     if (isPlatformBrowser(this.platformId)) {
-      this.document.body.style.overflow = this.previousOverflow;
+      unlockBodyScroll(this.document, this);
     }
   }
 

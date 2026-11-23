@@ -216,6 +216,7 @@ describe('TwMultiSelectComponent', () => {
 
     it('should move the active option with arrows and expose aria-activedescendant', () => {
       keydown('ArrowDown');
+      keydown('ArrowDown'); // Select All row
       keydown('ArrowDown');
 
       const activeId = trigger.getAttribute('aria-activedescendant');
@@ -235,10 +236,45 @@ describe('TwMultiSelectComponent', () => {
 
     it('should toggle the active option with Enter', () => {
       keydown('ArrowDown');
+      keydown('ArrowDown'); // Select All row
       keydown('ArrowDown');
       keydown('Enter');
 
       expect(component.lastSelection).toEqual(['apple']);
+    });
+
+    it('should reach and toggle the Select All row from the keyboard', () => {
+      keydown('ArrowDown');
+      keydown('ArrowDown');
+
+      const selectAll = selectAllEl()!;
+      expect(selectAll.id).toBeTruthy();
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+
+      keydown('Enter');
+      expect(component.lastSelection).toEqual(['apple', 'banana', 'cherry']);
+      expect(selectAll.getAttribute('aria-selected')).toBe('true');
+
+      keydown(' ');
+      expect(component.lastSelection).toEqual([]);
+      expect(selectAll.getAttribute('aria-selected')).toBe('false');
+
+      // Wraps from the first option back up to Select All, and Home lands on it
+      keydown('ArrowDown');
+      keydown('ArrowUp');
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+      keydown('End');
+      keydown('Home');
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(selectAll.id);
+    });
+
+    it('should skip the Select All row when it is hidden', () => {
+      component.showSelectAll.set(false);
+      fixture.detectChanges();
+      keydown('ArrowDown');
+      keydown('ArrowDown');
+
+      expect(trigger.getAttribute('aria-activedescendant')).toBe(optionEls()[0].id);
     });
 
     it('should close on Escape', () => {

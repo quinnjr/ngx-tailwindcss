@@ -81,6 +81,8 @@ export interface HistoryEntry {
   parts: InstrumentPart[];
   timestamp: number;
   action: string;
+  /** Score-level settings, recorded only by actions that replace them (import / load) */
+  score?: Omit<ScoreData, 'parts'>;
 }
 
 export interface TransposeOptions {
@@ -663,11 +665,12 @@ export class TwScoreEditorComponent implements OnInit {
 
   // ==================== UNDO/REDO ====================
 
-  private saveHistory(action: string): void {
+  private saveHistory(action: string, includeScore = false): void {
     const entry: HistoryEntry = {
       parts: JSON.parse(JSON.stringify(this.parts())),
       timestamp: Date.now(),
       action,
+      ...(includeScore ? { score: this.scoreSettings() } : {}),
     };
 
     this.undoStack.update(stack => {
@@ -697,11 +700,11 @@ export class TwScoreEditorComponent implements OnInit {
         parts: JSON.parse(JSON.stringify(this.parts())),
         timestamp: Date.now(),
         action: 'Redo',
+        ...(entry.score ? { score: this.scoreSettings() } : {}),
       },
     ]);
 
-    this.parts.set(entry.parts);
-    this.emitScoreChanged();
+    this.restoreHistoryEntry(entry);
   }
 
   redo(): void {
@@ -718,10 +721,33 @@ export class TwScoreEditorComponent implements OnInit {
         parts: JSON.parse(JSON.stringify(this.parts())),
         timestamp: Date.now(),
         action: 'Undo',
+        ...(entry.score ? { score: this.scoreSettings() } : {}),
       },
     ]);
 
+    this.restoreHistoryEntry(entry);
+  }
+
+  private scoreSettings(): Omit<ScoreData, 'parts'> {
+    const { parts: _parts, ...settings } = this.scoreData();
+    return settings;
+  }
+
+  // Undoing an import/load must also bring back the key, time signature and length the
+  // restored notes were written for (their pitches and x positions depend on them)
+  private restoreHistoryEntry(entry: HistoryEntry): void {
+    if (entry.score) {
+      this.title.set(entry.score.title);
+      this.composer.set(entry.score.composer);
+      this.tempo.set(entry.score.tempo);
+      this.keySignature.set(entry.score.keySignature);
+      this.timeSignature.set(entry.score.timeSignature);
+      this.measureCount.set(entry.score.measures);
+    }
     this.parts.set(entry.parts);
+    if (!entry.parts.some(p => p.id === this.selectedPartId())) {
+      this.selectedPartId.set(entry.parts[0]?.id ?? null);
+    }
     this.emitScoreChanged();
   }
 
@@ -1499,7 +1525,7 @@ export class TwScoreEditorComponent implements OnInit {
   }
 
   private loadFromSheetMusic(data: SheetMusicData): void {
-    this.saveHistory('Import');
+    this.saveHistory('Import', true);
 
     this.title.set(data.title || 'Untitled');
     this.composer.set(data.composer || '');
@@ -1579,7 +1605,7 @@ export class TwScoreEditorComponent implements OnInit {
   }
 
   loadScore(score: ScoreData): void {
-    this.saveHistory('Load Score');
+    this.saveHistory('Load Score', true);
 
     this.title.set(score.title);
     this.composer.set(score.composer);

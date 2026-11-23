@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tw-progress` (`showValue`, `striped`, `animated`, `indeterminate`) and
   `tw-progress-circular` (`showValue`, `indeterminate`) accept bare attributes
   (`<tw-stack wrap>`)
+- `tw-splitter` and `tw-scroll-area` now style the host element directly; the
+  inner wrapper `<div>` is gone, so a `class` applies once, on the host.
+  `containerRef` (splitter) and `scrollContainerRef` (scroll-area) now
+  reference the host element and are available from construction. CSS that
+  targeted the removed wrapper must target the host instead
 
 ### 🐛 Fixed
 
@@ -80,6 +85,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placeholder up and the image hidden
 - `tw-image` `width`/`height` accept CSS lengths (`10rem`, `auto`); only bare
   numbers get a `px` suffix
+- Modal, sidebar, overlay and `tw-image` preview share one reference-counted
+  body scroll lock: closing stacked layers in any order no longer leaves the
+  page locked (or unlocks it while a layer is still open)
+- `tw-avatar` shows its fallback when the image failed to load before
+  hydration, instead of a broken image
+- `twLazyImage` emits `lazyLoaded` inside the Angular zone, so OnPush/zone
+  apps update when an image loads
+- `tw-slider` without a written value is shown at `min`; `tw-select` disabled
+  options expose `aria-disabled`
+- `tw-steps` buttons keep an accessible name when `showLabels` is off
+- `twDropZone` reports plain-text drops as `type: 'text'`; the preferences
+  dialog emits `tabChanged` when a tab is clicked
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs

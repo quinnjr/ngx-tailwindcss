@@ -558,8 +558,16 @@ export class AudioContextService implements OnDestroy {
     const mergedConfig = { ...DEFAULT_ANALYSER_CONFIG, ...config };
     analyser.fftSize = mergedConfig.fftSize!;
     analyser.smoothingTimeConstant = mergedConfig.smoothingTimeConstant!;
-    analyser.minDecibels = mergedConfig.minDecibels!;
-    analyser.maxDecibels = mergedConfig.maxDecibels!;
+    // Setting minDecibels >= the node's current maxDecibels (or the reverse)
+    // throws IndexSizeError, so order the writes so the range stays valid
+    // throughout (e.g. raising the range above the node's default -30 max)
+    if (mergedConfig.minDecibels! >= analyser.maxDecibels) {
+      analyser.maxDecibels = mergedConfig.maxDecibels!;
+      analyser.minDecibels = mergedConfig.minDecibels!;
+    } else {
+      analyser.minDecibels = mergedConfig.minDecibels!;
+      analyser.maxDecibels = mergedConfig.maxDecibels!;
+    }
 
     return analyser;
   }

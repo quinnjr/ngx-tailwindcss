@@ -213,6 +213,21 @@ describe('TwScoreEditorComponent', () => {
     expect(notes.map(n => n.measure)).toEqual([0, 0, 0, 1, 2]);
   });
 
+  it('restores the key, time signature and length when undoing an import', () => {
+    createWith(score([placed('n1')], '3/4'));
+    editor.importABC(['X:1', 'M:4/4', 'L:1/8', 'K:D', 'C8|D8|E8|'].join('\n'));
+    expect(editor.scoreData().keySignature).toBe('D');
+    expect(editor.scoreData().measures).toBe(3);
+
+    editor.undo();
+    const restored = editor.scoreData();
+    expect(restored.keySignature).toBe('G');
+    expect(restored.timeSignature).toBe('3/4');
+    expect(restored.measures).toBe(2);
+    expect(restored.title).toBe('Loaded');
+    expect(restored.parts.map(p => p.id)).toEqual(['violin-1']);
+  });
+
   it('keeps the opening key on import and re-spells notes after a key change', () => {
     createWith(null);
     // G major, then D major: the second c sounds C#

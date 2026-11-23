@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageBorderRadius, ImageFit, TwImageComponent } from './image.component';
 import { TwClassService } from '../core/tw-class.service';
 import { pushEscapeLayer, removeEscapeLayer } from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 @Component({
   template: `
@@ -321,6 +322,36 @@ describe('TwImageComponent', () => {
       expect(document.body.style.overflow).toBe('hidden');
 
       fixture.destroy();
+      expect(document.body.style.overflow).toBe('scroll');
+
+      document.body.style.overflow = '';
+    });
+
+    it('should share the body scroll lock with other layers closing out of order', () => {
+      // A modal/sidebar/overlay uses the same shared lock with its own owner
+      const modalOwner = {};
+      document.body.style.overflow = 'scroll';
+
+      lockBodyScroll(document, modalOwner); // modal opens
+      component.image.openPreview(); // preview opens on top
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      unlockBodyScroll(document, modalOwner); // modal closes first
+      expect(document.body.style.overflow).toBe('hidden'); // preview still open
+
+      component.image.closePreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('scroll');
+
+      // Reverse order: preview first, then the modal
+      component.image.openPreview();
+      fixture.detectChanges();
+      lockBodyScroll(document, modalOwner);
+      component.image.closePreview();
+      fixture.detectChanges();
+      expect(document.body.style.overflow).toBe('hidden'); // modal still open
+      unlockBodyScroll(document, modalOwner);
       expect(document.body.style.overflow).toBe('scroll');
 
       document.body.style.overflow = '';

@@ -28,6 +28,14 @@ describe('TwMusicalSymbolComponent ornaments', () => {
     expect(render('invertedMordent').querySelectorAll('line')).toHaveLength(0);
   });
 
+  it('draws the inverted (upper) mordent zigzag the same way up as the mordent', () => {
+    const zigzag = (ornament: OrnamentType): string | null => {
+      fixture = TestBed.createComponent(TwMusicalSymbolComponent);
+      return render(ornament).querySelector('path')!.getAttribute('d');
+    };
+    expect(zigzag('invertedMordent')).toBe(zigzag('mordent'));
+  });
+
   it('uses distinct fallback glyphs for turns and mordents', () => {
     const data = (ornament: OrnamentType): string => {
       fixture = TestBed.createComponent(TwMusicalSymbolComponent);

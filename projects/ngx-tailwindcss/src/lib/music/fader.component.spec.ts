@@ -192,6 +192,35 @@ describe('TwFaderComponent', () => {
     });
   });
 
+  describe('peak meter fill', () => {
+    const fill = (): Record<string, string> =>
+      (component as unknown as { peakFillStyle(): Record<string, string> }).peakFillStyle();
+
+    it('should size the gradient to the whole meter so a low level stays green', () => {
+      fixture.componentRef.setInput('size', 'md');
+      fixture.componentRef.setInput('showPeakMeter', true);
+      fixture.componentRef.setInput('peakLevel', 20);
+      fixture.detectChanges();
+
+      expect(fill()['height']).toBe('20%');
+      expect(fill()['background-image']).toContain('to top');
+      // md track is 150px: the gradient spans it, not just the lit 20%
+      expect(fill()['background-size']).toBe('100% 150px');
+      expect(fill()['background-position']).toBe('bottom');
+    });
+
+    it('should run the gradient along a horizontal meter', () => {
+      fixture.componentRef.setInput('orientation', 'horizontal');
+      fixture.componentRef.setInput('peakLevel', 50);
+      fixture.detectChanges();
+
+      expect(fill()['width']).toBe('50%');
+      expect(fill()['background-image']).toContain('to right');
+      expect(fill()['background-size']).toBe('150px 100%');
+      expect(fill()['background-position']).toBe('left');
+    });
+  });
+
   describe('multi-touch', () => {
     afterEach(() => {
       vi.restoreAllMocks();

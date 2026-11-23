@@ -254,17 +254,14 @@
         />
       }
       @case ('invertedMordent') {
-        <!-- Upper mordent / pralltriller: no vertical line (MusicXML <inverted-mordent>) -->
+        <!-- Upper mordent / pralltriller: the same zigzag as the mordent, without the
+             vertical line (MusicXML <inverted-mordent>) -->
         <path
           [attr.d]="
             'M ' +
             (x() - size() * 0.4) +
             ' ' +
             y() +
-            ' l ' +
-            size() * 0.2 +
-            ' ' +
-            size() * 0.3 +
             ' l ' +
             size() * 0.2 +
             ' ' +
@@ -276,7 +273,11 @@
             ' l ' +
             size() * 0.2 +
             ' ' +
-            -size() * 0.3
+            -size() * 0.3 +
+            ' l ' +
+            size() * 0.2 +
+            ' ' +
+            size() * 0.3
           "
           [attr.stroke]="effectiveColor()"
           stroke-width="1.5"

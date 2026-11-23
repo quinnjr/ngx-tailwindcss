@@ -263,6 +263,16 @@ describe('TwToastComponent', () => {
       fixture.detectChanges();
       expect(toastEl.textContent).toContain('Important');
     });
+
+    it('should keep title and message readable on the dark-mode background', () => {
+      component.title.set('Important');
+      fixture.detectChanges();
+      const texts = [...toastEl.querySelectorAll('p')];
+      expect(texts.length).toBe(2);
+      for (const text of texts) {
+        expect(text.className).toMatch(/dark:text-slate-(100|200|300)/);
+      }
+    });
   });
 
   describe('dismissible', () => {

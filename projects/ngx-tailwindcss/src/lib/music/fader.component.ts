@@ -386,6 +386,27 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     return value.toFixed(1);
   });
 
+  /**
+   * Peak meter fill. The green/yellow/red gradient spans the whole meter (sized to the
+   * track, anchored at its start) so a low level stays green instead of squeezing the
+   * full gradient into the lit portion, and it runs along the meter in both orientations.
+   */
+  protected readonly peakFillStyle = computed((): Record<string, string> => {
+    const vertical = this.orientation() === 'vertical';
+    const level = `${Math.max(0, Math.min(100, this.peakLevel()))}%`;
+    const length = `${this.dimensions().trackLength}px`;
+    return {
+      'background-image': `linear-gradient(to ${vertical ? 'top' : 'right'}, rgb(34, 197, 94) 0%, rgb(34, 197, 94) 60%, rgb(234, 179, 8) 75%, rgb(239, 68, 68) 90%)`,
+      'background-size': vertical ? `100% ${length}` : `${length} 100%`,
+      'background-position': vertical ? 'bottom' : 'left',
+      'background-repeat': 'no-repeat',
+      height: vertical ? level : '100%',
+      width: vertical ? '100%' : level,
+      bottom: vertical ? '0' : 'auto',
+      left: vertical ? 'auto' : '0',
+    };
+  });
+
   protected readonly peakHoldPosition = computed(() => {
     const peakLevel = this.peakHoldLevel();
     const { trackLength, capHeight } = this.dimensions();

@@ -733,6 +733,26 @@ describe('TwClassService', () => {
       expect(service.merge('scroll-auto', 'scroll-smooth')).toBe('scroll-smooth');
     });
 
+    it('should keep per-side scroll margin/padding independent', () => {
+      expect(service.merge('scroll-mt-16 scroll-mb-4')).toBe('scroll-mt-16 scroll-mb-4');
+      expect(service.merge('scroll-px-4 scroll-py-2')).toBe('scroll-px-4 scroll-py-2');
+      expect(service.merge('scroll-mt-16', 'scroll-mt-20')).toBe('scroll-mt-20');
+      expect(service.merge('scroll-mt-16 scroll-ml-2', 'scroll-m-4')).toBe('scroll-m-4');
+      expect(service.merge('scroll-pt-2 scroll-pl-2', 'scroll-py-4')).toBe(
+        'scroll-pl-2 scroll-py-4'
+      );
+    });
+
+    it('should keep per-axis skew, 3D rotate and translate-z independent', () => {
+      expect(service.merge('skew-x-3 skew-y-6')).toBe('skew-x-3 skew-y-6');
+      expect(service.merge('skew-x-3 skew-y-6', 'skew-12')).toBe('skew-12');
+      expect(service.merge('rotate-x-45 rotate-y-30 rotate-12')).toBe(
+        'rotate-x-45 rotate-y-30 rotate-12'
+      );
+      expect(service.merge('translate-x-2 translate-z-4')).toBe('translate-x-2 translate-z-4');
+      expect(service.merge('scale-z-50', 'scale-75')).toBe('scale-75');
+    });
+
     it('should keep pointer-events, select, and resize independent', () => {
       expect(service.merge('pointer-events-none select-none resize-none')).toBe(
         'pointer-events-none select-none resize-none'

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
 import { TwPromptDialogComponent } from './prompt-dialog.component';
 import { TwTerminalComponent } from './terminal.component';
+import { TwCodeViewerComponent } from './code-viewer.component';
 import { TwSidebarNavComponent } from './sidebar.component';
 import { ShortcutBinding, TwShortcutsEditorComponent } from './shortcuts-editor.component';
 import { TwNativeContextMenuComponent } from './context-menu.component';
@@ -190,5 +191,31 @@ describe('NativeStorageService', () => {
     service.set('no', false);
     expect(service.get('zero')).toBe(0);
     expect(service.get('no')).toBe(false);
+  });
+});
+
+describe('TwCodeViewerComponent match navigation', () => {
+  it('marks and scrolls to the current match when stepping through matches', () => {
+    const fixture = TestBed.createComponent(TwCodeViewerComponent);
+    fixture.componentRef.setInput('code', 'foo\nbar\nfoo again\nbaz');
+    fixture.componentInstance.searchQuery.set('foo');
+    fixture.detectChanges();
+
+    const lineEl = (i: number) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-code-line="${i}"]`)!;
+    const scrolled: number[] = [];
+    for (const i of [0, 2]) {
+      lineEl(i).scrollIntoView = () => scrolled.push(i);
+    }
+
+    expect(lineEl(0).classList).toContain('bg-yellow-600/60');
+    expect(lineEl(2).classList).not.toContain('bg-yellow-600/60');
+
+    fixture.componentInstance.nextMatch();
+    fixture.detectChanges();
+
+    expect(scrolled).toEqual([2]);
+    expect(lineEl(2).classList).toContain('bg-yellow-600/60');
+    expect(lineEl(0).classList).not.toContain('bg-yellow-600/60');
   });
 });

@@ -115,7 +115,9 @@
         [class.whitespace-pre]="!wordWrap()"
       ><code>@for (line of lines(); track $index; let i = $index) {<div
           [class.bg-blue-900/30]="highlightedLines().has(i + 1)"
-          [class.bg-yellow-900/30]="isMatchLine(i)"
+          [class.bg-yellow-900/30]="isMatchLine(i) && currentMatchLine() !== i"
+          [class.bg-yellow-600/60]="currentMatchLine() === i"
+          [attr.data-code-line]="i"
           class="leading-6"
         >{{ line || ' ' }}</div>}</code></pre>
     </div>

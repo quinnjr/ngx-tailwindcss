@@ -78,13 +78,7 @@
           class="absolute"
           [class.transition-all]="!effectiveReducedMotion()"
           [class.duration-75]="!effectiveReducedMotion()"
-          [style.background]="'linear-gradient(to top, rgb(34, 197, 94) 0%, rgb(34, 197, 94) 60%, rgb(234, 179, 8) 75%, rgb(239, 68, 68) 90%)'"
-          [style]="{
-            height: orientation() === 'vertical' ? peakLevel() + '%' : '100%',
-            width: orientation() === 'horizontal' ? peakLevel() + '%' : '100%',
-            bottom: orientation() === 'vertical' ? 0 : 'auto',
-            left: orientation() === 'horizontal' ? 0 : 'auto',
-          }"
+          [style]="peakFillStyle()"
         ></div>
 
         <!-- Peak hold indicator line -->

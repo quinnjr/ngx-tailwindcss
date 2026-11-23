@@ -440,6 +440,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tw-waveform` zoom buttons no longer change colour on hover; `tw-graphic-eq`
   lists custom presets that have no category
 - Native: the `tw-quick-switcher` clear icon has enough contrast
+- Focus is kept when the focused control is clicked away or disables itself:
+  clicking a `tw-multiselect` option (or "Select All") keeps focus on the
+  trigger or filter; `tw-bpm-display` step and tempo multiplier buttons and
+  the `tw-mixer` scroll buttons
+- A hover/focus `tw-popover` that hides while focus is inside it no longer
+  reopens (and duplicates its popup) when focus returns to the trigger
+- Music: `tw-compressor-meter` gain-reduction scale labels line up with the
+  depth they mark; `tw-graphic-eq` lists custom presets whose category is not
+  enabled under Custom; disabled `tw-parametric-eq` band chips are readable
+  instead of faded to 40% opacity
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

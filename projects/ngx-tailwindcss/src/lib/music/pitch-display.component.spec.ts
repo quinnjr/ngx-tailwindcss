@@ -18,6 +18,29 @@ describe('TwPitchDisplayComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should keep keyboard focus when a semitone button disables itself at +/-24', async () => {
+    fixture.componentRef.setInput('semitones', 23);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const up = root.querySelector<HTMLButtonElement>('button[aria-label="Semitone up"]')!;
+    const down = root.querySelector<HTMLButtonElement>('button[aria-label="Semitone down"]')!;
+
+    up.focus();
+    up.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(up.disabled).toBe(true);
+    expect(document.activeElement).toBe(down);
+
+    fixture.componentRef.setInput('semitones', -23);
+    fixture.detectChanges();
+    down.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(down.disabled).toBe(true);
+    expect(document.activeElement).toBe(up);
+  });
+
   it('should stop touch drags on the pitch bend slider from scrolling the page', () => {
     fixture.componentRef.setInput('showPitchWheel', true);
     for (const style of ['vertical', 'horizontal'] as const) {

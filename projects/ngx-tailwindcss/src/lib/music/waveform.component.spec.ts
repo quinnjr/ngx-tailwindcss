@@ -18,6 +18,39 @@ describe('TwWaveformComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should keep keyboard focus in the zoom controls when a zoom button disables or removes itself', async () => {
+    fixture.componentRef.setInput('zoomable', true);
+    fixture.componentRef.setInput('maxZoom', 2);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const button = (label: string) =>
+      root.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    const settle = async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
+
+    button('Zoom in')!.focus();
+    button('Zoom in')!.click();
+    await settle();
+    expect(button('Zoom in')!.disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Zoom out'));
+
+    button('Zoom out')!.click();
+    await settle();
+    expect(button('Zoom out')!.disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Zoom in'));
+
+    // Reset zoom removes itself once back at 100%
+    button('Zoom in')!.click();
+    await settle();
+    button('Reset zoom')!.focus();
+    button('Reset zoom')!.click();
+    await settle();
+    expect(button('Reset zoom')).toBeNull();
+    expect(document.activeElement).toBe(button('Zoom in'));
+  });
+
   it('should expose the seekable canvas as a keyboard-operable slider', () => {
     fixture.componentRef.setInput('progress', 0.5);
     fixture.detectChanges();

@@ -300,6 +300,37 @@ describe('TwMenuComponent', () => {
       expect(menuItems().length).toBe(1);
     });
 
+    it('should return focus to the trigger when the pointer leaves with focus in the submenu', () => {
+      const parent = menuItems()[0];
+      parent.click();
+      fixture.detectChanges();
+
+      // A submenu item is clicked (focused), then the pointer leaves the submenu
+      const child = menuItems()[1];
+      child.focus();
+      parent.parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
+      fixture.detectChanges();
+
+      expect(menuItems().length).toBe(1);
+      expect(document.activeElement).toBe(parent);
+    });
+
+    it('should not move focus when the pointer leaves with focus outside the submenu', () => {
+      const outside = document.createElement('button');
+      document.body.append(outside);
+      try {
+        menuItems()[0].parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        outside.focus();
+        menuItems()[0].parentElement!.dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+
+        expect(document.activeElement).toBe(outside);
+      } finally {
+        outside.remove();
+      }
+    });
+
     it('should close the submenu on ArrowLeft and return focus to its trigger', () => {
       const parent = menuItems()[0];
       parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));

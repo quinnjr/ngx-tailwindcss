@@ -127,6 +127,25 @@ describe('TwDropdownComponent', () => {
     expect(menu.parentElement).toBe(originalParent);
   });
 
+  it('should keep one working menu when close() and open() run within one tick', () => {
+    trigger.click();
+    fixture.detectChanges();
+
+    component.dropdown.close();
+    component.dropdown.open();
+    fixture.detectChanges();
+
+    const menus = document.querySelectorAll('[role="menu"]');
+    expect(menus.length).toBe(1);
+    expect(menus[0].querySelector('[data-testid="item-1"]')).toBeTruthy();
+
+    // Escape is still registered for the reopened menu, and closing removes it
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(isDropdownOpen(component.dropdown)).toBe(false);
+    expect(document.querySelectorAll('[role="menu"]').length).toBe(0);
+  });
+
   it('should not emit closed when close() is called while already closed', () => {
     component.dropdown.close();
     expect(component.closedCount).toBe(0);

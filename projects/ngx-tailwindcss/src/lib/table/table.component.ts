@@ -154,8 +154,19 @@ export class TwTableComponent {
   protected sortOrder = signal<1 | -1>(1);
   /** Current page size; follows the `rows` input until changed via the rows-per-page select. */
   protected pageSize = linkedSignal(() => this.rows());
-  /** Selection is held as a Set internally for O(1) lookups; emitted as an array. */
-  protected selection = signal<ReadonlySet<any>>(new Set());
+  /**
+   * Selection is held as a Set internally for O(1) lookups; emitted as an array. Rows
+   * that leave `data` (deleted, or replaced by re-fetched objects) drop out of it, so
+   * later emissions never report rows the table no longer shows.
+   */
+  protected selection = linkedSignal<any[], ReadonlySet<any>>({
+    source: this.data,
+    computation: (data, previous) => {
+      if (!previous || previous.value.size === 0) return new Set();
+      const present = new Set(data);
+      return new Set([...previous.value].filter(row => present.has(row)));
+    },
+  });
 
   protected readonly hasHeaderActions = computed(() => !!this.headerActionsTemplate());
 

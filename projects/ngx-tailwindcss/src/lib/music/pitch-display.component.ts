@@ -4,6 +4,7 @@ import {
   computed,
   DestroyRef,
   inject,
+  Injector,
   input,
   linkedSignal,
   numberAttribute,
@@ -11,6 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type PitchDisplayVariant =
   'default' | 'minimal' | 'digital' | 'wheel' | 'dj' | 'light' | 'highContrast';
@@ -61,6 +63,7 @@ export const PITCH_PRESETS = {
 })
 export class TwPitchDisplayComponent {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   // Injected (not the global) so destroy-time listener cleanup is SSR safe
   private readonly document = inject(DOCUMENT);
 
@@ -264,6 +267,11 @@ export class TwPitchDisplayComponent {
 
   // Presets for quick access
   protected readonly PITCH_PRESETS = PITCH_PRESETS;
+
+  // Semitone -/+ disable themselves at -24/+24: keep keyboard focus in the group
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
+  }
 
   // Interaction handlers
   protected onSemitonesUp(): void {

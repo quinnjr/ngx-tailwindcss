@@ -30,6 +30,51 @@ describe('TwLooperComponent', () => {
     expect(container.classList).toContain('relative');
   });
 
+  it('should keep keyboard focus when Undo, Redo, Delete or Clear disables or removes itself', async () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const button = (text: string) =>
+      [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+        b => b.textContent?.trim() === text || b.getAttribute('aria-label') === text
+      )!;
+    const settle = async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
+
+    internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
+    await settle();
+    // Undo of the last layer disables Undo: focus moves to the now-enabled Redo
+    button('Undo').focus();
+    button('Undo').click();
+    await settle();
+    expect(button('Undo').disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Redo'));
+
+    // Redo of the last undone layer disables Redo: focus moves back to Undo
+    button('Redo').click();
+    await settle();
+    expect(button('Redo').disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Undo'));
+
+    // Deleting a layer removes its row: focus moves to the next layer's Delete
+    internals.layers.set([
+      { id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' },
+      { id: 2, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L2' },
+    ]);
+    await settle();
+    button('Delete L1').focus();
+    button('Delete L1').click();
+    await settle();
+    expect(document.activeElement).toBe(button('Delete L2'));
+
+    // Clear disables itself: focus moves to Record in the same group
+    button('Clear All').focus();
+    button('Clear All').click();
+    await settle();
+    expect(button('Clear All').disabled).toBe(true);
+    expect(document.activeElement).toBe(button('Record'));
+  });
+
   it('should enable redo after an undo (canRedo is reactive)', () => {
     internals.layers.set([{ id: 1, audioBuffer: fakeBuffer, volume: 1, muted: false, name: 'L1' }]);
     expect(internals.canRedo()).toBe(false);

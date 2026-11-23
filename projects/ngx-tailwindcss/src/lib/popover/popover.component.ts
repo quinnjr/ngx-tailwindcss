@@ -298,6 +298,9 @@ export class TwPopoverComponent implements AfterViewInit, OnDestroy {
 
   private createPortal(): void {
     if (!isPlatformBrowser(this.platformId)) return;
+    // hide() + show() within one tick leaves the effect seeing only `true`: rebuild the
+    // existing portal (restoring its content and listeners) instead of stacking a second one
+    if (this.portalHost) this.destroyPortal();
 
     // Create portal host at body level
     this.portalHost = this.renderer.createElement('div');

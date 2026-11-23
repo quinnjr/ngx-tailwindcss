@@ -5,7 +5,11 @@
         <div [class]="separatorClasses()"></div>
       } @else if (item.items && item.items.length > 0) {
         <!-- Submenu -->
-        <div class="relative" (mouseenter)="onSubmenuEnter(item)" (mouseleave)="onSubmenuLeave()">
+        <div
+          class="relative"
+          (mouseenter)="onSubmenuEnter(item)"
+          (mouseleave)="onSubmenuLeave(submenuTrigger)"
+        >
           <button
             #submenuTrigger
             type="button"

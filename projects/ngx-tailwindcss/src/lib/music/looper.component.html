@@ -161,7 +161,7 @@
         [class]="buttonSizeClasses()"
         [disabled]="disabled() || layers().length === 0"
         [class.opacity-50]="layers().length === 0"
-        (click)="clear()"
+        (click)="keepFocus($event); clear()"
         aria-label="Clear All"
       >
         <svg
@@ -188,7 +188,7 @@
         type="button"
         class="px-3 py-1 rounded text-xs bg-slate-700 enabled:hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
         [disabled]="disabled() || !canUndo()"
-        (click)="undo()"
+        (click)="keepFocus($event); undo()"
       >
         <svg
           class="w-4 h-4 inline mr-1"
@@ -209,7 +209,7 @@
         type="button"
         class="px-3 py-1 rounded text-xs bg-slate-700 enabled:hover:bg-slate-600 text-white transition-colors disabled:opacity-50"
         [disabled]="disabled() || !canRedo()"
-        (click)="redo()"
+        (click)="keepFocus($event); redo()"
       >
         Redo
         <svg
@@ -277,7 +277,7 @@
             class="w-6 h-6 rounded flex items-center justify-center enabled:hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             [class]="deleteButtonClass()"
             [disabled]="disabled()"
-            (click)="deleteLayer(layer.id)"
+            (click)="keepFocus($event); deleteLayer(layer.id)"
             [attr.aria-label]="'Delete ' + layer.name"
           >
             <svg

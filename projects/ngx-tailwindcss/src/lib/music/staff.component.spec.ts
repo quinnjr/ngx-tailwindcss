@@ -43,6 +43,16 @@ describe('TwStaffComponent', () => {
     // F#5 on the treble top line vs F#3 on the bass 4th line: one line spacing lower
     expect(bassY - trebleY).toBe(10);
   });
+
+  it('writes the tenor-clef G# inside the staff (G#3), not on a ledger position above it', () => {
+    fixture.componentRef.setInput('keySignature', 'A');
+    fixture.componentRef.setInput('clef', 'tenor');
+    fixture.detectChanges();
+    const ys = accidentalYs();
+    expect(ys).toHaveLength(3);
+    // Tenor top line is E4 (position 0): F#4 at -1, C#4 at 2, G#3 at 5 (+ 8 glyph offset)
+    expect(ys).toEqual([40 - 5 + 8, 40 + 10 + 8, 40 + 25 + 8]);
+  });
 });
 
 describe('TwStaffComponent classOverride', () => {

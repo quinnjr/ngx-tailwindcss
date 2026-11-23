@@ -248,6 +248,19 @@ describe('TwTableComponent', () => {
       expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith([]);
     });
 
+    it('should drop selected rows that leave the data from later emissions', () => {
+      const [alice, bob, carol] = component.data();
+      component.table.toggleSelection(alice);
+      component.table.toggleSelection(bob);
+
+      // e.g. "delete selected": the consumer removes the selected rows from the data
+      component.data.set([carol]);
+      fixture.detectChanges();
+
+      component.table.toggleSelection(carol);
+      expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith([carol]);
+    });
+
     it('should not toggle selection when a row-action button is clicked', () => {
       const action = bodyRows()[0].query(By.css('[data-testid="row-action"]'));
       action.nativeElement.click();

@@ -275,9 +275,14 @@ export class TwStaffComponent {
     const spacing = this.lineSpacing();
     const top = this.staffTop();
 
+    const tenor = this.clef() === 'tenor';
+
     return positions.slice(0, count).map((pos, i) => ({
       x: startX + i * 12,
       y: top + pos * (spacing / 2),
+      // Extra shift on the main staff only. Tenor clef: the shifted G# would sit on the
+      // ledger-line position above the staff, so engravers write it an octave lower (G#3)
+      clefShift: tenor && isSharp && i === 2 ? 7 * (spacing / 2) : 0,
       type: isSharp ? 'sharp' : 'flat',
     }));
   });

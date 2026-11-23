@@ -238,6 +238,25 @@ describe('TwPopoverComponent', () => {
       component.popover.toggle();
       expect(isPopoverVisible(component.popover)).toBe(false);
     });
+
+    it('should keep one working portal when hide() and show() run within one tick', () => {
+      component.popover.show();
+      fixture.detectChanges();
+
+      component.popover.hide();
+      component.popover.show();
+      fixture.detectChanges();
+
+      const panels = document.querySelectorAll('[role="dialog"]');
+      expect(panels.length).toBe(1);
+      expect(panels[0].querySelector('.popover-content')).toBeTruthy();
+
+      // Escape is still registered for the reopened popover
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(isPopoverVisible(component.popover)).toBe(false);
+      expect(document.querySelectorAll('[role="dialog"]').length).toBe(0);
+    });
   });
 
   describe('events', () => {

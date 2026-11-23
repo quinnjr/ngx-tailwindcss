@@ -6,6 +6,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   NgZone,
   OnChanges,
@@ -19,6 +20,7 @@ import {
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type WaveformVariant = 'bars' | 'line' | 'mirror' | 'gradient';
 export type WaveformColorScheme = 'blue' | 'green' | 'purple' | 'orange' | 'mono';
@@ -104,6 +106,7 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
   private readonly twClass = inject(TwClassService);
   private readonly zone = inject(NgZone);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly injector = inject(Injector);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('waveformCanvas');
   private stopDprWatch: (() => void) | null = null;
 
@@ -1223,6 +1226,12 @@ export class TwWaveformComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.zoomChange.emit(clampedZoom);
     this.emitViewRange();
     this.draw();
+  }
+
+  // Zoom out/in disable themselves at the zoom limits and Reset zoom removes
+  // itself once back at 100%: keep keyboard focus in the zoom controls
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector);
   }
 
   resetZoom(): void {

@@ -4,6 +4,7 @@ import {
   computed,
   ElementRef,
   inject,
+  Injector,
   input,
   NgZone,
   numberAttribute,
@@ -17,6 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, interval, switchMap } from 'rxjs';
 import { prepareHiDpiCanvas, watchDevicePixelRatio } from './canvas-hidpi';
+import { retainFocusAfterAction } from './focus-retain';
 
 export type LooperVariant = 'default' | 'minimal' | 'compact' | 'studio';
 export type LooperSize = 'sm' | 'md' | 'lg';
@@ -66,6 +68,8 @@ export interface LooperEvent {
 })
 export class TwLooperComponent implements OnDestroy {
   private readonly zone = inject(NgZone);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // Canvas reference
   readonly waveformCanvas = viewChild<ElementRef<HTMLCanvasElement>>('waveformCanvas');
@@ -486,6 +490,18 @@ export class TwLooperComponent implements OnDestroy {
     }
 
     this.layerChange.emit(this.layers());
+  }
+
+  // Clear/Undo/Redo disable themselves (no layers / nothing to redo) and a layer's
+  // Delete removes its row: keep keyboard focus in the looper rather than <body>
+  protected keepFocus(event: Event): void {
+    retainFocusAfterAction(event, this.injector, () => {
+      const root = this.host.nativeElement;
+      return (
+        root.querySelector<HTMLElement>('button[aria-label^="Delete "]:not([disabled])') ??
+        root.querySelector<HTMLElement>('button:not([disabled])')
+      );
+    });
   }
 
   deleteLayer(layerId: number): void {

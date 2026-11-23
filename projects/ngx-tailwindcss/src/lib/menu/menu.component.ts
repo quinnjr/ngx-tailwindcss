@@ -143,7 +143,11 @@ export class TwMenuComponent {
     this.openSubmenu.set(item);
   }
 
-  onSubmenuLeave(): void {
+  onSubmenuLeave(trigger?: HTMLElement): void {
+    // Focus inside the submenu (e.g. on an item just clicked) would be lost when it is
+    // removed: hand it back to the submenu's trigger
+    const submenu = trigger?.parentElement?.querySelector(':scope > [role="menu"]');
+    if (trigger && submenu?.contains(this.document.activeElement)) trigger.focus();
     this.openSubmenu.set(null);
   }
 

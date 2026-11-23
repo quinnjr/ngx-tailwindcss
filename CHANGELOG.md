@@ -224,6 +224,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tw-sheet-music` zoom buttons, `tw-pitch-display` buttons, cents slider and
   key-lock pressed state; clear buttons and chevrons in `tw-input`,
   `tw-select` and `tw-multiselect` meet 3:1
+- `tw-checkbox` and `tw-radio` `variant` colours the native control (via
+  `accent-*`); dark-mode focus indicators on `tw-input`, its wrapper and the
+  `tw-multiselect` filter, with the error border kept while focused
+- State no longer lost on hover: `tw-tree` selected node, `tw-splitter`
+  divider while dragging
+- Native quick switcher closes on a backdrop click; collapsed sidebar items
+  are named by their label
+- `tw-score-editor` parts are selectable by keyboard; score-editor and
+  note-input toolbars have accessible names and pressed state; `tw-looper`
+  and `tw-compressor-meter` `minimal` variants follow the page theme; mixer
+  sections expose `aria-expanded`
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

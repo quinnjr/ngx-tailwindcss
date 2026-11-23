@@ -13,7 +13,7 @@
     @if (inputClip() || outputClip()) {
       <button
         type="button"
-        class="px-2 py-0.5 rounded text-[10px] bg-red-600 text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+        class="px-2 py-0.5 rounded text-[10px] bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
         [disabled]="disabled()"
         (click)="resetClip('both')"
         aria-label="Reset clip indicator"

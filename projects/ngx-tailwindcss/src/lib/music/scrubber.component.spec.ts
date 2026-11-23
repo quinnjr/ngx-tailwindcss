@@ -119,4 +119,16 @@ describe('TwScrubberComponent', () => {
     expect(frame.style.backgroundPosition).toBe('-640px -180px');
     vi.restoreAllMocks();
   });
+
+  it('should keep the inside time readable on the light track and page', () => {
+    fixture.componentRef.setInput('timePosition', 'inside');
+    fixture.detectChanges();
+    const times = [...slider().querySelectorAll('span')];
+    expect(times.map(t => t.textContent?.trim())).toEqual(['1:05', '3:20']);
+    for (const time of times) {
+      // bare white text sat on the slate-200 track / white page (~1.2:1)
+      expect(time.className).toContain('bg-slate-900/80');
+      expect(time.className).toContain('text-white');
+    }
+  });
 });

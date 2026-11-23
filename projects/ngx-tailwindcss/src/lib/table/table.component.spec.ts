@@ -367,5 +367,14 @@ describe('TwTableComponent', () => {
       const pager = tableEl.nativeElement.textContent.replaceAll(/\s+/g, ' ');
       expect(pager).toContain('Previous 1 ... 4 5 6 ... 10 Next');
     });
+
+    it('should expose the current page to assistive technology', () => {
+      component.table.goToPage(2);
+      fixture.detectChanges();
+
+      const current = tableEl.queryAll(By.css('button[aria-current="page"]'));
+      expect(current.length).toBe(1);
+      expect(current[0].nativeElement.textContent.trim()).toBe('2');
+    });
   });
 });

@@ -293,3 +293,26 @@ describe('TwMetronomeComponent text colours', () => {
     fixture.destroy();
   });
 });
+
+describe('TwMetronomeComponent selection state', () => {
+  it('should expose the selected time signature and pattern as pressed', async () => {
+    await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    fixture.componentRef.setInput('showAccentConfig', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const button = (t: string) =>
+      [...el.querySelectorAll('button')].find(b => b.textContent?.trim() === t)!;
+
+    expect(button('4/4').getAttribute('aria-pressed')).toBe('true');
+    expect(button('3/4').getAttribute('aria-pressed')).toBe('false');
+    expect(button('Standard').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Backbeat').getAttribute('aria-pressed')).toBe('false');
+
+    button('3/4').click();
+    fixture.detectChanges();
+    expect(button('3/4').getAttribute('aria-pressed')).toBe('true');
+    expect(button('4/4').getAttribute('aria-pressed')).toBe('false');
+    fixture.destroy();
+  });
+});

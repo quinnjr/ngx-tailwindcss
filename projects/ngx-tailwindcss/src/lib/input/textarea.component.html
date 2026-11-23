@@ -5,7 +5,7 @@
   >
     {{ label() }}
     @if (required()) {
-      <span class="text-rose-500 ml-0.5">*</span>
+      <span class="text-rose-600 dark:text-rose-400 ml-0.5">*</span>
     }
   </label>
 }
@@ -35,9 +35,12 @@
 }
 
 @if (error()) {
-  <span [id]="errorId()" class="block text-xs text-rose-600 mt-1.5" role="alert">{{
-    error()
-  }}</span>
+  <span
+    [id]="errorId()"
+    class="block text-xs text-rose-600 dark:text-rose-400 mt-1.5"
+    role="alert"
+    >{{ error() }}</span
+  >
 }
 
 @if (showCount()) {

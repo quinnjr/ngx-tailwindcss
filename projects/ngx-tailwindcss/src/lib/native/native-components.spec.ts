@@ -681,3 +681,42 @@ describe('native selected states are not overridden by static classes', () => {
     expect(pin.classList).not.toContain('text-gray-400');
   });
 });
+
+describe('native form controls have accessible names and visible actions', () => {
+  it('property inspector editable inputs are named and the copy button can be revealed', () => {
+    const fixture = TestBed.createComponent(TwPropertyInspectorComponent);
+    fixture.componentRef.setInput('properties', [
+      { key: 'width', value: 10, type: 'number', editable: true },
+      { key: 'name', value: 'x', type: 'string', editable: true },
+      { key: 'fill', value: '#ff0000', type: 'color', editable: true },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const labels = [...el.querySelectorAll('input')].map(i => i.getAttribute('aria-label'));
+    expect(labels).toEqual(['width', 'name', 'fill']);
+
+    const copy = el.querySelector<HTMLButtonElement>('button[title="Copy value"]')!;
+    // group-hover needs a `group` ancestor; focus must reveal it for keyboard users
+    expect(copy.closest('.group')).not.toBeNull();
+    expect(copy.classList).toContain('focus:opacity-100');
+    expect(copy.classList).toContain('text-slate-500');
+  });
+
+  it('shortcuts editor category filter is named', () => {
+    const fixture = TestBed.createComponent(TwShortcutsEditorComponent);
+    fixture.detectChanges();
+    const select = (fixture.nativeElement as HTMLElement).querySelector('select')!;
+    expect(select.getAttribute('aria-label')).toBe('Filter by category');
+  });
+
+  it('settings panel colour hex input is named', () => {
+    const fixture = TestBed.createComponent(TwSettingsPanelComponent);
+    fixture.componentRef.setInput('categories', [{ id: 'a', label: 'Alpha' }]);
+    fixture.componentRef.setInput('settings', [
+      { id: 'accent', categoryId: 'a', label: 'Accent', type: 'color', value: '#000000' },
+    ]);
+    fixture.detectChanges();
+    const hex = (fixture.nativeElement as HTMLElement).querySelector('input.font-mono')!;
+    expect(hex.getAttribute('aria-label')).toBe('Accent (hex value)');
+  });
+});

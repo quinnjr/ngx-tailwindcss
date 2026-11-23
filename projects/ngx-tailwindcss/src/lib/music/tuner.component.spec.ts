@@ -189,4 +189,17 @@ describe('TwTunerComponent', () => {
     expect(button.classList).not.toContain('bg-green-600');
     expect(button.classList).toContain('text-white');
   });
+
+  it('should keep the Stop label at 4.5:1 while hovered', () => {
+    // White on the old hover:bg-red-500 was ~3.8:1
+    (component as any).isListening.set(true);
+    fixture.detectChanges();
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(b =>
+      b.textContent?.includes('Stop')
+    )!;
+    expect(button.classList).toContain('bg-red-600');
+    expect(button.classList).toContain('hover:bg-red-700');
+    expect(button.classList).not.toContain('hover:bg-red-500');
+    (component as any).isListening.set(false);
+  });
 });

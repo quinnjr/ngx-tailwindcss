@@ -111,6 +111,9 @@ export class AudioContextService implements OnDestroy {
   // stopped when their source is disconnected so the microphone is released.
   private readonly ownedStreams = new Map<string, MediaStream>();
 
+  // Gain each muted source had before setSourceMuted(id, true), restored on unmute
+  private readonly mutedGains = new Map<string, number>();
+
   /** Current audio context state */
   readonly state = this._state.asReadonly();
 
@@ -746,6 +749,8 @@ export class AudioContextService implements OnDestroy {
       this.sourceElements.delete(id);
     }
 
+    this.mutedGains.delete(id);
+
     const stream = this.ownedStreams.get(id);
     if (stream) {
       for (const track of stream.getTracks()) track.stop();
@@ -769,15 +774,34 @@ export class AudioContextService implements OnDestroy {
   setSourceGain(id: string, gain: number): void {
     const source = this._sources().get(id);
     if (source?.gain) {
+      // An explicit gain supersedes the level saved by a pending mute
+      this.mutedGains.delete(id);
       source.gain.gain.value = Math.max(0, Math.min(2, gain));
     }
   }
 
   /**
-   * Mute/unmute a source
+   * Mute/unmute a source. Unmuting restores the gain the source had when it
+   * was muted (not unity, which would jump e.g. a 0.2 level up to 1).
    */
   setSourceMuted(id: string, muted: boolean): void {
-    this.setSourceGain(id, muted ? 0 : 1);
+    const source = this._sources().get(id);
+    if (!source?.gain) return;
+
+    if (muted) {
+      if (this.mutedGains.has(id)) return;
+      const previous = source.gain.gain.value;
+      this.setSourceGain(id, 0);
+      this.mutedGains.set(id, previous);
+    } else {
+      const saved = this.mutedGains.get(id);
+      if (saved !== undefined) {
+        this.setSourceGain(id, saved);
+      } else if (source.gain.gain.value === 0) {
+        // Not muted via this method (or a gain was set since): only lift silence
+        this.setSourceGain(id, 1);
+      }
+    }
   }
 
   // =========================================================================

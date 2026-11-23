@@ -111,4 +111,17 @@ describe('TwTimeDisplayComponent', () => {
     // An own colour would override e.g. the dark audio player's light text
     expect(textDiv().className).not.toMatch(/(^|\s)(dark:)?text-slate-\d/);
   });
+
+  it('should include the visible total in the accessible name', () => {
+    fixture.componentRef.setInput('value', 65);
+    fixture.componentRef.setInput('total', 200);
+    fixture.detectChanges();
+    const img = () => (fixture.nativeElement as HTMLElement).querySelector('[role="img"]')!;
+    // role="img" hides the "/ 3:20" text from assistive technology
+    expect(img().getAttribute('aria-label')).toBe('1:05 of 3:20');
+
+    fixture.componentRef.setInput('showTotal', false);
+    fixture.detectChanges();
+    expect(img().getAttribute('aria-label')).toBe('1:05');
+  });
 });

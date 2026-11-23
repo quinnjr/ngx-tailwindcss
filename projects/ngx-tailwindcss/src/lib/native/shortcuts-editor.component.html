@@ -24,6 +24,7 @@
       />
     </div>
     <select
+      aria-label="Filter by category"
       [ngModel]="selectedCategory()"
       (ngModelChange)="selectedCategory.set($event)"
       class="px-3 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"

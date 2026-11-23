@@ -41,7 +41,7 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
 
   private hoverTimeout: ReturnType<typeof setTimeout> | null = null;
   private isHovered = false;
-  private applied: { added: string[]; removed: string[] } | null = null;
+  private applied: { added: string[]; removed: string[]; touched: Set<string> } | null = null;
 
   /** Classes to add on hover */
   @Input({ required: true })
@@ -143,17 +143,76 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
       this.renderer.addClass(element, cls);
     }
 
-    this.applied = { added, removed };
+    this.applied = { added, removed, touched: new Set() };
+    this.installClassListGuard(element, this.applied.touched);
+  }
+
+  /**
+   * While hovered, record the classes other code (e.g. `[class.x]` / `[class]`
+   * bindings via Renderer2, which use `classList`) adds or removes, so that
+   * leaving neither re-adds a class a binding removed in the meantime (a no-op
+   * on the DOM, as the directive had already removed it, so it can't be
+   * observed after the fact) nor strips a hover class a binding asserted
+   */
+  private installClassListGuard(element: HTMLElement, touched: Set<string>): void {
+    const real = element.classList;
+    const track = (tokens: unknown[]) => {
+      for (const token of tokens) touched.add(String(token));
+    };
+    const guard = new Proxy(real, {
+      get: (target, prop) => {
+        switch (prop) {
+          case 'add':
+          case 'remove': {
+            return (...tokens: string[]) => {
+              track(tokens);
+              target[prop](...tokens);
+            };
+          }
+          case 'toggle': {
+            return (token: string, force?: boolean) => {
+              track([token]);
+              return force === undefined ? target.toggle(token) : target.toggle(token, force);
+            };
+          }
+          case 'replace': {
+            return (token: string, newToken: string) => {
+              track([token, newToken]);
+              return target.replace(token, newToken);
+            };
+          }
+        }
+        const value: unknown = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+      set: (target, prop, value) => Reflect.set(target, prop, value, target),
+    });
+    Object.defineProperty(element, 'classList', {
+      configurable: true,
+      get: () => guard,
+      set: (value: string) => {
+        track(value.split(/\s+/).filter(Boolean));
+        real.value = value;
+      },
+    });
+  }
+
+  private removeClassListGuard(element: HTMLElement): void {
+    if (Object.hasOwn(element, 'classList')) {
+      delete (element as { classList?: DOMTokenList }).classList;
+    }
   }
 
   private removeHoverClasses(): void {
     const element = this.el.nativeElement;
     const applied = this.applied;
     this.applied = null;
+    this.removeClassListGuard(element);
+    const touched = applied?.touched ?? new Set<string>();
 
-    // Remove hover classes
+    // Remove hover classes (unless something else set or removed them since)
     for (const cls of applied?.added ?? []) {
-      this.renderer.removeClass(element, cls);
+      if (!touched.has(cls)) this.renderer.removeClass(element, cls);
     }
 
     // Restore base and conflicting classes. A removed conflicting class is not
@@ -163,6 +222,9 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
     const base = this.hoverClassBase.split(/\s+/).filter(Boolean);
     const current = (element.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
     for (const cls of new Set([...base, ...(applied?.removed ?? [])])) {
+      // A class added or removed by something else while hovered reflects that
+      // code's current intent and must not be overridden
+      if (touched.has(cls)) continue;
       if (
         base.includes(cls) ||
         current.length === 0 ||
@@ -188,6 +250,7 @@ export class TwHoverClassDirective implements OnInit, OnDestroy {
     }
 
     const element = this.el.nativeElement;
+    this.removeClassListGuard(element);
     element.removeEventListener('mouseenter', this.onMouseEnter);
     element.removeEventListener('mouseleave', this.onMouseLeave);
   }

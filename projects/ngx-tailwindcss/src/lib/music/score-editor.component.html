@@ -373,8 +373,19 @@
 
   <!-- Add Part Dialog -->
   @if (showPartDialog()) {
-    <div class="dialog-overlay" (click)="showPartDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showPartDialog.set(false)"
+      (keydown.escape)="showPartDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add part"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Add Part</h3>
           <button
@@ -405,8 +416,19 @@
 
   <!-- Transpose Dialog -->
   @if (showTransposeDialog()) {
-    <div class="dialog-overlay" (click)="showTransposeDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showTransposeDialog.set(false)"
+      (keydown.escape)="showTransposeDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Transpose"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Transpose</h3>
           <button
@@ -469,8 +491,19 @@
 
   <!-- Export Dialog -->
   @if (showExportDialog()) {
-    <div class="dialog-overlay" (click)="showExportDialog.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
+    <div
+      class="dialog-overlay"
+      (click)="showExportDialog.set(false)"
+      (keydown.escape)="showExportDialog.set(false)"
+    >
+      <div
+        #dialog
+        class="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export score"
+        (click)="$event.stopPropagation()"
+      >
         <div class="dialog-header">
           <h3>Export Score</h3>
           <button

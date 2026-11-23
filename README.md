@@ -306,6 +306,7 @@ Conflict resolution is a lightweight, tailwind-merge-style approximation: it han
 ## Customization Examples
 
 `classOverride` is available on most components; `classReplace` is currently supported on `tw-button` and `tw-card` only.
+On `tw-button`, `a[tw-button]`, `tw-badge`, `tw-alert`, `tw-card` and `tw-card-horizontal` a plain `class` attribute (static or `[class]` string binding) is merged the same way, so `class="bg-sky-700 text-white"` replaces the variant colours; `classOverride` is applied after `class` and wins over it.
 
 ### Per-Component Override
 

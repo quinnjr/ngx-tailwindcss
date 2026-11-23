@@ -279,7 +279,9 @@ export class TwScrubberComponent implements OnDestroy {
   });
 
   protected readonly timeInsideClasses = computed(() => {
-    return 'text-xs font-mono text-white/90 tabular-nums';
+    // The text overflows the thin track onto the page and the light track/buffer fills, where
+    // bare white text all but vanished; a dark chip keeps it readable on any background
+    return 'text-xs font-mono text-white tabular-nums px-1 rounded bg-slate-900/80';
   });
 
   // Event handlers

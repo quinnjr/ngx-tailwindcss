@@ -645,3 +645,24 @@ describe('TwSelectComponent (round 7)', () => {
     expect(options.map(o => o.getAttribute('aria-disabled'))).toEqual([null, null, null, 'true']);
   });
 });
+
+@Component({
+  template: `<tw-select label="Country" required error="Required" [options]="[]"></tw-select>`,
+  standalone: true,
+  imports: [TwSelectComponent],
+})
+class RequiredErrorHostComponent {}
+
+describe('TwSelectComponent (round 17)', () => {
+  it('should use AA-contrast colours for the error text and required marker in both themes', () => {
+    const fixture = TestBed.createComponent(RequiredErrorHostComponent);
+    fixture.detectChanges();
+    const error: HTMLElement = fixture.nativeElement.querySelector('[role="alert"]');
+    expect(error.className).toContain('text-rose-600');
+    expect(error.className).toContain('dark:text-rose-400');
+    const marker: HTMLElement = fixture.nativeElement.querySelector('label > span');
+    expect(marker.textContent?.trim()).toBe('*');
+    expect(marker.className).toContain('text-rose-600');
+    expect(marker.className).toContain('dark:text-rose-400');
+  });
+});

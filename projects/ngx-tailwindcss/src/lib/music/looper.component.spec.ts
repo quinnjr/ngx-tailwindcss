@@ -291,4 +291,37 @@ describe('TwLooperComponent', () => {
     expect(half.classList).toContain('text-slate-300');
     expect(half.classList).not.toContain('text-slate-400');
   });
+
+  it('should expose the selected playback speed to assistive technology', () => {
+    fixture.componentRef.setInput('showSpeedControl', true);
+    fixture.detectChanges();
+    const speed = (label: string) =>
+      [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+      ].find(b => b.textContent?.trim() === label)!;
+    expect(speed('1x').getAttribute('aria-pressed')).toBe('true');
+    expect(speed('2x').getAttribute('aria-pressed')).toBe('false');
+
+    speed('2x').click();
+    fixture.detectChanges();
+    expect(speed('2x').getAttribute('aria-pressed')).toBe('true');
+    expect(speed('1x').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('should keep the white play/overdub icons at 3:1 on their hovered active fills', () => {
+    internals.state.set('playing');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    // white on green-500 was ~2.3:1, on amber-500 ~2.1:1
+    const stop = el.querySelector('[aria-label="Stop"]')!;
+    expect(stop.classList).toContain('hover:bg-green-700');
+    expect(stop.classList).not.toContain('hover:bg-green-500');
+
+    internals.state.set('overdubbing');
+    fixture.detectChanges();
+    const overdub = el.querySelector('[aria-label="Stop Overdub"]')!;
+    expect(overdub.classList).toContain('hover:bg-amber-700');
+    expect(overdub.classList).not.toContain('hover:bg-amber-500');
+    internals.state.set('idle');
+  });
 });

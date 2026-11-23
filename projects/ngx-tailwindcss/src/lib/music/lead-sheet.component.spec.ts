@@ -101,6 +101,21 @@ describe('TwLeadSheetComponent', () => {
     expect(chord().classList).not.toContain('font-bold');
   });
 
+  it('keeps the minimal variant hover background dark in dark mode (light text on slate-50)', () => {
+    fixture.componentRef.setInput('interactive', true);
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('data', {
+      sections: [{ measures: [{ chords: [{ chord: 'G' }] }] }],
+    });
+    fixture.detectChanges();
+    const measure = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.flex-1.cursor-pointer'
+    );
+    expect(measure).not.toBeNull();
+    expect(measure!.classList).toContain('hover:bg-slate-50');
+    expect(measure!.classList).toContain('dark:hover:bg-slate-800');
+  });
+
   it('gives each clickable measure its own focusable button, not wrapping the chords', () => {
     const measureClicks: unknown[] = [];
     fixture.componentInstance.measureClick.subscribe(m => measureClicks.push(m));

@@ -195,6 +195,7 @@
                         />
                         <input
                           type="text"
+                          [attr.aria-label]="setting.label + ' (hex value)'"
                           [ngModel]="setting.value"
                           (ngModelChange)="updateSetting(setting, $event)"
                           [disabled]="setting.disabled || false"

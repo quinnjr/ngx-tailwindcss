@@ -1,8 +1,4 @@
-<div
-  [class]="containerClasses()"
-  role="img"
-  [attr.aria-label]="(label() ? label() + ': ' : '') + displayText()"
->
+<div [class]="containerClasses()" role="img" [attr.aria-label]="ariaLabel()">
   @if (variant() === 'led') {
     <!-- LED Segment Display -->
     <div class="flex items-center font-mono tracking-wider">

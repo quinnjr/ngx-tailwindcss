@@ -255,15 +255,16 @@
                 variant="ghost"
                 size="sm"
                 (click)="likePost(post)"
-                [class]="post.liked ? 'text-rose-500' : 'text-slate-600 dark:text-zinc-400 hover:text-rose-500'">
+                [attr.aria-pressed]="post.liked"
+                [class]="post.liked ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-zinc-400 hover:text-rose-700 dark:hover:text-rose-400'">
                 <fa-icon [icon]="icons.heart" class="mr-2" [class]="post.liked ? 'fill-current' : ''"></fa-icon>
                 Like
               </tw-button>
-              <tw-button variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-400 hover:text-sky-500" (click)="openPostDetail(post)">
+              <tw-button variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-400 hover:text-sky-700 dark:hover:text-sky-400" (click)="openPostDetail(post)">
                 <fa-icon [icon]="icons.comment" class="mr-2"></fa-icon>
                 Comment
               </tw-button>
-              <tw-button variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-400 hover:text-cyan-500" (click)="sharePost(post)">
+              <tw-button variant="ghost" size="sm" class="text-slate-600 dark:text-zinc-400 hover:text-cyan-700 dark:hover:text-cyan-400" (click)="sharePost(post)">
                 <fa-icon [icon]="icons.shareAlt" class="mr-2"></fa-icon>
                 Share
               </tw-button>
@@ -271,7 +272,9 @@
                 variant="ghost"
                 size="sm"
                 (click)="bookmarkPost(post)"
-                [class]="post.bookmarked ? 'text-sky-500' : 'text-slate-600 dark:text-zinc-400 hover:text-sky-500'">
+                aria-label="Bookmark"
+                [attr.aria-pressed]="post.bookmarked"
+                [class]="post.bookmarked ? 'text-sky-700 dark:text-sky-400' : 'text-slate-600 dark:text-zinc-400 hover:text-sky-700 dark:hover:text-sky-400'">
                 <fa-icon [icon]="icons.bookmark" [class]="post.bookmarked ? 'fill-current' : ''"></fa-icon>
               </tw-button>
             </div>

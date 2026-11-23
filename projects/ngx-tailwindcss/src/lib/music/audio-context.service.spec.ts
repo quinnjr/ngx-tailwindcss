@@ -199,6 +199,39 @@ describe('AudioContextService', () => {
     });
   });
 
+  describe('source mute', () => {
+    beforeEach(() => {
+      vi.stubGlobal('AudioContext', MockAudioContext);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should restore the pre-mute gain on unmute instead of unity', async () => {
+      const source = await service.connectMediaElement(document.createElement('audio'));
+      service.setSourceGain(source.id, 0.2);
+
+      service.setSourceMuted(source.id, true);
+      expect(source.gain!.gain.value).toBe(0);
+      // Muting twice must not overwrite the saved level with 0
+      service.setSourceMuted(source.id, true);
+
+      service.setSourceMuted(source.id, false);
+      expect(source.gain!.gain.value).toBe(0.2);
+    });
+
+    it('should let an explicit gain while muted supersede the saved level', async () => {
+      const source = await service.connectMediaElement(document.createElement('audio'));
+      service.setSourceGain(source.id, 0.2);
+      service.setSourceMuted(source.id, true);
+      service.setSourceGain(source.id, 0.7);
+
+      service.setSourceMuted(source.id, false);
+      expect(source.gain!.gain.value).toBe(0.7);
+    });
+  });
+
   describe('microphone and context lifecycle', () => {
     beforeEach(() => {
       vi.stubGlobal('AudioContext', MockAudioContext);

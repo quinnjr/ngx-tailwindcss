@@ -131,6 +131,21 @@ describe('TwMixerComponent layout', () => {
     expect(header().getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('should start a section collapsed when its collapsed flag is set', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.componentInstance.sections = [
+      { id: 's', name: 'S', channelIds: ['c', 'd'], collapsed: true },
+    ];
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(2);
+    const header = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      b => b.querySelector('span.truncate')?.textContent?.trim() === 'S'
+    )!;
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('should show the collapsed-section channel count in a readable colour', async () => {
     await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
     const fixture = TestBed.createComponent(SectionHostComponent);

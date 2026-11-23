@@ -74,7 +74,8 @@ const INPUT_WRAPPER_VARIANTS: Record<InputVariant, string> = {
 const INPUT_WRAPPER_ERROR_CLASSES =
   'border-rose-500 dark:border-rose-500 focus-within:border-rose-500 dark:focus-within:border-rose-500 focus-within:ring-rose-500/20';
 
-const LABEL_REQUIRED_CLASSES = "after:content-['*'] after:ml-0.5 after:text-rose-500";
+const LABEL_REQUIRED_CLASSES =
+  "after:content-['*'] after:ml-0.5 after:text-rose-600 dark:after:text-rose-400";
 
 /**
  * Label directive for form fields
@@ -139,7 +140,7 @@ export class TwErrorDirective {
 
   @HostBinding('class')
   get hostClass(): string {
-    return this.twClass.merge('block text-xs text-rose-600 mt-1.5', this.class);
+    return this.twClass.merge('block text-xs text-rose-600 dark:text-rose-400 mt-1.5', this.class);
   }
 
   @HostBinding('attr.role')

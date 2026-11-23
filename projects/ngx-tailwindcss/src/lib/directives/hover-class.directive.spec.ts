@@ -48,7 +48,73 @@ class ToggleHostComponent {
   readonly selected = signal(false);
 }
 
+@Component({
+  template: `<div
+    twHoverClass="bg-red-600 ring-2"
+    class="p-2"
+    [class.bg-red-500]="hasError()"
+    [class.ring-2]="focused()"
+    data-testid="hover"
+  >
+    Error
+  </div>`,
+  standalone: true,
+  imports: [TwHoverClassDirective],
+})
+class RemoveOnlyHostComponent {
+  readonly hasError = signal(true);
+  readonly focused = signal(false);
+}
+
 describe('TwHoverClassDirective', () => {
+  it('should not restore a conflicting class a binding removed while hovered', () => {
+    const fixture = TestBed.createComponent(RemoveOnlyHostComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement.querySelector('[data-testid="hover"]') as HTMLElement;
+    expect(el.classList.contains('bg-red-500')).toBe(true);
+
+    el.dispatchEvent(new Event('mouseenter'));
+    expect(el.classList.contains('bg-red-600')).toBe(true);
+    expect(el.classList.contains('bg-red-500')).toBe(false);
+
+    fixture.componentInstance.hasError.set(false);
+    fixture.detectChanges();
+
+    el.dispatchEvent(new Event('mouseleave'));
+    expect(el.classList.contains('bg-red-500')).toBe(false);
+    expect(el.classList.contains('bg-red-600')).toBe(false);
+    expect(el.classList.contains('ring-2')).toBe(false);
+    expect(el.classList.contains('p-2')).toBe(true);
+    // The element's own classList is no longer wrapped after leaving
+    expect(Object.hasOwn(el, 'classList')).toBe(false);
+  });
+
+  it('should keep a hover class that a binding asserted while hovered', () => {
+    const fixture = TestBed.createComponent(RemoveOnlyHostComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement.querySelector('[data-testid="hover"]') as HTMLElement;
+
+    el.dispatchEvent(new Event('mouseenter'));
+    fixture.componentInstance.focused.set(true);
+    fixture.detectChanges();
+
+    el.dispatchEvent(new Event('mouseleave'));
+    expect(el.classList.contains('ring-2')).toBe(true);
+    expect(el.classList.contains('bg-red-600')).toBe(false);
+    expect(el.classList.contains('bg-red-500')).toBe(true);
+  });
+
+  it('should unwrap classList when destroyed while hovered', () => {
+    const fixture = TestBed.createComponent(RemoveOnlyHostComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement.querySelector('[data-testid="hover"]') as HTMLElement;
+
+    el.dispatchEvent(new Event('mouseenter'));
+    expect(Object.hasOwn(el, 'classList')).toBe(true);
+    fixture.destroy();
+    expect(Object.hasOwn(el, 'classList')).toBe(false);
+  });
+
   it('should swap out conflicting element classes while hovered and restore them on leave', () => {
     // Tailwind 4 orders bg-blue-500 before bg-blue-600 regardless of class order,
     // so the static class must be removed for the hover class to win either way

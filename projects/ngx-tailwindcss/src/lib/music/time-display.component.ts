@@ -92,6 +92,19 @@ export class TwTimeDisplayComponent {
     }
   });
 
+  // role="img" hides the visible text, so the name carries everything shown, including the
+  // total that the default/minimal variants print after the current time
+  protected readonly ariaLabel = computed(() => {
+    const label = this.label();
+    const variant = this.variant();
+    const showsTotal =
+      this.showTotal() &&
+      this.mode() === 'time' &&
+      (variant === 'default' || variant === 'minimal');
+    const total = showsTotal ? ` of ${this.formatTime(this.total())}` : '';
+    return (label ? `${label}: ` : '') + this.displayText() + total;
+  });
+
   protected readonly displayChars = computed(() => {
     return this.displayText().split('');
   });

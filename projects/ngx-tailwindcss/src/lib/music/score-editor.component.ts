@@ -12,6 +12,8 @@ import {
   OnInit,
   output,
   signal,
+  untracked,
+  viewChild,
   viewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -221,6 +223,10 @@ export class TwScoreEditorComponent implements OnInit {
 
   private readonly noteInputs = viewChildren(TwNoteInputComponent);
 
+  // The open dialog (add part / transpose / export) and the element focused before it opened
+  private readonly openDialog = viewChild<ElementRef<HTMLElement>>('dialog');
+  private dialogReturnFocus: HTMLElement | null = null;
+
   // ==================== COMPUTED ====================
 
   protected readonly selectedPart = computed(() => {
@@ -274,6 +280,25 @@ export class TwScoreEditorComponent implements OnInit {
         noteInput.setRestMode(rest);
         noteInput.setVoice(voice);
       }
+    });
+
+    // The dialogs render at the end of the editor: move focus into an opened dialog (else
+    // keyboard users must tab through every staff to reach it) and back when it closes
+    effect(() => {
+      const dialog = this.openDialog()?.nativeElement;
+      untracked(() => {
+        if (dialog) {
+          const active = dialog.ownerDocument.activeElement as HTMLElement | null;
+          if (!dialog.contains(active)) {
+            this.dialogReturnFocus = active;
+            dialog.querySelector<HTMLElement>('button')?.focus();
+          }
+        } else if (this.dialogReturnFocus) {
+          const target = this.dialogReturnFocus;
+          this.dialogReturnFocus = null;
+          if (target.isConnected) target.focus();
+        }
+      });
     });
   }
 

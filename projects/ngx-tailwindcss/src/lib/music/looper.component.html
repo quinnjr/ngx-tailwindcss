@@ -105,7 +105,7 @@
         class="rounded-full flex items-center justify-center transition-all"
         [class]="buttonSizeClasses()"
         [class.bg-green-600]="state() === 'playing'"
-        [class.hover:bg-green-500]="state() === 'playing'"
+        [class.hover:bg-green-700]="state() === 'playing'"
         [class.bg-slate-700]="state() !== 'playing'"
         [class.hover:bg-slate-600]="state() !== 'playing'"
         [disabled]="disabled() || layers().length === 0"
@@ -131,7 +131,7 @@
         class="rounded-full flex items-center justify-center transition-all"
         [class]="buttonSizeClasses()"
         [class.bg-amber-600]="state() === 'overdubbing'"
-        [class.hover:bg-amber-500]="state() === 'overdubbing'"
+        [class.hover:bg-amber-700]="state() === 'overdubbing'"
         [class.bg-amber-500/20]="state() !== 'overdubbing'"
         [class.hover:bg-amber-500/30]="state() !== 'overdubbing' && canOverdub()"
         [class.ring-2]="state() === 'overdubbing'"
@@ -325,6 +325,7 @@
           [class.bg-slate-700]="playbackSpeed() !== 0.5"
           [class.text-slate-300]="playbackSpeed() !== 0.5"
           [class.hover:bg-slate-600]="playbackSpeed() !== 0.5"
+          [attr.aria-pressed]="playbackSpeed() === 0.5"
           (click)="setPlaybackSpeed(0.5)"
         >
           0.5x
@@ -337,6 +338,7 @@
           [class.bg-slate-700]="playbackSpeed() !== 1"
           [class.text-slate-300]="playbackSpeed() !== 1"
           [class.hover:bg-slate-600]="playbackSpeed() !== 1"
+          [attr.aria-pressed]="playbackSpeed() === 1"
           (click)="setPlaybackSpeed(1)"
         >
           1x
@@ -349,6 +351,7 @@
           [class.bg-slate-700]="playbackSpeed() !== 2"
           [class.text-slate-300]="playbackSpeed() !== 2"
           [class.hover:bg-slate-600]="playbackSpeed() !== 2"
+          [attr.aria-pressed]="playbackSpeed() === 2"
           (click)="setPlaybackSpeed(2)"
         >
           2x

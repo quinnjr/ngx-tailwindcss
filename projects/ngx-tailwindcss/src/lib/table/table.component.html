@@ -196,7 +196,12 @@
           @if (typeof page === 'string') {
             <span class="px-2 text-slate-400 dark:text-slate-500">...</span>
           } @else {
-            <button type="button" [class]="pageButtonClasses(+page)" (click)="goToPage(+page)">
+            <button
+              type="button"
+              [class]="pageButtonClasses(+page)"
+              [attr.aria-current]="+page === currentPage() ? 'page' : null"
+              (click)="goToPage(+page)"
+            >
               {{ page }}
             </button>
           }

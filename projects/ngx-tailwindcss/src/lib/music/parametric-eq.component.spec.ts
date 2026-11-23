@@ -162,4 +162,19 @@ describe('TwParametricEQComponent', () => {
     expect(label.closest('.rounded-lg.p-3')!.classList).toContain('bg-slate-100');
     expect(el.querySelectorAll('.text-white, .text-slate-400')).toHaveLength(0);
   });
+
+  it('should show the selected band ring against the light variant background', () => {
+    const chip = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('[role="switch"]')!.parentElement!;
+    internals.selectBand(internals.bands()[0]);
+    fixture.detectChanges();
+    expect(chip().classList).toContain('ring-white');
+
+    // A white ring is invisible on the light page the light variant sits on
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(chip().classList).toContain('ring-2');
+    expect(chip().classList).toContain('ring-slate-900');
+    expect(chip().classList).not.toContain('ring-white');
+  });
 });

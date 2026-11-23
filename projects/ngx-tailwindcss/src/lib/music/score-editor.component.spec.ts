@@ -446,6 +446,33 @@ describe('TwScoreEditorComponent', () => {
     expect(byLabel('Dotted')!.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('exposes dialogs as named modal dialogs that take focus and close on Escape', async () => {
+    createWith(score([placed('n1')]));
+    document.body.append(fixture.nativeElement);
+    const root = fixture.nativeElement as HTMLElement;
+    const exportButton = root.querySelector<HTMLButtonElement>('.toolbar-btn[title="Export"]')!;
+    exportButton.focus();
+    exportButton.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const dialog = root.querySelector<HTMLElement>('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog!.getAttribute('aria-modal')).toBe('true');
+    expect(dialog!.getAttribute('aria-label')).toBe('Export score');
+    // It rendered after every staff while focus stayed on the toolbar
+    expect(dialog!.contains(document.activeElement)).toBe(true);
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(root.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(exportButton);
+    root.remove();
+  });
+
   it('selects a part when its staff receives keyboard focus', () => {
     createWith(score([placed('n1')]));
     editor.addPart('flute');

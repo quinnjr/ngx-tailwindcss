@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   input,
+  linkedSignal,
   numberAttribute,
   output,
   signal,
@@ -111,7 +112,16 @@ export class TwMixerComponent {
   protected readonly internalMasterVolume = signal(75);
   protected readonly masterMute = signal(false);
   protected readonly scrollOffset = signal(0);
-  protected readonly collapsedSections = signal<Set<string>>(new Set());
+  // Seeded from each section's `collapsed` flag (re-seeded when `sections` changes), then
+  // toggled by the section headers
+  protected readonly collapsedSections = linkedSignal<Set<string>>(
+    () =>
+      new Set(
+        this.sections()
+          .filter(s => s.collapsed)
+          .map(s => s.id)
+      )
+  );
   protected readonly currentBreakpoint = signal<MixerBreakpoint>('md');
 
   constructor() {

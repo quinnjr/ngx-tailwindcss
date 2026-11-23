@@ -104,7 +104,9 @@
               [class.hover:bg-slate-50]="
                 interactive() && variant() !== 'dark' && variant() !== 'fakebook'
               "
-              [class.dark:hover:bg-slate-800]="interactive() && variant() === 'default'"
+              [class.dark:hover:bg-slate-800]="
+                interactive() && (variant() === 'default' || variant() === 'minimal')
+              "
               [class.hover:bg-amber-100]="interactive() && variant() === 'fakebook'"
               (click)="
                 onMeasureClick(sectionIndex, rowIndex * measuresPerRow() + measureInRowIndex)

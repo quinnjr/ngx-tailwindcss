@@ -221,4 +221,15 @@ describe('TwCompressorMeterComponent', () => {
     expect(internals.labelClass()).toBe('text-slate-600');
     expect(internals.grValueClass()).toBe('text-amber-700');
   });
+
+  it('should keep the CLIP label at 4.5:1 while hovered', () => {
+    internals.inputClip.set(true);
+    fixture.detectChanges();
+    const clip = (fixture.nativeElement as HTMLElement).querySelector(
+      '[aria-label="Reset clip indicator"]'
+    )!;
+    // White on the old hover:bg-red-500 was ~3.8:1
+    expect(clip.classList).toContain('hover:bg-red-700');
+    expect(clip.classList).not.toContain('hover:bg-red-500');
+  });
 });

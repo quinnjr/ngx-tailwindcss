@@ -659,3 +659,38 @@ describe('TwInputComponent wrapper focus indicator', () => {
     expect(inputs[1].parentElement.className).toContain('focus-within:ring-2');
   });
 });
+
+@Component({
+  template: `
+    <tw-input label="Name" required error="Required"></tw-input>
+    <tw-textarea label="Bio" required error="Too short"></tw-textarea>
+    <tw-label required>Label</tw-label>
+    <tw-error>Oops</tw-error>
+  `,
+  standalone: true,
+  imports: [TwInputComponent, TwTextareaComponent, TwLabelDirective, TwErrorDirective],
+})
+class ErrorContrastHostComponent {}
+
+describe('TwInputComponent / TwTextareaComponent error text contrast', () => {
+  it('should use AA-contrast colours for the error text and required marker in both themes', () => {
+    // rose-600 is under 4.5:1 on dark surfaces and rose-500 under 4.5:1 on white
+    const fixture = TestBed.createComponent(ErrorContrastHostComponent);
+    fixture.detectChanges();
+    const errors = [...fixture.nativeElement.querySelectorAll('[role="alert"]')] as HTMLElement[];
+    expect(errors.length).toBe(3);
+    for (const error of errors) {
+      expect(error.className).toContain('text-rose-600');
+      expect(error.className).toContain('dark:text-rose-400');
+    }
+    const markers = [...fixture.nativeElement.querySelectorAll('label > span')] as HTMLElement[];
+    expect(markers.map(m => m.textContent?.trim())).toEqual(['*', '*']);
+    for (const marker of markers) {
+      expect(marker.className).toContain('text-rose-600');
+      expect(marker.className).toContain('dark:text-rose-400');
+    }
+    const label = fixture.debugElement.query(By.directive(TwLabelDirective)).nativeElement;
+    expect(label.className).toContain('after:text-rose-600');
+    expect(label.className).toContain('dark:after:text-rose-400');
+  });
+});

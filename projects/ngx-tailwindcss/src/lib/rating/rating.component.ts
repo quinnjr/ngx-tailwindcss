@@ -222,6 +222,9 @@ export class TwRatingComponent implements ControlValueAccessor {
   clear(): void {
     this.value.set(0);
     this.onChangeFn(0);
+    // The clear button is removed once the value is 0, so it never blurs; mark the
+    // control touched here so `updateOn: 'blur'` form controls commit the cleared value
+    this.onTouchedFn();
     this.change.emit(0);
   }
 

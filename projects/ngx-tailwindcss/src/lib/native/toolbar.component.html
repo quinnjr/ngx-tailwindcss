@@ -16,7 +16,7 @@
             [attr.title]="item.tooltip || item.label"
             [disabled]="item.disabled"
             aria-haspopup="true"
-            [attr.aria-expanded]="openDropdownId === item.id"
+            [attr.aria-expanded]="openDropdownId() === item.id"
             (click)="toggleDropdown(item)"
           >
             @if (item.icon) {
@@ -32,8 +32,9 @@
             </svg>
           </button>
 
-          @if (openDropdownId === item.id && item.items?.length) {
+          @if (openDropdownId() === item.id && item.items?.length) {
             <div
+              data-toolbar-dropdown
               class="absolute top-full left-0 mt-1 py-1 min-w-32 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
             >
               @for (subItem of item.items; track subItem.id) {

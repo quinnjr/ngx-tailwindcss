@@ -322,6 +322,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contrast: `tw-oscilloscope` and `tw-parametric-eq` light variants,
   `tw-pan-control` chips, `tw-bpm-display` LED label, `tw-scrubber` markers,
   `tw-sheet-music` zoom label and `tw-note-input` undo/redo buttons
+- `twLazyImage` loads the new image when its source changes and ignores a
+  stale preload that finishes late; `tw-multiselect` marks the control
+  touched when focus leaves it, so `updateOn: 'blur'` commits its value;
+  disabled `tw-tree` nodes have disabled checkboxes
+- Native: `tw-menu-bar` submenus open on click, hover and ArrowRight and are
+  keyboard navigable; `tw-search-bar` suggestions stay open while focus is
+  inside them; `tw-settings-panel` highlights the shown category with
+  `aria-current`; `tw-context-menu` supports radio items; the toolbar
+  dropdown, tab-bar overflow and property-inspector categories expose
+  `aria-expanded`; unsaved tabs are announced; text contrast fixes in the
+  about, prompt and preferences dialogs, log viewer, command palette, quick
+  switcher, menus, toolbar and shortcuts editor
+- Music: `minimal` `tw-tablature`, `tw-chord-diagram` and `tw-piano-chord`
+  follow the page theme; `tw-graphic-eq` clears the active preset when the
+  form writes different values; `tw-pan-control` knob L/R labels no longer
+  overlap the value arc; `tw-fader` dB unit meets contrast on `minimal`;
+  `tw-audio-stats` shows no lossy badge for unknown codecs
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

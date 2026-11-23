@@ -1,6 +1,8 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TwGraphicEQComponent } from './graphic-eq.component';
+import { EQBandValue, TwGraphicEQComponent } from './graphic-eq.component';
 
 describe('TwGraphicEQComponent', () => {
   let fixture: ComponentFixture<TwGraphicEQComponent>;
@@ -287,5 +289,45 @@ describe('TwGraphicEQComponent', () => {
     // At 60% opacity the description was ~3.4:1 (minimal) / ~4:1 (light)
     expect(description.classList).toContain('opacity-80');
     expect(description.classList).not.toContain('opacity-60');
+  });
+});
+
+@Component({
+  template: `<tw-graphic-eq
+    [bandCount]="5"
+    [showPresetDropdown]="false"
+    [formControl]="control"
+  />`,
+  standalone: true,
+  imports: [TwGraphicEQComponent, ReactiveFormsModule],
+})
+class BlurUpdateHostComponent {
+  control = new FormControl<EQBandValue[] | null>(null, { updateOn: 'blur' });
+}
+
+describe('TwGraphicEQComponent updateOn blur', () => {
+  it('commits preset and reset changes made by the user and marks the control touched', () => {
+    const fixture = TestBed.createComponent(BlurUpdateHostComponent);
+    fixture.detectChanges();
+    const control = fixture.componentInstance.control;
+    const buttons = [...fixture.nativeElement.querySelectorAll('button')] as HTMLButtonElement[];
+
+    buttons.find(b => b.textContent?.trim() === 'Rock')!.click();
+    fixture.detectChanges();
+    expect(control.touched).toBe(true);
+    expect(control.value?.some(b => b.gain !== 0)).toBe(true);
+
+    const reset = buttons.find(
+      b => /reset/i.test(b.textContent ?? '') || /reset/i.test(b.getAttribute('aria-label') ?? '')
+    )!;
+    reset.click();
+    fixture.detectChanges();
+    expect(control.value?.every(b => b.gain === 0)).toBe(true);
+
+    control.setValue([{ frequency: 60, gain: 3 }]);
+    fixture.detectChanges();
+    const slider = fixture.nativeElement.querySelector('[role="slider"]') as HTMLElement;
+    slider.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(control.value?.[0].gain).toBe(0);
   });
 });

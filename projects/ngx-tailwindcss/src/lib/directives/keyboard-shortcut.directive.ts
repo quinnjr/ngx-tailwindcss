@@ -6,10 +6,12 @@ import {
   inject,
   Input,
   NgZone,
+  OnChanges,
   OnDestroy,
   OnInit,
   Output,
   PLATFORM_ID,
+  SimpleChanges,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { splitShortcut } from '../native/shortcut-keys.util';
@@ -37,7 +39,7 @@ export interface KeyboardShortcutEvent {
   selector: '[twKeyboardShortcut]',
   standalone: true,
 })
-export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
+export class TwKeyboardShortcutDirective implements OnInit, OnChanges, OnDestroy {
   private readonly ngZone: NgZone;
   private readonly platformId: object;
   private readonly el: ElementRef<HTMLElement>;
@@ -140,16 +142,32 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
+    this.attachListener();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Switching between global and element-scoped listening moves the listener
+    if (!this.listenTarget || !changes['shortcutGlobal']) return;
+
+    this.detachListener();
+    this.attachListener();
+  }
+
+  private attachListener(): void {
     this.ngZone.runOutsideAngular(() => {
       this.listenTarget = this.shortcutGlobal ? document : this.el.nativeElement;
       this.listenTarget.addEventListener('keydown', this.keydownHandler);
     });
   }
 
-  ngOnDestroy(): void {
+  private detachListener(): void {
     if (this.listenTarget) {
       this.listenTarget.removeEventListener('keydown', this.keydownHandler);
       this.listenTarget = null;
     }
+  }
+
+  ngOnDestroy(): void {
+    this.detachListener();
   }
 }

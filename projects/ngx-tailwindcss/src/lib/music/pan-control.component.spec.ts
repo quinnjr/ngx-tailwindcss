@@ -1,5 +1,7 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwPanControlComponent } from './pan-control.component';
 
 describe('TwPanControlComponent', () => {
@@ -184,5 +186,63 @@ describe('TwPanControlComponent', () => {
     expect(span('R').className).toContain('bg-cyan-400');
     expect(span('R').className).toContain('text-slate-900');
     expect(span('L').className).toContain('text-slate-300');
+  });
+});
+
+@Component({
+  imports: [TwPanControlComponent, ReactiveFormsModule],
+  template: `<tw-pan-control [variant]="variant" [formControl]="control" />`,
+})
+class PanBlurHostComponent {
+  variant: 'slider' | 'knob' = 'slider';
+  readonly control = new FormControl(0, { updateOn: 'blur' });
+}
+
+describe('TwPanControlComponent with updateOn: blur', () => {
+  let listeners: Record<string, (e: Event) => void>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [PanBlurHostComponent] }).compileComponents();
+    // jsdom's AbortSignal does not mix with zone.js-patched document listeners: capture them
+    listeners = {};
+    vi.spyOn(document, 'addEventListener').mockImplementation(((
+      type: string,
+      listener: (e: Event) => void
+    ) => {
+      listeners[type] = listener;
+    }) as typeof document.addEventListener);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('should commit the dragged-to slider value and a double-click reset', () => {
+    const fixture = TestBed.createComponent(PanBlurHostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('tw-pan-control') as HTMLElement;
+    const track = host.querySelector<HTMLElement>('.shadow-inner')!;
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 100, height: 12 })
+    );
+
+    track.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 75 }));
+    listeners['mousemove'](new MouseEvent('mousemove', { clientX: 100 }));
+    listeners['mouseup'](new MouseEvent('mouseup'));
+    expect(fixture.componentInstance.control.value).toBe(100);
+
+    host.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(fixture.componentInstance.control.value).toBe(0);
+  });
+
+  it('should commit the dragged-to knob value', () => {
+    const fixture = TestBed.createComponent(PanBlurHostComponent);
+    fixture.componentInstance.variant = 'knob';
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('tw-pan-control') as HTMLElement;
+    const knob = host.querySelector<HTMLElement>('.cursor-pointer')!;
+
+    knob.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: 100 }));
+    listeners['mousemove'](new MouseEvent('mousemove', { clientY: 75 }));
+    listeners['mouseup'](new MouseEvent('mouseup'));
+    expect(fixture.componentInstance.control.value).toBe(50);
   });
 });

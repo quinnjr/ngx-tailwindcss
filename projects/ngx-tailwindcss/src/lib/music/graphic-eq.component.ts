@@ -802,12 +802,23 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
     });
     this.bandChange.emit({ frequency: this.frequencies()[bandIndex], gain: 0 });
     this.emitValues();
+    this.onTouched();
   }
 
   protected resetAll(): void {
     this.bandValues.set(this.frequencies().map(() => 0));
     this.currentPreset.set(EQ_PRESETS[0]); // Flat preset
     this.emitValues();
+    this.onTouched();
+  }
+
+  /**
+   * A preset chosen by the user also marks the control as touched, which commits
+   * the new values of `updateOn: 'blur'` form controls.
+   */
+  protected onPresetClick(preset: EQPreset): void {
+    this.applyPreset(preset);
+    this.onTouched();
   }
 
   // Preset methods

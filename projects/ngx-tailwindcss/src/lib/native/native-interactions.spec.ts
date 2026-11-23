@@ -844,6 +844,39 @@ describe('native defects (round 22)', () => {
     expect(category.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('toolbar dropdown closes on an outside click and on Escape', () => {
+    const toolbar = TestBed.createComponent(TwToolbarComponent);
+    toolbar.componentRef.setInput('items', [
+      {
+        id: 'd',
+        type: 'dropdown',
+        label: 'More',
+        items: [{ id: 'x', type: 'button', label: 'X' }],
+      },
+    ]);
+    document.body.append(toolbar.nativeElement);
+    toolbar.detectChanges();
+    const el = toolbar.nativeElement as HTMLElement;
+    const trigger = el.querySelector('button')!;
+
+    trigger.click();
+    toolbar.detectChanges();
+    expect(el.querySelector('[data-toolbar-dropdown]')).not.toBeNull();
+    document.body.click();
+    toolbar.detectChanges();
+    expect(el.querySelector('[data-toolbar-dropdown]')).toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+
+    trigger.click();
+    toolbar.detectChanges();
+    el.querySelector<HTMLButtonElement>('[data-toolbar-dropdown] button')!.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    toolbar.detectChanges();
+    expect(el.querySelector('[data-toolbar-dropdown]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    el.remove();
+  });
+
   it('small text meets 4.5:1 on its background', () => {
     const about = TestBed.createComponent(TwAboutDialogComponent);
     about.componentRef.setInput('open', true);

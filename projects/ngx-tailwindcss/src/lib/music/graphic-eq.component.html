@@ -72,7 +72,7 @@
                           [class]="colors().value"
                           [class.bg-white/5]="isPresetActive(preset)"
                           [attr.aria-pressed]="isPresetActive(preset)"
-                          (click)="applyPreset(preset)"
+                          (click)="onPresetClick(preset)"
                         >
                           <div>
                             <div class="font-medium">{{ preset.name }}</div>
@@ -129,7 +129,7 @@
               : 'bg-white/10 ' + colors().label
           "
           [attr.aria-pressed]="isPresetActive(preset)"
-          (click)="applyPreset(preset)"
+          (click)="onPresetClick(preset)"
           [disabled]="isDisabled()"
         >
           {{ preset.name }}

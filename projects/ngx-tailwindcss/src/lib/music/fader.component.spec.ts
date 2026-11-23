@@ -319,6 +319,20 @@ describe('TwFaderComponent', () => {
       expect(received).toEqual([12]);
     });
 
+    it('should mark the control touched after a double-click reset (updateOn: blur commits)', () => {
+      const calls: string[] = [];
+      component.registerOnChange(() => calls.push('change'));
+      component.registerOnTouched(() => calls.push('touched'));
+      hostEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+      calls.length = 0;
+
+      const cap = hostEl.querySelector<HTMLElement>('[title^="Double-click"]')!;
+      cap.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+
+      // The reset value is only committed by a touched call that follows it
+      expect(calls).toEqual(['change', 'touched']);
+    });
+
     it('should mark the control touched on keyboard interaction', () => {
       let touched = false;
       component.registerOnTouched(() => (touched = true));

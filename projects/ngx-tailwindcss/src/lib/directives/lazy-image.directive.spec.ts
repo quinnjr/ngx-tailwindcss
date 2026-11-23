@@ -28,6 +28,15 @@ class DynamicSrcHostComponent {
   events: LazyImageEvent[] = [];
 }
 
+@Component({
+  template: `<img twLazyImage="/real.jpg" alt="" [lazyDisabled]="eager()" />`,
+  standalone: true,
+  imports: [TwLazyImageDirective],
+})
+class DynamicDisabledHostComponent {
+  eager = signal(false);
+}
+
 /** Preload image stub that fires `load` asynchronously once a source is set */
 class FakeImage extends EventTarget {
   set src(_value: string) {
@@ -98,5 +107,20 @@ describe('TwLazyImageDirective', () => {
 
     expect(img.getAttribute('src')).toBe('/second.jpg');
     expect(fixture.componentInstance.events).toEqual([{ loaded: true, src: '/second.jpg' }]);
+  });
+
+  it('should load a pending image immediately when lazyDisabled switches on', async () => {
+    const fixture = TestBed.createComponent(DynamicDisabledHostComponent);
+    fixture.detectChanges();
+    const img: HTMLImageElement = fixture.nativeElement.querySelector('img');
+
+    // Never intersects: the image only loads because lazy loading was disabled
+    fixture.componentInstance.eager.set(true);
+    fixture.detectChanges();
+    await new Promise(resolve => {
+      setTimeout(resolve, 10);
+    });
+
+    expect(img.getAttribute('src')).toBe('/real.jpg');
   });
 });

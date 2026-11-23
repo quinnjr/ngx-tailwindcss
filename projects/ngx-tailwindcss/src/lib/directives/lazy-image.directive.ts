@@ -88,12 +88,25 @@ export class TwLazyImageDirective implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // A new source (e.g. a reused component bound to different data) restarts loading
-    if (!this.initialized || !changes['twLazyImage']) return;
+    if (!this.initialized) return;
 
-    this.stop();
-    this.toggleClasses(this.lazyLoadedClass, false);
-    this.start();
+    // A new source (e.g. a reused component bound to different data) restarts loading
+    if (changes['twLazyImage']) {
+      this.stop();
+      this.toggleClasses(this.lazyLoadedClass, false);
+      this.start();
+      return;
+    }
+
+    // Loading options changed while still waiting to enter the viewport (e.g.
+    // `lazyDisabled` switched on to load eagerly) apply to that pending load
+    if (
+      this.observer &&
+      (changes['lazyDisabled'] || changes['lazyRootMargin'] || changes['lazyNative'])
+    ) {
+      this.stop();
+      this.start();
+    }
   }
 
   private start(): void {

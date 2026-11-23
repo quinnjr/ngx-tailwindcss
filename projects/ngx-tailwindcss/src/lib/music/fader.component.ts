@@ -680,6 +680,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   protected resetToDefault(): void {
     if (this.isDisabled()) return;
     this.setValue(this.defaultValue());
+    // Commit for updateOn: 'blur' forms (the press already marked the control touched)
+    this.onTouched();
   }
 
   // ControlValueAccessor

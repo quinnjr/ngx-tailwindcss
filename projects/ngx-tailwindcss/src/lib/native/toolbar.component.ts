@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToolbarItem, ToolbarPosition, ToolbarVariant } from './native.types';
 
@@ -22,6 +32,8 @@ import { ToolbarItem, ToolbarPosition, ToolbarVariant } from './native.types';
   },
 })
 export class TwToolbarComponent {
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+
   // Inputs
   public readonly items = input<ToolbarItem[]>([]);
   public readonly variant = input<ToolbarVariant>('default');
@@ -32,7 +44,31 @@ export class TwToolbarComponent {
   public readonly itemClick = output<ToolbarItem>();
 
   // State
-  protected openDropdownId: string | null = null;
+  protected readonly openDropdownId = signal<string | null>(null);
+
+  /** Close an open dropdown when clicking anywhere outside the toolbar. */
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (
+      this.openDropdownId() !== null &&
+      !this.elementRef.nativeElement.contains(event.target as Node)
+    ) {
+      this.openDropdownId.set(null);
+    }
+  }
+
+  /** Escape closes an open dropdown, returning focus to its trigger if it was inside. */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.openDropdownId() === null) return;
+    const host = this.elementRef.nativeElement;
+    const dropdown = host.querySelector('[data-toolbar-dropdown]');
+    const hadFocus = dropdown?.contains(host.ownerDocument.activeElement) ?? false;
+    this.openDropdownId.set(null);
+    if (hadFocus) {
+      host.querySelector<HTMLElement>('[aria-expanded="true"]')?.focus();
+    }
+  }
 
   // Computed classes
   protected readonly containerClasses = computed(() => {
@@ -88,11 +124,7 @@ export class TwToolbarComponent {
   }
 
   protected toggleDropdown(item: ToolbarItem): void {
-    if (this.openDropdownId === item.id) {
-      this.openDropdownId = null;
-    } else {
-      this.openDropdownId = item.id;
-    }
+    this.openDropdownId.set(this.openDropdownId() === item.id ? null : item.id);
   }
 
   protected onItemClick(item: ToolbarItem): void {
@@ -103,6 +135,6 @@ export class TwToolbarComponent {
     }
 
     this.itemClick.emit(item);
-    this.openDropdownId = null;
+    this.openDropdownId.set(null);
   }
 }

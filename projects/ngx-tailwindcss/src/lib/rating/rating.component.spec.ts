@@ -503,3 +503,28 @@ describe('TwRatingComponent (regressions)', () => {
     expect(stars[1].getAttribute('aria-label')).toBe('2 stars');
   });
 });
+
+@Component({
+  template: `<tw-rating [showCancel]="true" [formControl]="control"></tw-rating>`,
+  standalone: true,
+  imports: [TwRatingComponent, ReactiveFormsModule],
+})
+class BlurUpdateRatingHostComponent {
+  control = new FormControl(3, { updateOn: 'blur' });
+}
+
+describe('TwRatingComponent (round 23)', () => {
+  it('should commit the cleared value of an updateOn blur control', () => {
+    const fixture = TestBed.createComponent(BlurUpdateRatingHostComponent);
+    fixture.detectChanges();
+    const clearButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      'button[aria-label="Clear rating"]'
+    );
+    clearButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('button[aria-label="Clear rating"]')).toBeNull();
+    expect(fixture.componentInstance.control.value).toBe(0);
+    expect(fixture.componentInstance.control.touched).toBe(true);
+  });
+});

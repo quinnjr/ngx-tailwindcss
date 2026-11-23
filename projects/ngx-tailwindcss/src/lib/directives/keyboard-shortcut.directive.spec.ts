@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { KeyboardShortcutEvent, TwKeyboardShortcutDirective } from './keyboard-shortcut.directive';
@@ -33,6 +33,23 @@ class TestHostComponent {
     this.ctrlSCount++;
     this.lastEvent = event;
   }
+}
+
+@Component({
+  template: `
+    <div
+      tabindex="0"
+      twKeyboardShortcut="escape"
+      [shortcutGlobal]="global()"
+      (shortcutPressed)="count = count + 1"
+    ></div>
+  `,
+  standalone: true,
+  imports: [TwKeyboardShortcutDirective],
+})
+class ScopeHostComponent {
+  global = signal(true);
+  count = 0;
 }
 
 describe('TwKeyboardShortcutDirective', () => {
@@ -130,5 +147,25 @@ describe('TwKeyboardShortcutDirective', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
 
     expect(component.cmdKCount).toBe(0);
+  });
+
+  it('should move the listener when shortcutGlobal changes after init', () => {
+    const scoped = TestBed.createComponent(ScopeHostComponent);
+    scoped.detectChanges();
+    const host: HTMLElement = scoped.nativeElement.querySelector('div');
+
+    scoped.componentInstance.global.set(false);
+    scoped.detectChanges();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(scoped.componentInstance.count).toBe(0);
+
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(scoped.componentInstance.count).toBe(1);
+
+    scoped.componentInstance.global.set(true);
+    scoped.detectChanges();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(scoped.componentInstance.count).toBe(2);
+    scoped.destroy();
   });
 });

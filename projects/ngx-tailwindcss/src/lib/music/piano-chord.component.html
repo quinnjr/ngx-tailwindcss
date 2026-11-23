@@ -6,7 +6,12 @@
         {{ displayName() }}
       </span>
       @if (chordData()?.type) {
-        <span class="text-xs ml-1 opacity-70" [style.color]="colors().text">
+        <!-- No dimming on minimal: slate-700 at 70% is ~4.3:1 on white -->
+        <span
+          class="text-xs ml-1"
+          [class.opacity-70]="variant() !== 'minimal'"
+          [style.color]="colors().text"
+        >
           {{ chordData()!.type }}
         </span>
       }

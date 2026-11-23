@@ -179,6 +179,24 @@ describe('TwPianoChordComponent minimal variant theme', () => {
   });
 });
 
+describe('TwPianoChordComponent chord type contrast', () => {
+  it('does not dim the chord type on the minimal variant (slate-700 at 70% is below 4.5:1)', async () => {
+    await TestBed.configureTestingModule({ imports: [TwPianoChordComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwPianoChordComponent);
+    fixture.componentRef.setInput('chord', 'C');
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const typeSpan = () => host.querySelectorAll<HTMLElement>('span')[1];
+    expect(typeSpan().textContent?.trim()).toBe('major');
+    expect(typeSpan().classList).not.toContain('opacity-70');
+
+    fixture.componentRef.setInput('variant', 'default');
+    fixture.detectChanges();
+    expect(typeSpan().classList).toContain('opacity-70');
+  });
+});
+
 describe('TwPianoChordComponent classOverride', () => {
   // Tailwind 4 emits same-property utilities in a fixed order, so an override that is
   // simply appended (e.g. bg-slate-900 after bg-white) may never take effect

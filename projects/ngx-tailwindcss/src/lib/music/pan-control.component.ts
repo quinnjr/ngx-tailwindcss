@@ -247,6 +247,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
   onDoubleClick(): void {
     if (this.isDisabled()) return;
     this.setValue(0);
+    // Commit for updateOn: 'blur' forms (the press already marked the control touched)
+    this.onTouched();
   }
 
   @HostListener('keydown', ['$event'])
@@ -309,6 +311,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
       this.dragRect = null;
       this.dragController?.abort();
       this.dragController = null;
+      // Commit the dragged-to value for updateOn: 'blur' forms
+      this.onTouched();
     }
   };
 
@@ -340,6 +344,8 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
     const onUp = (): void => {
       this.dragController?.abort();
       this.dragController = null;
+      // Commit the dragged-to value for updateOn: 'blur' forms
+      this.onTouched();
     };
 
     this.dragController?.abort();

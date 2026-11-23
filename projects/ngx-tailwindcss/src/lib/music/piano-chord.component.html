@@ -23,6 +23,8 @@
     [attr.width]="dimensions().totalWidth"
     [attr.height]="dimensions().totalHeight - (showChordName() ? 28 : 0)"
     class="block"
+    role="img"
+    [attr.aria-label]="accessibleLabel()"
   >
     <!-- White Keys -->
     @for (key of whiteKeys(); track key.note + key.octave) {
@@ -81,6 +83,8 @@
           [attr.cy]="getFingerY(isBlackKey(note.note))"
           [attr.r]="dimensions().fingerRadius"
           [attr.fill]="highlightRoot() && note.isRoot ? colors().rootCircle : colors().fingerCircle"
+          [attr.stroke]="colors().ring"
+          stroke-width="2"
           class="transition-colors duration-150"
         />
 

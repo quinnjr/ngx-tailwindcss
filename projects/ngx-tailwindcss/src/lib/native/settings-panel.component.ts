@@ -73,6 +73,16 @@ export class TwSettingsPanelComponent {
     };
   }
 
+  /** Visible text of a shortcut button: the current binding, or a prompt when unset. */
+  protected shortcutText(setting: SettingItem): string {
+    return (setting.value as string) || 'Click to set...';
+  }
+
+  /** Accessible name of a shortcut button: the setting label plus its visible binding text. */
+  protected shortcutLabel(setting: SettingItem): string {
+    return `${setting.label}: ${this.shortcutText(setting)}`;
+  }
+
   public readonly searchQuery = signal('');
   public readonly selectedCategoryId = signal<string | null>(null);
 

@@ -12,7 +12,7 @@
           <button
             type="button"
             [class]="getButtonClasses(item)"
-            [attr.aria-label]="item.tooltip || item.label"
+            [attr.aria-label]="itemAriaLabel(item)"
             [attr.title]="item.tooltip || item.label"
             [disabled]="item.disabled"
             aria-haspopup="true"
@@ -67,7 +67,7 @@
           [class.dark:bg-blue-900/50]="item.active"
           [class.text-blue-700]="item.active"
           [class.dark:text-blue-400]="item.active"
-          [attr.aria-label]="item.tooltip || item.label"
+          [attr.aria-label]="itemAriaLabel(item)"
           [attr.title]="item.tooltip || item.label"
           [attr.aria-pressed]="item.active"
           [disabled]="item.disabled"
@@ -85,7 +85,7 @@
         <button
           type="button"
           [class]="getButtonClasses(item)"
-          [attr.aria-label]="item.tooltip || item.label"
+          [attr.aria-label]="itemAriaLabel(item)"
           [attr.title]="item.tooltip || item.label"
           [disabled]="item.disabled"
           (click)="onItemClick(item)"

@@ -139,6 +139,8 @@ export class TwChordDiagramComponent {
   readonly showFretNumber = input(true);
   readonly leftHanded = input(false);
   readonly classOverride = input('');
+  /** Accessible name of the diagram; derived from the chord name and frets when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
 
   protected readonly chordData = computed((): ChordDefinition | null => {
     const chord = this.chord();
@@ -165,6 +167,24 @@ export class TwChordDiagramComponent {
 
     const chordData = this.chordData();
     return chordData?.name || '';
+  });
+
+  /**
+   * e.g. "C chord diagram, frets x 3 2 0 1 0": frets from the lowest string to string 1
+   * (x = muted, 0 = open, - = not shown)
+   */
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const name = this.displayName();
+    const label = name ? `${name} chord diagram` : 'Chord diagram';
+    const fingerings = this.fingerings();
+    if (fingerings.length === 0) return label;
+    const frets = Array.from({ length: this.stringCount() }, (_, i) => {
+      const fret = fingerings.find(f => f.string === this.stringCount() - i)?.fret;
+      return fret === undefined ? '-' : fret < 0 ? 'x' : String(fret);
+    });
+    return `${label}, frets ${frets.join(' ')}`;
   });
 
   protected readonly displayBaseFret = computed(() => {

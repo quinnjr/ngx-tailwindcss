@@ -68,6 +68,19 @@ describe('TwScrubberComponent', () => {
     expect(thumb.classList).toContain('group-hover:opacity-100');
   });
 
+  it('should keep the spotify playhead fill >= 3:1 against the buffered range', () => {
+    fixture.componentRef.setInput('variant', 'spotify');
+    fixture.componentRef.setInput('buffered', 150);
+    fixture.detectChanges();
+
+    // The thumb is hover-only, so the fill marks the position: emerald-500 was ~1.9:1 on
+    // the slate-500 buffered range
+    expect(slider().querySelector('.bg-slate-500')).not.toBeNull();
+    expect(slider().querySelector('.bg-emerald-500')).toBeNull();
+    const fill = slider().querySelector<HTMLElement>('.bg-emerald-300')!;
+    expect(fill.style.width).toBe('32.5%');
+  });
+
   it('should not leave a stale hover preview after a drag released off the track', () => {
     const track = slider();
     // jsdom's AbortSignal does not mix with zone.js-patched document listeners: capture them

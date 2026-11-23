@@ -108,6 +108,18 @@ export class TwToolbarComponent {
     return 'w-px h-6 mx-1 bg-gray-300 dark:bg-gray-600';
   });
 
+  /**
+   * Accessible name of a toolbar button. When the label is visible it must be part
+   * of the name (WCAG 2.5.3), so a tooltip that omits it cannot replace it.
+   */
+  protected itemAriaLabel(item: ToolbarItem): string | undefined {
+    const tooltip = item.tooltip;
+    if (item.label && this.showLabels()) {
+      return tooltip?.toLowerCase().includes(item.label.toLowerCase()) ? tooltip : item.label;
+    }
+    return tooltip || item.label;
+  }
+
   protected getButtonClasses(item: ToolbarItem): string {
     const variant = this.variant();
     const base = 'flex items-center gap-1.5 rounded transition-colors';

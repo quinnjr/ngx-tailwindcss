@@ -227,12 +227,14 @@
                     }
                     @case ('shortcut') {
                       <button
+                        type="button"
                         [id]="setting.id"
+                        [attr.aria-label]="shortcutLabel(setting)"
                         (click)="editShortcut.emit(setting)"
                         [disabled]="setting.disabled || false"
                         class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-mono transition-colors disabled:opacity-50"
                       >
-                        {{ setting.value || 'Click to set...' }}
+                        {{ shortcutText(setting) }}
                       </button>
                     }
                   }

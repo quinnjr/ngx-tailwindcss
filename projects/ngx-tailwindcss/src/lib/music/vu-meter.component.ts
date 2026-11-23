@@ -347,11 +347,15 @@ export class TwVuMeterComponent {
       );
     }
 
+    // Lit segments on the light-surface variants are kept >= 3:1 against the unlit
+    // segments (WCAG 1.4.11): the lit length is the reading
     if (variant === 'gradient') {
       const activeColors: Record<string, string> = {
-        green: 'bg-gradient-to-t from-emerald-600 to-emerald-400',
-        yellow: 'bg-gradient-to-t from-amber-500 to-amber-300',
-        red: 'bg-gradient-to-t from-red-600 to-red-400',
+        green:
+          'bg-gradient-to-t from-emerald-800 to-emerald-700 dark:from-emerald-500 dark:to-emerald-400',
+        yellow:
+          'bg-gradient-to-t from-amber-800 to-amber-700 dark:from-amber-400 dark:to-amber-300',
+        red: 'bg-gradient-to-t from-red-700 to-red-600 dark:from-red-400 dark:to-red-300',
       };
       return this.twClass.merge(
         baseClasses,
@@ -359,39 +363,10 @@ export class TwVuMeterComponent {
       );
     }
 
-    if (variant === 'solid') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-500',
-        yellow: 'bg-amber-400',
-        red: 'bg-red-500',
-      };
+    if (variant === 'solid' || variant === 'retro' || variant === 'light') {
       return this.twClass.merge(
         baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-slate-100 dark:bg-slate-800'
-      );
-    }
-
-    if (variant === 'retro') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-600',
-        yellow: 'bg-amber-500',
-        red: 'bg-red-600',
-      };
-      return this.twClass.merge(
-        baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-amber-100 dark:bg-amber-900/30'
-      );
-    }
-
-    if (variant === 'light') {
-      const activeColors: Record<string, string> = {
-        green: 'bg-emerald-500',
-        yellow: 'bg-amber-400',
-        red: 'bg-red-500',
-      };
-      return this.twClass.merge(
-        baseClasses,
-        isActive ? activeColors[segment.color] : 'bg-slate-200'
+        isActive ? this.litColors()[segment.color] : TwVuMeterComponent.UNLIT[variant]
       );
     }
 
@@ -407,15 +382,48 @@ export class TwVuMeterComponent {
     );
   }
 
+  private static readonly UNLIT: Record<'solid' | 'retro' | 'light', string> = {
+    solid: 'bg-slate-100 dark:bg-slate-800',
+    retro: 'bg-amber-100 dark:bg-amber-900/30',
+    light: 'bg-slate-200',
+  };
+
+  // Solid zone colours (segments and the peak-hold marker, which sits on unlit segments)
+  private static readonly LIT: Record<VuMeterVariant, Record<MeterSegment['color'], string>> = {
+    led: { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' },
+    highContrast: { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' },
+    gradient: {
+      green: 'bg-emerald-700 dark:bg-emerald-400',
+      yellow: 'bg-amber-700 dark:bg-amber-300',
+      red: 'bg-red-600 dark:bg-red-400',
+    },
+    solid: {
+      green: 'bg-emerald-700 dark:bg-emerald-500',
+      yellow: 'bg-amber-700 dark:bg-amber-400',
+      red: 'bg-red-600 dark:bg-red-500',
+    },
+    retro: {
+      green: 'bg-emerald-700 dark:bg-emerald-600',
+      yellow: 'bg-amber-700 dark:bg-amber-500',
+      red: 'bg-red-600 dark:bg-red-500',
+    },
+    light: { green: 'bg-emerald-700', yellow: 'bg-amber-700', red: 'bg-red-600' },
+  };
+
+  private litColors(): Record<MeterSegment['color'], string> {
+    return TwVuMeterComponent.LIT[this.variant()];
+  }
+
   protected peakClasses(peakValue: number): string {
     const percentage = this.toPercent(peakValue);
+    const colors = this.litColors();
     if (percentage >= this.redThreshold()) {
-      return 'bg-red-500';
+      return colors.red;
     }
     if (percentage >= this.yellowThreshold()) {
-      return 'bg-amber-400';
+      return colors.yellow;
     }
-    return 'bg-emerald-500';
+    return colors.green;
   }
 
   // Public methods

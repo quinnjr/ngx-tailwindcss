@@ -71,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Music: the browser `NativePlatformService.openFile({ directory: true })`
   throws `UnsupportedOnPlatformError` instead of returning the files inside
   the chosen directory; directory picking needs Tauri or Electron
+- `tw-table` removes rows from its selection when they leave `data` (deleted,
+  or replaced by re-fetched objects); the next `selectionChange` no longer
+  includes them, so code that relied on the selection keeping such rows must
+  track them itself
 
 ### 🐛 Fixed
 
@@ -450,8 +454,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depth they mark; `tw-graphic-eq` lists custom presets whose category is not
   enabled under Custom; disabled `tw-parametric-eq` band chips are readable
   instead of faded to 40% opacity
+- `tw-popover` and `tw-dropdown` no longer build a duplicate portal when
+  closed and reopened within the same tick
+- `tw-menu` returns focus to the submenu trigger when the pointer leaves a
+  submenu that holds focus, instead of dropping focus to the page
+- `tw-table` drops selected rows that are no longer in its `data`, so the
+  selection (and later `selectionChange` emissions) no longer reports stale
+  rows
+- Native: the `tw-window-controls` maximize button announces "Enter full
+  screen"/"Exit full screen" when `showFullscreen` is on
+- Music: tenor-clef key signatures draw G# inside the staff; the `tw-looper`
+  buttons, `tw-waveform` zoom buttons and `tw-pitch-display` semitone buttons
+  keep focus when they disable or remove themselves
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
+- Documentation: the README and docs quick start tell you to register an
+  animations provider (`provideAnimationsAsync()`), without which `tw-modal`,
+  `tw-confirm-dialog` and `tw-overlay` throw NG05105 when opened
 - Documentation: corrected package name and documented APIs; demo labels,
   headings and inline code on the docs site are readable in dark mode;
   icon-only buttons and links in the docs demos and examples have accessible

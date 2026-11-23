@@ -10,6 +10,8 @@
     [attr.height]="dimensions().height"
     [attr.viewBox]="'0 0 ' + dimensions().width + ' ' + dimensions().height"
     overflow="visible"
+    role="img"
+    [attr.aria-label]="accessibleLabel()"
   >
     <!-- Background -->
     @if (colors().background !== 'transparent') {

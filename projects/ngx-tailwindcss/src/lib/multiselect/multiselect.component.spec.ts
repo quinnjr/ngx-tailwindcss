@@ -782,3 +782,25 @@ describe('TwMultiSelectComponent (round 30)', () => {
     expect(document.activeElement).toBe(trigger);
   });
 });
+
+describe('TwMultiSelectComponent (round 32)', () => {
+  it('should close the dropdown when the form control is disabled while it is open', () => {
+    const fixture = TestBed.createComponent(ReactiveHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('[role="option"]').length).toBeGreaterThan(0);
+
+    fixture.componentInstance.control.disable();
+    fixture.detectChanges();
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('[role="option"]')).toBeNull();
+    const multiselect = fixture.debugElement.query(By.directive(TwMultiSelectComponent))
+      .componentInstance as TwMultiSelectComponent;
+    multiselect.toggleOption({ label: 'Apple', value: 'apple' });
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual([]);
+  });
+});

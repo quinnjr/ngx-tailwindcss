@@ -633,6 +633,23 @@ describe('native selected states are not overridden by static classes', () => {
     expectExclusive(off, groups[0], groups[1], false);
   });
 
+  it('toolbar keeps a visible label in the accessible name when a tooltip is set', () => {
+    const fixture = TestBed.createComponent(TwToolbarComponent);
+    fixture.componentRef.setInput('items', [
+      { id: 'run', type: 'button', label: 'Run', tooltip: 'Start debugging (F5)' },
+      { id: 'save', type: 'button', label: 'Save', tooltip: 'Save file (Ctrl+S)' },
+    ] as ToolbarItem[]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const names = () => [...el.querySelectorAll('button')].map(b => b.getAttribute('aria-label'));
+    // icon-only: the tooltip is the name
+    expect(names()).toEqual(['Start debugging (F5)', 'Save file (Ctrl+S)']);
+
+    fixture.componentRef.setInput('showLabels', true);
+    fixture.detectChanges();
+    expect(names()).toEqual(['Run', 'Save file (Ctrl+S)']);
+  });
+
   it('prompt dialog shows a red border while invalid', () => {
     const fixture = TestBed.createComponent(TwPromptDialogComponent);
     fixture.componentRef.setInput('minLength', 3);
@@ -719,6 +736,24 @@ describe('native form controls have accessible names and visible actions', () =>
     fixture.detectChanges();
     const hex = (fixture.nativeElement as HTMLElement).querySelector('input.font-mono')!;
     expect(hex.getAttribute('aria-label')).toBe('Accent (hex value)');
+  });
+
+  it('settings panel shortcut button name includes its label and visible binding', () => {
+    const fixture = TestBed.createComponent(TwSettingsPanelComponent);
+    fixture.componentRef.setInput('categories', [{ id: 'a', label: 'Alpha' }]);
+    const setting = { id: 'save', categoryId: 'a', label: 'Save', type: 'shortcut' as const };
+    fixture.componentRef.setInput('settings', [{ ...setting, value: '' }]);
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button#save'
+    )!;
+    expect(button.textContent?.trim()).toBe('Click to set...');
+    expect(button.getAttribute('aria-label')).toBe('Save: Click to set...');
+
+    fixture.componentRef.setInput('settings', [{ ...setting, value: 'Ctrl+S' }]);
+    fixture.detectChanges();
+    expect(button.textContent?.trim()).toBe('Ctrl+S');
+    expect(button.getAttribute('aria-label')).toBe('Save: Ctrl+S');
   });
 
   it('property inspector null value and empty state are readable in both themes', () => {

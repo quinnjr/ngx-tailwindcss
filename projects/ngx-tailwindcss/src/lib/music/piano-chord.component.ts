@@ -312,6 +312,8 @@ export class TwPianoChordComponent {
   readonly showKeyLabels = input(false); // Show C, D, E, etc. on white keys
   readonly highlightRoot = input(true);
   readonly classOverride = input('');
+  /** Accessible name of the keyboard; derived from the chord name and notes when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
 
   protected readonly chordData = computed((): PianoChordDefinition | null => {
     const custom = this.customChord();
@@ -325,6 +327,23 @@ export class TwPianoChordComponent {
 
   protected readonly displayName = computed(() => {
     return this.chordData()?.name || this.chord() || '';
+  });
+
+  /** e.g. "C major chord: C4, E4, G4 highlighted" */
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const chord = this.chordData();
+    const name = this.displayName();
+    if (!chord) return name ? `${name} chord` : 'Piano keyboard';
+    // Spell out the quality only for a bare root name ("C" -> "C major"; "Am7" says it already)
+    const bareRoot = /^[A-G][#b]?$/.test(name) && !!chord.type;
+    const title = `${name}${bareRoot ? ` ${chord.type}` : ''} chord`;
+    const notes = this.visibleNotes().map(n => {
+      const accidental = n.note[1] === '#' ? ' sharp ' : n.note[1] === 'b' ? ' flat ' : '';
+      return `${n.note[0]}${accidental}${n.octave}`;
+    });
+    return notes.length > 0 ? `${title}: ${notes.join(', ')} highlighted` : title;
   });
 
   protected readonly dimensions = computed(() => {
@@ -353,6 +372,10 @@ export class TwPianoChordComponent {
     };
   });
 
+  // Chord (active) keys are the only cue for which notes are in the chord: every active fill
+  // is >= 3:1 against its unhighlighted key. The finger circles sit on active keys of similar
+  // lightness, so they carry a ring in the white-key colour (>= 3:1 against both the circle
+  // and the active keys).
   protected readonly colors = computed(() => {
     const variant = this.variant();
     switch (variant) {
@@ -360,10 +383,12 @@ export class TwPianoChordComponent {
         return {
           background: '#1E293B',
           whiteKey: '#F8FAFC',
-          whiteKeyActive: '#60A5FA',
+          // blue-400 was ~2.4:1 on the white keys
+          whiteKeyActive: '#3B82F6',
           blackKey: '#1E293B',
           blackKeyActive: '#3B82F6',
           border: '#64748B',
+          ring: '#F8FAFC',
           // White finger numbers need >= 4.5:1 on the circles: red-500 was ~3.8:1 and
           // amber-500 ~2.1:1
           fingerCircle: '#DC2626',
@@ -371,18 +396,20 @@ export class TwPianoChordComponent {
           rootCircle: '#B45309',
           text: '#F8FAFC',
           noteLabel: '#64748B',
-          // Key label on a chord (active) key: slate-500 was ~1.9:1 on blue-400
-          noteLabelActive: '#1E293B',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
       case 'minimal': {
         return {
           background: 'transparent',
           whiteKey: '#FFFFFF',
-          whiteKeyActive: '#BFDBFE',
-          blackKey: '#334155',
-          blackKeyActive: '#1E40AF',
+          // blue-200 was ~1.4:1 on the white keys, blue-800 ~1.2:1 on slate-700 black keys
+          whiteKeyActive: '#3B82F6',
+          blackKey: '#1E293B',
+          blackKeyActive: '#3B82F6',
           border: '#CBD5E1',
+          ring: '#FFFFFF',
           fingerCircle: '#1E40AF',
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
@@ -391,43 +418,47 @@ export class TwPianoChordComponent {
           text: 'currentColor',
           // slate-400 was ~2.6:1 on the white keys
           noteLabel: '#64748B',
-          // Key label on a chord (active) key: slate-500 was ~3.1:1 on blue-200
-          noteLabelActive: '#334155',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
       case 'colorful': {
         return {
           background: '#FEFCE8',
           whiteKey: '#FFFBEB',
-          whiteKeyActive: '#86EFAC',
+          // green-300 was ~1.4:1 on the white keys
+          whiteKeyActive: '#16A34A',
           blackKey: '#1F2937',
-          blackKeyActive: '#22C55E',
+          blackKeyActive: '#16A34A',
           border: '#FCD34D',
+          ring: '#FFFBEB',
           // White finger numbers: violet-500 (~4.2:1) and pink-500 (~3.5:1) were too light
           fingerCircle: '#7C3AED',
           fingerText: '#FFFFFF',
           rootCircle: '#DB2777',
           text: '#1F2937',
           noteLabel: '#78716C',
-          // Key label on a chord (active) key: stone-500 was ~3.4:1 on green-300
-          noteLabelActive: '#44403C',
+          // Key label on a chord (active) key, >= 4.5:1 on green-600
+          noteLabelActive: '#1C1917',
         };
       }
       default: {
         return {
           background: '#FFFFFF',
           whiteKey: '#FFFFFF',
-          whiteKeyActive: '#93C5FD',
+          // blue-300 was ~1.8:1 on the white keys
+          whiteKeyActive: '#3B82F6',
           blackKey: '#1F2937',
           blackKeyActive: '#3B82F6',
           border: '#E5E7EB',
+          ring: '#FFFFFF',
           fingerCircle: '#2563EB',
           fingerText: '#FFFFFF',
           rootCircle: '#DC2626',
           text: '#1F2937',
           noteLabel: '#6B7280',
-          // Key label on a chord (active) key: gray-500 was ~2.5:1 on blue-300
-          noteLabelActive: '#374151',
+          // Key label on a chord (active) key, >= 4.5:1 on blue-500
+          noteLabelActive: '#0F172A',
         };
       }
     }

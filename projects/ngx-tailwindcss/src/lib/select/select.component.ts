@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   forwardRef,
   HostListener,
@@ -14,6 +15,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
@@ -310,6 +312,18 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
     );
   }
 
+  constructor() {
+    // Disabling the select (input or forms API) while it is open closes the dropdown,
+    // so its options cannot change the value of a disabled control
+    effect(() => {
+      if (this.isDisabled()) {
+        untracked(() => {
+          this.closeDropdown();
+        });
+      }
+    });
+  }
+
   ngOnDestroy(): void {
     this.detachPositionListeners();
   }
@@ -334,7 +348,7 @@ export class TwSelectComponent implements ControlValueAccessor, OnDestroy {
   }
 
   selectOption(option: SelectOption): void {
-    if (option.disabled) return;
+    if (option.disabled || this.isDisabled()) return;
 
     this.selectedValue.set(option.value);
     this.onChangeFn(option.value);

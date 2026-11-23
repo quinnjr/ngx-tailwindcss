@@ -53,6 +53,37 @@ describe('TwStaffComponent', () => {
     // Tenor top line is E4 (position 0): F#4 at -1, C#4 at 2, G#3 at 5 (+ 8 glyph offset)
     expect(ys).toEqual([40 - 5 + 8, 40 + 10 + 8, 40 + 25 + 8]);
   });
+
+  it('names the drawn staff for assistive tech without hiding projected content', () => {
+    fixture.componentRef.setInput('keySignature', 'A');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const img = host.querySelector('svg g[role="img"]');
+    expect(img?.getAttribute('aria-label')).toBe('Treble staff, key of A major, 4/4 time');
+    // The glyph texts (clef, accidentals, time) sit inside the named image
+    expect(img?.querySelectorAll('text').length).toBeGreaterThan(0);
+    // Notes are projected outside it so their own labels stay exposed
+    expect(img?.querySelector('.staff-content')).toBeNull();
+
+    fixture.componentRef.setInput('keySignature', 'Bb');
+    fixture.componentRef.setInput('clef', 'bass');
+    fixture.componentRef.setInput('timeSignature', 'C|');
+    fixture.detectChanges();
+    expect(img?.getAttribute('aria-label')).toBe('Bass staff, key of B flat major, cut time');
+
+    fixture.componentRef.setInput('grandStaff', true);
+    fixture.componentRef.setInput('timeSignature', null);
+    fixture.detectChanges();
+    expect(host.querySelector('svg g[role="img"]')?.getAttribute('aria-label')).toBe(
+      'Grand staff, key of B flat major'
+    );
+    // The bass staff's glyphs are covered by that name
+    expect(host.querySelector('g[aria-hidden="true"] text')).not.toBeNull();
+
+    fixture.componentRef.setInput('ariaLabel', 'Exercise 1');
+    fixture.detectChanges();
+    expect(host.querySelector('svg g[role="img"]')?.getAttribute('aria-label')).toBe('Exercise 1');
+  });
 });
 
 describe('TwStaffComponent classOverride', () => {

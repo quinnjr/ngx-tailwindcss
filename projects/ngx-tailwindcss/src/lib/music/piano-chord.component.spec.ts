@@ -106,14 +106,14 @@ describe('TwPianoChordComponent', () => {
       ...(fixture.nativeElement as HTMLElement).querySelectorAll<SVGTextElement>('svg text'),
     ].filter(t => /^C\d$/.test(t.textContent?.trim() ?? ''));
     expect(labels.length).toBeGreaterThan(0);
-    // slate-400 (#94A3B8) was ~2.6:1 on white; C4 is in the chord (blue-200 key)
+    // slate-400 (#94A3B8) was ~2.6:1 on white; C4 is in the chord (blue-500 key)
     const fill = (name: string) =>
       labels
         .find(t => t.textContent?.trim() === name)
         ?.getAttribute('fill')
         ?.toUpperCase();
     expect(fill('C5')).toBe('#64748B');
-    expect(fill('C4')).toBe('#334155');
+    expect(fill('C4')).toBe('#0F172A');
   });
 
   it('keeps key labels on chord (active) keys >= 4.5:1 in every variant', () => {
@@ -126,10 +126,10 @@ describe('TwPianoChordComponent', () => {
         ?.toUpperCase();
     // The grey labels were ~1.9-3.4:1 on the active key fills
     const expected: Record<string, string> = {
-      default: '#374151',
-      dark: '#1E293B',
-      minimal: '#334155',
-      colorful: '#44403C',
+      default: '#0F172A',
+      dark: '#0F172A',
+      minimal: '#0F172A',
+      colorful: '#1C1917',
     };
     for (const [variant, color] of Object.entries(expected)) {
       fixture.componentRef.setInput('variant', variant);
@@ -152,6 +152,57 @@ describe('TwPianoChordComponent', () => {
     fixture.componentRef.setInput('variant', 'colorful');
     fixture.detectChanges();
     expect(fills()).toEqual(['#DB2777', '#7C3AED', '#7C3AED']);
+  });
+
+  it('keeps chord keys and finger circles >= 3:1 against their neighbours in every variant', () => {
+    const luminance = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map(i => {
+        const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
+        return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    // D4 F#4 A4: chord keys on both white and black keys (highlights were ~1.2-2.4:1)
+    fixture.componentRef.setInput('chord', 'D');
+    for (const variant of ['default', 'dark', 'minimal', 'colorful']) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      const svg = (fixture.nativeElement as HTMLElement).querySelector('svg')!;
+      const fill = (el: Element) => el.getAttribute('fill')!.toUpperCase();
+      const rects = [...svg.querySelectorAll('rect')];
+      const whiteFills = [...new Set(rects.filter(r => r.getAttribute('rx') === '2').map(fill))];
+      const blackFills = [...new Set(rects.filter(r => r.getAttribute('rx') === '1').map(fill))];
+      expect(whiteFills).toHaveLength(2);
+      expect(blackFills).toHaveLength(2);
+      expect(ratio(whiteFills[0], whiteFills[1])).toBeGreaterThanOrEqual(3);
+      expect(ratio(blackFills[0], blackFills[1])).toBeGreaterThanOrEqual(3);
+      // Finger circles sit on the chord keys: their ring separates them from both
+      const activeFills = [whiteFills[1], blackFills[1]];
+      const circles = [...svg.querySelectorAll('circle')];
+      expect(circles).toHaveLength(3);
+      for (const circle of circles) {
+        const ringColor = circle.getAttribute('stroke')!;
+        expect(Number(circle.getAttribute('stroke-width'))).toBeGreaterThanOrEqual(2);
+        expect(ratio(ringColor, fill(circle))).toBeGreaterThanOrEqual(3);
+        for (const key of activeFills) expect(ratio(ringColor, key)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('names the keyboard after the chord and its highlighted notes', () => {
+    fixture.componentRef.setInput('chord', 'D');
+    fixture.detectChanges();
+    const svg = () => (fixture.nativeElement as HTMLElement).querySelector('svg')!;
+    expect(svg().getAttribute('role')).toBe('img');
+    expect(svg().getAttribute('aria-label')).toBe('D major chord: D4, F sharp 4, A4 highlighted');
+
+    fixture.componentRef.setInput('ariaLabel', 'Exercise chord');
+    fixture.detectChanges();
+    expect(svg().getAttribute('aria-label')).toBe('Exercise chord');
   });
 });
 

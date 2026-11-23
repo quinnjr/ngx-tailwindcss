@@ -23,6 +23,17 @@ describe('TwChordDiagramComponent', () => {
     fixture.componentRef.setInput('chord', 'C');
   });
 
+  it('names the diagram after the chord and its frets, lowest string first', () => {
+    fixture.detectChanges();
+    const svg = () => (fixture.nativeElement as HTMLElement).querySelector('svg')!;
+    expect(svg().getAttribute('role')).toBe('img');
+    expect(svg().getAttribute('aria-label')).toBe('C chord diagram, frets x 3 2 0 1 0');
+
+    fixture.componentRef.setInput('ariaLabel', 'Opening chord');
+    fixture.detectChanges();
+    expect(svg().getAttribute('aria-label')).toBe('Opening chord');
+  });
+
   it('labels right-handed guitar strings E A D G B E from left to right', () => {
     fixture.detectChanges();
     expect(labelsLeftToRight()).toEqual(['E', 'A', 'D', 'G', 'B', 'E']);

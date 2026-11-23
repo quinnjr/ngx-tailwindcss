@@ -174,7 +174,9 @@ export class TwScrubberComponent implements OnDestroy {
       thin: 'bg-blue-500',
       thick: 'bg-gradient-to-r from-blue-500 to-blue-400',
       youtube: 'bg-red-600',
-      spotify: 'bg-emerald-500',
+      // The spotify thumb only shows on hover, so the fill is the playhead: emerald-500 was
+      // ~1.9:1 against the slate-500 buffered range
+      spotify: 'bg-emerald-300',
     };
 
     return this.twClass.merge(baseClasses, colorClasses[variant]);

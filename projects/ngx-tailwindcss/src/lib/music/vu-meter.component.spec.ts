@@ -284,3 +284,56 @@ describe('TwVuMeterComponent clip reset', () => {
     fixture.destroy();
   });
 });
+
+describe('TwVuMeterComponent lit-segment contrast', () => {
+  it('should light segments in shades >= 3:1 against the unlit segments on light surfaces', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwVuMeterComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwVuMeterComponent);
+    fixture.componentRef.setInput('max', 100);
+    fixture.componentRef.setInput('value', 100);
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    const segmentClasses = (): string[] =>
+      [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+          '[role="img"] .flex-col-reverse > .rounded-sm:not(.absolute)'
+        ),
+      ].map(segment => segment.className);
+    const peakClass = (): string =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="img"] .h-1')!
+        .className;
+
+    // emerald-500 / amber-400 / red-500 were ~2.0 / 1.4 / 3.1:1 against slate-200
+    const light = segmentClasses();
+    expect(light[0]).toContain('bg-emerald-700');
+    expect(light.some(c => c.includes('bg-amber-700'))).toBe(true);
+    expect(light.at(-1)).toContain('bg-red-600');
+    expect(light.join(' ')).not.toMatch(/bg-(emerald-500|amber-400|red-500)/);
+    expect(peakClass()).toContain('bg-red-600');
+
+    fixture.componentRef.setInput('variant', 'solid');
+    fixture.detectChanges();
+    expect(segmentClasses()[0]).toContain('bg-emerald-700');
+    expect(segmentClasses()[0]).toContain('dark:bg-emerald-500');
+
+    fixture.componentRef.setInput('variant', 'retro');
+    fixture.detectChanges();
+    // red-600 is ~2.7:1 against the dark retro unlit segments
+    expect(segmentClasses().at(-1)).toContain('dark:bg-red-500');
+
+    fixture.componentRef.setInput('variant', 'gradient');
+    fixture.detectChanges();
+    // amber-300..500 was ~1.4-1.7:1 against slate-200; red-500/600 < 3:1 against slate-700
+    expect(segmentClasses().join(' ')).toContain('from-amber-800 to-amber-700');
+    expect(segmentClasses().at(-1)).toContain('dark:from-red-400');
+    expect(peakClass()).toContain('bg-red-600');
+
+    fixture.componentRef.setInput('value', 0);
+    fixture.detectChanges();
+    expect(segmentClasses()[0]).toContain('bg-slate-200');
+    fixture.destroy();
+  });
+});

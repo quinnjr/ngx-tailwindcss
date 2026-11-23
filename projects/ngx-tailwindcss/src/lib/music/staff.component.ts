@@ -138,6 +138,27 @@ export class TwStaffComponent {
   readonly showEndBarLine = input(true);
   readonly grandStaff = input(false); // Show treble + bass (piano)
   readonly classOverride = input('');
+  /** Accessible name of the drawn staff; derived from clef, key and time signature when empty */
+  readonly ariaLabel = input<string | null | undefined>('');
+
+  protected readonly accessibleLabel = computed(() => {
+    const custom = this.ariaLabel();
+    if (custom) return custom;
+    const clef = this.clef();
+    const parts = [
+      this.grandStaff() ? 'Grand staff' : `${clef[0].toUpperCase()}${clef.slice(1)} staff`,
+    ];
+    if (this.showKeySignature()) {
+      const key = this.keySignature();
+      const accidental = key[1] === '#' ? ' sharp' : key[1] === 'b' ? ' flat' : '';
+      parts.push(`key of ${key[0]}${accidental} major`);
+    }
+    const time = this.timeSignature();
+    if (this.showTimeSignature() && time) {
+      parts.push(time === 'C' ? 'common time' : time === 'C|' ? 'cut time' : `${time} time`);
+    }
+    return parts.join(', ');
+  });
 
   // Computed measurements
   protected readonly staffTop = computed(() => {

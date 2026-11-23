@@ -5,6 +5,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   forwardRef,
   HostListener,
@@ -14,6 +15,7 @@ import {
   output,
   PLATFORM_ID,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
@@ -316,6 +318,18 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
     return this.twClass.merge(baseClasses.join(' '), this.dropdownClass());
   });
 
+  constructor() {
+    // Disabling the multiselect (input or forms API) while it is open closes the dropdown,
+    // so its options cannot change the value of a disabled control
+    effect(() => {
+      if (this._disabled()) {
+        untracked(() => {
+          this.closeDropdown();
+        });
+      }
+    });
+  }
+
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.clickListener = this.onDocumentClick.bind(this);
@@ -410,7 +424,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   toggleOption(option: MultiSelectOption): void {
-    if (option.disabled) return;
+    if (option.disabled || this._disabled()) return;
 
     const selected = new Set(this.selectedValues());
 
@@ -430,6 +444,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
   }
 
   toggleSelectAll(): void {
+    if (this._disabled()) return;
     const enabledOptions = this.enabledOptions();
     const enabledValues = new Set(enabledOptions.map(opt => opt.value));
     // Selections on disabled options are locked: Select All must not add or remove them

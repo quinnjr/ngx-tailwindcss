@@ -23,6 +23,24 @@ npm install @quinnjr/ngx-tailwindcss
 
 The library requires `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/animations` (Angular 19+) and `rxjs`, which an Angular application already has. `@angular/cdk` is **not** required; it, `@tauri-apps/*` and `electron` are optional peers used only by the native/desktop integrations you opt into.
 
+### Animations Provider
+
+`tw-modal` (and `tw-confirm-dialog`, which renders a `tw-modal`) and `tw-overlay` use Angular animations. Register an animations provider in your application config, otherwise opening one of them throws `NG05105: Unexpected synthetic property ... found`:
+
+```typescript
+// app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideAnimationsAsync(),
+    // or provideAnimations() from '@angular/platform-browser/animations',
+    // or provideNoopAnimations() to disable the transitions entirely
+  ],
+};
+```
+
 ## Tailwind CSS Configuration
 
 This library **does not** import Tailwind CSS directly. You must configure Tailwind in your application.

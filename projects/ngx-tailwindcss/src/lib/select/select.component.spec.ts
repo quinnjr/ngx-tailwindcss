@@ -810,3 +810,25 @@ describe('TwSelectComponent (round 29)', () => {
     expect(fixture.componentInstance.onChangeSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('TwSelectComponent (round 32)', () => {
+  it('should close the dropdown when the form control is disabled while it is open', () => {
+    TestBed.configureTestingModule({ imports: [TestHostWithFormControlComponent] });
+    const fixture = TestBed.createComponent(TestHostWithFormControlComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('[role="option"]').length).toBe(3);
+
+    fixture.componentInstance.selectControl.disable();
+    fixture.detectChanges();
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('[role="option"]')).toBeNull();
+    const select = fixture.debugElement.query(By.directive(TwSelectComponent))
+      .componentInstance as TwSelectComponent;
+    select.selectOption({ label: 'Option 1', value: '1' });
+    expect(fixture.componentInstance.selectControl.value).toBe('2');
+  });
+});

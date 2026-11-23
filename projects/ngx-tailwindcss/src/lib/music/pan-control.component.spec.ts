@@ -123,4 +123,20 @@ describe('TwPanControlComponent', () => {
     expect(litSpans(-50)).toEqual([[0, 54.25]]);
     expect(litSpans(100)).toEqual([[0, 217]]);
   });
+
+  it('should keep its text readable on the page in light and dark mode', () => {
+    fixture.componentRef.setInput('label', 'Pan');
+    fixture.detectChanges();
+    const span = (t: string) =>
+      [...hostEl.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!;
+
+    // slate-300 on a light page was ~1.5:1
+    expect(span('Pan').className).toContain('text-slate-600');
+    expect(span('Pan').className).not.toContain('text-slate-300');
+    // slate-500 is below 4.5:1 on a dark page
+    expect(span('PAN').className).toContain('dark:text-slate-400');
+    // Off L/R chips sit on slate-700, where slate-400 is ~3.9:1
+    expect(span('L').className).toContain('text-slate-300');
+    expect(span('R').className).toContain('text-slate-300');
+  });
 });

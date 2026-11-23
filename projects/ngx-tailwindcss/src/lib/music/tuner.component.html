@@ -18,7 +18,7 @@
   @if (showMeter()) {
     <div class="w-full max-w-xs">
       <!-- Meter labels -->
-      <div class="flex justify-between text-xs text-slate-500 mb-1" aria-hidden="true">
+      <div class="flex justify-between text-xs text-slate-400 mb-1" aria-hidden="true">
         <span>♭</span>
         <span>●</span>
         <span>♯</span>
@@ -58,7 +58,7 @@
       </div>
 
       <!-- Tick marks -->
-      <div class="flex justify-between text-[10px] text-slate-600 mt-1 px-2">
+      <div class="flex justify-between text-[10px] text-slate-400 mt-1 px-2">
         <span>-50</span>
         <span>-25</span>
         <span>0</span>
@@ -94,7 +94,7 @@
     </div>
 
     @if (selectedString() >= 0 && tuningStrings()[selectedString()]) {
-      <div class="text-xs text-slate-500">
+      <div class="text-xs text-slate-400">
         Target: {{ getExpectedFrequency(tuningStrings()[selectedString()]).toFixed(1) }} Hz
       </div>
     }
@@ -151,7 +151,7 @@
 
   <!-- Microphone Permission Notice -->
   @if (!isListening() && !errorState()) {
-    <p class="text-xs text-slate-500 text-center max-w-xs">
+    <p class="text-xs text-slate-400 text-center max-w-xs">
       Click Start to enable microphone access and begin tuning
     </p>
   }

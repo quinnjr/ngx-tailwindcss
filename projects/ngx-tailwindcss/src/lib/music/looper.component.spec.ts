@@ -244,4 +244,10 @@ describe('TwLooperComponent', () => {
     expect(ys.length).toBeGreaterThan(0);
     expect(ys.every(y => y === 40)).toBe(true);
   });
+
+  it('should not render low-contrast slate-500 text on the dark panel', () => {
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.text-slate-500')).toHaveLength(
+      0
+    );
+  });
 });

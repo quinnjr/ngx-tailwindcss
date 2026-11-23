@@ -1,7 +1,7 @@
 <div [class]="containerClasses()">
   <!-- Label -->
   @if (label()) {
-    <span class="text-xs font-medium text-slate-300 dark:text-slate-400 tracking-wide uppercase">{{
+    <span class="text-xs font-medium text-slate-600 dark:text-slate-400 tracking-wide uppercase">{{
       label()
     }}</span>
   }
@@ -17,16 +17,16 @@
             [class.bg-cyan-500]="internalValue() < -20"
             [class.text-white]="internalValue() < -20"
             [class.bg-slate-700]="internalValue() >= -20"
-            [class.text-slate-400]="internalValue() >= -20"
+            [class.text-slate-300]="internalValue() >= -20"
             >L</span
           >
-          <span class="text-slate-500 text-[8px] font-mono">PAN</span>
+          <span class="text-slate-500 dark:text-slate-400 text-[8px] font-mono">PAN</span>
           <span
             class="px-1.5 py-0.5 rounded text-[9px] transition-all"
             [class.bg-cyan-500]="internalValue() > 20"
             [class.text-white]="internalValue() > 20"
             [class.bg-slate-700]="internalValue() <= 20"
-            [class.text-slate-400]="internalValue() <= 20"
+            [class.text-slate-300]="internalValue() <= 20"
             >R</span
           >
         </div>
@@ -82,7 +82,9 @@
                   [class.h-1]="!tick.label"
                 ></div>
                 @if (tick.label) {
-                  <span class="text-[8px] text-slate-500 font-mono mt-0.5">{{ tick.label }}</span>
+                  <span class="text-[8px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{{
+                    tick.label
+                  }}</span>
                 }
               </div>
             }
@@ -229,11 +231,13 @@
       <!-- Labels -->
       @if (showLabels()) {
         <div class="flex justify-between items-center text-[10px] mb-2">
-          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 text-[9px] font-bold"
+          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-[9px] font-bold"
             >L</span
           >
-          <span class="text-slate-500 text-[8px] font-mono tracking-wider">WIDTH</span>
-          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 text-[9px] font-bold"
+          <span class="text-slate-500 dark:text-slate-400 text-[8px] font-mono tracking-wider"
+            >WIDTH</span
+          >
+          <span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-[9px] font-bold"
             >R</span
           >
         </div>
@@ -329,7 +333,7 @@
         <!-- Tick Marks -->
         @if (showTicks()) {
           <div
-            class="absolute top-full mt-3 left-0 right-0 flex justify-between text-[9px] text-slate-500 font-mono"
+            class="absolute top-full mt-3 left-0 right-0 flex justify-between text-[9px] text-slate-400 font-mono"
           >
             <span class="px-1 py-0.5 bg-slate-800 rounded text-[8px]">MONO</span>
             <span class="px-1 py-0.5 bg-slate-800 rounded text-[8px]">STEREO</span>

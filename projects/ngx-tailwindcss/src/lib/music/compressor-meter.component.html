@@ -2,7 +2,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="text-xs uppercase tracking-wider text-slate-500">Compressor</span>
+      <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Compressor</span>
       <!-- Activity indicator -->
       <span
         class="w-2 h-2 rounded-full transition-colors"
@@ -79,8 +79,8 @@
           </div>
         </div>
 
-        <span class="text-[10px] text-slate-500">IN</span>
-        <span class="text-xs font-mono text-slate-400">{{ formatInputLevel() }}</span>
+        <span class="text-[10px]" [class]="labelClass()">IN</span>
+        <span class="text-xs font-mono" [class]="labelClass()">{{ formatInputLevel() }}</span>
       </div>
     }
 
@@ -102,15 +102,15 @@
 
           <!-- Scale markers -->
           <div class="absolute inset-0 flex flex-col justify-between pointer-events-none py-1">
-            <span class="text-[8px] text-slate-500 text-center">0</span>
-            <span class="text-[8px] text-slate-500 text-center">-10</span>
-            <span class="text-[8px] text-slate-500 text-center">-20</span>
-            <span class="text-[8px] text-slate-500 text-center">-30</span>
-            <span class="text-[8px] text-slate-500 text-center">-40</span>
+            <span class="text-[8px] text-slate-400 text-center">0</span>
+            <span class="text-[8px] text-slate-400 text-center">-10</span>
+            <span class="text-[8px] text-slate-400 text-center">-20</span>
+            <span class="text-[8px] text-slate-400 text-center">-30</span>
+            <span class="text-[8px] text-slate-400 text-center">-40</span>
           </div>
         </div>
 
-        <span class="text-[10px] text-slate-500">GR</span>
+        <span class="text-[10px]" [class]="labelClass()">GR</span>
         <span
           class="text-xs font-mono"
           [class.text-amber-400]="Math.abs(internalGainReduction()) < 10"
@@ -163,8 +163,8 @@
           </div>
         </div>
 
-        <span class="text-[10px] text-slate-500">OUT</span>
-        <span class="text-xs font-mono text-slate-400">{{ formatOutputLevel() }}</span>
+        <span class="text-[10px]" [class]="labelClass()">OUT</span>
+        <span class="text-xs font-mono" [class]="labelClass()">{{ formatOutputLevel() }}</span>
       </div>
     }
 
@@ -177,7 +177,7 @@
           [style.height.px]="curveSize().height"
           class="rounded border border-slate-700 box-content"
         ></canvas>
-        <span class="text-[10px] text-slate-500">Transfer Curve</span>
+        <span class="text-[10px]" [class]="labelClass()">Transfer Curve</span>
       </div>
     }
   </div>
@@ -186,10 +186,11 @@
   @if (showGrHistory()) {
     <div class="mt-3 pt-3 border-t border-slate-700">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-[10px] text-slate-500 uppercase">Gain Reduction History</span>
+        <span class="text-[10px] uppercase" [class]="labelClass()">Gain Reduction History</span>
         <button
           type="button"
-          class="text-[10px] text-slate-500 hover:text-slate-400 disabled:opacity-50"
+          class="text-[10px] hover:underline disabled:opacity-50"
+          [class]="labelClass()"
           [disabled]="disabled()"
           (click)="clearHistory()"
         >
@@ -209,14 +210,14 @@
     <div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 pt-2 border-t border-slate-700">
       <!-- Threshold -->
       <div class="flex items-center justify-between">
-        <span class="text-[10px] text-slate-500 uppercase">Thresh</span>
-        <span class="text-xs font-mono text-slate-300">{{ formatThreshold() }}</span>
+        <span class="text-[10px] uppercase" [class]="labelClass()">Thresh</span>
+        <span class="text-xs font-mono" [class]="valueClass()">{{ formatThreshold() }}</span>
       </div>
 
       <!-- Ratio -->
       <div class="flex items-center justify-between">
-        <span class="text-[10px] text-slate-500 uppercase">Ratio</span>
-        <span class="text-xs font-mono text-slate-300">{{ formatRatio() }}</span>
+        <span class="text-[10px] uppercase" [class]="labelClass()">Ratio</span>
+        <span class="text-xs font-mono" [class]="valueClass()">{{ formatRatio() }}</span>
       </div>
 
       <!-- Attack/Release in different display modes -->
@@ -226,8 +227,10 @@
             <!-- Attack with bar -->
             <div class="col-span-2 mt-1">
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-[10px] text-slate-500 uppercase">Attack</span>
-                <span class="text-[10px] font-mono text-slate-300">{{ formatAttack() }}</span>
+                <span class="text-[10px] uppercase" [class]="labelClass()">Attack</span>
+                <span class="text-[10px] font-mono" [class]="valueClass()">{{
+                  formatAttack()
+                }}</span>
               </div>
               <div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div
@@ -239,7 +242,7 @@
                   [style.width.%]="attackBarPercent()"
                 ></div>
               </div>
-              <div class="flex justify-between text-[8px] text-slate-600 mt-0.5">
+              <div class="flex justify-between text-[8px] mt-0.5" [class]="labelClass()">
                 <span>Fast</span>
                 <span>Slow</span>
               </div>
@@ -248,8 +251,10 @@
             <!-- Release with bar -->
             <div class="col-span-2 mt-1">
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-[10px] text-slate-500 uppercase">Release</span>
-                <span class="text-[10px] font-mono text-slate-300">{{ formatRelease() }}</span>
+                <span class="text-[10px] uppercase" [class]="labelClass()">Release</span>
+                <span class="text-[10px] font-mono" [class]="valueClass()">{{
+                  formatRelease()
+                }}</span>
               </div>
               <div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div
@@ -261,7 +266,7 @@
                   [style.width.%]="releaseBarPercent()"
                 ></div>
               </div>
-              <div class="flex justify-between text-[8px] text-slate-600 mt-0.5">
+              <div class="flex justify-between text-[8px] mt-0.5" [class]="labelClass()">
                 <span>Fast</span>
                 <span>Slow</span>
               </div>
@@ -272,8 +277,8 @@
             <!-- Envelope visualization -->
             <div class="col-span-2 mt-2">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] text-slate-500 uppercase">Envelope</span>
-                <div class="flex gap-2 text-[10px] font-mono text-slate-400">
+                <span class="text-[10px] uppercase" [class]="labelClass()">Envelope</span>
+                <div class="flex gap-2 text-[10px] font-mono" [class]="labelClass()">
                   <span>A: {{ formatAttack() }}</span>
                   <span>R: {{ formatRelease() }}</span>
                 </div>
@@ -315,7 +320,9 @@
                       <div class="h-full bg-green-500" [style.width.%]="attackBarPercent()"></div>
                     </div>
                   </div>
-                  <span class="text-[8px] text-slate-500">{{ attackSpeed() | titlecase }}</span>
+                  <span class="text-[8px]" [class]="labelClass()">{{
+                    attackSpeed() | titlecase
+                  }}</span>
                 </div>
 
                 <!-- Release region -->
@@ -343,7 +350,9 @@
                       <div class="h-full bg-amber-500" [style.width.%]="releaseBarPercent()"></div>
                     </div>
                   </div>
-                  <span class="text-[8px] text-slate-500">{{ releaseSpeed() | titlecase }}</span>
+                  <span class="text-[8px]" [class]="labelClass()">{{
+                    releaseSpeed() | titlecase
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -352,13 +361,13 @@
           @default {
             <!-- Simple text display (none) -->
             <div class="flex items-center justify-between">
-              <span class="text-[10px] text-slate-500 uppercase">Attack</span>
-              <span class="text-xs font-mono text-slate-300">{{ formatAttack() }}</span>
+              <span class="text-[10px] uppercase" [class]="labelClass()">Attack</span>
+              <span class="text-xs font-mono" [class]="valueClass()">{{ formatAttack() }}</span>
             </div>
 
             <div class="flex items-center justify-between">
-              <span class="text-[10px] text-slate-500 uppercase">Release</span>
-              <span class="text-xs font-mono text-slate-300">{{ formatRelease() }}</span>
+              <span class="text-[10px] uppercase" [class]="labelClass()">Release</span>
+              <span class="text-xs font-mono" [class]="valueClass()">{{ formatRelease() }}</span>
             </div>
           }
         }
@@ -367,16 +376,18 @@
       <!-- Knee -->
       @if (effectiveSettings().knee > 0) {
         <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-500 uppercase">Knee</span>
-          <span class="text-xs font-mono text-slate-300">{{ effectiveSettings().knee }} dB</span>
+          <span class="text-[10px] uppercase" [class]="labelClass()">Knee</span>
+          <span class="text-xs font-mono" [class]="valueClass()"
+            >{{ effectiveSettings().knee }} dB</span
+          >
         </div>
       }
 
       <!-- Makeup Gain -->
       @if (effectiveSettings().makeupGain !== 0) {
         <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-500 uppercase">Makeup</span>
-          <span class="text-xs font-mono text-slate-300">
+          <span class="text-[10px] uppercase" [class]="labelClass()">Makeup</span>
+          <span class="text-xs font-mono" [class]="valueClass()">
             {{ effectiveSettings().makeupGain > 0 ? '+' : ''
             }}{{ effectiveSettings().makeupGain }} dB
           </span>

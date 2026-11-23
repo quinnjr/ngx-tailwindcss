@@ -279,11 +279,23 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
         ? 'text-lime-400'
         : variant === 'pendulum'
           ? 'text-amber-400'
-          : 'text-white';
+          : variant === 'minimal'
+            ? 'text-slate-900 dark:text-white'
+            : 'text-white';
     const sizeClass = size === 'sm' ? 'text-2xl' : size === 'lg' ? 'text-5xl' : 'text-4xl';
 
     return [base, variantClass, sizeClass].join(' ');
   });
+
+  // Secondary text: slate-500 is below 4.5:1 on the dark variant surfaces; the
+  // transparent minimal variant sits on the page and follows the colour scheme
+  protected readonly mutedTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly alertTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-amber-700 dark:text-amber-400' : 'text-amber-400'
+  );
 
   ngOnInit(): void {
     if (this.autoStart()) {

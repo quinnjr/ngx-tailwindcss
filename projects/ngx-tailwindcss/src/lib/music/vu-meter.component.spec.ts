@@ -226,3 +226,29 @@ describe('TwVuMeterComponent during SSR', () => {
     fixture.destroy();
   });
 });
+
+describe('TwVuMeterComponent horizontal scale colour', () => {
+  it('should colour the scale for the meter surface it sits on', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwVuMeterComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwVuMeterComponent);
+    fixture.componentRef.setInput('orientation', 'horizontal');
+    fixture.detectChanges();
+    const scale = (): HTMLElement =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+        '[role="img"] .h-3.font-mono'
+      )!;
+
+    // led (default) is always dark: slate-500 would be ~3.7:1
+    expect(scale().className).toContain('text-slate-400');
+    expect(scale().className).not.toContain('text-slate-500');
+
+    // light is always white: no dark-mode light grey
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(scale().className).toContain('text-slate-500');
+    expect(scale().className).not.toContain('dark:');
+  });
+});

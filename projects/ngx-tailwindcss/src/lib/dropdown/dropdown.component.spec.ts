@@ -145,6 +145,16 @@ describe('TwDropdownComponent', () => {
     expect(document.querySelector('[role="menu"]')?.classList).toContain('custom-late-menu');
   });
 
+  it('should give dropdown items a visible keyboard focus ring', () => {
+    trigger.click();
+    fixture.detectChanges();
+
+    const item = document.querySelector<HTMLElement>('[data-testid="item-1"]')!;
+    expect(item.className).toContain('focus:outline-none');
+    expect(item.className).toContain('focus-visible:ring-2');
+    expect(item.className).toContain('focus-visible:ring-blue-500');
+  });
+
   it('should not open when disabled', () => {
     component.disabled.set(true);
     fixture.detectChanges();

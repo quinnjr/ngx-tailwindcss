@@ -101,6 +101,34 @@ describe('TwPitchDisplayComponent', () => {
     expect(internals.internalPitchBend()).toBeCloseTo(0.5, 5);
     document.dispatchEvent(new MouseEvent('mouseup'));
   });
+
+  it('should apply the size and weight classes to the semitone value', () => {
+    fixture.componentRef.setInput('size', 'lg');
+    fixture.detectChanges();
+    const value = fixture.nativeElement.querySelector(
+      '[title="Double-click to reset"]'
+    ) as HTMLElement;
+    expect(value.classList).toContain('text-4xl');
+    expect(value.classList).toContain('font-bold');
+    expect(value.classList).toContain('text-white');
+
+    internals.internalSemitones.set(2);
+    fixture.detectChanges();
+    expect(value.classList).toContain('text-4xl');
+    expect(value.classList).toContain('text-amber-400');
+    expect(value.classList).not.toContain('text-white');
+  });
+
+  it('should render secondary labels at a readable contrast for the variant', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.text-slate-500, .text-slate-600')).toHaveLength(0);
+    const label = [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === 'Cents')!;
+    expect(label.classList).toContain('text-slate-400');
+
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(label.classList).toContain('text-slate-600');
+  });
 });
 
 describe('TwPitchDisplayComponent drag listener cleanup', () => {

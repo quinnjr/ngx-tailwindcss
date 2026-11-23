@@ -115,7 +115,7 @@
         <!-- Scale marks (bottom) -->
         @if (showScale()) {
           <!-- Each mark sits at its level (the marks are not evenly spaced) -->
-          <div class="relative h-3 text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-1">
+          <div class="relative h-3 text-[9px] font-mono mt-1" [class]="scaleTextClasses()">
             @for (mark of horizontalScaleMarks(); track mark.value) {
               <span
                 class="absolute top-0 -translate-x-1/2 whitespace-nowrap"

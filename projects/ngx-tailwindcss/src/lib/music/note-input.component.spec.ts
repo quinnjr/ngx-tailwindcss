@@ -225,4 +225,20 @@ describe('TwNoteInputComponent clefs and layout', () => {
     expect(cmp.ledgerLines('C', 4)).toEqual([cmp.staffTop() + spacing * 5]);
     expect(cmp.ledgerLines('G', 4)).toEqual([]);
   });
+
+  it('keeps toolbar labels and the status bar readable (>= 4.5:1) in light and dark mode', () => {
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const byText = (text: string): HTMLElement =>
+      [...host.querySelectorAll<HTMLElement>('span')].find(el =>
+        el.textContent?.trim().startsWith(text)
+      )!;
+    // slate-500 is < 4.5:1 on the slate-100 toolbar and on slate-800/900 in dark mode
+    for (const label of ['Duration:', 'Notes:']) {
+      const el = byText(label).closest('[class*="text-slate-"]')!;
+      expect(el.classList).toContain('text-slate-600');
+      expect(el.classList).toContain('dark:text-slate-400');
+    }
+    expect(byText('Shortcuts').classList).not.toContain('text-slate-400');
+  });
 });

@@ -61,4 +61,24 @@ describe('TwAudioStatsComponent', () => {
     expect(emitted).toEqual(['duration', 'duration']);
     expect(enter.defaultPrevented).toBe(true);
   });
+
+  it('should keep the file name, labels and badges readable on each surface', () => {
+    fixture.componentRef.setInput('name', 'take1.wav');
+    fixture.componentRef.setInput('format', 'wav');
+    fixture.detectChanges();
+    const span = (t: string) =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!;
+
+    // default (slate-800): slate-500 labels were ~3:1
+    expect(span('Lossless Quality').className).toContain('text-slate-400');
+    expect(span('Lossless').className).toContain('text-emerald-400');
+
+    // light (white): the fixed slate-200 name and -400 badge text were unreadable
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(span('take1.wav').className).toContain('text-slate-800');
+    expect(span('take1.wav').className).not.toContain('text-slate-200');
+    expect(span('Lossless').className).toContain('text-emerald-800');
+    expect(span('Lossless').className).not.toContain('text-emerald-400');
+  });
 });

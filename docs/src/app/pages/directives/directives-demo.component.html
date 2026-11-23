@@ -244,7 +244,7 @@
           twKeyboardShortcut="ctrl+k"
           (shortcutPressed)="onKeyboardShortcut($event)"
           class="p-6 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 text-center">
-          <p class="text-slate-600 mb-2">Press <kbd class="px-2 py-1 bg-white dark:bg-slate-700 rounded border border-slate-300 text-sm font-mono">Ctrl+K</kbd> anywhere on this page</p>
+          <p class="text-slate-600 mb-2">Press <kbd class="px-2 py-1 bg-white rounded border border-slate-300 text-sm font-mono">Ctrl+K</kbd> anywhere on this page</p>
           @if (keyPressed()) {
             <p class="text-lg font-bold text-blue-600">Pressed: {{ keyPressed() }}</p>
           }

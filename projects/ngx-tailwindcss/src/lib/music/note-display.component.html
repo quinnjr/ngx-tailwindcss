@@ -33,7 +33,7 @@
         </div>
 
         <!-- Scale labels -->
-        <div class="flex justify-between text-[9px] text-slate-500 mt-1 px-1">
+        <div class="flex justify-between text-[9px] mt-1 px-1" [class]="mutedTextClasses()">
           <span>♭</span>
           <span>●</span>
           <span>♯</span>
@@ -65,11 +65,11 @@
         {{ displayCents() }} ¢
       </span>
       @if (isFlat()) {
-        <span class="text-blue-500 text-xs">FLAT</span>
+        <span class="text-xs" [class]="statusTextClasses().flat">FLAT</span>
       } @else if (isSharp()) {
-        <span class="text-amber-500 text-xs">SHARP</span>
+        <span class="text-xs" [class]="statusTextClasses().sharp">SHARP</span>
       } @else if (isInTune()) {
-        <span class="text-green-500 text-xs">IN TUNE</span>
+        <span class="text-xs" [class]="statusTextClasses().inTune">IN TUNE</span>
       }
     </div>
   }
@@ -82,7 +82,9 @@
   <!-- Note History Trail -->
   @if (showHistory() && noteHistory().length > 0) {
     <div class="w-full mt-2 pt-2 border-t border-slate-700">
-      <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">History</div>
+      <div class="text-[9px] uppercase tracking-wider mb-1" [class]="mutedTextClasses()">
+        History
+      </div>
       <div class="flex flex-wrap gap-1 justify-center">
         @for (entry of noteHistory(); track entry.id; let i = $index) {
           <div
@@ -102,6 +104,6 @@
 
   <!-- No Note State -->
   @if (!currentNote()) {
-    <div class="text-slate-500 text-sm">Waiting for input...</div>
+    <div class="text-sm" [class]="mutedTextClasses()">Waiting for input...</div>
   }
 </div>

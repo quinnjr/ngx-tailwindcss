@@ -566,3 +566,23 @@ describe('TwMultiSelectComponent (round 6)', () => {
     expect(fixture.componentInstance.control.value).toEqual(['banana']);
   });
 });
+
+@Component({
+  template: ` <tw-multiselect [options]="options" variant="filled"></tw-multiselect> `,
+  standalone: true,
+  imports: [TwMultiSelectComponent],
+})
+class FilledHostComponent {
+  options: MultiSelectOption[] = [{ label: 'Apple', value: 'apple' }];
+}
+
+describe('TwMultiSelectComponent (round 12)', () => {
+  it('should set a readable text colour on the filled trigger', () => {
+    const fixture = TestBed.createComponent(FilledHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-haspopup]');
+    expect(trigger.className).toContain('bg-slate-100');
+    expect(trigger.className).toContain('text-slate-900');
+    expect(trigger.className).toContain('dark:text-slate-100');
+  });
+});

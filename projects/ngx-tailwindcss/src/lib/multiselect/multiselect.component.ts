@@ -269,7 +269,7 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
       );
     } else if (this.variant() === 'filled') {
       baseClasses.push(
-        'bg-slate-100 dark:bg-slate-700 border-slate-100 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+        'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-100 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
       );
     } else {
       baseClasses.push(

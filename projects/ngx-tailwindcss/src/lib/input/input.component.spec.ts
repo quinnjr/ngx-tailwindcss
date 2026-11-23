@@ -541,3 +541,50 @@ describe('TwInputComponent / TwTextareaComponent aria-describedby', () => {
     expect(textarea.getAttribute('aria-invalid')).toBe('true');
   });
 });
+
+@Component({
+  template: `
+    <tw-input [variant]="variant()" [error]="error()">
+      <span twInputPrefix>@</span>
+    </tw-input>
+    <tw-input clearable></tw-input>
+  `,
+  standalone: true,
+  imports: [TwInputComponent],
+})
+class WrappedInputHostComponent {
+  variant = signal<InputVariant>('default');
+  error = signal('');
+}
+
+describe('TwInputComponent wrapper focus indicator', () => {
+  const variants: InputVariant[] = ['default', 'filled', 'outlined', 'underlined'];
+
+  for (const variant of variants) {
+    it(`should show the ${variant} focus border on the wrapper via focus-within`, () => {
+      const fixture = TestBed.createComponent(WrappedInputHostComponent);
+      fixture.componentInstance.variant.set(variant);
+      fixture.detectChanges();
+      const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+      const wrapper = input.parentElement!;
+      expect(wrapper.className).toContain('focus-within:border-blue-500');
+      expect(wrapper.className).not.toMatch(/(^|\s)focus:/);
+    });
+  }
+
+  it('should use focus-within error styles on the wrapper', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.componentInstance.error.set('Bad');
+    fixture.detectChanges();
+    const wrapper = fixture.nativeElement.querySelector('input').parentElement as HTMLElement;
+    expect(wrapper.className).toContain('focus-within:border-rose-500');
+    expect(wrapper.className).not.toMatch(/(^|\s)focus:/);
+  });
+
+  it('should use focus-within on the wrapper of a clearable input', () => {
+    const fixture = TestBed.createComponent(WrappedInputHostComponent);
+    fixture.detectChanges();
+    const inputs = fixture.nativeElement.querySelectorAll('input');
+    expect(inputs[1].parentElement.className).toContain('focus-within:ring-2');
+  });
+});

@@ -252,3 +252,26 @@ describe('TwMetronomeComponent subdivisions', () => {
     fixture.destroy();
   });
 });
+
+describe('TwMetronomeComponent text colours', () => {
+  it('should keep the BPM readout and labels readable on each surface', async () => {
+    await TestBed.configureTestingModule({ imports: [TwMetronomeComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const span = (t: string) =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!;
+
+    // default (slate-800): slate-500 was ~3:1
+    expect(span('BPM').className).toContain('text-slate-400');
+    expect(span('BPM').className).not.toContain('text-slate-500');
+
+    // minimal is transparent: a white readout vanished on a light page
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(span('120').className).toContain('text-slate-900');
+    expect(span('120').className).toContain('dark:text-white');
+    expect(span('BPM').className).toContain('text-slate-600');
+    fixture.destroy();
+  });
+});

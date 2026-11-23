@@ -221,6 +221,27 @@ describe('TwTimelineComponent', () => {
       // There should be connectors for non-last items
       expect(connectors.length).toBeGreaterThan(0);
     });
+
+    it('should run horizontal connectors from this dot centre to the next one', () => {
+      component.layout.set('horizontal');
+      fixture.detectChanges();
+      const connectors = timelineEl.queryAll(By.css('.bg-slate-300'));
+      expect(connectors.length).toBe(2);
+      const cls = connectors[0].nativeElement.className as string;
+      // md dot (16px): centre at 8px; 2px line centred vertically at 7px
+      expect(cls).toContain('left-[8px]');
+      expect(cls).toContain('top-[7px]');
+      expect(cls).toContain('w-full');
+      expect(cls).not.toContain('left-full');
+      expect(cls).not.toContain('-translate-x-1/2');
+    });
+  });
+
+  describe('marker ring', () => {
+    it('should not draw a white ring around markers in dark mode', () => {
+      const dot = timelineEl.query(By.css('.rounded-full'));
+      expect(dot.nativeElement.className).toContain('dark:ring-slate-900');
+    });
   });
 
   describe('empty state', () => {

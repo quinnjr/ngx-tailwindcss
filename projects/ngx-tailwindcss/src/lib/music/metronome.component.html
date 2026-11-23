@@ -31,7 +31,7 @@
 
     <div class="text-center">
       <span [class]="bpmDisplayClasses()">{{ currentBpm() }}</span>
-      <span class="block text-xs text-slate-500 uppercase tracking-wider">BPM</span>
+      <span class="block text-xs uppercase tracking-wider" [class]="mutedTextClass()">BPM</span>
     </div>
 
     @if (showBpmControl()) {
@@ -83,7 +83,7 @@
 
       <!-- Accent Legend (when config is shown) -->
       @if (showAccentConfig()) {
-        <div class="flex items-center gap-3 text-[10px] text-slate-500">
+        <div class="flex items-center gap-3 text-[10px]" [class]="mutedTextClass()">
           <span class="flex items-center gap-1">
             <span class="w-2 h-2 rounded-full bg-slate-600"></span> None
           </span>
@@ -104,7 +104,7 @@
   <!-- Accent Pattern Presets -->
   @if (showAccentConfig() && availablePresets().length > 0) {
     <div class="flex flex-col gap-1">
-      <span class="text-[10px] text-slate-500 uppercase tracking-wider">Pattern</span>
+      <span class="text-[10px] uppercase tracking-wider" [class]="mutedTextClass()">Pattern</span>
       <div class="flex items-center gap-1 flex-wrap justify-center">
         @for (preset of availablePresets(); track preset.name; let i = $index) {
           <button
@@ -188,7 +188,7 @@
 
   <!-- Tap indicator (until the third tap sets the tempo) -->
   @if (tapTimes().length > 0 && tapTimes().length < 3) {
-    <div class="text-xs text-slate-500">
+    <div class="text-xs" [class]="mutedTextClass()">
       Tap {{ 3 - tapTimes().length }} more {{ tapTimes().length === 2 ? 'time' : 'times' }} to set
       tempo
     </div>
@@ -196,7 +196,7 @@
 
   <!-- Needs-gesture notice (audio blocked until user interaction) -->
   @if (needsGesture()) {
-    <div class="text-xs text-amber-400 text-center" role="alert">
+    <div class="text-xs text-center" [class]="alertTextClass()" role="alert">
       Audio is blocked by the browser — press Start to enable sound
     </div>
   }

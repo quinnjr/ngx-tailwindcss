@@ -84,7 +84,14 @@ export class TwNativeConfirmDialogComponent {
       return `${base} bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400`;
     }
 
-    return `${base} bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400`;
+    const typeClasses: Record<AlertDialogType, string> = {
+      info: 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400',
+      success: 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400',
+      warning: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/50 dark:text-yellow-400',
+      error: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400',
+    };
+
+    return `${base} ${typeClasses[this.type()] ?? typeClasses.info}`;
   });
 
   protected readonly confirmButtonClasses = computed(() => {

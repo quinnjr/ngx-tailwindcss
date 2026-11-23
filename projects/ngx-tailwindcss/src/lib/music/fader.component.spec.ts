@@ -328,3 +328,37 @@ describe('TwFaderComponent', () => {
     });
   });
 });
+
+describe('TwFaderComponent text colours', () => {
+  it('should keep label and scale readable on the page and the value on its dark chip', async () => {
+    await TestBed.configureTestingModule({ imports: [TwFaderComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwFaderComponent);
+    fixture.componentRef.setInput('label', 'Vol');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const label = () =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === 'Vol')!;
+    const value = () => el.querySelector<HTMLElement>('div.font-mono.text-center')!;
+    const scale = () => el.querySelector<HTMLElement>('.absolute.flex.items-center')!;
+
+    // default has no surface of its own: slate-300 label text vanished on a light page
+    expect(label().className).toContain('text-slate-700');
+    expect(label().className).toContain('dark:text-slate-300');
+    expect(scale().className).toContain('dark:text-slate-400');
+    // ...while the value readout stays light on its slate-800 chip
+    expect(value().className).toContain('bg-slate-800');
+    expect(value().className).toContain('text-slate-300');
+    expect(value().className).not.toContain('text-slate-700');
+
+    fixture.componentRef.setInput('variant', 'studio');
+    fixture.detectChanges();
+    expect(label().className).toContain('text-slate-800');
+    expect(scale().className).toContain('text-slate-600');
+
+    // channel scale sits on the slate-800 container (slate-500 is ~3:1 there)
+    fixture.componentRef.setInput('variant', 'channel');
+    fixture.detectChanges();
+    expect(scale().className).toContain('text-slate-400');
+    expect(scale().className).not.toContain('text-slate-500');
+  });
+});

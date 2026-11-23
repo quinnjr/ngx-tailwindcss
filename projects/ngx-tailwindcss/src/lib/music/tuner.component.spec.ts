@@ -152,4 +152,10 @@ describe('TwTunerComponent', () => {
       expect(stop).toHaveBeenCalled();
     });
   });
+
+  it('should not render low-contrast slate-500/600 text on the dark panel', () => {
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.text-slate-500, .text-slate-600')
+    ).toHaveLength(0);
+  });
 });

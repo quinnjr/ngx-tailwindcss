@@ -70,6 +70,12 @@ export class TwAvatarComponent {
   /** Internal: set by TwAvatarGroupComponent to hide avatars beyond its `max` */
   readonly hiddenInGroup = signal(false);
 
+  /**
+   * Internal: set by TwAvatarGroupComponent. The separating ring goes on the rounded avatar
+   * itself; on the (rectangular, line-height tall) host it would draw a square outline.
+   */
+  readonly inGroup = signal(false);
+
   protected srcVal = computed(() => (this._imageError() ? '' : this._src()));
   protected altVal = computed(() => this._alt());
   protected initialsVal = computed(() => this._initials());
@@ -119,6 +125,7 @@ export class TwAvatarComponent {
       textSizeClasses[sz],
       variantClasses[vari],
       baseColor,
+      this.inGroup() ? 'ring-2 ring-white dark:ring-slate-800' : '',
     ].join(' ');
   });
 
@@ -249,6 +256,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
 
     this.avatars.forEach((avatar, index) => {
       avatar.size = size;
+      avatar.inGroup.set(true);
       avatar.hiddenInGroup.set(max > 0 && index >= max);
     });
   }
@@ -269,11 +277,7 @@ export class TwAvatarGroupComponent implements AfterContentInit {
       loose: '-space-x-1',
     };
 
-    return [
-      'flex items-center',
-      spacingClasses[sp],
-      '[&>*]:ring-2 [&>*]:ring-white dark:[&>*]:ring-slate-800',
-    ].join(' ');
+    return ['flex items-center', spacingClasses[sp]].join(' ');
   });
 
   protected overflowClasses = computed(() => {

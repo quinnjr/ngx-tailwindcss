@@ -9,7 +9,38 @@ import { TwSidebarNavComponent } from './sidebar.component';
 import { ShortcutBinding, TwShortcutsEditorComponent } from './shortcuts-editor.component';
 import { TwNativeContextMenuComponent } from './context-menu.component';
 import { NativeStorageService } from './storage.service';
+import { TwStatusBarComponent } from './status-bar.component';
+import { TwFileTreeComponent } from './file-tree.component';
+import { TwSearchBarComponent } from './search-bar.component';
+import {
+  SettingItem,
+  TwSettingsPanelComponent,
+  TwSettingTemplateDirective,
+} from './settings-panel.component';
 import { NativeMenuItem, SidebarItem } from './native.types';
+
+@Component({
+  template: `
+    <tw-settings-panel
+      [categories]="[{ id: 'c', label: 'General' }]"
+      [settings]="settings"
+      (settingChanged)="changed = $event.value"
+    >
+      <ng-template twSettingTemplate="fancy" let-setting let-update="update">
+        <button class="custom-control" (click)="update('picked')">{{ setting.label }}</button>
+      </ng-template>
+    </tw-settings-panel>
+  `,
+  standalone: true,
+  imports: [TwSettingsPanelComponent, TwSettingTemplateDirective],
+})
+class SettingsTemplateHostComponent {
+  settings: SettingItem[] = [
+    { id: 'fancy', categoryId: 'c', label: 'Fancy', type: 'text', value: '' },
+    { id: 'plain', categoryId: 'c', label: 'Plain', type: 'text', value: '' },
+  ];
+  changed: unknown = null;
+}
 
 @Component({
   template: `
@@ -268,5 +299,95 @@ describe('TwCodeViewerComponent match navigation', () => {
     expect(scrolled).toEqual([2]);
     expect(lineEl(2).classList).toContain('bg-yellow-600/60');
     expect(lineEl(0).classList).not.toContain('bg-yellow-600/60');
+  });
+});
+
+describe('TwStatusBarComponent variant', () => {
+  const render = (variant?: 'default' | 'minimal') => {
+    const fixture = TestBed.createComponent(TwStatusBarComponent);
+    if (variant) fixture.componentRef.setInput('variant', variant);
+    fixture.componentRef.setInput('items', [
+      { id: 'a', content: 'Ready', position: 'left', clickable: true },
+    ]);
+    fixture.detectChanges();
+    const footer = fixture.nativeElement.querySelector('footer') as HTMLElement;
+    const button = fixture.nativeElement.querySelector('button') as HTMLElement;
+    return { footer, button };
+  };
+
+  it('renders white text on the blue bar by default', () => {
+    const { footer, button } = render();
+    expect(footer.classList).toContain('bg-blue-600');
+    expect(footer.classList).toContain('text-white');
+    expect(button.classList).toContain('hover:bg-white/20');
+  });
+
+  it('renders dark text on a neutral bar for the minimal variant', () => {
+    const { footer, button } = render('minimal');
+    expect(footer.classList).not.toContain('bg-blue-600');
+    expect(footer.classList).not.toContain('text-white');
+    expect(footer.classList).toContain('bg-gray-100');
+    expect(footer.classList).toContain('text-gray-700');
+    expect(footer.classList).toContain('dark:text-gray-300');
+    expect(button.classList).toContain('hover:bg-gray-200');
+    expect(button.classList).not.toContain('hover:bg-white/20');
+  });
+});
+
+describe('native inputs are honoured', () => {
+  it('confirm dialog colours its icon by type', () => {
+    const fixture = TestBed.createComponent(TwNativeConfirmDialogComponent);
+    fixture.componentRef.setInput('open', true);
+    fixture.componentRef.setInput('type', 'success');
+    fixture.detectChanges();
+    const icon = (fixture.nativeElement as HTMLElement).querySelector('.rounded-full')!;
+    expect(icon.classList).toContain('bg-green-100');
+    expect(icon.classList).not.toContain('bg-blue-100');
+
+    fixture.componentRef.setInput('destructive', true);
+    fixture.detectChanges();
+    expect(icon.classList).toContain('bg-red-100');
+  });
+
+  it('file tree shows modified dates only when showDate is set', () => {
+    const fixture = TestBed.createComponent(TwFileTreeComponent);
+    fixture.componentRef.setInput('nodes', [
+      { id: 'f', name: 'a.txt', type: 'file', modified: new Date(2024, 0, 2, 3, 4) },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).not.toContain('1/2/24');
+
+    fixture.componentRef.setInput('showDate', true);
+    fixture.detectChanges();
+    expect(el.textContent).toContain('1/2/24');
+  });
+
+  it('search bar renders filters passed via the filters input', () => {
+    const fixture = TestBed.createComponent(TwSearchBarComponent);
+    fixture.componentRef.setInput('filters', [{ id: 'x', label: 'Type: TS', value: 'ts' }]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Type: TS');
+
+    const emitted: unknown[] = [];
+    fixture.componentInstance.filterChange.subscribe(f => emitted.push(f));
+    el.querySelector<HTMLButtonElement>('[aria-label="Remove filter Type: TS"]')!.click();
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Type: TS');
+    expect(emitted).toEqual([[]]);
+  });
+
+  it('settings panel renders a twSettingTemplate in place of the default control', () => {
+    const fixture = TestBed.createComponent(SettingsTemplateHostComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const custom = el.querySelector<HTMLButtonElement>('.custom-control');
+    expect(custom?.textContent?.trim()).toBe('Fancy');
+    expect(el.querySelector('#fancy')).toBeNull();
+    expect(el.querySelector('input#plain')).not.toBeNull();
+
+    custom!.click();
+    expect(fixture.componentInstance.changed).toBe('picked');
   });
 });

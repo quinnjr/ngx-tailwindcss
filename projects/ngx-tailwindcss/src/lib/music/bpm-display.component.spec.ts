@@ -122,3 +122,37 @@ describe('TwBpmDisplayComponent slider', () => {
     expect(slider.getAttribute('aria-label')).toBe('Tempo in BPM');
   });
 });
+
+describe('TwBpmDisplayComponent text colours', () => {
+  it('should keep labels, scale and the slider value readable on each surface', async () => {
+    await TestBed.configureTestingModule({ imports: [TwBpmDisplayComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TwBpmDisplayComponent);
+    fixture.componentRef.setInput('showSlider', true);
+    fixture.componentRef.setInput('showTempoMarking', true);
+    fixture.componentRef.setInput('showMsPerBeat', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const span = (t: string) =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!;
+    const bubble = () => el.querySelector<HTMLElement>('.-top-4')!;
+
+    // default (slate-800): slate-500/600 were ~2-3:1
+    expect(span('BPM').className).toContain('text-slate-400');
+    expect(span('Allegro').className).toContain('text-slate-400');
+    expect(span('60').className).toContain('text-slate-400');
+    expect(span('(500ms)').className).not.toContain('opacity-60');
+
+    // light: the value bubble had white text and no background (white on white)
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(bubble().className).toContain('bg-blue-600');
+    expect(bubble().className).toContain('text-white');
+
+    // digital: white on cyan-500 was ~2.4:1
+    fixture.componentRef.setInput('variant', 'digital');
+    fixture.detectChanges();
+    expect(bubble().className).toContain('text-slate-950');
+    expect(span('BPM').className).toContain('text-cyan-500');
+    expect(span('BPM').className).not.toContain('/60');
+  });
+});

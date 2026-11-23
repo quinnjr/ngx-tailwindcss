@@ -522,7 +522,7 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         slider: 'bg-slate-500',
         fill: 'bg-green-500',
         track: 'bg-slate-800',
-        label: 'text-slate-500',
+        label: 'text-slate-400',
         value: 'text-green-400',
         curve: '#22C55E',
         grid: '#1E293B',

@@ -49,6 +49,26 @@ const INPUT_SIZES: Record<InputSize, string> = {
 
 const INPUT_ERROR_CLASSES = 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
 
+/**
+ * Variant classes for the wrapper rendered around the input when it has a
+ * prefix, suffix or clear button. The wrapper itself is not focusable, so the
+ * focus styles use `focus-within:` (the inner input's own focus styles are
+ * suppressed) to keep a visible focus indicator.
+ */
+const INPUT_WRAPPER_VARIANTS: Record<InputVariant, string> = {
+  default:
+    'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20',
+  filled:
+    'bg-slate-100 dark:bg-slate-700 border-2 border-transparent rounded-lg focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:border-blue-500',
+  outlined:
+    'bg-transparent border-2 border-slate-300 dark:border-slate-600 rounded-lg focus-within:border-blue-500',
+  underlined:
+    'bg-transparent border-b-2 border-slate-300 dark:border-slate-600 rounded-none px-0 focus-within:border-blue-500',
+};
+
+const INPUT_WRAPPER_ERROR_CLASSES =
+  'border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500/20';
+
 const LABEL_REQUIRED_CLASSES = "after:content-['*'] after:ml-0.5 after:text-rose-500";
 
 /**
@@ -286,9 +306,9 @@ export class TwInputComponent implements ControlValueAccessor {
     if (hasAffixes || this.clearable()) {
       return this.twClass.merge(
         'flex items-center gap-2',
-        INPUT_VARIANTS[this.variant()],
+        INPUT_WRAPPER_VARIANTS[this.variant()],
         INPUT_SIZES[this.size()],
-        this.hasError() ? INPUT_ERROR_CLASSES : ''
+        this.hasError() ? INPUT_WRAPPER_ERROR_CLASSES : ''
       );
     }
 

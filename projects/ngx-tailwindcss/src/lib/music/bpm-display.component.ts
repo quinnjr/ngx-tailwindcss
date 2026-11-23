@@ -389,7 +389,8 @@ export class TwBpmDisplayComponent implements OnDestroy {
       minimal: 'bg-transparent p-2',
       led: 'bg-black border border-slate-600 p-4',
       digital: 'bg-slate-900 border border-slate-600 p-4',
-      analog: 'bg-gradient-to-b from-amber-900/30 to-slate-900 border border-amber-800/50 p-4',
+      // Opaque: a translucent top let a light page show through behind the amber text
+      analog: 'bg-gradient-to-b from-amber-950 to-slate-900 border border-amber-800/50 p-4',
       light: 'bg-white border border-slate-200 shadow-sm p-4',
       highContrast: 'bg-black border-2 border-white p-4',
     };
@@ -434,16 +435,46 @@ export class TwBpmDisplayComponent implements OnDestroy {
     const variant = this.variant();
 
     const variantClasses: Record<BpmDisplayVariant, string> = {
-      default: 'text-slate-500',
+      // At least 4.5:1 on each variant's surface (the old slate-500 and translucent
+      // tints were ~3-4:1 on the dark displays)
+      default: 'text-slate-400',
       minimal: 'text-slate-600 dark:text-slate-400',
-      led: 'text-red-400/60',
-      digital: 'text-cyan-500/60',
-      analog: 'text-amber-600/80',
+      led: 'text-red-400',
+      digital: 'text-cyan-500',
+      analog: 'text-amber-500',
       light: 'text-slate-500',
       highContrast: 'text-white',
     };
 
     return ['text-xs uppercase tracking-wider', variantClasses[variant]].join(' ');
+  });
+
+  /** Secondary text (tempo marking, slider scale) readable on each variant's surface */
+  protected readonly mutedTextClasses = computed(() => {
+    const variantClasses: Record<BpmDisplayVariant, string> = {
+      default: 'text-slate-400',
+      minimal: 'text-slate-600 dark:text-slate-400',
+      led: 'text-slate-400',
+      digital: 'text-slate-400',
+      analog: 'text-amber-500',
+      light: 'text-slate-500',
+      highContrast: 'text-slate-300',
+    };
+    return variantClasses[this.variant()];
+  });
+
+  /** Slider fill and value bubble colours; the bubble text contrasts with its fill */
+  protected readonly sliderAccentClasses = computed(() => {
+    const variantClasses: Record<BpmDisplayVariant, { fill: string; bubble: string }> = {
+      default: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
+      minimal: { fill: 'bg-blue-500', bubble: 'bg-blue-500 text-white' },
+      led: { fill: 'bg-red-500', bubble: 'bg-red-500 text-white' },
+      digital: { fill: 'bg-cyan-500', bubble: 'bg-cyan-500 text-slate-950' },
+      analog: { fill: 'bg-amber-500', bubble: 'bg-amber-500 text-slate-950' },
+      light: { fill: 'bg-blue-600', bubble: 'bg-blue-600 text-white' },
+      highContrast: { fill: 'bg-yellow-400', bubble: 'bg-yellow-400 text-slate-950' },
+    };
+    return variantClasses[this.variant()];
   });
 
   protected readonly buttonClasses = computed(() => {

@@ -445,4 +445,21 @@ describe('TwConfirmDialogComponent dark mode', () => {
     expect(cancel.className).toContain('dark:bg-slate-700');
     fixture.destroy();
   });
+
+  it('should offset the confirm button focus ring so it is visible against the same-hue fill', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConfirmDialogHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ConfirmDialogHostComponent);
+    fixture.detectChanges();
+
+    const confirm = [...document.querySelectorAll('tw-modal-footer button')].find(
+      b => b.textContent?.trim() === 'Confirm'
+    ) as HTMLElement;
+    expect(confirm.className).toContain('focus-visible:ring-2');
+    expect(confirm.className).toContain('focus-visible:ring-offset-2');
+    expect(confirm.className).toContain('dark:focus-visible:ring-offset-slate-800');
+    fixture.destroy();
+  });
 });

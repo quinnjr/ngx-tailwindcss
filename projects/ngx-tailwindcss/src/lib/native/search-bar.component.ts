@@ -6,6 +6,7 @@ import {
   HostListener,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -53,7 +54,8 @@ export class TwSearchBarComponent {
   protected readonly query = signal('');
   protected readonly isFocused = signal(false);
   protected readonly showSuggestions = signal(false);
-  protected readonly activeFilters = signal<SearchFilter[]>([]);
+  // Seeded from the `filters` input; user removals/additions apply on top
+  protected readonly activeFilters = linkedSignal<SearchFilter[]>(() => [...this.filters()]);
   protected readonly recentSearches = signal<string[]>([]);
 
   @HostListener('document:click', ['$event'])

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   parseABCNotation,
   parseMusicXML,
+  SAMPLE_MUSIC,
   SheetMusicData,
   TwSheetMusicComponent,
 } from './sheet-music.component';
@@ -228,6 +229,29 @@ describe('TwSheetMusicComponent', () => {
     expect(buttons).toHaveLength(2);
     // Light buttons carry their own dark text rather than inheriting a dark-mode light colour
     for (const button of buttons) expect(button.classList).toContain('text-slate-800');
+  });
+
+  it('keeps tempo, measure numbers and the empty state readable (>= 4.5:1) in every variant', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const tempo = (): HTMLElement =>
+      [...host.querySelectorAll('p')].find(p => p.textContent?.includes('♩ ='))!;
+    const measureNumber = (): HTMLElement => host.querySelector('span.absolute')!;
+    fixture.componentRef.setInput('showMeasureNumbers', true);
+    fixture.componentRef.setInput('variant', 'handwritten');
+    fixture.detectChanges();
+    for (const el of [tempo(), measureNumber()]) {
+      expect(el.classList).toContain('text-slate-600');
+      expect(el.className).not.toMatch(/text-slate-[45]00/);
+    }
+
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.componentRef.setInput('music', { ...SAMPLE_MUSIC, measures: [] });
+    fixture.detectChanges();
+    const empty = [...host.querySelectorAll('div')]
+      .reverse()
+      .find(d => d.textContent?.includes('No music to display'))!;
+    expect(empty.classList).toContain('text-slate-600');
+    expect(empty.classList).toContain('dark:text-slate-400');
   });
 
   it('emits parseError once per unparseable input', () => {

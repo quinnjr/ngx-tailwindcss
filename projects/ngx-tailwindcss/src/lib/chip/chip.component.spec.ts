@@ -308,6 +308,12 @@ describe('TwChipsComponent', () => {
     expect(input?.placeholder).toBe('Add tag...');
   });
 
+  it('should give the add input a text colour matching the container background', () => {
+    const input = chipsEl.querySelector('input')!;
+    expect(input.className).toContain('text-slate-900');
+    expect(input.className).toContain('dark:text-slate-100');
+  });
+
   it('should not render input when allowAdd is false', () => {
     component.allowAdd.set(false);
     fixture.detectChanges();

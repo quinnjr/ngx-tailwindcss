@@ -134,4 +134,25 @@ describe('TwCompressorMeterComponent', () => {
       expect(internals.inputPeakLevel()).toBe(-40);
     });
   });
+
+  it('should render labels and readouts at a readable contrast for the variant', () => {
+    fixture.componentRef.setInput('showSettings', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const label = (text: string): HTMLElement =>
+      [...el.querySelectorAll<HTMLElement>('span')].find(s => s.textContent?.trim() === text)!;
+
+    // Dark panel: slate-500/600 (~2.4-3:1) replaced by slate-400 / slate-300
+    expect(el.querySelectorAll('.text-slate-500, .text-slate-600')).toHaveLength(0);
+    expect(label('Thresh').classList).toContain('text-slate-400');
+    expect(label('Thresh').classList).toContain('uppercase');
+    expect(label('IN').classList).toContain('text-slate-400');
+
+    // Light panel: dark text instead of light grey on white
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    expect(label('Thresh').classList).toContain('text-slate-600');
+    expect(label('Thresh').nextElementSibling!.classList).toContain('text-slate-800');
+    expect(el.querySelectorAll('.text-slate-300')).toHaveLength(0);
+  });
 });

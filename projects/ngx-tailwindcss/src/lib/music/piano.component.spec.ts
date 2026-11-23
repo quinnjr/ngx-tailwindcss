@@ -129,4 +129,25 @@ describe('TwPianoComponent', () => {
       nav.requestMIDIAccess = original;
     }
   });
+
+  it('keeps key and octave labels readable (>= 4.5:1) on the dark panel and the page', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const octaveLabels = (): HTMLElement =>
+      [...host.querySelectorAll<HTMLElement>('div')].find(d =>
+        d.textContent?.replaceAll(/\s+/g, '').startsWith('C4C5')
+      )!;
+    fixture.componentRef.setInput('showLabels', true);
+    fixture.componentRef.setInput('showOctaveLabels', true);
+    fixture.detectChanges();
+    // classic: slate-900 panel (slate-500 there is ~3.7:1)
+    expect(octaveLabels().classList).toContain('text-slate-400');
+    expect(octaveLabels().classList).not.toContain('text-slate-500');
+    const whiteLabel = host.querySelector('button[aria-label="C4"] span')!;
+    expect(whiteLabel.classList).toContain('text-slate-600');
+
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(octaveLabels().classList).toContain('text-slate-600');
+    expect(octaveLabels().classList).toContain('dark:text-slate-400');
+  });
 });

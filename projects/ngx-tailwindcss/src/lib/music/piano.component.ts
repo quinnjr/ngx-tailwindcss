@@ -249,6 +249,16 @@ export class TwPianoComponent implements OnDestroy {
     return this.twClass.merge(baseClasses, variantClasses[variant], this.classOverride());
   });
 
+  // Text around the keys (MIDI status, octave labels): classic/modern sit on a dark panel,
+  // minimal on the page, so it follows the page's colour scheme (all >= 4.5:1)
+  protected readonly mutedTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
+  protected readonly midiConnectedClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-green-700 dark:text-green-400' : 'text-green-400'
+  );
+
   protected whiteKeyClasses(key: PianoKey): string {
     const variant = this.variant();
     const isActive = this.isKeyActive(key);
@@ -335,9 +345,9 @@ export class TwPianoComponent implements OnDestroy {
 
   protected labelClasses(keyType: 'white' | 'black'): string {
     if (keyType === 'white') {
-      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-500';
+      return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-medium text-slate-600';
     }
-    return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-medium text-slate-400';
+    return 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-medium text-slate-300';
   }
 
   protected isKeyActive(key: PianoKey): boolean {

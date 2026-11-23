@@ -118,4 +118,18 @@ describe('TwParametricEQComponent', () => {
     expect(getContext).not.toHaveBeenCalled();
     getContext.mockRestore();
   });
+
+  it('should draw canvas text that is readable on each variant background', () => {
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.detectChanges();
+    // Hover/selected node labels were white on the white plot
+    expect(internals.colors().nodeText).toBe('#0F172A');
+
+    for (const variant of ['dark', 'vintage', 'neon'] as const) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      expect(internals.colors().nodeText).toBe('#FFFFFF');
+      expect(['#64748B', '#78716C', '#666666']).not.toContain(internals.colors().gridText);
+    }
+  });
 });

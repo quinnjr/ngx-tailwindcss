@@ -127,4 +127,16 @@ describe('TwAudioPlayerComponent', () => {
     fixture.detectChanges();
     expect(spinner()).toBeNull();
   });
+
+  it('should follow the page colour scheme for track text in the transparent theme', () => {
+    const title = () => (fixture.nativeElement as HTMLElement).querySelector('h3')!;
+    expect(title().className).toContain('text-white');
+
+    fixture.componentRef.setInput('theme', 'transparent');
+    fixture.detectChanges();
+
+    // Fixed white text vanished on a light page
+    expect(title().className).toContain('text-slate-900');
+    expect(title().className).toContain('dark:text-white');
+  });
 });

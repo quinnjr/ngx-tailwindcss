@@ -7,7 +7,7 @@
   <!-- Header with Key Lock -->
   @if (showSemitones()) {
     <div class="flex items-center justify-between">
-      <span class="text-xs uppercase tracking-wider text-slate-500">Semitones</span>
+      <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Semitones</span>
       @if (showKeyLock()) {
         <button
           type="button"
@@ -65,7 +65,6 @@
       <div
         class="min-w-[60px] text-center cursor-pointer select-none"
         [class]="semitonesValueClasses()"
-        [class]="pitchDirectionClass()"
         [class.transition-all]="animated()"
         (dblclick)="resetSemitones()"
         title="Double-click to reset"
@@ -88,7 +87,7 @@
 
     <!-- Interval Name -->
     @if (variant() !== 'minimal' && internalSemitones() !== 0) {
-      <div class="text-center text-xs text-slate-500">
+      <div class="text-center text-xs" [class]="labelClass()">
         {{ intervalName() }}
       </div>
     }
@@ -108,7 +107,7 @@
   @if (showCents()) {
     <div class="mt-2">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-xs uppercase tracking-wider text-slate-500">Cents</span>
+        <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Cents</span>
         <span [class]="centsValueClasses()" class="text-sm">{{ centsDisplay() }} ¢</span>
       </div>
 
@@ -140,7 +139,7 @@
         ></div>
       </div>
 
-      <div class="flex justify-between text-[10px] text-slate-600 mt-1">
+      <div class="flex justify-between text-[10px] mt-1" [class]="labelClass()">
         <span>-50</span>
         <span>0</span>
         <span>+50</span>
@@ -152,7 +151,7 @@
   @if (showPitchWheel()) {
     <div class="mt-3">
       <div class="flex items-center justify-between mb-1">
-        <span class="text-xs uppercase tracking-wider text-slate-500">Pitch Bend</span>
+        <span class="text-xs uppercase tracking-wider" [class]="labelClass()">Pitch Bend</span>
         <span class="text-xs font-mono" [class]="pitchDirectionClass()">
           {{ effectivePitchBend() > 0 ? '+' : '' }}{{ effectivePitchBend() | number: '1.0-0' }} ¢
         </span>
@@ -209,8 +208,8 @@
             </div>
 
             <!-- Labels -->
-            <div class="absolute left-full ml-1 top-1 text-[9px] text-slate-500">+</div>
-            <div class="absolute left-full ml-1 bottom-1 text-[9px] text-slate-500">−</div>
+            <div class="absolute left-full ml-1 top-1 text-[9px]" [class]="labelClass()">+</div>
+            <div class="absolute left-full ml-1 bottom-1 text-[9px]" [class]="labelClass()">−</div>
           </div>
         }
 
@@ -310,7 +309,7 @@
         }
       }
 
-      <div class="text-center text-[10px] text-slate-500 mt-1">
+      <div class="text-center text-[10px] mt-1" [class]="labelClass()">
         Range: ±{{ pitchBendRange() }} st
       </div>
     </div>
@@ -340,7 +339,7 @@
         <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white -translate-x-1/2"></div>
       </div>
 
-      <div class="flex justify-between text-[9px] text-slate-500 mt-1">
+      <div class="flex justify-between text-[9px] mt-1" [class]="labelClass()">
         <span>-24 st</span>
         <span>0</span>
         <span>+24 st</span>
@@ -354,7 +353,7 @@
       <div class="text-2xl font-mono font-bold" [class]="pitchDirectionClass()">
         {{ pitchPercentageDisplay() }}
       </div>
-      <div class="text-[10px] text-slate-500">PITCH</div>
+      <div class="text-[10px]" [class]="labelClass()">PITCH</div>
     </div>
   }
 
@@ -364,7 +363,7 @@
       <div class="text-lg font-mono" [class]="pitchDirectionClass()">
         {{ frequencyRatioDisplay() }}
       </div>
-      <div class="text-[10px] text-slate-500">
+      <div class="text-[10px]" [class]="labelClass()">
         {{ referenceFrequency() | number: '1.0-1' }} Hz →
         {{ outputFrequency() | number: '1.0-1' }} Hz
       </div>
@@ -374,7 +373,7 @@
   <!-- Quick Presets -->
   @if (showPresets()) {
     <div class="mt-3 pt-3 border-t border-slate-700">
-      <div class="text-xs text-slate-500 mb-2">Quick Presets</div>
+      <div class="text-xs mb-2" [class]="labelClass()">Quick Presets</div>
       <div class="flex flex-wrap gap-1 justify-center">
         <button
           type="button"
@@ -428,7 +427,7 @@
   <!-- Total pitch display -->
   @if (showSemitones() && showCents() && variant() !== 'minimal') {
     <div class="mt-2 pt-2 border-t border-slate-700 text-center">
-      <span class="text-xs text-slate-500">Total: </span>
+      <span class="text-xs" [class]="labelClass()">Total: </span>
       <span class="text-sm font-mono" [class]="pitchDirectionClass()">
         {{ totalCents() > 0 ? '+' : '' }}{{ totalCents() }} cents
       </span>

@@ -373,6 +373,26 @@ describe('TwAvatarGroupComponent', () => {
     });
   });
 
+  describe('separating ring', () => {
+    it('should ring the rounded avatar itself, not its rectangular host', () => {
+      const avatars = fixture.debugElement.queryAll(By.directive(TwAvatarComponent));
+      for (const avatar of avatars) {
+        const host = avatar.nativeElement as HTMLElement;
+        const inner = host.querySelector('.rounded-full');
+        expect(inner?.className).toContain('ring-2');
+        expect(host.className).not.toContain('ring');
+      }
+      expect(groupEl.querySelector('div')?.className).not.toContain('ring');
+    });
+
+    it('should not ring a standalone avatar', () => {
+      const single = TestBed.createComponent(TestHostComponent);
+      single.detectChanges();
+      const inner = (single.nativeElement as HTMLElement).querySelector('.rounded-full');
+      expect(inner?.className).not.toContain('ring-2');
+    });
+  });
+
   describe('size propagation', () => {
     it('should propagate the group size to projected avatars', () => {
       component.size.set('lg');

@@ -3,7 +3,7 @@
   <div class="flex items-center gap-4 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
     <!-- Duration Selection -->
     <div class="flex items-center gap-1">
-      <span class="text-xs text-slate-500 mr-2">Duration:</span>
+      <span class="text-xs text-slate-600 dark:text-slate-400 mr-2">Duration:</span>
       @for (dur of ['whole', 'half', 'quarter', 'eighth', 'sixteenth']; track dur) {
         <button
           type="button"
@@ -115,7 +115,7 @@
     <!-- Voice Selection -->
     @if (maxVoices() > 1) {
       <div class="flex items-center gap-1">
-        <span class="text-xs text-slate-500 mr-1">Voice:</span>
+        <span class="text-xs text-slate-600 dark:text-slate-400 mr-1">Voice:</span>
         @for (voice of [1, 2, 3, 4]; track voice) {
           @if (voice <= maxVoices()) {
             <button
@@ -181,7 +181,7 @@
           [class.bg-green-500]="midiConnected()"
           [class.bg-slate-400]="!midiConnected()"
         ></div>
-        <span class="text-xs text-slate-500">
+        <span class="text-xs text-slate-600 dark:text-slate-400">
           {{ midiConnected() ? (midiDeviceName() ?? 'MIDI') : 'No MIDI' }}
         </span>
       </div>
@@ -429,7 +429,7 @@
 
   <!-- Status Bar -->
   <div
-    class="flex items-center justify-between px-3 py-1.5 text-xs text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg"
+    class="flex items-center justify-between px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-lg"
   >
     <div class="flex items-center gap-4">
       <span>Notes: {{ notes().length }}</span>
@@ -445,7 +445,7 @@
       }
     </div>
     <div class="flex items-center gap-4">
-      <span class="text-slate-400">
+      <span class="text-slate-500 dark:text-slate-400">
         Shortcuts: 1-5 duration • A-G notes • # ♭ = accidentals • Del delete • Ctrl+Z undo
       </span>
     </div>

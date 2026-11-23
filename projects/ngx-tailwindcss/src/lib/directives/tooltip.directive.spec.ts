@@ -179,7 +179,7 @@ describe('TwTooltipDirective', () => {
 
     buttonEl.dispatchEvent(new Event('mouseenter'));
     await nextTick();
-    const tooltip = document.querySelector('[role="tooltip"]')!;
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
 
     expect(tooltip.classList.contains('bg-red-500')).toBe(true);
     expect(tooltip.classList.contains('bg-slate-900')).toBe(false);
@@ -193,7 +193,7 @@ describe('TwTooltipDirective', () => {
     component.tooltipContent.set('Updated');
     fixture.detectChanges();
 
-    const tooltip = document.querySelector('[role="tooltip"]')!;
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
     expect(tooltip.textContent).toBe('Updated');
     expect(tooltip.querySelector('div')).toBeTruthy();
   });
@@ -223,5 +223,24 @@ describe('TwTooltipDirective', () => {
     });
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
     expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('should fade in to a custom opacity from tooltipClass instead of forcing opacity-100', async () => {
+    component.tooltipClass.set('opacity-90');
+    fixture.detectChanges();
+
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.style.opacity).toBe('0');
+
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+    expect(tooltip.style.opacity).toBe('');
+    expect(tooltip.classList.contains('opacity-90')).toBe(true);
+    expect(tooltip.classList.contains('opacity-100')).toBe(false);
   });
 });

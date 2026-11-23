@@ -292,6 +292,21 @@ export class TwVuMeterComponent {
     return 'text-xs font-medium text-slate-600 dark:text-slate-400';
   });
 
+  // The horizontal scale sits inside the meter surface, so its colour follows that
+  // surface (e.g. slate-500 is below 4.5:1 on the always-dark led background, and
+  // dark:slate-400 is unreadable on the always-white light variant)
+  protected readonly scaleTextClasses = computed(() => {
+    const classes: Record<VuMeterVariant, string> = {
+      led: 'text-slate-400',
+      gradient: 'text-slate-600 dark:text-slate-400',
+      solid: 'text-slate-500 dark:text-slate-400',
+      retro: 'text-slate-600 dark:text-slate-400',
+      light: 'text-slate-500',
+      highContrast: 'text-slate-300',
+    };
+    return classes[this.variant()];
+  });
+
   protected segmentClasses(segment: MeterSegment, currentValue: number): string {
     const variant = this.variant();
     const isActive = this.toPercent(currentValue ?? this.min()) >= segment.threshold;

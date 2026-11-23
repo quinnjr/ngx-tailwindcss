@@ -61,6 +61,18 @@ export class TwSettingsPanelComponent {
 
   public readonly templates = contentChildren(TwSettingTemplateDirective);
 
+  /** Custom control template registered via `twSettingTemplate="<settingId>"`, if any. */
+  protected customTemplate(settingId: string): TemplateRef<unknown> | null {
+    return this.templates().find(t => t.settingId() === settingId)?.template ?? null;
+  }
+
+  /** Callback exposed to custom templates as `let-update="update"`. */
+  protected updateFn(setting: SettingItem): (value: unknown) => void {
+    return value => {
+      this.updateSetting(setting, value);
+    };
+  }
+
   public readonly searchQuery = signal('');
   public readonly selectedCategoryId = signal<string | null>(null);
 

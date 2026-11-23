@@ -102,4 +102,10 @@ describe('TwGraphicEQComponent', () => {
     expect(column.classList).toContain('flex-1');
     expect(column.parentElement!.classList).not.toContain('gap-1');
   });
+
+  it('should keep studio-variant labels readable on the near-black panel', () => {
+    fixture.componentRef.setInput('variant', 'studio');
+    fixture.detectChanges();
+    expect(internals.colors().label).toBe('text-slate-400');
+  });
 });

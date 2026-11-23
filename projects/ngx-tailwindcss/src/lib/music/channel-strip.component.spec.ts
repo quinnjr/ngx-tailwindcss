@@ -68,4 +68,30 @@ describe('TwChannelStripComponent', () => {
     expect(right.style.top).toBe('8px');
     expect(left.style.bottom).toBe('');
   });
+  it('should keep strip text readable on the dark surface and on the page (minimal)', () => {
+    fixture.componentRef.setInput('label', 'Kick');
+    fixture.componentRef.setInput('showInputGain', true);
+    fixture.componentRef.setInput('showRecord', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const text = (t: string) =>
+      [...el.querySelectorAll('span')].find(s => s.textContent?.trim() === t)!;
+
+    // slate-500/600 are below 4.5:1 on the slate-800 strip
+    for (const t of ['GAIN', 'PAN', '1']) {
+      expect(text(t).className).toContain('text-slate-400');
+      expect(text(t).className).not.toMatch(/text-slate-[56]00/);
+    }
+    // Off-state M/S/R buttons sit on slate-700, where slate-400 is ~3.9:1
+    for (const b of el.querySelectorAll('button')) {
+      expect(b.className).toContain('text-slate-300');
+    }
+
+    // Minimal is transparent: white text would vanish on a light page
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(text('Kick').className).toContain('text-slate-900');
+    expect(text('Kick').className).toContain('dark:text-white');
+    expect(text('GAIN').className).toContain('text-slate-600');
+  });
 });

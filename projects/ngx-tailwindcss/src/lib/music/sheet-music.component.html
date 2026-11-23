@@ -47,7 +47,9 @@
       </p>
     }
     @if (showTempo() && musicData().tempo) {
-      <p class="text-center text-xs text-slate-500 mb-4">♩ = {{ musicData().tempo }}</p>
+      <p class="text-center text-xs mb-4" [class]="mutedTextClasses()">
+        ♩ = {{ musicData().tempo }}
+      </p>
     }
 
     <!-- Sheet Music Content -->
@@ -124,7 +126,8 @@
                 @if (showMeasureNumbers()) {
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     <span
-                      class="absolute text-[10px] text-slate-400"
+                      class="absolute text-[10px]"
+                      [class]="mutedTextClasses()"
                       [style.left.px]="
                         getMeasureStartX(
                           getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -288,7 +291,7 @@
 
     <!-- Empty state -->
     @if (musicData().measures.length === 0) {
-      <div class="text-center py-12 text-slate-500">
+      <div class="text-center py-12" [class]="mutedTextClasses()">
         <p class="text-lg">No music to display</p>
         <p class="text-sm mt-2">Add measures to see the sheet music</p>
       </div>

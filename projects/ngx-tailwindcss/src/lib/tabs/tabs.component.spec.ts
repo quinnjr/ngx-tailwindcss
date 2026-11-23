@@ -127,6 +127,13 @@ describe('TwTabsComponent', () => {
       );
     });
 
+    it('should show a focus ring on the focusable tab panel', () => {
+      const panel = fixture.debugElement.query(By.css('[role="tabpanel"]')).nativeElement;
+      expect(panel.getAttribute('tabindex')).toBe('0');
+      expect(panel.className).toContain('focus-visible:ring-2');
+      expect(panel.className).toContain('focus-visible:ring-blue-500');
+    });
+
     it('should set tabindex correctly', () => {
       const tabButtons = fixture.debugElement.queryAll(By.css('[role="tab"]'));
 
@@ -370,5 +377,36 @@ describe('TwTabsComponent (panels rendered after init)', () => {
     fixture.detectChanges();
     expect(tabStops().map(t => t.textContent.trim())).toEqual(['b']);
     expect(visiblePanels().map(p => p.textContent.trim())).toEqual(['b content']);
+  });
+});
+
+@Component({
+  template: `
+    <tw-tabs>
+      <tw-tab-panel value="home" label="Home" icon="🏠">Home content</tw-tab-panel>
+      <tw-tab-panel value="plain" label="Plain">Plain content</tw-tab-panel>
+    </tw-tabs>
+  `,
+  standalone: true,
+  imports: [TwTabsComponent, TwTabPanelComponent],
+})
+class IconTabsHostComponent {}
+
+describe('TwTabsComponent (icon)', () => {
+  it('should render the panel icon before the tab label', async () => {
+    await TestBed.configureTestingModule({
+      imports: [IconTabsHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(IconTabsHostComponent);
+    fixture.detectChanges();
+
+    const [home, plain] = [
+      ...fixture.nativeElement.querySelectorAll('[role="tab"]'),
+    ] as HTMLElement[];
+    const icon = home.querySelector('span[aria-hidden="true"]');
+    expect(icon?.textContent?.trim()).toBe('🏠');
+    expect(home.textContent?.trim().endsWith('Home')).toBe(true);
+    expect(plain.querySelector('span[aria-hidden="true"]')).toBeNull();
   });
 });

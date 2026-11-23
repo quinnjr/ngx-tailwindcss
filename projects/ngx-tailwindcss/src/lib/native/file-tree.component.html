@@ -92,6 +92,9 @@
       @if (showSize() && node.type === 'file' && node.size !== undefined) {
         <span class="text-xs text-gray-400">{{ formatSize(node.size) }}</span>
       }
+      @if (showDate() && node.modified) {
+        <span class="text-xs text-gray-400">{{ node.modified | date: 'short' }}</span>
+      }
     </div>
 
     <!-- Children -->

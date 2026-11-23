@@ -222,7 +222,10 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: string;
         capHighlight: string;
         capLine: string;
+        // label text: sits on the page unless the variant has a container surface
         text: string;
+        // value readout text: on its own dark chip except in minimal
+        valueText: string;
         scale: string;
         peakHold: string;
         container: string;
@@ -234,8 +237,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-slate-300 to-slate-400',
         capHighlight: 'bg-slate-200',
         capLine: 'bg-slate-500',
-        text: 'text-slate-300',
-        scale: 'text-slate-500',
+        text: 'text-slate-700 dark:text-slate-300',
+        valueText: 'text-slate-300',
+        scale: 'text-slate-500 dark:text-slate-400',
         peakHold: 'bg-red-500',
         container: '',
       },
@@ -245,8 +249,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-slate-200 to-slate-300',
         capHighlight: 'bg-white',
         capLine: 'bg-slate-400',
-        text: 'text-slate-200',
-        scale: 'text-slate-400',
+        text: 'text-slate-800 dark:text-slate-200',
+        valueText: 'text-slate-200',
+        scale: 'text-slate-600 dark:text-slate-400',
         peakHold: 'bg-red-500',
         container: '',
       },
@@ -257,7 +262,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         capHighlight: 'bg-slate-100 dark:bg-white',
         capLine: 'bg-slate-300 dark:bg-slate-500',
         text: 'text-slate-700 dark:text-slate-300',
-        scale: 'text-slate-400 dark:text-slate-500',
+        valueText: 'text-slate-700 dark:text-slate-300',
+        scale: 'text-slate-500 dark:text-slate-400',
         peakHold: 'bg-red-400',
         container: '',
       },
@@ -267,8 +273,9 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         cap: 'bg-gradient-to-b from-amber-200 to-amber-300',
         capHighlight: 'bg-amber-100',
         capLine: 'bg-amber-600',
-        text: 'text-amber-200',
-        scale: 'text-amber-400',
+        text: 'text-amber-800 dark:text-amber-200',
+        valueText: 'text-amber-200',
+        scale: 'text-amber-700 dark:text-amber-400',
         peakHold: 'bg-red-600',
         container: '',
       },
@@ -279,7 +286,8 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
         capHighlight: 'bg-white',
         capLine: 'bg-slate-400',
         text: 'text-slate-200',
-        scale: 'text-slate-500',
+        valueText: 'text-slate-200',
+        scale: 'text-slate-400',
         peakHold: 'bg-red-500',
         container: 'bg-slate-800 rounded-lg p-2 border border-slate-700',
       },

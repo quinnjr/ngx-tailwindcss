@@ -126,6 +126,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-pan-control` knob value arc no longer lights the dial gap at low values
 - `tw-pitch-display` removes its drag listeners through the injected
   `DOCUMENT` (SSR safe)
+- Dark mode: `tw-tree` node text and selection, `tw-splitter` gutter and
+  handle, `tw-sheet-music` page navigation and the `tw-terminal` prompt,
+  cursor and timestamps are readable; `tw-time-display variant="minimal"`
+  inherits the surrounding text colour
+- `twTooltip` disabled or emptied while its show delay is pending no longer
+  opens afterwards
+- Audio worker `configure()` keys explicitly set to `undefined` keep their
+  current values instead of disabling the worker or zeroing its timeout
+- `tw-piano-chord` no longer draws note dots for chord notes outside the
+  visible octaves
+- `tw-note-display` LED bar agrees with the in-tune check at the
+  `centsTolerance` boundary
+- `tw-sheet-music` emits `parseError` from an effect instead of inside a
+  `computed`
+- `tw-looper` waveform no longer draws full-height spikes at the right edge
+  for short loops
+- `tw-avatar-group` draws the separating ring around each rounded avatar
+  instead of a square outline around its host element
+- `tw-timeline layout="horizontal"` connectors run from one marker to the
+  next (they used to start mid-item, below the markers); marker rings match
+  the dark background in dark mode instead of showing a white halo
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs; demo labels,

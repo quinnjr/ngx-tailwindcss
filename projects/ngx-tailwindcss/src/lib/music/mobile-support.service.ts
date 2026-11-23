@@ -321,11 +321,13 @@ export class MobileSupportService implements OnDestroy {
    * Position of a touch or mouse event. For touch events the touch on the
    * listening element (`targetTouches`) is used: `touches[0]` is the first
    * finger anywhere on the screen, which belongs to a different control when
-   * several are touched at once.
+   * several are touched at once. On touchend/touchcancel the lifted finger is
+   * no longer in `targetTouches`/`touches`, so fall back to `changedTouches`
+   * (reading `touches[0]` would crash, or pick another finger still down).
    */
   private pointOf(event: TouchEvent | MouseEvent): { x: number; y: number } {
     if ('touches' in event) {
-      const touch = event.targetTouches?.[0] ?? event.touches[0];
+      const touch = event.targetTouches?.[0] ?? event.changedTouches?.[0] ?? event.touches[0];
       return { x: touch.clientX, y: touch.clientY };
     }
     return { x: event.clientX, y: event.clientY };

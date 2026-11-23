@@ -91,4 +91,27 @@ describe('TwNoteDisplayComponent', () => {
     show(-23);
     expect(lit()).toEqual([-2, -1]);
   });
+
+  it('uses readable (>= 4.5:1) text colours for secondary and status text', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const byText = (text: string): HTMLElement =>
+      [...host.querySelectorAll<HTMLElement>('div, span')]
+        .reverse()
+        .find(el => el.textContent?.trim() === text)!;
+
+    // Dark variants: no slate-500 / blue-500 on slate-800 or black
+    fixture.detectChanges();
+    expect(byText('Waiting for input...').classList).toContain('text-slate-400');
+    fixture.componentRef.setInput('showFrequency', true);
+    fixture.componentRef.setInput('frequency', 430);
+    fixture.detectChanges();
+    expect(byText('FLAT').classList).toContain('text-blue-400');
+    expect(host.innerHTML).not.toMatch(/text-slate-500|text-blue-500/);
+
+    // Minimal sits on the page: dark status colours in light mode, light ones in dark mode
+    fixture.componentRef.setInput('variant', 'minimal');
+    fixture.detectChanges();
+    expect(byText('FLAT').classList).toContain('text-blue-700');
+    expect(byText('FLAT').classList).toContain('dark:text-blue-400');
+  });
 });

@@ -163,6 +163,17 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     return [base, sizeClass].join(' ');
   });
 
+  // Text colours readable on the strip surface: the dark variants need a light
+  // grey (slate-500/600 fall below 4.5:1 on slate-800/900), while the transparent
+  // minimal strip sits on the page and follows the colour scheme
+  protected readonly labelTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-900 dark:text-white' : 'text-white'
+  );
+
+  protected readonly mutedTextClass = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
+
   protected readonly auxKnobSize = computed(() => {
     return this.size() === 'lg' ? 'sm' : 'xs';
   });

@@ -104,7 +104,7 @@ export class TwMenuComponent {
   protected itemClasses(item: MenuItem) {
     return this.twClass.merge(
       'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
-      'focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-700',
+      'focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       item.disabled
         ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer',

@@ -181,7 +181,7 @@ export class TwChipsComponent {
   });
 
   protected inputClasses = computed(() => {
-    return 'flex-1 min-w-20 px-2 py-1 text-sm outline-none bg-transparent';
+    return 'flex-1 min-w-20 px-2 py-1 text-sm outline-none bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500';
   });
 
   getDisplayValue(value: any): string {

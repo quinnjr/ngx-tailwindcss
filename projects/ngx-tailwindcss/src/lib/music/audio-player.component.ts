@@ -156,6 +156,15 @@ export class TwAudioPlayerComponent implements OnDestroy {
 
   protected readonly textClasses = computed(() => {
     const theme = this.theme();
+    if (theme === 'transparent') {
+      // No surface of its own: follow the page colour scheme (fixed white text
+      // vanished on a light page)
+      return {
+        title: 'text-slate-900 dark:text-white',
+        artist: 'text-slate-600 dark:text-slate-400',
+        time: 'text-slate-500 dark:text-slate-400',
+      };
+    }
     return {
       title: theme === 'light' ? 'text-slate-900' : 'text-white',
       artist: theme === 'light' ? 'text-slate-600' : 'text-slate-400',

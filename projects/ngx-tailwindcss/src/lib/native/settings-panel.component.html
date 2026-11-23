@@ -111,112 +111,121 @@
               </div>
 
               <div class="flex-shrink-0 w-64">
-                @switch (setting.type) {
-                  @case ('toggle') {
-                    <button
-                      type="button"
-                      role="switch"
-                      [attr.aria-checked]="!!setting.value"
-                      [id]="setting.id"
-                      (click)="toggleSetting(setting)"
-                      [disabled]="setting.disabled || false"
-                      [class.bg-blue-600]="setting.value"
-                      [class.bg-slate-200]="!setting.value"
-                      [class.dark:bg-slate-700]="!setting.value"
-                      class="relative w-11 h-6 rounded-full transition-colors disabled:opacity-50"
-                    >
-                      <span
-                        [class.translate-x-5]="setting.value"
-                        [class.translate-x-0]="!setting.value"
-                        class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                      ></span>
-                    </button>
-                  }
-                  @case ('select') {
-                    <select
-                      [id]="setting.id"
-                      [ngModel]="setting.value"
-                      (ngModelChange)="updateSetting(setting, $event)"
-                      [disabled]="setting.disabled || false"
-                      class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-                    >
-                      @for (option of setting.options; track option.value) {
-                        <option [ngValue]="option.value">{{ option.label }}</option>
-                      }
-                    </select>
-                  }
-                  @case ('text') {
-                    <input
-                      type="text"
-                      [id]="setting.id"
-                      [ngModel]="setting.value"
-                      (ngModelChange)="updateSetting(setting, $event)"
-                      [disabled]="setting.disabled || false"
-                      [placeholder]="setting.placeholder || ''"
-                      class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-                    />
-                  }
-                  @case ('number') {
-                    <input
-                      type="number"
-                      [id]="setting.id"
-                      [ngModel]="setting.value"
-                      (ngModelChange)="updateSetting(setting, $event)"
-                      [disabled]="setting.disabled || false"
-                      [min]="setting.min ?? null"
-                      [max]="setting.max ?? null"
-                      [step]="setting.step || 1"
-                      class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-                    />
-                  }
-                  @case ('color') {
-                    <div class="flex items-center gap-2">
-                      <input
-                        type="color"
-                        [id]="setting.id"
-                        [ngModel]="setting.value"
-                        (ngModelChange)="updateSetting(setting, $event)"
-                        [disabled]="setting.disabled || false"
-                        class="w-10 h-10 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer disabled:opacity-50"
-                      />
-                      <input
-                        type="text"
-                        [ngModel]="setting.value"
-                        (ngModelChange)="updateSetting(setting, $event)"
-                        [disabled]="setting.disabled || false"
-                        class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-                      />
-                    </div>
-                  }
-                  @case ('path') {
-                    <div class="flex items-center gap-2">
-                      <input
-                        type="text"
-                        [id]="setting.id"
-                        [ngModel]="setting.value"
-                        (ngModelChange)="updateSetting(setting, $event)"
-                        [disabled]="setting.disabled || false"
-                        [placeholder]="setting.placeholder || 'Select path...'"
-                        class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-                      />
+                @if (customTemplate(setting.id); as tpl) {
+                  <ng-container
+                    *ngTemplateOutlet="
+                      tpl;
+                      context: { $implicit: setting, update: updateFn(setting) }
+                    "
+                  ></ng-container>
+                } @else {
+                  @switch (setting.type) {
+                    @case ('toggle') {
                       <button
-                        (click)="browsePath.emit(setting)"
+                        type="button"
+                        role="switch"
+                        [attr.aria-checked]="!!setting.value"
+                        [id]="setting.id"
+                        (click)="toggleSetting(setting)"
                         [disabled]="setting.disabled || false"
-                        class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        [class.bg-blue-600]="setting.value"
+                        [class.bg-slate-200]="!setting.value"
+                        [class.dark:bg-slate-700]="!setting.value"
+                        class="relative w-11 h-6 rounded-full transition-colors disabled:opacity-50"
                       >
-                        Browse
+                        <span
+                          [class.translate-x-5]="setting.value"
+                          [class.translate-x-0]="!setting.value"
+                          class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                        ></span>
                       </button>
-                    </div>
-                  }
-                  @case ('shortcut') {
-                    <button
-                      [id]="setting.id"
-                      (click)="editShortcut.emit(setting)"
-                      [disabled]="setting.disabled || false"
-                      class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-mono transition-colors disabled:opacity-50"
-                    >
-                      {{ setting.value || 'Click to set...' }}
-                    </button>
+                    }
+                    @case ('select') {
+                      <select
+                        [id]="setting.id"
+                        [ngModel]="setting.value"
+                        (ngModelChange)="updateSetting(setting, $event)"
+                        [disabled]="setting.disabled || false"
+                        class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
+                      >
+                        @for (option of setting.options; track option.value) {
+                          <option [ngValue]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    }
+                    @case ('text') {
+                      <input
+                        type="text"
+                        [id]="setting.id"
+                        [ngModel]="setting.value"
+                        (ngModelChange)="updateSetting(setting, $event)"
+                        [disabled]="setting.disabled || false"
+                        [placeholder]="setting.placeholder || ''"
+                        class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
+                      />
+                    }
+                    @case ('number') {
+                      <input
+                        type="number"
+                        [id]="setting.id"
+                        [ngModel]="setting.value"
+                        (ngModelChange)="updateSetting(setting, $event)"
+                        [disabled]="setting.disabled || false"
+                        [min]="setting.min ?? null"
+                        [max]="setting.max ?? null"
+                        [step]="setting.step || 1"
+                        class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
+                      />
+                    }
+                    @case ('color') {
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="color"
+                          [id]="setting.id"
+                          [ngModel]="setting.value"
+                          (ngModelChange)="updateSetting(setting, $event)"
+                          [disabled]="setting.disabled || false"
+                          class="w-10 h-10 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer disabled:opacity-50"
+                        />
+                        <input
+                          type="text"
+                          [ngModel]="setting.value"
+                          (ngModelChange)="updateSetting(setting, $event)"
+                          [disabled]="setting.disabled || false"
+                          class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
+                        />
+                      </div>
+                    }
+                    @case ('path') {
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="text"
+                          [id]="setting.id"
+                          [ngModel]="setting.value"
+                          (ngModelChange)="updateSetting(setting, $event)"
+                          [disabled]="setting.disabled || false"
+                          [placeholder]="setting.placeholder || 'Select path...'"
+                          class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
+                        />
+                        <button
+                          (click)="browsePath.emit(setting)"
+                          [disabled]="setting.disabled || false"
+                          class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                          Browse
+                        </button>
+                      </div>
+                    }
+                    @case ('shortcut') {
+                      <button
+                        [id]="setting.id"
+                        (click)="editShortcut.emit(setting)"
+                        [disabled]="setting.disabled || false"
+                        class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-mono transition-colors disabled:opacity-50"
+                      >
+                        {{ setting.value || 'Click to set...' }}
+                      </button>
+                    }
                   }
                 }
               </div>

@@ -84,12 +84,16 @@ function generateWaveformData(samples: number): Float32Array {
 // CANVAS RENDERING BENCHMARKS
 // ============================================================================
 
-describe('Canvas Rendering Performance', () => {
-  // Create a canvas for testing
-  const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 400;
-  const ctx = canvas.getContext('2d')!;
+// Create a canvas for testing. jsdom (the default Vitest environment) has no
+// 2D context without the optional `canvas` npm package: skip the rendering
+// benchmarks there instead of reporting every one as a failed NaN result.
+const canvas = document.createElement('canvas');
+canvas.width = 800;
+canvas.height = 400;
+const canvasContext = canvas.getContext('2d');
+
+describe.skipIf(!canvasContext)('Canvas Rendering Performance', () => {
+  const ctx = canvasContext!;
 
   describe('Spectrum Analyzer Rendering', () => {
     const frequencyData = generateFrequencyData(1024);

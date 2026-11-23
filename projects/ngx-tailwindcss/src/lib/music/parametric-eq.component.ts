@@ -162,7 +162,9 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#0F172A',
           grid: '#334155',
-          gridText: '#64748B',
+          // slate-400: readable (>=4.5:1) axis labels on the dark background
+          gridText: '#94A3B8',
+          nodeText: '#FFFFFF',
           curve: '#3B82F6',
           curveFill: 'rgba(59, 130, 246, 0.2)',
           spectrum: 'rgba(59, 130, 246, 0.3)',
@@ -172,7 +174,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#1C1917',
           grid: '#44403C',
-          gridText: '#78716C',
+          gridText: '#A8A29E', // stone-400
+          nodeText: '#FFFFFF',
           curve: '#F59E0B',
           curveFill: 'rgba(245, 158, 11, 0.2)',
           spectrum: 'rgba(245, 158, 11, 0.3)',
@@ -182,7 +185,8 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
         return {
           background: '#000000',
           grid: '#1E1E1E',
-          gridText: '#666666',
+          gridText: '#999999',
+          nodeText: '#FFFFFF',
           curve: '#00FFFF',
           curveFill: 'rgba(0, 255, 255, 0.15)',
           spectrum: 'rgba(255, 0, 255, 0.3)',
@@ -193,6 +197,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#FFFFFF',
           grid: '#E2E8F0',
           gridText: '#64748B',
+          nodeText: '#0F172A',
           curve: '#2563EB',
           curveFill: 'rgba(37, 99, 235, 0.15)',
           spectrum: 'rgba(37, 99, 235, 0.2)',
@@ -203,6 +208,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#000000',
           grid: '#FFFFFF',
           gridText: '#FFFFFF',
+          nodeText: '#FFFFFF',
           curve: '#FFFF00',
           curveFill: 'rgba(255, 255, 0, 0.3)',
           spectrum: 'rgba(0, 255, 0, 0.4)',
@@ -213,6 +219,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
           background: '#1E293B',
           grid: '#475569',
           gridText: '#94A3B8',
+          nodeText: '#FFFFFF',
           curve: '#10B981',
           curveFill: 'rgba(16, 185, 129, 0.2)',
           spectrum: 'rgba(16, 185, 129, 0.3)',
@@ -569,7 +576,7 @@ export class TwParametricEQComponent implements AfterViewInit, OnDestroy {
 
       // Draw frequency label if hovered or selected
       if (isHovered || isSelected) {
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = this.colors().nodeText;
         this.ctx.font = '11px system-ui';
         this.ctx.textAlign = 'center';
         const freqLabel =

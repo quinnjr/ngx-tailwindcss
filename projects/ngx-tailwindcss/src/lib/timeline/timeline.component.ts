@@ -103,9 +103,14 @@ export class TwTimelineComponent {
 
   protected connectorClasses(index: number) {
     if (this.layout() === 'horizontal') {
+      // Items are equal-width columns with the dot at their top-left, so a line one item
+      // wide starting at this dot's centre ends at the next dot's centre
+      const horizontalTop = { sm: 'top-[5px]', md: 'top-[7px]', lg: 'top-[9px]' };
+      const horizontalLeft = { sm: 'left-[6px]', md: 'left-[8px]', lg: 'left-[10px]' };
       return this.twClass.merge(
-        'absolute top-4 left-full w-full h-0.5 bg-slate-300',
-        '-translate-x-1/2'
+        'absolute w-full h-0.5 bg-slate-300',
+        horizontalTop[this.markerSize()],
+        horizontalLeft[this.markerSize()]
       );
     }
 
@@ -157,7 +162,11 @@ export class TwTimelineComponent {
     const color = event.color || 'primary';
     const colorClasses = TIMELINE_COLORS[color];
 
-    return this.twClass.merge('rounded-full ring-4 ring-white', size, colorClasses.bg);
+    return this.twClass.merge(
+      'rounded-full ring-4 ring-white dark:ring-slate-900',
+      size,
+      colorClasses.bg
+    );
   }
 
   protected iconMarkerClasses(event: TimelineEvent) {
@@ -166,7 +175,7 @@ export class TwTimelineComponent {
     const colorClasses = TIMELINE_COLORS[color];
 
     return this.twClass.merge(
-      'rounded-full flex items-center justify-center text-white ring-4 ring-white',
+      'rounded-full flex items-center justify-center text-white ring-4 ring-white dark:ring-slate-900',
       size,
       colorClasses.bg
     );

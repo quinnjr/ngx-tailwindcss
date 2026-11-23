@@ -953,13 +953,14 @@ export class TwSheetMusicComponent {
     return [base, size, color].join(' ');
   });
 
-  // 'minimal' has a transparent background, so its text must follow the page's dark mode;
-  // the other variants keep a light background in dark mode
-  protected readonly pageLabelClasses = computed(() =>
-    this.variant() === 'minimal'
-      ? 'text-sm text-slate-600 dark:text-slate-400'
-      : 'text-sm text-slate-600'
+  // Secondary text (tempo, measure numbers, page label, empty state). 'minimal' has a
+  // transparent background, so its text must follow the page's dark mode; the other variants
+  // keep a light (possibly tinted) background in dark mode, where slate-600 stays >= 4.5:1
+  protected readonly mutedTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-600'
   );
+
+  protected readonly pageLabelClasses = computed(() => `text-sm ${this.mutedTextClasses()}`);
 
   protected readonly staffVariant = computed(() => {
     const variant = this.variant();

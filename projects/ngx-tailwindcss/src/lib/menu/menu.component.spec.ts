@@ -88,6 +88,13 @@ describe('TwMenuComponent', () => {
     expect(component.selected).toBeNull();
   });
 
+  it('should give items a visible keyboard focus ring', () => {
+    const item = menuItems()[0];
+    expect(item.className).toContain('focus:outline-none');
+    expect(item.className).toContain('focus-visible:ring-2');
+    expect(item.className).toContain('focus-visible:ring-blue-500');
+  });
+
   describe('visible', () => {
     it('should hide items with visible: false', () => {
       component.items.set([

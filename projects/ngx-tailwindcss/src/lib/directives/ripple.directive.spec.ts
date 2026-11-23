@@ -128,4 +128,15 @@ describe('TwRippleDirective', () => {
 
     expect(buttonNative.querySelector('span')).toBeNull();
   });
+
+  it('should render a single ripple for a tap (touchstart plus emulated mousedown)', () => {
+    const before = buttonNative.querySelectorAll('span').length;
+
+    buttonNative.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    buttonNative.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 })
+    );
+
+    expect(buttonNative.querySelectorAll('span').length).toBe(before + 1);
+  });
 });

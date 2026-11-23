@@ -146,7 +146,7 @@ export class TwTabPanelComponent {
 
   protected computedClasses = computed(() => {
     return this.twClass.merge(
-      'focus:outline-none',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
       this.active() ? 'block' : 'hidden',
       this.active() && this.animated() ? 'tw-tab-panel-animated' : '',
       this.panelClass()

@@ -527,7 +527,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
       ctx.stroke();
 
       // Label
-      ctx.fillStyle = 'rgb(100, 116, 139)'; // slate-500
+      ctx.fillStyle = 'rgb(148, 163, 184)'; // slate-400 (readable on slate-800)
       ctx.font = '8px monospace';
       ctx.fillText(`${db}`, 2, y - 2);
     }
@@ -613,7 +613,7 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     ctx.stroke();
 
     // Draw labels
-    ctx.fillStyle = 'rgb(100, 116, 139)'; // slate-500
+    ctx.fillStyle = 'rgb(148, 163, 184)'; // slate-400 (readable on slate-800)
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('ATK', attackWidth / 2, height - 4);
@@ -838,6 +838,16 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
   });
 
   // Activity color class
+  // Label / readout text colours that stay >= 4.5:1 against the variant's
+  // background (slate-500/600 on the dark panels were ~2.4-3:1)
+  protected readonly labelClass = computed(() =>
+    this.variant() === 'light' ? 'text-slate-600' : 'text-slate-400'
+  );
+
+  protected readonly valueClass = computed(() =>
+    this.variant() === 'light' ? 'text-slate-800' : 'text-slate-300'
+  );
+
   protected readonly activityColorClass = computed(() => {
     const activity = this.compressionActivity();
     return {

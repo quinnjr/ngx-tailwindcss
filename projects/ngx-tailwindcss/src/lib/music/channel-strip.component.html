@@ -12,8 +12,8 @@
           title="Signal Present"
         ></div>
       }
-      <span class="text-slate-400">{{ channelNumber() }}</span>
-      <span class="text-white">{{ label() }}</span>
+      <span [class]="mutedTextClass()">{{ channelNumber() }}</span>
+      <span [class]="labelTextClass()">{{ label() }}</span>
     </div>
   }
 
@@ -35,8 +35,10 @@
         unit="dB"
         [showValue]="false"
       ></tw-volume-dial>
-      <span class="text-[9px] text-slate-500 font-mono">{{ formatGain(inputGain()) }}dB</span>
-      <span class="text-[8px] text-slate-600">GAIN</span>
+      <span class="text-[9px] font-mono" [class]="mutedTextClass()"
+        >{{ formatGain(inputGain()) }}dB</span
+      >
+      <span class="text-[8px]" [class]="mutedTextClass()">GAIN</span>
     </div>
   }
 
@@ -49,7 +51,7 @@
       [class.bg-red-600]="record()"
       [class.text-white]="record()"
       [class.bg-slate-700]="!record()"
-      [class.text-slate-400]="!record()"
+      [class.text-slate-300]="!record()"
       [class.hover:bg-red-500]="!record()"
       [class.animate-pulse]="record()"
       [disabled]="isDisabled()"
@@ -65,7 +67,7 @@
   <!-- Aux Send Knobs -->
   @if (showAuxSends()) {
     <div class="flex flex-col gap-1 w-full border-t border-slate-700/50 pt-2">
-      <span class="text-[8px] text-slate-500 text-center">SENDS</span>
+      <span class="text-[8px] text-center" [class]="mutedTextClass()">SENDS</span>
       <div
         class="grid gap-1"
         [class.grid-cols-2]="auxSendCount() > 2"
@@ -85,7 +87,9 @@
               [label]="aux.label"
               [showValue]="false"
             ></tw-volume-dial>
-            <span class="text-[8px] text-slate-500 truncate max-w-full">{{ aux.label }}</span>
+            <span class="text-[8px] truncate max-w-full" [class]="mutedTextClass()">{{
+              aux.label
+            }}</span>
           </div>
         }
       </div>
@@ -178,7 +182,7 @@
       label="Pan"
       [showValue]="false"
     ></tw-volume-dial>
-    <span class="text-[10px] text-slate-500">PAN</span>
+    <span class="text-[10px]" [class]="mutedTextClass()">PAN</span>
   }
 
   <!-- Mute / Solo Buttons -->
@@ -191,7 +195,7 @@
         [class.bg-amber-500]="mute()"
         [class.text-black]="mute()"
         [class.bg-slate-700]="!mute()"
-        [class.text-slate-400]="!mute()"
+        [class.text-slate-300]="!mute()"
         [class.hover:bg-amber-400]="!mute()"
         [disabled]="isDisabled()"
         (click)="toggleMute()"
@@ -208,7 +212,7 @@
         [class.bg-green-500]="solo()"
         [class.text-black]="solo()"
         [class.bg-slate-700]="!solo()"
-        [class.text-slate-400]="!solo()"
+        [class.text-slate-300]="!solo()"
         [class.hover:bg-green-400]="!solo()"
         [disabled]="isDisabled()"
         (click)="toggleSolo()"

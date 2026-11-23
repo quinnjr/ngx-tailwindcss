@@ -229,6 +229,23 @@ describe('MobileSupportService', () => {
       expect(dragDelta.dy).toBe(0);
     });
 
+    it('should calculate drag delta from a touchend event (lifted finger)', () => {
+      service.startTouchTracking({
+        targetTouches: [{ clientX: 0, clientY: 100 }],
+        touches: [{ clientX: 0, clientY: 100 }],
+      } as unknown as TouchEvent);
+
+      // On touchend the lifted finger is only in changedTouches
+      const endEvent = {
+        targetTouches: [],
+        touches: [],
+        changedTouches: [{ clientX: 150, clientY: 100 }],
+      } as unknown as TouchEvent;
+
+      expect(service.getDragDelta(endEvent)).toEqual({ dx: 150, dy: 0 });
+      expect(service.validateDragDistance(endEvent, 10)).toBe(true);
+    });
+
     it('should calculate drag delta with mouse event', () => {
       const startEvent = new MouseEvent('mousedown', {
         clientX: 0,

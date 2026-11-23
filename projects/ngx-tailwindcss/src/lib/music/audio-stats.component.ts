@@ -504,11 +504,12 @@ export class TwAudioStatsComponent {
     const variant = this.variant();
 
     const variantClasses: Record<AudioStatsVariant, string> = {
-      default: 'text-slate-500',
+      // slate-500 and the translucent cyan were ~3-4:1 on the dark surfaces
+      default: 'text-slate-400',
       minimal: 'text-slate-600 dark:text-slate-400',
       detailed: 'text-slate-400',
-      compact: 'text-slate-500',
-      pro: 'text-cyan-500/70',
+      compact: 'text-slate-400',
+      pro: 'text-cyan-500',
       light: 'text-slate-600',
       highContrast: 'text-white',
     };
@@ -531,6 +532,30 @@ export class TwAudioStatsComponent {
 
     return variantClasses[variant];
   });
+
+  /** File name: the value colour (fixed light text vanished on the light/minimal surfaces) */
+  protected readonly nameClasses = computed(() =>
+    this.valueClasses().replace('font-mono', '').trim()
+  );
+
+  // Lossy/lossless badges: the light -400 text only works on the dark surfaces
+  private readonly onLightSurface = computed(() => this.variant() === 'light');
+
+  protected readonly lossyBadgeClasses = computed(() =>
+    this.onLightSurface()
+      ? 'bg-amber-600/20 text-amber-800'
+      : this.variant() === 'minimal'
+        ? 'bg-amber-600/20 text-amber-800 dark:text-amber-400'
+        : 'bg-amber-600/20 text-amber-400'
+  );
+
+  protected readonly losslessBadgeClasses = computed(() =>
+    this.onLightSurface()
+      ? 'bg-emerald-600/20 text-emerald-800'
+      : this.variant() === 'minimal'
+        ? 'bg-emerald-600/20 text-emerald-800 dark:text-emerald-400'
+        : 'bg-emerald-600/20 text-emerald-400'
+  );
 
   // Expose CODEC_INFO for template
   protected readonly CODEC_INFO = CODEC_INFO;

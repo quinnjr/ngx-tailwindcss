@@ -147,7 +147,7 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
       'shadow-lg',
       'pointer-events-none',
       'whitespace-nowrap',
-      'opacity-0',
+      'opacity-100',
       'transition-opacity',
       'duration-150',
     ];
@@ -161,6 +161,9 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
     });
 
     this.renderer.setStyle(this.tooltipElement, 'z-index', this.tooltipZIndex.toString());
+    // Start hidden via an inline style so the fade-in reveals the merged opacity class
+    // (a custom `opacity-*` in tooltipClass replaces the default `opacity-100`)
+    this.renderer.setStyle(this.tooltipElement, 'opacity', '0');
 
     // Add arrow
     const arrow = this.renderer.createElement('div');
@@ -185,8 +188,7 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
 
     requestAnimationFrame(() => {
       if (this.tooltipElement) {
-        this.renderer.removeClass(this.tooltipElement, 'opacity-0');
-        this.renderer.addClass(this.tooltipElement, 'opacity-100');
+        this.renderer.removeStyle(this.tooltipElement, 'opacity');
       }
     });
   }

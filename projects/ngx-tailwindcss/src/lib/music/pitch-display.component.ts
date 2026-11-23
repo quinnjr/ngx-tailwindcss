@@ -479,17 +479,39 @@ export class TwPitchDisplayComponent {
       lg: 'text-4xl',
     };
 
-    const variantClasses: Record<PitchDisplayVariant, string> = {
-      default: 'text-white font-bold',
-      minimal: 'text-slate-700 dark:text-white font-bold',
-      digital: 'text-green-400 font-mono font-bold',
-      wheel: 'text-blue-400 font-bold',
-      dj: 'text-cyan-400 font-mono font-bold',
-      light: 'text-blue-600 font-bold',
-      highContrast: 'text-yellow-400 font-bold',
+    const variantFont: Record<PitchDisplayVariant, string> = {
+      default: 'font-bold',
+      minimal: 'font-bold',
+      digital: 'font-mono font-bold',
+      wheel: 'font-bold',
+      dj: 'font-mono font-bold',
+      light: 'font-bold',
+      highContrast: 'font-bold',
     };
 
-    return [sizeClasses[size], variantClasses[variant]].join(' ');
+    const variantColor: Record<PitchDisplayVariant, string> = {
+      default: 'text-white',
+      minimal: 'text-slate-700 dark:text-white',
+      digital: 'text-green-400',
+      wheel: 'text-blue-400',
+      dj: 'text-cyan-400',
+      light: 'text-blue-600',
+      highContrast: 'text-yellow-400',
+    };
+
+    // Off-centre the value takes the sharp/flat colour. One binding: a second
+    // [class] on the element used to replace these size/weight classes.
+    const color = this.totalCents() === 0 ? variantColor[variant] : this.pitchDirectionClass();
+    return [sizeClasses[size], variantFont[variant], color].join(' ');
+  });
+
+  // Secondary label text, kept >= 4.5:1 against each variant's background
+  // (slate-500/600 on the dark panels were ~2.4-3:1)
+  protected readonly labelClass = computed(() => {
+    const variant = this.variant();
+    if (variant === 'light') return 'text-slate-600';
+    if (variant === 'minimal') return 'text-slate-600 dark:text-slate-400';
+    return 'text-slate-400';
   });
 
   protected readonly centsValueClasses = computed(() => {

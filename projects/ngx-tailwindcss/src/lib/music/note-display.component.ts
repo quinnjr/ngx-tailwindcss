@@ -320,25 +320,39 @@ export class TwNoteDisplayComponent {
     const variant = this.variant();
 
     const variantClasses: Record<NoteDisplayVariant, string> = {
-      default: 'text-slate-500',
+      default: 'text-slate-400',
       minimal: 'text-slate-600 dark:text-slate-400',
-      led: 'text-red-400/60',
-      lcd: 'text-lime-500/60',
-      meter: 'text-slate-500',
+      led: 'text-red-400/80',
+      lcd: 'text-lime-500/80',
+      meter: 'text-slate-400',
     };
 
     return ['text-sm font-mono', variantClasses[variant]].join(' ');
   });
 
-  protected readonly centsClasses = computed(() => {
-    const inTune = this.isInTune();
-    const sharp = this.isSharp();
-    const flat = this.isFlat();
+  // Secondary labels (meter scale, history heading, "waiting" text): the dark variants need a
+  // light grey to stay >= 4.5:1; minimal sits on the page so it follows its colour scheme
+  protected readonly mutedTextClasses = computed(() =>
+    this.variant() === 'minimal' ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400'
+  );
 
-    if (inTune) return 'text-green-500';
-    if (sharp) return 'text-amber-500';
-    if (flat) return 'text-blue-500';
-    return 'text-slate-500';
+  // Flat / sharp / in-tune text colours, readable on the dark variants and, for the
+  // transparent minimal variant, on a light or dark page
+  protected readonly statusTextClasses = computed(() => {
+    const minimal = this.variant() === 'minimal';
+    return {
+      flat: minimal ? 'text-blue-700 dark:text-blue-400' : 'text-blue-400',
+      sharp: minimal ? 'text-amber-700 dark:text-amber-400' : 'text-amber-500',
+      inTune: minimal ? 'text-green-700 dark:text-green-400' : 'text-green-500',
+    };
+  });
+
+  protected readonly centsClasses = computed(() => {
+    const status = this.statusTextClasses();
+    if (this.isInTune()) return status.inTune;
+    if (this.isSharp()) return status.sharp;
+    if (this.isFlat()) return status.flat;
+    return this.mutedTextClasses();
   });
 
   protected readonly indicatorColor = computed(() => {

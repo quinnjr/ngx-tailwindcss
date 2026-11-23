@@ -115,6 +115,23 @@ describe('TwMixerComponent layout', () => {
     expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(4);
     expect(fixture.debugElement.queryAll(By.css('button[title^="Scroll"]')).length).toBe(0);
   });
+
+  it('should show the collapsed-section channel count in a readable colour', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+    const mixer = fixture.debugElement.query(By.directive(TwMixerComponent))
+      .componentInstance as unknown as { toggleSection(id: string): void };
+    mixer.toggleSection('s');
+    fixture.detectChanges();
+
+    const indicator = [...(fixture.nativeElement as HTMLElement).querySelectorAll('div')].find(
+      d => d.textContent?.trim() === '2 ch'
+    )!;
+    // slate-500 is ~3:1 on the dark mixer surface
+    expect(indicator.className).toContain('text-slate-400');
+    expect(indicator.className).not.toContain('text-slate-500');
+  });
 });
 
 @Component({

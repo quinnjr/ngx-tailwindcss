@@ -11,6 +11,9 @@ import {
   Renderer2,
 } from '@angular/core';
 
+/** Window after a touchstart in which a mousedown is treated as touch-emulated */
+const EMULATED_MOUSE_THRESHOLD_MS = 800;
+
 /**
  * Adds a material-design style ripple effect to any element
  *
@@ -46,6 +49,7 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
 
   private readonly activeRipples: Array<{ element: HTMLElement; animation: Animation }> = [];
   private initialized = false;
+  private lastTouchTime = 0;
 
   constructor() {
     this.el = inject(ElementRef);
@@ -68,6 +72,14 @@ export class TwRippleDirective implements OnDestroy, AfterViewInit {
   @HostListener('touchstart', ['$event'])
   onInteraction(event: MouseEvent | TouchEvent): void {
     if (this.rippleDisabled || !this.initialized) return;
+
+    // A tap fires touchstart and then an emulated mousedown; ripple only once
+    const now = Date.now();
+    if (event.type === 'touchstart') {
+      this.lastTouchTime = now;
+    } else if (now - this.lastTouchTime < EMULATED_MOUSE_THRESHOLD_MS) {
+      return;
+    }
 
     this.createRipple(event);
   }

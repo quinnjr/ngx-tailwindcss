@@ -192,6 +192,16 @@ describe('TwProgressComponent', () => {
       fixture.detectChanges();
       expect(progressEl.textContent).toContain('75%');
     });
+
+    it('should keep label and value readable in dark mode', () => {
+      component.showValue.set(true);
+      fixture.detectChanges();
+      const spans = [...progressEl.querySelectorAll('span')];
+      const label = spans.find(s => s.textContent?.includes('Progress'))!;
+      const value = spans.find(s => s.textContent?.includes('%'))!;
+      expect(label.className).toContain('dark:text-slate-300');
+      expect(value.className).toContain('dark:text-slate-400');
+    });
   });
 
   describe('striped and animated', () => {

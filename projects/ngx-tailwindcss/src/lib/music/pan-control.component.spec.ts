@@ -94,4 +94,33 @@ describe('TwPanControlComponent', () => {
     expect(received).toEqual([50]);
     vi.restoreAllMocks();
   });
+
+  it('should draw no knob value arc in the dial opening at hard left', () => {
+    fixture.componentRef.setInput('variant', 'knob');
+    // Path intervals (0..circumference) a dash covers, given the circle's dash pattern
+    const litSpans = (value: number): Array<[number, number]> => {
+      component.writeValue(value);
+      fixture.detectChanges();
+      const arc = hostEl.querySelector<SVGCircleElement>('circle[stroke="#22d3ee"]')!;
+      const [dash, gap = dash] = arc
+        .getAttribute('stroke-dasharray')!
+        .split(/[\s,]+/)
+        .map(Number);
+      const offset = Number(arc.getAttribute('stroke-dashoffset'));
+      const length = 2 * Math.PI * 46;
+      const spans: Array<[number, number]> = [];
+      for (let start = -offset; start < length; start += dash + gap) {
+        const from = Math.max(0, start);
+        const to = Math.min(length, start + dash);
+        if (to - from > 0.5) spans.push([from, to]);
+      }
+      return spans;
+    };
+
+    // Hard left: nothing lit (the opening is the 217..289 stretch of the path)
+    expect(litSpans(-100)).toEqual([]);
+    // Quarter way: only the start of the 270° arc
+    expect(litSpans(-50)).toEqual([[0, 54.25]]);
+    expect(litSpans(100)).toEqual([[0, 217]]);
+  });
 });

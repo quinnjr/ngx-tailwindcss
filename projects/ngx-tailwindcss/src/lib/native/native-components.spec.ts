@@ -92,6 +92,26 @@ describe('TwTerminalComponent', () => {
     press('ArrowDown');
     expect(component.currentInput()).toBe('');
   });
+
+  it('uses dark line text on the white light variant', () => {
+    const fixture = TestBed.createComponent(TwTerminalComponent);
+    fixture.componentRef.setInput('variant', 'light');
+    fixture.componentRef.setInput('lines', [
+      { id: '1', content: 'ls', type: 'input' },
+      { id: '2', content: 'file.txt', type: 'output' },
+    ]);
+    fixture.detectChanges();
+
+    const rows = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+        '.whitespace-pre-wrap'
+      ),
+    ];
+    expect(rows[0].classList).toContain('text-gray-900');
+    expect(rows[1].classList).toContain('text-gray-700');
+    expect(rows[0].classList).not.toContain('text-gray-100');
+    expect(rows[1].classList).not.toContain('text-gray-300');
+  });
 });
 
 describe('TwSidebarNavComponent', () => {

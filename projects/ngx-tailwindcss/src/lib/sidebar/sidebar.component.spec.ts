@@ -90,6 +90,12 @@ describe('TwSidebarComponent', () => {
     expect(component.sidebar).toBeTruthy();
   });
 
+  it('should keep the header title readable on the dark-mode panel', () => {
+    const title = panelEl().querySelector('h2') as HTMLElement;
+    expect(title.textContent).toContain('Menu');
+    expect(title.className).toContain('dark:text-slate-100');
+  });
+
   it('should start hidden with the panel off-screen and inert', () => {
     expect(panelEl().className).toContain('-translate-x-full');
     expect(panelEl().hasAttribute('inert')).toBe(true);

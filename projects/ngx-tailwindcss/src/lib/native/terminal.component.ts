@@ -110,16 +110,27 @@ export class TwTerminalComponent implements AfterViewChecked {
   });
 
   protected getLineClasses(line: TerminalLine): string {
-    const typeClasses: Record<TerminalLine['type'], string> = {
-      input: 'text-gray-100',
-      output: 'text-gray-300',
-      error: 'text-red-400',
-      info: 'text-blue-400',
-      success: 'text-green-400',
-      warning: 'text-yellow-400',
-    };
+    // The light variant renders on a white background, so it needs dark text
+    const typeClasses: Record<TerminalLine['type'], string> =
+      this.variant() === 'light'
+        ? {
+            input: 'text-gray-900',
+            output: 'text-gray-700',
+            error: 'text-red-700',
+            info: 'text-blue-700',
+            success: 'text-green-700',
+            warning: 'text-yellow-800',
+          }
+        : {
+            input: 'text-gray-100',
+            output: 'text-gray-300',
+            error: 'text-red-400',
+            info: 'text-blue-400',
+            success: 'text-green-400',
+            warning: 'text-yellow-400',
+          };
 
-    return typeClasses[line.type] || 'text-gray-300';
+    return typeClasses[line.type] || typeClasses.output;
   }
 
   protected formatTimestamp(date: Date): string {

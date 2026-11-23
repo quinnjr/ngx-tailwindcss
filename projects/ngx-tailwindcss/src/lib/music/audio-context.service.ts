@@ -555,7 +555,13 @@ export class AudioContextService implements OnDestroy {
     const ctx = this.getContext();
     const analyser = ctx.createAnalyser();
 
-    const mergedConfig = { ...DEFAULT_ANALYSER_CONFIG, ...config };
+    // Skip keys explicitly set to undefined (e.g. forwarded optional inputs):
+    // spreading them would overwrite the defaults, and writing undefined to
+    // fftSize / smoothingTimeConstant throws (IndexSizeError / TypeError)
+    const definedConfig = Object.fromEntries(
+      Object.entries(config).filter(([, value]) => value !== undefined)
+    ) as AudioNodeConfig;
+    const mergedConfig = { ...DEFAULT_ANALYSER_CONFIG, ...definedConfig };
     analyser.fftSize = mergedConfig.fftSize!;
     analyser.smoothingTimeConstant = mergedConfig.smoothingTimeConstant!;
     // Setting minDecibels >= the node's current maxDecibels (or the reverse)

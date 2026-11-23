@@ -97,6 +97,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-steps` buttons keep an accessible name when `showLabels` is off
 - `twDropZone` reports plain-text drops as `type: 'text'`; the preferences
   dialog emits `tabChanged` when a tab is clicked
+- `tw-toast` title, message and action text are readable in dark mode
+- `tw-progress` label/value text and `tw-timeline` date, title and
+  description are readable in dark mode
+- Class merging keeps per-side scroll margin/padding (`scroll-mt-*`,
+  `scroll-px-*`, ...), per-axis translate (including `translate-z-*`), skew
+  and 3D rotate utilities instead of collapsing them into one
+- `tw-multiselect` "Select All" is reachable and toggled from the keyboard
+  (Enter/Space)
+- `tw-code-viewer` match navigation highlights and scrolls to the current match
+- Audio analyser: setting a decibel range no longer throws `IndexSizeError`
+  when the new range lies outside the current one
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: corrected package name and documented APIs

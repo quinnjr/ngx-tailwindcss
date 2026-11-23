@@ -425,4 +425,21 @@ describe('TwScoreEditorComponent', () => {
     editor.removePart(ids[1]);
     expect(editor.parts().map(p => p.id)).toEqual(['part-0']);
   });
+
+  it('disables the score-changing controls when not editable', () => {
+    fixture = TestBed.createComponent(TwScoreEditorComponent);
+    fixture.componentRef.setInput('initialScore', score([placed('n1')]));
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const toolbarButton = (title: string) =>
+      root.querySelector<HTMLButtonElement>(`.toolbar-btn[title^="${title}"]`)!;
+
+    expect(toolbarButton('Undo').disabled).toBe(true);
+    expect(toolbarButton('Redo').disabled).toBe(true);
+    expect(toolbarButton('Transpose').disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('.add-part-btn')!.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('.part-btn.delete')!.disabled).toBe(true);
+    expect(root.querySelector<HTMLSelectElement>('.part-presets select')!.disabled).toBe(true);
+  });
 });

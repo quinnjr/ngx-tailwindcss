@@ -98,6 +98,13 @@ describe('TwTimelineComponent', () => {
       expect(timelineEl.nativeElement.textContent).toContain('2024-02-01');
       expect(timelineEl.nativeElement.textContent).toContain('2024-03-01');
     });
+
+    it('should keep date, title and description readable in dark mode', () => {
+      const el: HTMLElement = timelineEl.nativeElement;
+      expect(el.querySelector('time')!.className).toContain('dark:text-slate-400');
+      expect(el.querySelector('h4')!.className).toContain('dark:text-slate-100');
+      expect(el.querySelector('p')!.className).toContain('dark:text-slate-300');
+    });
   });
 
   describe('layout', () => {

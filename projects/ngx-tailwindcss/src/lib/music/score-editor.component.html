@@ -26,7 +26,7 @@
         <button
           type="button"
           class="toolbar-btn"
-          [disabled]="!canUndo()"
+          [disabled]="!editable() || !canUndo()"
           (click)="undo()"
           title="Undo (Ctrl+Z)"
         >
@@ -35,7 +35,7 @@
         <button
           type="button"
           class="toolbar-btn"
-          [disabled]="!canRedo()"
+          [disabled]="!editable() || !canRedo()"
           (click)="redo()"
           title="Redo (Ctrl+Shift+Z)"
         >
@@ -159,6 +159,7 @@
         <button
           type="button"
           class="toolbar-btn"
+          [disabled]="!editable()"
           (click)="showTransposeDialog.set(true)"
           title="Transpose"
         >
@@ -178,6 +179,7 @@
           <button
             type="button"
             class="add-part-btn"
+            [disabled]="!editable()"
             (click)="showPartDialog.set(true)"
             title="Add Part"
           >
@@ -220,7 +222,7 @@
                   type="button"
                   class="part-btn delete"
                   (click)="removePart(part.id); $event.stopPropagation()"
-                  [disabled]="parts().length <= 1"
+                  [disabled]="!editable() || parts().length <= 1"
                   title="Remove"
                 >
                   ×
@@ -232,7 +234,11 @@
 
         <!-- Part presets -->
         <div class="part-presets">
-          <select (change)="addPart($any($event.target).value); $any($event.target).value = ''">
+          <select
+            aria-label="Add instrument"
+            [disabled]="!editable()"
+            (change)="addPart($any($event.target).value); $any($event.target).value = ''"
+          >
             <option value="">Add instrument...</option>
             <optgroup label="Keyboard">
               <option value="piano-treble">Piano (Treble)</option>

@@ -250,12 +250,18 @@ export class TwSpectrumComponent implements AfterViewInit, OnChanges {
       if (smoothing !== undefined) {
         analyser.smoothingTimeConstant = smoothing;
       }
+      // Setting minDecibels >= the node's current maxDecibels (or the reverse)
+      // throws IndexSizeError, so write max first when raising the range
       const minDb = this.minDecibels();
+      const maxDb = this.maxDecibels();
+      const maxFirst = minDb !== undefined && minDb >= analyser.maxDecibels;
+      if (maxFirst && maxDb !== undefined) {
+        analyser.maxDecibels = maxDb;
+      }
       if (minDb !== undefined) {
         analyser.minDecibels = minDb;
       }
-      const maxDb = this.maxDecibels();
-      if (maxDb !== undefined) {
+      if (!maxFirst && maxDb !== undefined) {
         analyser.maxDecibels = maxDb;
       }
       this.dataArray = new Uint8Array(analyser.frequencyBinCount);

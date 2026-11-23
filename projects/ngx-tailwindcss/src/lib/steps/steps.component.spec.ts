@@ -75,6 +75,22 @@ describe('TwStepsComponent', () => {
     expect(stepsEl.nativeElement.textContent).toContain('Create your account');
   });
 
+  it('should give step labels and descriptions dark-mode text colours', () => {
+    const labels = [...stepsEl.nativeElement.querySelectorAll('span')].filter((el: HTMLElement) =>
+      ['Personal Info', 'Account Setup', 'Enter your details'].includes(el.textContent.trim())
+    ) as HTMLElement[];
+    expect(labels.length).toBe(3);
+    expect(labels.find(l => l.textContent.trim() === 'Personal Info')!.className).toContain(
+      'dark:text-slate-100'
+    );
+    expect(labels.find(l => l.textContent.trim() === 'Account Setup')!.className).toContain(
+      'dark:text-slate-400'
+    );
+    expect(labels.find(l => l.textContent.trim() === 'Enter your details')!.className).toContain(
+      'dark:text-slate-400'
+    );
+  });
+
   describe('step status', () => {
     it('should mark first step as current', () => {
       const status = component.stepsComponent.getStepStatus(0);

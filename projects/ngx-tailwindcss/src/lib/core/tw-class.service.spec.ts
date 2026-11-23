@@ -759,4 +759,171 @@ describe('TwClassService', () => {
       );
     });
   });
+
+  describe('utility catalog (Tailwind v4)', () => {
+    let service: TwClassService;
+
+    beforeEach(() => {
+      TestBed.configureTestingModule({ providers: [TwClassService] });
+      service = TestBed.inject(TwClassService);
+    });
+
+    // Pairs that set different CSS properties: both must be kept
+    const independent: ReadonlyArray<[string, string]> = [
+      // Layout
+      ['block', 'relative'],
+      ['absolute', 'inset-0'],
+      ['top-0', 'left-0'],
+      ['inset-x-0', 'inset-y-2'],
+      ['inset-s-0', 'inset-e-4'],
+      ['top-0', 'inset-s-0'],
+      ['inset-bs-0', 'inset-be-2'],
+      ['overflow-x-auto', 'overflow-y-hidden'],
+      ['z-10', 'visible'],
+      ['inset-0', 'inset-shadow-sm'],
+      // Flexbox & grid
+      ['flex', 'flex-1'],
+      ['flex-row', 'flex-wrap'],
+      ['grow', 'shrink-0'],
+      ['basis-1/2', 'flex-none'],
+      ['justify-between', 'justify-items-center'],
+      ['items-center', 'self-start'],
+      ['content-center', 'place-items-center'],
+      ['gap-x-2', 'gap-y-4'],
+      ['grid-cols-3', 'grid-rows-2'],
+      ['col-span-2', 'col-start-1'],
+      ['row-span-2', 'row-end-3'],
+      // Spacing
+      ['px-4', 'py-2'],
+      ['pt-2', 'pb-4'],
+      ['ps-2', 'pe-4'],
+      ['pbs-2', 'pbe-4'],
+      ['mx-auto', 'my-4'],
+      ['mbs-2', 'mt-4'],
+      ['space-x-4', 'space-x-reverse'],
+      ['space-y-2', 'space-y-reverse'],
+      ['space-x-2', 'space-y-4'],
+      // Sizing
+      ['w-full', 'h-10'],
+      ['min-w-0', 'max-w-md'],
+      ['min-h-screen', 'max-h-96'],
+      // Typography
+      ['text-sm', 'text-gray-700'],
+      ['text-(length:--size)', 'text-red-500'],
+      ['text-left', 'text-white'],
+      ['text-white', 'text-shadow-md'],
+      ['text-shadow-lg', 'text-shadow-sky-300'],
+      ['truncate', 'text-gray-500'],
+      ['font-bold', 'font-sans'],
+      ['font-sans', 'font-stretch-condensed'],
+      ['font-mono', 'font-features-["smcp"]'],
+      ['leading-tight', 'tracking-wide'],
+      ['uppercase', 'underline'],
+      ['whitespace-nowrap', 'break-all'],
+      // Backgrounds
+      ['bg-red-500', 'bg-cover'],
+      ['bg-white', 'bg-[url(/a.png)]'],
+      ['bg-(image:--hero)', 'bg-slate-900'],
+      ['bg-center', 'bg-no-repeat'],
+      ['bg-linear-to-r', 'bg-blue-500'],
+      ['bg-fixed', 'bg-clip-text'],
+      ['from-indigo-500', 'from-10%'],
+      ['via-sky-500', 'via-30%'],
+      ['to-emerald-500', 'to-90%'],
+      ['from-red-500', 'to-blue-500'],
+      // Borders
+      ['border', 'border-gray-200'],
+      ['border-2', 'border-dashed'],
+      ['border-t', 'border-b'],
+      ['border-t-2', 'border-t-red-500'],
+      ['border-bs', 'border-red-500'],
+      ['border-bs-2', 'border-be-4'],
+      ['border-collapse', 'border-spacing-2'],
+      ['border-spacing-x-2', 'border-spacing-y-4'],
+      ['rounded-t-lg', 'rounded-b-none'],
+      ['rounded-lg', 'border'],
+      ['ring-2', 'ring-blue-500'],
+      ['ring-offset-2', 'ring-offset-white'],
+      ['ring', 'ring-inset'],
+      ['outline-2', 'outline-offset-2'],
+      ['outline-dashed', 'outline-red-500'],
+      // Effects & filters
+      ['shadow-lg', 'shadow-black/20'],
+      ['shadow-md', 'opacity-50'],
+      ['blur-sm', 'backdrop-blur-sm'],
+      // Transitions & animation
+      ['transition-colors', 'duration-200'],
+      ['transition-all', 'transition-discrete'],
+      ['ease-in-out', 'delay-100'],
+      ['animate-spin', 'transition'],
+      // Transforms
+      ['scale-x-50', 'scale-y-75'],
+      ['rotate-45', 'rotate-x-12'],
+      ['translate-x-2', 'translate-y-4'],
+      ['skew-x-3', 'skew-y-6'],
+      ['origin-top', 'scale-95'],
+      // Interactivity
+      ['cursor-pointer', 'select-none'],
+      ['pointer-events-none', 'resize-none'],
+      ['scroll-smooth', 'scroll-mt-4'],
+      ['scroll-pt-2', 'scroll-pbs-4'],
+      ['scroll-mx-2', 'scroll-my-4'],
+    ];
+
+    // Pairs that set the same CSS property: the later class must win
+    const conflicting: ReadonlyArray<[string, string, string?]> = [
+      ['block', 'hidden'],
+      ['relative', 'absolute'],
+      ['top-0', 'top-4'],
+      ['start-0', 'inset-s-4'],
+      ['inset-s-0 inset-bs-0', 'inset-0'],
+      ['inset-bs-0', 'inset-y-2'],
+      ['overflow-x-auto', 'overflow-hidden'],
+      ['z-10', 'z-20'],
+      ['flex-row', 'flex-col'],
+      ['justify-start', 'justify-end'],
+      ['gap-x-2 gap-y-4', 'gap-2'],
+      ['col-span-1', 'col-span-2'],
+      ['pt-2 pbs-2', 'p-4'],
+      ['pbs-2', 'py-4'],
+      ['mbe-2', 'm-4'],
+      ['space-x-reverse', 'space-x-reverse'],
+      ['w-4', 'w-8'],
+      ['text-sm', 'text-lg'],
+      ['text-sm', 'text-(length:--size)'],
+      ['text-red-500', 'text-blue-500'],
+      ['text-shadow-sm', 'text-shadow-lg'],
+      ['text-shadow-red-500', 'text-shadow-blue-500'],
+      ['font-sans', 'font-mono'],
+      ['font-stretch-condensed', 'font-stretch-expanded'],
+      ['bg-red-500', 'bg-blue-500'],
+      ['bg-[url(/a.png)]', 'bg-(image:--hero)'],
+      ['from-10%', 'from-20%'],
+      ['from-red-500', 'from-blue-500'],
+      ['border-t-2 border-bs-4', 'border-2'],
+      ['border-be-2', 'border-y-4'],
+      ['border-bs-red-500', 'border-blue-500'],
+      ['border-spacing-x-2 border-spacing-y-4', 'border-spacing-2'],
+      ['rounded-tl-lg', 'rounded-none'],
+      ['ring-2', 'ring-4'],
+      ['shadow-sm', 'shadow-lg'],
+      ['transition-discrete', 'transition-normal'],
+      ['transition-colors', 'transition-all'],
+      ['duration-100', 'duration-300'],
+      ['scale-x-50', 'scale-75'],
+      ['skew-x-3', 'skew-12'],
+      ['translate-x-2 translate-y-2', 'translate-4'],
+      ['scroll-mbs-2', 'scroll-m-4'],
+      ['scroll-pbe-2', 'scroll-py-4'],
+      ['outline-red-500', 'outline-blue-500'],
+    ];
+
+    it.each(independent)('keeps both %s and %s', (first, second) => {
+      expect(service.merge(first, second)).toBe(`${first} ${second}`);
+    });
+
+    it.each(conflicting)('lets %s be overridden by %s', (first, second) => {
+      expect(service.merge(first, second)).toBe(second);
+    });
+  });
 });

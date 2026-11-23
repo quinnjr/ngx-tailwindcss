@@ -358,6 +358,19 @@ describe('AudioContextService', () => {
       expect(analyser.minDecibels).toBe(-140);
       expect(analyser.maxDecibels).toBe(-110);
     });
+
+    it('falls back to defaults for keys explicitly set to undefined', () => {
+      const analyser = service.createAnalyser({
+        fftSize: undefined,
+        smoothingTimeConstant: undefined,
+        minDecibels: undefined,
+        maxDecibels: undefined,
+      });
+      expect(analyser.fftSize).toBe(2048);
+      expect(analyser.smoothingTimeConstant).toBe(0.8);
+      expect(analyser.minDecibels).toBe(-90);
+      expect(analyser.maxDecibels).toBe(-10);
+    });
   });
 
   describe('signals', () => {

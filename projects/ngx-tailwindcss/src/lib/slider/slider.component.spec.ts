@@ -445,3 +445,13 @@ describe('TwSliderComponent (round 7)', () => {
     expect(fixture.nativeElement.querySelector('.tabular-nums').textContent.trim()).toBe('10');
   });
 });
+
+describe('TwSliderComponent (round 10)', () => {
+  it('should give the value readout a dark-mode text colour', () => {
+    const fixture = TestBed.createComponent(UnboundSliderHostComponent);
+    fixture.detectChanges();
+    const readout = fixture.nativeElement.querySelector('.font-semibold') as HTMLElement;
+    expect(readout.classList).toContain('text-slate-900');
+    expect(readout.classList).toContain('dark:text-slate-100');
+  });
+});

@@ -54,4 +54,37 @@ describe('TwSpectrumComponent', () => {
     }
     expect(linePoints.at(-1)![0]).toBeCloseTo(300, 6);
   });
+  it('should apply a decibel range above the node default max without throwing', () => {
+    // Mirrors the Web Audio spec: min >= max throws IndexSizeError (defaults -100/-30)
+    let min = -100;
+    let max = -30;
+    const analyser = {
+      frequencyBinCount: 1024,
+      context: { sampleRate: 48_000 },
+      getByteFrequencyData: () => {},
+      get minDecibels() {
+        return min;
+      },
+      set minDecibels(value: number) {
+        if (value >= max) throw new DOMException('min >= max', 'IndexSizeError');
+        min = value;
+      },
+      get maxDecibels() {
+        return max;
+      },
+      set maxDecibels(value: number) {
+        if (value <= min) throw new DOMException('max <= min', 'IndexSizeError');
+        max = value;
+      },
+    } as unknown as AnalyserNode;
+    fixture.componentRef.setInput('analyserNode', analyser);
+    fixture.componentRef.setInput('minDecibels', -20);
+    fixture.componentRef.setInput('maxDecibels', 0);
+
+    expect(() => {
+      fixture.detectChanges();
+    }).not.toThrow();
+    expect(min).toBe(-20);
+    expect(max).toBe(0);
+  });
 });

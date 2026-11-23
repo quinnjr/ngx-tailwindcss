@@ -180,14 +180,14 @@ export class TwTimelineComponent {
   }
 
   protected dateClasses() {
-    return 'text-xs text-slate-500 font-medium uppercase tracking-wide';
+    return 'text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide';
   }
 
   protected titleClasses() {
-    return 'text-base font-semibold text-slate-900 mt-1';
+    return 'text-base font-semibold text-slate-900 dark:text-slate-100 mt-1';
   }
 
   protected descriptionClasses() {
-    return 'text-sm text-slate-600 mt-1';
+    return 'text-sm text-slate-600 dark:text-slate-300 mt-1';
   }
 }

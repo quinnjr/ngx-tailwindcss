@@ -5,6 +5,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ModalSize,
+  TwConfirmDialogComponent,
   TwModalComponent,
   TwModalHeaderComponent,
   TwModalTitleComponent,
@@ -413,5 +414,35 @@ describe('TwModalComponent stacking and scroll lock', () => {
     host.innerOpen.set(false);
     fixture.detectChanges();
     expect(document.body.style.overflow).toBe('');
+  });
+});
+
+@Component({
+  template: `<tw-confirm-dialog [open]="true" message="Delete this item?"></tw-confirm-dialog>`,
+  standalone: true,
+  imports: [TwConfirmDialogComponent],
+})
+class ConfirmDialogHostComponent {}
+
+describe('TwConfirmDialogComponent dark mode', () => {
+  it('should keep the message and cancel button readable on the dark modal surface', async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConfirmDialogHostComponent, NoopAnimationsModule],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ConfirmDialogHostComponent);
+    fixture.detectChanges();
+
+    const message = [...document.querySelectorAll('tw-modal-body p')].find(p =>
+      p.textContent?.includes('Delete this item?')
+    ) as HTMLElement;
+    expect(message.className).toContain('dark:text-slate-300');
+
+    const cancel = [...document.querySelectorAll('tw-modal-footer button')].find(
+      b => b.textContent?.trim() === 'Cancel'
+    ) as HTMLElement;
+    expect(cancel.className).toContain('dark:text-slate-200');
+    expect(cancel.className).toContain('dark:bg-slate-700');
+    fixture.destroy();
   });
 });

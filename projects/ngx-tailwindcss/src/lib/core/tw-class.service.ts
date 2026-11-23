@@ -14,6 +14,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   // Inset: `inset-*` subsumes the axis and side utilities (`inset-shadow-*`/`inset-ring-*` are effects)
   [/^inset-x-/, 'inset-x'],
   [/^inset-y-/, 'inset-y'],
+  // Logical sides (v4.3): `inset-s-*`/`inset-e-*` set the same property as `start-*`/`end-*`
+  [/^inset-s-/, 'inset-start'],
+  [/^inset-e-/, 'inset-end'],
+  [/^inset-(bs|be)-/, 'inset-$1'],
   [/^inset-(?!shadow|ring)/, 'inset'],
   [/^(top|right|bottom|left|start|end)-/, 'inset-$1'],
   [/^(visible|invisible|collapse)$/, 'visibility'],
@@ -59,6 +63,7 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^pl-/, 'padding-left'],
   [/^ps-/, 'padding-start'],
   [/^pe-/, 'padding-end'],
+  [/^p(bs|be)-/, 'padding-$1'],
   [/^p-/, 'padding'],
   [/^mx-/, 'margin-x'],
   [/^my-/, 'margin-y'],
@@ -68,7 +73,10 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^ml-/, 'margin-left'],
   [/^ms-/, 'margin-start'],
   [/^me-/, 'margin-end'],
+  [/^m(bs|be)-/, 'margin-$1'],
   [/^m-/, 'margin'],
+  // `space-x-reverse` only flips the order and is used together with `space-x-*`
+  [/^space-([xy])-reverse$/, 'space-$1-reverse'],
   [/^space-x-/, 'space-x'],
   [/^space-y-/, 'space-y'],
 
@@ -83,12 +91,17 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
 
   // Typography
   [/^text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)/, 'font-size'],
-  [/^text-\[(?:length:|\d)/, 'font-size'],
+  [/^text-(?:\[(?:length:|\d)|\(length:)/, 'font-size'],
+  // Text shadow size vs color (v4.1); neither conflicts with the text color
+  [/^text-shadow(-(2xs|xs|sm|md|lg|none)(\/\S+)?$|$|-\[-?\d)/, 'text-shadow'],
+  [/^text-shadow-/, 'text-shadow-color'],
   [/^text-(left|center|right|justify|start|end)$/, 'text-align'],
   [/^text-(wrap|nowrap|balance|pretty)$/, 'text-wrap'],
   [/^(truncate|text-ellipsis|text-clip)$/, 'text-overflow'],
   [/^text-/, 'text-color'],
   [/^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/, 'font-weight'],
+  [/^font-stretch-/, 'font-stretch'],
+  [/^font-features-/, 'font-feature-settings'],
   [/^font-/, 'font-family'],
   [/^leading-/, 'line-height'],
   [/^tracking-/, 'letter-spacing'],
@@ -103,13 +116,15 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^bg-origin-/, 'bg-origin'],
   [/^bg-blend-/, 'bg-blend'],
   [/^bg-(no-repeat|repeat(-x|-y|-round|-space)?)$/, 'bg-repeat'],
-  [/^bg-((auto|cover|contain)$|size-|\[(length|size):)/, 'bg-size'],
-  [/^bg-((bottom|center|left|right|top)(-|$)|position-|\[position:)/, 'bg-position'],
+  [/^bg-((auto|cover|contain)$|size-|[[(](length|size):)/, 'bg-size'],
+  [/^bg-((bottom|center|left|right|top)(-|$)|position-|[[(]position:)/, 'bg-position'],
   [
-    /^bg-(none$|gradient-|linear-|radial|conic|\[(image:|url\(|(repeating-)?(linear|radial|conic)-gradient\())/,
+    /^bg-(none$|gradient-|linear-|radial|conic|\((image|url):|\[(image:|url\(|(repeating-)?(linear|radial|conic)-gradient\())/,
     'bg-image',
   ],
   [/^bg-/, 'background'],
+  // Gradient stop positions (`from-10%`) are used alongside the stop colors
+  [/^(from|via|to)-(\d+(\.\d+)?%$|\[(percentage:|length:)?-?\d[^\]]*\]$)/, 'gradient-$1-position'],
   [/^from-/, 'gradient-from'],
   [/^via-/, 'gradient-via'],
   [/^to-/, 'gradient-to'],
@@ -118,11 +133,12 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   // Border width/color per side are separate groups; the bare `border-*` and the
   // `-x`/`-y` axis utilities subsume their sides. Style is independent of width.
   [/^border-(solid|dashed|dotted|double|hidden|none)$/, 'border-style'],
-  [/^border-([xytrblse])(?:$|-\d|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'border-width-$1'],
+  [/^border-(bs|be|[xytrblse])(?:$|-\d|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'border-width-$1'],
   [/^border(?:$|-\d|-\[\d[^\]]*(?:px|rem|em)\]$)/, 'border-width'],
   [/^border-(collapse|separate)$/, 'border-collapse'],
+  [/^border-spacing-([xy])-/, 'border-spacing-$1'],
   [/^border-spacing-/, 'border-spacing'],
-  [/^border-([xytrblse])-/, 'border-color-$1'],
+  [/^border-(bs|be|[xytrblse])-/, 'border-color-$1'],
   [/^border-/, 'border-color'],
   // Corner/side radii are separate groups; the bare `rounded-*` shorthand subsumes them
   [/^rounded-(tl|tr|br|bl|ss|se|ee|es|t|r|b|l|s|e)(-|$)/, 'border-radius-$1'],
@@ -143,6 +159,7 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^blur(-|$)/, 'blur'],
 
   // Transitions & Animation
+  [/^transition-(discrete|normal)$/, 'transition-behavior'],
   [/^transition(-|$)/, 'transition'],
   [/^duration-/, 'duration'],
   [/^ease-/, 'ease'],
@@ -173,9 +190,9 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
   [/^resize(-|$)/, 'resize'],
   [/^scroll-(auto|smooth)$/, 'scroll-behavior'],
   // Each side is a separate group, as for padding/margin
-  [/^scroll-p([xytrblse])-/, 'scroll-padding-$1'],
+  [/^scroll-p(bs|be|[xytrblse])-/, 'scroll-padding-$1'],
   [/^scroll-p-/, 'scroll-padding'],
-  [/^scroll-m([xytrblse])-/, 'scroll-margin-$1'],
+  [/^scroll-m(bs|be|[xytrblse])-/, 'scroll-margin-$1'],
   [/^scroll-m-/, 'scroll-margin'],
   [/^outline(-\d+$|-\[\d[^\]]*(px|rem|em)\]$|$)/, 'outline-width'],
   [/^outline-(none|hidden|solid|dashed|dotted|double)$/, 'outline-style'],
@@ -186,7 +203,7 @@ const GROUP_PATTERNS: ReadonlyArray<[RegExp, string]> = [
 /**
  * Shorthand groups that subsume their longhand groups when applied later
  */
-const SIDES = ['x', 'y', 't', 'r', 'b', 'l', 's', 'e'] as const;
+const SIDES = ['x', 'y', 't', 'r', 'b', 'l', 's', 'e', 'bs', 'be'] as const;
 
 const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
   padding: [
@@ -198,9 +215,11 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'padding-left',
     'padding-start',
     'padding-end',
+    'padding-bs',
+    'padding-be',
   ],
   'padding-x': ['padding-right', 'padding-left', 'padding-start', 'padding-end'],
-  'padding-y': ['padding-top', 'padding-bottom'],
+  'padding-y': ['padding-top', 'padding-bottom', 'padding-bs', 'padding-be'],
   margin: [
     'margin-x',
     'margin-y',
@@ -210,9 +229,11 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'margin-left',
     'margin-start',
     'margin-end',
+    'margin-bs',
+    'margin-be',
   ],
   'margin-x': ['margin-right', 'margin-left', 'margin-start', 'margin-end'],
-  'margin-y': ['margin-top', 'margin-bottom'],
+  'margin-y': ['margin-top', 'margin-bottom', 'margin-bs', 'margin-be'],
   inset: [
     'inset-x',
     'inset-y',
@@ -222,16 +243,19 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'inset-left',
     'inset-start',
     'inset-end',
+    'inset-bs',
+    'inset-be',
   ],
   'inset-x': ['inset-right', 'inset-left', 'inset-start', 'inset-end'],
-  'inset-y': ['inset-top', 'inset-bottom'],
+  'inset-y': ['inset-top', 'inset-bottom', 'inset-bs', 'inset-be'],
   size: ['width', 'height'],
   'border-width': SIDES.map(side => `border-width-${side}`),
   'border-width-x': ['border-width-r', 'border-width-l', 'border-width-s', 'border-width-e'],
-  'border-width-y': ['border-width-t', 'border-width-b'],
+  'border-width-y': ['border-width-t', 'border-width-b', 'border-width-bs', 'border-width-be'],
   'border-color': SIDES.map(side => `border-color-${side}`),
   'border-color-x': ['border-color-r', 'border-color-l', 'border-color-s', 'border-color-e'],
-  'border-color-y': ['border-color-t', 'border-color-b'],
+  'border-color-y': ['border-color-t', 'border-color-b', 'border-color-bs', 'border-color-be'],
+  'border-spacing': ['border-spacing-x', 'border-spacing-y'],
   gap: ['gap-x', 'gap-y'],
   overflow: ['overflow-x', 'overflow-y'],
   scale: ['scale-x', 'scale-y', 'scale-z'],
@@ -243,10 +267,15 @@ const SHORTHAND_SUBSUMED_GROUPS: Record<string, readonly string[]> = {
     'scroll-padding-s',
     'scroll-padding-e',
   ],
-  'scroll-padding-y': ['scroll-padding-t', 'scroll-padding-b'],
+  'scroll-padding-y': [
+    'scroll-padding-t',
+    'scroll-padding-b',
+    'scroll-padding-bs',
+    'scroll-padding-be',
+  ],
   'scroll-margin': SIDES.map(side => `scroll-margin-${side}`),
   'scroll-margin-x': ['scroll-margin-r', 'scroll-margin-l', 'scroll-margin-s', 'scroll-margin-e'],
-  'scroll-margin-y': ['scroll-margin-t', 'scroll-margin-b'],
+  'scroll-margin-y': ['scroll-margin-t', 'scroll-margin-b', 'scroll-margin-bs', 'scroll-margin-be'],
   'border-radius': [
     'border-radius-t',
     'border-radius-r',
@@ -320,7 +349,8 @@ const classGroupCache = new Map<string, string>();
 
 /**
  * Splits a class into its variant parts on `:`, ignoring colons inside
- * arbitrary values like `bg-[url(https://example.com/img.png)]`
+ * arbitrary values like `bg-[url(https://example.com/img.png)]` and v4 CSS
+ * variable shorthands like `text-(length:--size)`
  */
 function splitVariants(cls: string): string[] {
   const parts: string[] = [];
@@ -329,8 +359,8 @@ function splitVariants(cls: string): string[] {
 
   for (let index = 0; index < cls.length; index++) {
     const char = cls[index];
-    if (char === '[') depth++;
-    else if (char === ']') depth = Math.max(0, depth - 1);
+    if (char === '[' || char === '(') depth++;
+    else if (char === ']' || char === ')') depth = Math.max(0, depth - 1);
     else if (char === ':' && depth === 0) {
       parts.push(cls.slice(start, index));
       start = index + 1;

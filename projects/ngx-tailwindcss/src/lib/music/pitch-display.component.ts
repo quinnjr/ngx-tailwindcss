@@ -10,7 +10,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 
 export type PitchDisplayVariant =
   'default' | 'minimal' | 'digital' | 'wheel' | 'dj' | 'light' | 'highContrast';
@@ -61,6 +61,8 @@ export const PITCH_PRESETS = {
 })
 export class TwPitchDisplayComponent {
   private readonly destroyRef = inject(DestroyRef);
+  // Injected (not the global) so destroy-time listener cleanup is SSR safe
+  private readonly document = inject(DOCUMENT);
 
   // Expose Math for template use
   protected readonly Math = Math;
@@ -283,10 +285,10 @@ export class TwPitchDisplayComponent {
     this.dragAxis = this.pitchBendStyle() === 'horizontal' ? 'x' : 'y';
 
     this.removeDragListeners();
-    document.addEventListener('mousemove', this.onPitchWheelDrag);
-    document.addEventListener('mouseup', this.onPitchWheelDragEnd);
-    document.addEventListener('touchmove', this.onPitchWheelDrag);
-    document.addEventListener('touchend', this.onPitchWheelDragEnd);
+    this.document.addEventListener('mousemove', this.onPitchWheelDrag);
+    this.document.addEventListener('mouseup', this.onPitchWheelDragEnd);
+    this.document.addEventListener('touchmove', this.onPitchWheelDrag);
+    this.document.addEventListener('touchend', this.onPitchWheelDragEnd);
   }
 
   /** Keyboard control for the focusable pitch bend slider */
@@ -339,10 +341,10 @@ export class TwPitchDisplayComponent {
   }
 
   private removeDragListeners(): void {
-    document.removeEventListener('mousemove', this.onPitchWheelDrag);
-    document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
-    document.removeEventListener('touchmove', this.onPitchWheelDrag);
-    document.removeEventListener('touchend', this.onPitchWheelDragEnd);
+    this.document.removeEventListener('mousemove', this.onPitchWheelDrag);
+    this.document.removeEventListener('mouseup', this.onPitchWheelDragEnd);
+    this.document.removeEventListener('touchmove', this.onPitchWheelDrag);
+    this.document.removeEventListener('touchend', this.onPitchWheelDragEnd);
   }
 
   private readonly onPitchWheelDrag = (event: MouseEvent | TouchEvent): void => {

@@ -212,6 +212,15 @@ describe('TwPaginationComponent', () => {
       expect(paginationEl.textContent).toContain('Previous');
       expect(paginationEl.textContent).toContain('Next');
     });
+
+    it('should keep the page indicator readable in dark mode', () => {
+      component.variant.set('simple');
+      fixture.detectChanges();
+      const indicator = [...paginationEl.querySelectorAll('span')].find(el =>
+        el.textContent?.includes('Page ')
+      ) as HTMLElement;
+      expect(indicator.className).toContain('dark:text-slate-400');
+    });
   });
 
   describe('sibling count', () => {

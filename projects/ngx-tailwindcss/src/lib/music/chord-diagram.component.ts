@@ -317,9 +317,13 @@ export class TwChordDiagramComponent {
     const from = useChordRange ? chordData.barreFrom! : Math.min(...barreStrings);
     const to = useChordRange ? chordData.barreTo! : Math.max(...barreStrings);
 
+    // Order left-to-right: string 1 is rightmost for right-handed diagrams, and the
+    // template draws the barre rect from x1 with a positive width
+    const xFrom = this.getStringX(from);
+    const xTo = this.getStringX(to);
     return {
-      x1: this.getStringX(from),
-      x2: this.getStringX(to),
+      x1: Math.min(xFrom, xTo),
+      x2: Math.max(xFrom, xTo),
       y: this.getFretY(barreRow) - this.dimensions().fretSpacing / 2,
     };
   }

@@ -180,7 +180,8 @@
           stroke-linecap="round"
         />
 
-        <!-- Value Arc -->
+        <!-- Value Arc (the gap outlasts the 289-unit circumference, so the dashoffset never
+             wraps the next dash into the arc's bottom opening at low values) -->
         <circle
           cx="50"
           cy="50"
@@ -189,7 +190,7 @@
           stroke="#22d3ee"
           stroke-width="5"
           stroke-linecap="round"
-          stroke-dasharray="217"
+          stroke-dasharray="217 290"
           [attr.stroke-dashoffset]="217 - (thumbPosition() / 100) * 217"
           transform="rotate(135 50 50)"
           class="transition-all duration-75"

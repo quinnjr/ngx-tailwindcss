@@ -102,3 +102,22 @@ describe('TwPitchDisplayComponent', () => {
     document.dispatchEvent(new MouseEvent('mouseup'));
   });
 });
+
+describe('TwPitchDisplayComponent drag listener cleanup', () => {
+  it('should remove drag listeners through the injected DOCUMENT (SSR has no global document)', async () => {
+    const removeEventListener = vi.fn();
+    const globalRemove = vi.spyOn(globalThis.document, 'removeEventListener');
+    await TestBed.configureTestingModule({
+      imports: [TwPitchDisplayComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TwPitchDisplayComponent);
+    // Swap in a server-like document stub before destroy
+    (fixture.componentInstance as any).document = { removeEventListener };
+
+    fixture.destroy();
+
+    expect(removeEventListener).toHaveBeenCalledWith('mousemove', expect.any(Function));
+    expect(globalRemove).not.toHaveBeenCalledWith('mousemove', expect.any(Function));
+    globalRemove.mockRestore();
+  });
+});

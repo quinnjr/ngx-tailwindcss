@@ -55,6 +55,15 @@ describe('TwChordDiagramComponent', () => {
     expect(barre).not.toBeNull();
   });
 
+  it('draws the F barre across the strings it covers (not off the right edge)', () => {
+    fixture.componentRef.setInput('chord', 'F');
+    fixture.detectChanges();
+    const barre = (fixture.nativeElement as HTMLElement).querySelector('rect[rx="5"]')!;
+    // md: strings span x = 28 (string 6) .. 108 (string 1), finger radius 7
+    expect(Number(barre.getAttribute('x'))).toBe(21);
+    expect(Number(barre.getAttribute('width'))).toBe(94);
+  });
+
   it('treats fret numbers as absolute when the diagram starts above the nut', () => {
     // A-shape barre chord at the 5th fret (D major): frets 5 and 7, window starts at fret 5
     fixture.componentRef.setInput('chord', {

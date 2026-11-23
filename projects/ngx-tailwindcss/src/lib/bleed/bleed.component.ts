@@ -81,6 +81,13 @@ function negateLength(value: string): string {
         rotate: none;
         scale: none;
       }
+      /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice;
+         the bleed's own negative margins and width are inline styles and still win */
+      :host > div {
+        margin: 0;
+        width: auto;
+        max-width: none;
+      }
     `,
   ],
 })

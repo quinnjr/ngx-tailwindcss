@@ -30,6 +30,22 @@ describe('TwMetronomeComponent', () => {
   const buttonByText = (text: string): HTMLButtonElement =>
     [...el.querySelectorAll('button')].find(b => b.textContent?.trim() === text)!;
 
+  it('should count down the tap hint and drop it once the tempo is set', () => {
+    const hint = () => /Tap \d more \w+/.exec(el.textContent?.replaceAll(/\s+/g, ' ') ?? '')?.[0];
+    buttonByText('TAP').click();
+    fixture.detectChanges();
+    expect(hint()).toBe('Tap 2 more times');
+
+    buttonByText('TAP').click();
+    fixture.detectChanges();
+    expect(hint()).toBe('Tap 1 more time');
+
+    buttonByText('TAP').click();
+    fixture.detectChanges();
+    // The third tap set the tempo: no stale "Tap 1 more times" hint
+    expect(hint()).toBeUndefined();
+  });
+
   it('should follow bpm input changes after init', () => {
     expect(el.textContent).not.toContain('90');
     host.bpm.set(90);

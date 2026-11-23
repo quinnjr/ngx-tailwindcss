@@ -172,6 +172,9 @@
       <label class="flex items-center justify-between">
         <span class="text-sm text-slate-700 dark:text-slate-300">High Contrast</span>
         <button
+          type="button"
+          role="switch"
+          [attr.aria-checked]="highContrast()"
           (click)="toggleHighContrast()"
           [class.bg-blue-600]="highContrast()"
           [class.bg-slate-200]="!highContrast()"
@@ -190,6 +193,9 @@
       <label class="flex items-center justify-between">
         <span class="text-sm text-slate-700 dark:text-slate-300">Reduce Motion</span>
         <button
+          type="button"
+          role="switch"
+          [attr.aria-checked]="reducedMotion()"
           (click)="toggleReducedMotion()"
           [class.bg-blue-600]="reducedMotion()"
           [class.bg-slate-200]="!reducedMotion()"

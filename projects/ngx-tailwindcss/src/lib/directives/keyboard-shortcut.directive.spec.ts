@@ -110,6 +110,20 @@ describe('TwKeyboardShortcutDirective', () => {
     expect(component.ctrlSCount).toBe(0);
   });
 
+  it('should match the physical key when the layout types a non-ASCII character', () => {
+    // Cyrillic layout: Ctrl+S types 'ы'
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ы', code: 'KeyS', ctrlKey: true }));
+
+    expect(component.ctrlSCount).toBe(1);
+  });
+
+  it('should not match the physical key when the layout types another ASCII letter', () => {
+    // A layout typing 'd' at the KeyS position means Ctrl+D, not Ctrl+S
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyS', ctrlKey: true }));
+
+    expect(component.ctrlSCount).toBe(0);
+  });
+
   it('should stop firing after the fixture is destroyed', () => {
     fixture.destroy();
 

@@ -1,5 +1,8 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TwFocusTrapDirective } from '../directives';
+
+let nextOnboardingId = 0;
 
 export interface OnboardingStep {
   id: string;
@@ -12,7 +15,7 @@ export interface OnboardingStep {
 @Component({
   selector: 'tw-onboarding-wizard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TwFocusTrapDirective],
   templateUrl: './onboarding-wizard.component.html',
 })
 export class TwOnboardingWizardComponent {
@@ -25,6 +28,8 @@ export class TwOnboardingWizardComponent {
   public readonly completed = output<{ dontShowAgain: boolean }>();
   public readonly skipped = output();
   public readonly closed = output();
+
+  protected readonly titleId = `tw-onboarding-title-${nextOnboardingId++}`;
 
   public readonly isOpen = signal(false);
   public readonly currentIndex = signal(0);

@@ -112,7 +112,7 @@
               class="absolute h-0.5 bg-red-400 pointer-events-none"
               [style.left.px]="8"
               [style.width.px]="12"
-              [style.bottom.px]="peakMarkerBottom(meterPeak())"
+              [style.top.px]="peakMarkerTop(meterPeak())"
               title="Peak (L)"
             ></div>
           }
@@ -121,7 +121,7 @@
               class="absolute h-0.5 bg-red-400 pointer-events-none"
               [style.left.px]="24"
               [style.width.px]="12"
-              [style.bottom.px]="peakMarkerBottom(meterPeakRight())"
+              [style.top.px]="peakMarkerTop(meterPeakRight())"
               title="Peak (R)"
             ></div>
           }
@@ -139,7 +139,7 @@
           @if (meterPeak() > 0) {
             <div
               class="absolute left-2 right-2 h-0.5 bg-red-400 pointer-events-none"
-              [style.bottom.px]="peakMarkerBottom(meterPeak())"
+              [style.top.px]="peakMarkerTop(meterPeak())"
               title="Peak"
             ></div>
           }

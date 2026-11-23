@@ -51,4 +51,21 @@ describe('TwChannelStripComponent', () => {
     expect(state?.auxSends).toHaveLength(2);
     expect(touched).toBe(true);
   });
+  it('should place stereo peak markers from the meter top, not below the L/R labels', () => {
+    fixture.componentRef.setInput('stereo', true);
+    fixture.componentRef.setInput('meterPeak', 50);
+    fixture.componentRef.setInput('meterPeakRight', 100);
+    fixture.detectChanges();
+
+    const left = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[title="Peak (L)"]'
+    )!;
+    const right = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[title="Peak (R)"]'
+    )!;
+    // md meter: 80px tall below a 1px border + 8px padding
+    expect(left.style.top).toBe('48px');
+    expect(right.style.top).toBe('8px');
+    expect(left.style.bottom).toBe('');
+  });
 });

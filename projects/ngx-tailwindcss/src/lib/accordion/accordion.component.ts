@@ -196,7 +196,9 @@ export class TwAccordionComponent implements AfterContentInit {
       if (!this.initializedItems.has(item)) {
         this.initializedItems.add(item);
 
-        if (defaults.includes(item.getValue())) {
+        // Items without a value never match: the empty default must not open them all
+        const value = item.getValue();
+        if (value && defaults.includes(value)) {
           item.setOpen(true);
         }
       }

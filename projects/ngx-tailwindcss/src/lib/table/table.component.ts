@@ -367,6 +367,8 @@ export class TwTableComponent {
   }
 
   toggleSelectAll(): void {
+    // Single selection mode never holds more than one row
+    if (this.selectionMode() === 'single') return;
     const displayed = this.displayedData();
     const next = new Set(this.selection());
     if (this.allSelected()) {

@@ -128,6 +128,28 @@ describe('MidiService', () => {
       expect(outputs.length).toBe(1);
       expect(outputs[0].name).toBe('Test MIDI Output');
     });
+
+    it('should not deliver messages twice after a repeated access request', async () => {
+      await service.requestAccess();
+      const firstAccess = mockMidiAccess;
+      // Each request yields a new MIDIAccess with its own port objects
+      const secondAccess = createMockMIDIAccess();
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        value: vi.fn().mockResolvedValue(secondAccess),
+        writable: true,
+        configurable: true,
+      });
+      await service.requestAccess();
+
+      const received = vi.fn();
+      service.onNoteOn(received);
+      firstAccess._mockInput.simulateMessage([0x90, 60, 100]);
+      secondAccess._mockInput.simulateMessage([0x90, 60, 100]);
+
+      expect(received).toHaveBeenCalledTimes(1);
+      expect(firstAccess.onstatechange).toBeNull();
+      expect(secondAccess.onstatechange).not.toBeNull();
+    });
   });
 
   describe('disconnect', () => {

@@ -52,6 +52,12 @@ const RATIO_CLASSES: Record<string, string> = {
         /* Don't clip the inner element's shadow/ring; it clips its own content */
         overflow: visible;
       }
+      /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
+      :host > div {
+        margin: 0;
+        width: auto;
+        max-width: none;
+      }
       :host ::ng-deep > div > * {
         position: absolute;
         inset: 0;

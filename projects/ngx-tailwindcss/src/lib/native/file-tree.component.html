@@ -28,6 +28,8 @@
         <button
           type="button"
           class="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          tabindex="-1"
+          [attr.aria-label]="(node.expanded ? 'Collapse ' : 'Expand ') + node.name"
           (click)="toggleExpand(node, $event)"
         >
           <svg

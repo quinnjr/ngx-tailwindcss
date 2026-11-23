@@ -168,6 +168,10 @@ const GAP_Y_CLASSES: Record<GridGap, string> = {
       /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
       :host > div {
         height: 100%;
+        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
+        margin: 0;
+        width: auto;
+        max-width: none;
       }
     `,
   ],
@@ -281,6 +285,10 @@ export class TwGridComponent {
       /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
       :host > div {
         height: 100%;
+        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
+        margin: 0;
+        width: auto;
+        max-width: none;
       }
     `,
   ],

@@ -225,8 +225,11 @@ export class TwShortcutDirective implements OnInit, OnDestroy {
     // changed by a modifier. A layout that types a different ASCII letter,
     // digit or punctuation mark at that position (QWERTZ types 'z' at KeyY,
     // AZERTY 'a' at KeyQ) means a different shortcut: Ctrl+Z must not fire
-    // `ctrl+y` too.
-    if (/^[A-Z0-9]$/.test(eventKey) || Object.hasOwn(PUNCTUATION_CODES, eventKey)) return false;
+    // `ctrl+y` too. Punctuation is exempt while Alt is held: Option (macOS)
+    // and AltGr (Ctrl+Alt on Windows) commonly type ASCII punctuation (German
+    // Option+5 / AltGr+8 give '['), so `alt+5` / `ctrl+alt+8` must still match.
+    if (/^[A-Z0-9]$/.test(eventKey)) return false;
+    if (!event.altKey && Object.hasOwn(PUNCTUATION_CODES, eventKey)) return false;
 
     // Modifiers such as Option (macOS) or AltGr change `event.key` (e.g. Option+S
     // yields 'ß'), so fall back to the physical key code for letters and digits.

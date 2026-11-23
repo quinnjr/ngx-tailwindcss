@@ -5,6 +5,8 @@ import { TwShortcutDirective } from './shortcut.directive';
 import { ShortcutBinding, TwShortcutsEditorComponent } from './shortcuts-editor.component';
 import { QuickSwitcherItem, TwQuickSwitcherComponent } from './quick-switcher.component';
 import { TwTabBarComponent } from './tab-bar.component';
+import { TwOnboardingWizardComponent } from './onboarding-wizard.component';
+import { TwUpdateDialogComponent, UpdateDialogInfo } from './update-dialog.component';
 import { TwResizablePanelsComponent } from './resizable-panels.component';
 import { TwFileTreeComponent } from './file-tree.component';
 import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
@@ -320,6 +322,18 @@ describe('TwShortcutDirective on non-QWERTY layouts', () => {
     press(button, { key: 'ß', code: 'KeyS', altKey: true });
     expect(fixture.componentInstance.count).toBe(1);
   });
+
+  it('falls back to the physical key when Option/AltGr types ASCII punctuation', () => {
+    // German macOS: Option+5 types '['
+    const mac = setup('alt+5');
+    press(mac.button, { key: '[', code: 'Digit5', altKey: true });
+    expect(mac.fixture.componentInstance.count).toBe(1);
+
+    // German Windows: Ctrl+Alt (AltGr) +8 types '['
+    const win = setup('ctrl+alt+8');
+    press(win.button, { key: '[', code: 'Digit8', ctrlKey: true, altKey: true });
+    expect(win.fixture.componentInstance.count).toBe(1);
+  });
 });
 
 describe('TwShortcutsEditorComponent recording', () => {
@@ -369,5 +383,40 @@ describe('TwTabBarComponent close button', () => {
     close.click();
     expect(closes.length).toBe(1);
     expect(selects.length).toBe(0);
+  });
+});
+
+describe('Native a11y semantics', () => {
+  it('onboarding wizard is a labelled modal dialog with named step buttons', () => {
+    const fixture = TestBed.createComponent(TwOnboardingWizardComponent);
+    fixture.componentRef.setInput('steps', [
+      { id: 'a', title: 'Welcome' },
+      { id: 'b', title: 'Sync' },
+    ]);
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const dialog = el.querySelector('[role="dialog"]')!;
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    const title = el.querySelector(`#${dialog.getAttribute('aria-labelledby')}`);
+    expect(title?.textContent?.trim()).toBe('Welcome');
+    const dot = el.querySelector<HTMLButtonElement>('[aria-label="Go to step 2: Sync"]')!;
+    expect(dot).not.toBeNull();
+    dot.click();
+    fixture.detectChanges();
+    expect(dot.getAttribute('aria-current')).toBe('step');
+  });
+
+  it('update dialog auto-update toggle exposes its state as a switch', () => {
+    const fixture = TestBed.createComponent(TwUpdateDialogComponent);
+    const info: UpdateDialogInfo = { currentVersion: '1.0.0', newVersion: '2.0.0' };
+    fixture.componentRef.setInput('updateInfo', info);
+    fixture.componentInstance.open(info);
+    fixture.detectChanges();
+    const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
   });
 });

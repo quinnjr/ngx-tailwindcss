@@ -102,7 +102,9 @@ export class TwTimeDisplayComponent {
   });
 
   protected readonly flipSegments = computed((): FlipSegment[] => {
-    const time = Math.max(0, Number.isFinite(this.value()) ? this.value() : 0);
+    // Counts down like the other variants when showRemaining is set
+    const shown = this.showRemaining() ? this.total() - this.value() : this.value();
+    const time = Math.max(0, Number.isFinite(shown) ? shown : 0);
     const hrs = Math.floor(time / 3600);
     const secs = Math.floor(time % 60);
 

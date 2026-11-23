@@ -167,11 +167,11 @@
         <!-- Main Slider -->
         <input
           type="range"
-          [value]="internalBpm()"
-          (input)="onSliderChange($event)"
           [min]="minBpm()"
           [max]="maxBpm()"
           [step]="step()"
+          [value]="internalBpm()"
+          (input)="onSliderChange($event)"
           class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer absolute top-2"
           style="accent-color: var(--slider-color, #3b82f6)"
           [disabled]="disabled() || !editable()"

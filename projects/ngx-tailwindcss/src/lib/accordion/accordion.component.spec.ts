@@ -368,3 +368,29 @@ describe('TwAccordionItemComponent with custom header', () => {
     expect(itemEl.textContent).not.toContain('Fallback Title');
   });
 });
+
+@Component({
+  template: `
+    <tw-accordion>
+      <tw-accordion-item itemTitle="First">One</tw-accordion-item>
+      <tw-accordion-item itemTitle="Second">Two</tw-accordion-item>
+    </tw-accordion>
+  `,
+  standalone: true,
+  imports: [TwAccordionComponent, TwAccordionItemComponent],
+})
+class NoValueHostComponent {}
+
+describe('TwAccordionComponent with items without a value', () => {
+  it('should start with every item collapsed when no defaultValue is set', async () => {
+    await TestBed.configureTestingModule({ imports: [NoValueHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(NoValueHostComponent);
+    fixture.detectChanges();
+
+    const headers = fixture.debugElement.queryAll(By.css('tw-accordion-item button'));
+    expect(headers.length).toBe(2);
+    for (const header of headers) {
+      expect(header.nativeElement.getAttribute('aria-expanded')).toBe('false');
+    }
+  });
+});

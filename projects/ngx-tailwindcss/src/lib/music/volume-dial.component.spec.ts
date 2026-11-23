@@ -325,6 +325,27 @@ describe('TwVolumeDialComponent', () => {
       const circles = svgEl.querySelectorAll('circle');
       expect(circles.length).toBeGreaterThan(0);
     });
+
+    it('should draw the whole LED ring inside the (clipping) SVG viewport', () => {
+      for (const size of ['xs', 'md', 'xl'] as DialSize[]) {
+        component.variant.set('led');
+        component.size.set(size);
+        fixture.detectChanges();
+        const extent = Number(svgEl.getAttribute('width'));
+        // The knob is the first circle; the rest are the 12 LEDs
+        const leds = [...svgEl.querySelectorAll('circle')].slice(1);
+        expect(leds).toHaveLength(12);
+        for (const led of leds) {
+          const cx = Number(led.getAttribute('cx'));
+          const cy = Number(led.getAttribute('cy'));
+          const r = Number(led.getAttribute('r'));
+          expect(cx - r).toBeGreaterThanOrEqual(-1e-9);
+          expect(cy - r).toBeGreaterThanOrEqual(-1e-9);
+          expect(cx + r).toBeLessThanOrEqual(extent + 1e-9);
+          expect(cy + r).toBeLessThanOrEqual(extent + 1e-9);
+        }
+      }
+    });
   });
 
   describe('multi-touch', () => {

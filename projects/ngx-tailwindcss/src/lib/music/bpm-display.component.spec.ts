@@ -98,3 +98,26 @@ describe('TwBpmDisplayComponent', () => {
     expect(host.changes).toEqual([121, 120, 119]);
   });
 });
+
+@Component({
+  template: `<tw-bpm-display [bpm]="bpm()" [showSlider]="true"></tw-bpm-display>`,
+  standalone: true,
+  imports: [TwBpmDisplayComponent],
+})
+class SliderHostComponent {
+  bpm = signal(150);
+}
+
+describe('TwBpmDisplayComponent slider', () => {
+  it('should position the slider at a bpm above 100 on first render', async () => {
+    await TestBed.configureTestingModule({ imports: [SliderHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SliderHostComponent);
+    fixture.detectChanges();
+
+    const slider = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[type="range"]'
+    )!;
+    // [value] bound before [min]/[max] was clamped by the default 0-100 range
+    expect(slider.value).toBe('150');
+  });
+});

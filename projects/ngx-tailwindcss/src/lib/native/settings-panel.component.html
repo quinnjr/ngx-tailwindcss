@@ -114,6 +114,9 @@
                 @switch (setting.type) {
                   @case ('toggle') {
                     <button
+                      type="button"
+                      role="switch"
+                      [attr.aria-checked]="!!setting.value"
                       [id]="setting.id"
                       (click)="toggleSetting(setting)"
                       [disabled]="setting.disabled || false"

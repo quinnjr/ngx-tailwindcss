@@ -53,14 +53,19 @@
         <tr>
           @if (selectable()) {
             <th scope="col" class="w-12 px-4 py-3">
-              <input
-                type="checkbox"
-                aria-label="Select all rows"
-                class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-700"
-                [checked]="allSelected()"
-                [indeterminate]="someSelected()"
-                (change)="toggleSelectAll()"
-              />
+              <!-- Select-all only makes sense when several rows may be selected -->
+              @if (selectionMode() === 'multiple') {
+                <input
+                  type="checkbox"
+                  aria-label="Select all rows"
+                  class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-700"
+                  [checked]="allSelected()"
+                  [indeterminate]="someSelected()"
+                  (change)="toggleSelectAll()"
+                />
+              } @else {
+                <span class="sr-only">Select row</span>
+              }
             </th>
           }
           @for (col of columns(); track col.field) {

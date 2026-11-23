@@ -214,6 +214,38 @@ describe('TwFaderComponent', () => {
     });
   });
 
+  describe('pointer presses', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should ignore presses beyond the track ends (label, value readout)', () => {
+      captureDocumentListeners();
+      const track = hostEl.querySelector('[title^="Double-click"]')!
+        .previousElementSibling as HTMLElement;
+      // Track spans y 100..200
+      track.getBoundingClientRect = (): DOMRect => {
+        const r = { x: 0, y: 100, left: 0, top: 100, width: 10, height: 100 };
+        return { ...r, right: 10, bottom: 200, toJSON: () => r };
+      };
+      const value = () => Number(hostEl.getAttribute('aria-valuenow'));
+      const press = (clientY: number) => {
+        hostEl.dispatchEvent(
+          new MouseEvent('mousedown', { clientX: 5, clientY, bubbles: true, cancelable: true })
+        );
+        fixture.detectChanges();
+      };
+
+      press(230); // value readout below the track
+      expect(value()).toBe(0);
+      press(50); // label above the track
+      expect(value()).toBe(0);
+
+      press(150); // on the track
+      expect(value()).toBe(-24);
+    });
+  });
+
   describe('container classes', () => {
     it('should apply both the layout classes and the variant container classes', () => {
       fixture.componentRef.setInput('variant', 'channel');

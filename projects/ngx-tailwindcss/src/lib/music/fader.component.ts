@@ -425,7 +425,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent): void {
-    if (this.isDisabled()) return;
+    if (this.isDisabled() || !this.isAlongTrack(event.clientX, event.clientY)) return;
     this.startDrag(event.clientX, event.clientY);
     event.preventDefault();
   }
@@ -436,6 +436,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
     // The finger that just landed on this fader: touches[0] may be a finger
     // already holding another control (multi-touch mixing)
     const touch = event.changedTouches?.[0] ?? event.touches[0];
+    if (!this.isAlongTrack(touch.clientX, touch.clientY)) return;
     const guarded = this.touchGuard();
     // Keep this gesture's start state: the service's implicit one is shared by all controls
     this.touchTracking = guarded ? this.mobileSupport.startTouchTracking(event) : null;
@@ -487,6 +488,19 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
       event.preventDefault();
       this.onTouched();
     }
+  }
+
+  /**
+   * Whether a press lands within the track's extent along the fader axis. Presses
+   * on the label, channel number or value readout (beyond the track's ends) must
+   * not jump the fader to its maximum or to -∞.
+   */
+  private isAlongTrack(clientX: number, clientY: number): boolean {
+    const rect = this.trackRef?.nativeElement.getBoundingClientRect();
+    if (!rect) return true;
+    return this.orientation() === 'vertical'
+      ? clientY >= rect.top && clientY <= rect.bottom
+      : clientX >= rect.left && clientX <= rect.right;
   }
 
   private startDrag(

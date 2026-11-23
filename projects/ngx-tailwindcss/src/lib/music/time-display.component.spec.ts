@@ -45,4 +45,14 @@ describe('TwTimeDisplayComponent', () => {
       '65:00'
     );
   });
+
+  it('should count down in the flip variant when showRemaining is set', () => {
+    fixture.componentRef.setInput('variant', 'flip');
+    fixture.componentRef.setInput('showRemaining', true);
+    fixture.componentRef.setInput('value', 30);
+    fixture.componentRef.setInput('total', 90);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent?.replaceAll(/\s/g, '')).toBe('01:00');
+  });
 });

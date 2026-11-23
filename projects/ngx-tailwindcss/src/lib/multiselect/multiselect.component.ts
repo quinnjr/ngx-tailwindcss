@@ -158,14 +158,26 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
    */
   protected selectAllTarget = computed(() => {
     const enabledCount = this.enabledOptions().length;
-    const max = this.maxSelections();
-    return max > 0 ? Math.min(max, enabledCount) : enabledCount;
+    const capacity = this.selectionCapacity();
+    return capacity === null ? enabledCount : Math.min(capacity, enabledCount);
   });
 
   /** Select All cannot select everything when maxSelections is lower than the option count */
   protected selectAllLimited = computed(() => {
+    const capacity = this.selectionCapacity();
+    return capacity !== null && capacity < this.enabledOptions().length;
+  });
+
+  /** Number of selected values Select All cannot change (disabled or unknown options) */
+  private lockedCount = computed(() => {
+    const enabledValues = new Set(this.enabledOptions().map(opt => opt.value));
+    return [...this.selectedValues()].filter(value => !enabledValues.has(value)).length;
+  });
+
+  /** Enabled options that may be selected under maxSelections (null = unlimited) */
+  private selectionCapacity = computed(() => {
     const max = this.maxSelections();
-    return max > 0 && max < this.enabledOptions().length;
+    return max > 0 ? Math.max(0, max - this.lockedCount()) : null;
   });
 
   /** Number of currently selected enabled options (ignores disabled pre-selected values) */
@@ -393,8 +405,9 @@ export class TwMultiSelectComponent implements ControlValueAccessor, OnDestroy, 
       values = locked;
     } else {
       // Select all (respecting max selections)
-      const max = this.maxSelections();
-      const toSelect = max > 0 ? enabledOptions.slice(0, max) : enabledOptions;
+      // Locked selections count toward maxSelections
+      const capacity = this.selectionCapacity();
+      const toSelect = capacity === null ? enabledOptions : enabledOptions.slice(0, capacity);
       values = [...locked, ...toSelect.map(opt => opt.value)];
     }
     this.selectedValues.set(new Set(values));

@@ -80,6 +80,14 @@ describe('TwCenterComponent', () => {
     fixture.detectChanges();
 
     expect(getInner().className).toContain('inline-flex');
+    // The host flows inline too, instead of breaking the line as a block
+    expect(fixture.debugElement.query(By.css('tw-center')).nativeElement.style.display).toBe(
+      'inline-block'
+    );
+
+    component.inline.set(false);
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.css('tw-center')).nativeElement.style.display).toBe('');
   });
 
   it('should merge custom classes', () => {
@@ -281,6 +289,47 @@ describe('Center host sizing', () => {
     {
       const host = fixture.debugElement.query(By.css('tw-center')).nativeElement as HTMLElement;
       expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
+    }
+  });
+});
+
+describe('Center forwarded margins and widths', () => {
+  it('applies a static margin/width class once, on the host', async () => {
+    @Component({
+      template: `<tw-center class="tw-test-geom"><span>x</span></tw-center>`,
+      standalone: true,
+      imports: [TwCenterComponent],
+    })
+    class GeometryHostComponent {}
+
+    // Stand-in for utility classes such as `my-4 w-1/2 max-w-[50%]`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-geom { margin: 16px; width: 50%; max-width: 50%; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [GeometryHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(GeometryHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-center')).nativeElement as HTMLElement;
+      const inner = host.querySelector('div') as HTMLElement;
+      expect(inner.className).toContain('tw-test-geom');
+
+      expect(getComputedStyle(host).marginTop).toBe('16px');
+      expect(getComputedStyle(host).width).toBe('50%');
+
+      // Not doubled or compounded (25% width) by the inner element
+      const innerStyle = getComputedStyle(inner);
+      expect(innerStyle.marginTop).toBe('0px');
+      expect(innerStyle.width).toBe('100%');
+      expect(innerStyle.maxWidth).toBe('none');
+    } finally {
+      style.remove();
     }
   });
 });

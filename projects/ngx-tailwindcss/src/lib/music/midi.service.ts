@@ -280,7 +280,12 @@ export class MidiService implements OnDestroy {
     }
 
     try {
-      this._midiAccess = await navigator.requestMIDIAccess({ sysex });
+      const access = await navigator.requestMIDIAccess({ sysex });
+      // A repeated request (e.g. two components each calling requestAccess)
+      // yields a new MIDIAccess with its own port objects; release the previous
+      // one's handlers or every message would be delivered once per request.
+      this.detachAccess();
+      this._midiAccess = access;
       this._connected.set(true);
 
       // Set up device listeners. Web MIDI uses the onstatechange handler idiom
@@ -305,18 +310,7 @@ export class MidiService implements OnDestroy {
    * Disconnect from MIDI
    */
   disconnect(): void {
-    // Remove input listeners
-    for (const input of this.connectedInputs) {
-      input.onmidimessage = null;
-    }
-    this.connectedInputs = [];
-
-    // Detach the state-change handler so a later device plug-in cannot
-    // re-subscribe a disconnected service
-    if (this._midiAccess) {
-      // eslint-disable-next-line unicorn/prefer-add-event-listener -- Web MIDI API onstatechange handler idiom
-      this._midiAccess.onstatechange = null;
-    }
+    this.detachAccess();
 
     // Clear state
     this._inputs.set(new Map());
@@ -336,6 +330,22 @@ export class MidiService implements OnDestroy {
       lastMessage: null,
       timeout: null,
     });
+  }
+
+  /** Remove this service's handlers from the current MIDIAccess and its inputs */
+  private detachAccess(): void {
+    // Remove input listeners
+    for (const input of this.connectedInputs) {
+      input.onmidimessage = null;
+    }
+    this.connectedInputs = [];
+
+    // Detach the state-change handler so a later device plug-in cannot
+    // re-subscribe a disconnected service
+    if (this._midiAccess) {
+      // eslint-disable-next-line unicorn/prefer-add-event-listener -- Web MIDI API onstatechange handler idiom
+      this._midiAccess.onstatechange = null;
+    }
   }
 
   private handleStateChange(event: Event): void {

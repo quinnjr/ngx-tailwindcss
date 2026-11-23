@@ -19,10 +19,8 @@ import { TwClassService } from '../core/tw-class.service';
  *   <div>Centered content</div>
  * </tw-center>
  *
- * <!-- Center only horizontally (inline content) -->
- * <tw-center [inline]="true">
- *   <span>Centered text</span>
- * </tw-center>
+ * <!-- Inline center that sits within a line of text -->
+ * <p>Status: <tw-center [inline]="true" class="w-6 h-6 rounded-full bg-green-500"><span>✓</span></tw-center></p>
  * ```
  */
 @Component({
@@ -31,6 +29,10 @@ import { TwClassService } from '../core/tw-class.service';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './center.component.html',
+  host: {
+    // An inline center must sit in the surrounding line, not on a block of its own
+    '[style.display]': "inline() ? 'inline-block' : null",
+  },
   styles: [
     `
       :host {
@@ -50,6 +52,13 @@ import { TwClassService } from '../core/tw-class.service';
       /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
       :host > div {
         height: 100%;
+        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
+        margin: 0;
+        /* 100% rather than auto so an inline-flex inner element still fills an inline host */
+        width: 100%;
+        max-width: none;
+        /* An inline-flex inner element leaves no line-box gap below it in an inline host */
+        vertical-align: top;
       }
     `,
   ],

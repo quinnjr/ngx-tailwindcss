@@ -226,6 +226,15 @@ describe('TwTableComponent', () => {
       expect(component.table.isSelected(component.data()[1])).toBe(true);
     });
 
+    it('should not offer or apply select-all in single mode', () => {
+      component.selectionMode.set('single');
+      fixture.detectChanges();
+      expect(tableEl.query(By.css('thead input[type="checkbox"]'))).toBeNull();
+      component.table.toggleSelectAll();
+      expect(component.onSelectionChangeSpy).not.toHaveBeenCalled();
+      expect(component.table.isSelected(component.data()[0])).toBe(false);
+    });
+
     it('should select and clear all displayed rows via select-all', () => {
       component.table.toggleSelectAll();
       expect(component.onSelectionChangeSpy).toHaveBeenLastCalledWith(component.data());

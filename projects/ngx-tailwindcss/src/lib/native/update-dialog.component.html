@@ -113,6 +113,9 @@
               >Automatically install updates</span
             >
             <button
+              type="button"
+              role="switch"
+              [attr.aria-checked]="autoUpdate()"
               (click)="toggleAutoUpdate()"
               [class.bg-blue-600]="autoUpdate()"
               [class.bg-slate-200]="!autoUpdate()"

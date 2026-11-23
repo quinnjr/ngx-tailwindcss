@@ -70,7 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The inner element fills a host stretched or grown by its flex/grid parent,
   `tw-aspect-ratio`/`tw-square`/`tw-circle` no longer clip their own shadow
   with a forwarded `overflow-hidden`, and a forwarded `max-w-*` on
-  `tw-container` keeps the container centered
+  `tw-container` keeps the container centered.
+  Forwarded margins and widths (`mx-4`, `w-1/2`) are no longer applied twice
+  (doubled spacing, compounded percentage widths)
+- `tw-center` with `inline` flows inline instead of rendering as a block
 - `tw-image` `width`/`height` accept CSS lengths (`10rem`, `auto`); only bare
   numbers get a `px` suffix
 - Native services, music components and audio services: many correctness and

@@ -505,13 +505,13 @@ export class TwPianoChordComponent {
   }
 
   protected getFingerY(isBlack: boolean): number {
-    const { whiteKeyHeight, blackKeyHeight, padding } = this.dimensions();
-    const topOffset = this.showChordName() ? 28 : 0;
+    // SVG coordinates: the chord name is rendered above the SVG, not inside it
+    const { whiteKeyHeight, blackKeyHeight, padding, fingerRadius } = this.dimensions();
 
     if (isBlack) {
-      return topOffset + padding + blackKeyHeight - this.dimensions().fingerRadius - 4;
+      return padding + blackKeyHeight - fingerRadius - 4;
     }
-    return topOffset + padding + whiteKeyHeight - this.dimensions().fingerRadius - 8;
+    return padding + whiteKeyHeight - fingerRadius - 8;
   }
 
   protected getFingerX(rawNote: string, rawOctave: number): number {

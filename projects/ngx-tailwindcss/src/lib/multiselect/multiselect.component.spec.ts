@@ -486,3 +486,47 @@ describe('TwMultiSelectComponent (round 5)', () => {
     expect(fixture.componentInstance.control.value).toEqual(['banana']);
   });
 });
+
+@Component({
+  template: `
+    <tw-multiselect
+      [options]="options"
+      [formControl]="control"
+      [maxSelections]="2"
+    ></tw-multiselect>
+  `,
+  standalone: true,
+  imports: [TwMultiSelectComponent, ReactiveFormsModule],
+})
+class LockedSelectionMaxHostComponent {
+  options: MultiSelectOption[] = [
+    { label: 'Apple', value: 'apple' },
+    { label: 'Banana', value: 'banana', disabled: true },
+    { label: 'Cherry', value: 'cherry' },
+  ];
+  control = new FormControl<unknown[]>(['banana']);
+}
+
+describe('TwMultiSelectComponent (round 6)', () => {
+  it('should count locked selections toward maxSelections for Select All', () => {
+    const fixture = TestBed.createComponent(LockedSelectionMaxHostComponent);
+    fixture.detectChanges();
+    const multiselect = fixture.debugElement.children[0]
+      .componentInstance as TwMultiSelectComponent;
+
+    // Only one enabled option fits next to the locked selection, so Select All is hidden
+    fixture.nativeElement.querySelector('[aria-haspopup]').click();
+    fixture.detectChanges();
+    const selectAll = [...fixture.nativeElement.querySelectorAll('[role="option"]')].find(
+      (el: HTMLElement) => el.textContent?.includes('Select All')
+    );
+    expect(selectAll).toBeUndefined();
+
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual(['banana', 'apple']);
+    expect(multiselect.isAllSelected()).toBe(true);
+
+    multiselect.toggleSelectAll();
+    expect(fixture.componentInstance.control.value).toEqual(['banana']);
+  });
+});

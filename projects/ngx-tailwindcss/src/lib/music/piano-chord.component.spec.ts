@@ -51,6 +51,31 @@ describe('TwPianoChordComponent', () => {
     );
   });
 
+  it('draws finger markers on their keys inside the SVG when the chord name is shown', () => {
+    fixture.componentRef.setInput('chord', 'Cm');
+    fixture.detectChanges();
+    const svg = (fixture.nativeElement as HTMLElement).querySelector('svg')!;
+    const svgHeight = Number(svg.getAttribute('height'));
+    const { padding } = cmp.dimensions();
+    const keyBottom = (rect: Element): number =>
+      Number(rect.getAttribute('y')) + Number(rect.getAttribute('height'));
+    const [whiteKey] = [...svg.querySelectorAll('rect')];
+    const blackKey = [...svg.querySelectorAll('rect')].find(r => !r.hasAttribute('stroke'))!;
+    const circles = [...svg.querySelectorAll('circle')];
+    expect(circles).toHaveLength(3);
+    for (const circle of circles) {
+      const cy = Number(circle.getAttribute('cy'));
+      const r = Number(circle.getAttribute('r'));
+      expect(cy - r).toBeGreaterThanOrEqual(padding);
+      expect(cy + r).toBeLessThanOrEqual(svgHeight);
+    }
+    // E flat (index 1) sits on the black key, C (index 0) on the white key
+    const cyOf = (i: number): number => Number(circles[i].getAttribute('cy'));
+    expect(cyOf(1)).toBeLessThan(keyBottom(blackKey));
+    expect(cyOf(0)).toBeGreaterThan(keyBottom(blackKey));
+    expect(cyOf(0)).toBeLessThan(keyBottom(whiteKey));
+  });
+
   it('spells the built-in C minor chord with E flat', () => {
     fixture.componentRef.setInput('chord', 'Cm');
     fixture.componentRef.setInput('showNoteNames', true);

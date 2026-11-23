@@ -79,6 +79,45 @@ describe('TwTunerComponent', () => {
 
       expect(Math.abs(1200 * Math.log2(detected / freq))).toBeLessThan(50);
     });
+
+    // Whole-sample lags alone are ~16 cents apart at A4 (48 kHz), so e.g. an
+    // A at 441.5 Hz (+5.9 cents) used to read as in tune (+1.5 cents)
+    it.each([
+      [441.5, 48_000],
+      [445, 48_000],
+      [329.63, 44_100],
+      [659.25, 44_100],
+      [659.25, 48_000],
+      [392, 48_000],
+    ])('should measure %f Hz at %i Hz to within 2 cents', (freq, sampleRate) => {
+      const detected = (component as any).autoCorrelate(sine(freq, sampleRate), sampleRate);
+
+      expect(Math.abs(1200 * Math.log2(detected / freq))).toBeLessThan(2);
+    });
+
+    it('should not report a +5.9 cent A4 as in tune', () => {
+      const detected = (component as any).autoCorrelate(sine(441.5, 48_000), 48_000);
+
+      expect(frequencyToNote(detected).cents).toBeGreaterThan(component.tolerance());
+    });
+  });
+
+  describe('string selector', () => {
+    it('should reset the selected string when the mode changes', () => {
+      fixture.componentRef.setInput('mode', 'guitar');
+      fixture.detectChanges();
+      const buttons = () => [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('button[aria-pressed]'),
+      ];
+      (buttons()[5] as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      fixture.componentRef.setInput('mode', 'bass');
+      fixture.detectChanges();
+
+      expect(buttons()[0].getAttribute('aria-pressed')).toBe('true');
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Target: 41.2 Hz');
+    });
   });
 
   describe('microphone lifecycle', () => {

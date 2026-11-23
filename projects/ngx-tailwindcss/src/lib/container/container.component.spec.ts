@@ -185,3 +185,39 @@ describe('Container host sizing', () => {
     expect(getComputedStyle(host).maxWidth).toBe('none');
   });
 });
+
+describe('Container forwarded margins', () => {
+  it('applies a static margin class once, on the inner element', async () => {
+    @Component({
+      template: `<tw-container class="tw-test-geom"><span>x</span></tw-container>`,
+      standalone: true,
+      imports: [TwContainerComponent],
+    })
+    class GeometryHostComponent {}
+
+    // Stand-in for a utility class such as `my-4`
+    const style = document.createElement('style');
+    style.textContent = '.tw-test-geom { margin: 16px; }';
+    document.head.append(style);
+
+    try {
+      await TestBed.configureTestingModule({
+        imports: [GeometryHostComponent],
+        providers: [TwClassService],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(GeometryHostComponent);
+      fixture.detectChanges();
+
+      const host = fixture.debugElement.query(By.css('tw-container')).nativeElement as HTMLElement;
+      const inner = host.querySelector('div') as HTMLElement;
+      expect(inner.className).toContain('tw-test-geom');
+
+      // The full-width host doesn't add a second margin (or overflow its parent with one)
+      expect(getComputedStyle(host).marginTop).toBe('0px');
+      expect(getComputedStyle(inner).marginTop).toBe('16px');
+    } finally {
+      style.remove();
+    }
+  });
+});

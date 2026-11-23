@@ -76,6 +76,10 @@
                     @switch (prop.type) {
                       @case ('boolean') {
                         <button
+                          type="button"
+                          role="switch"
+                          [attr.aria-checked]="!!prop.value"
+                          [attr.aria-label]="prop.key"
                           (click)="updateProperty(prop, !prop.value)"
                           [class.bg-blue-600]="prop.value"
                           [class.bg-slate-200]="!prop.value"

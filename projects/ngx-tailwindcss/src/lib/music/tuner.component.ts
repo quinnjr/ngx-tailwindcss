@@ -5,6 +5,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   NgZone,
   numberAttribute,
   OnDestroy,
@@ -69,7 +70,8 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
   protected readonly currentNote = signal('--');
   protected readonly currentOctave = signal(4);
   protected readonly currentCents = signal(0);
-  protected readonly selectedString = signal(0); // For instrument modes
+  // For instrument modes; reset when the mode (and so the string set) changes
+  protected readonly selectedString = linkedSignal({ source: this.mode, computation: () => 0 });
 
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -301,15 +303,17 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     const minOffset = Math.max(1, Math.floor(sampleRate / 2000));
     const maxOffset = Math.min(maxSamples, Math.ceil(sampleRate / 30));
 
+    const correlationAt = (offset: number): number => {
+      let difference = 0;
+      for (let i = 0; i < maxSamples; i++) {
+        difference += Math.abs(buffer[i] - buffer[i + offset]);
+      }
+      return 1 - difference / maxSamples;
+    };
+
     let lastCorrelation = 1;
     for (let offset = minOffset; offset < maxOffset; offset++) {
-      let correlation = 0;
-
-      for (let i = 0; i < maxSamples; i++) {
-        correlation += Math.abs(buffer[i] - buffer[i + offset]);
-      }
-
-      correlation = 1 - correlation / maxSamples;
+      const correlation = correlationAt(offset);
 
       if (correlation > 0.9 && correlation > lastCorrelation) {
         foundGoodCorrelation = true;
@@ -325,7 +329,20 @@ export class TwTunerComponent implements AfterViewInit, OnDestroy {
     }
 
     if (bestCorrelation > 0.01 && bestOffset > 0) {
-      return sampleRate / bestOffset;
+      // Whole-sample lags quantise the pitch in steps of ~15-25 cents for
+      // the upper strings, far coarser than the in-tune tolerance, so refine
+      // the peak to a fractional lag. The mean-absolute-difference measure
+      // is V-shaped around its peak, so interpolate linearly from both sides.
+      let shift = 0;
+      if (bestOffset > minOffset && bestOffset + 1 <= maxSamples) {
+        const before = correlationAt(bestOffset - 1);
+        const after = correlationAt(bestOffset + 1);
+        const drop = bestCorrelation - Math.min(before, after);
+        if (drop > 0) {
+          shift = Math.max(-0.5, Math.min(0.5, (after - before) / (2 * drop)));
+        }
+      }
+      return sampleRate / (bestOffset + shift);
     }
 
     return -1;

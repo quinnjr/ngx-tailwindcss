@@ -205,7 +205,8 @@ interface MultiSelectGroup {
 ```
 
 Note: the Select All row is hidden when `maxSelections` is lower than the number of
-enabled options, since selecting everything would be impossible.
+enabled options, since selecting everything would be impossible. Selections on disabled
+options are kept by Select All and count toward the limit.
 
 ### Escaping Overflow Contexts
 

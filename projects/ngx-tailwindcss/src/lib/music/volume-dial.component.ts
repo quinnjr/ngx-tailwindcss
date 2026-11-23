@@ -299,7 +299,9 @@ export class TwVolumeDialComponent implements ControlValueAccessor, OnDestroy {
   protected readonly ledSegments = computed(() => {
     const segments: Array<{ index: number; x: number; y: number; active: boolean }> = [];
     const ledCount = 12;
-    const ledRadius = this.radius() + this.sizeConfig().strokeWidth + 6;
+    // Outermost ring that keeps each LED (r=3) inside the SVG viewport, which clips;
+    // radius + strokeWidth + 6 put the ring 2px beyond the edge
+    const ledRadius = this.center() - 3;
     const percentage = this.percentage();
 
     for (let i = 0; i < ledCount; i++) {

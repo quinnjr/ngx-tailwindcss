@@ -186,10 +186,11 @@
     </button>
   </div>
 
-  <!-- Tap indicator -->
-  @if (tapTimes().length > 0) {
+  <!-- Tap indicator (until the third tap sets the tempo) -->
+  @if (tapTimes().length > 0 && tapTimes().length < 3) {
     <div class="text-xs text-slate-500">
-      Tap {{ 3 - Math.min(tapTimes().length, 2) }} more times to set tempo
+      Tap {{ 3 - tapTimes().length }} more {{ tapTimes().length === 2 ? 'time' : 'times' }} to set
+      tempo
     </div>
   }
 

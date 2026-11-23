@@ -96,7 +96,18 @@ export class TwKeyboardShortcutDirective implements OnInit, OnDestroy {
     const metaPressed = keyEvent.metaKey;
 
     // Synthetic keydown events (e.g. Chrome autofill) carry no key/code
-    const keyMatches = keyEvent.key?.toLowerCase() === key || keyEvent.code?.toLowerCase() === key;
+    const eventKey = keyEvent.key ?? '';
+    // Option (macOS), AltGr and non-Latin layouts change `event.key` (Option+S types
+    // 'ß', a Cyrillic layout 'ы'), so fall back to the physical key for letters and
+    // digits. A layout typing a different ASCII character there (AZERTY 'a' at KeyQ)
+    // means a different shortcut.
+    const physicalMatches =
+      !!key &&
+      /^[\da-z]$/.test(key) &&
+      !/^[ -~]$/.test(eventKey) &&
+      keyEvent.code?.toLowerCase() === (/\d/.test(key) ? `digit${key}` : `key${key}`);
+    const keyMatches =
+      eventKey.toLowerCase() === key || keyEvent.code?.toLowerCase() === key || physicalMatches;
 
     // A shifted symbol such as '?' or '+' already encodes Shift in `event.key`
     // (e.g. '?' is Shift+/ on US layouts), so an unrequested Shift is allowed there

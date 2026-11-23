@@ -173,11 +173,13 @@ export class TwChannelStripComponent implements ControlValueAccessor {
     return size === 'sm' ? 60 : size === 'lg' ? 100 : 80;
   });
 
-  // Peak marker offsets (px from the meter container's bottom edge; the
-  // vu-meter has 8px internal padding)
-  protected peakMarkerBottom(peak: number): number {
+  // Peak marker offsets (px from the meter's top edge; the led vu-meter has a
+  // 1px border and 8px padding). Measured from the top: below the meter the vu-meter
+  // renders more rows (e.g. the stereo L/R labels), so its bottom edge is not
+  // the meter's. The 2px marker is centred on the level.
+  protected peakMarkerTop(peak: number): number {
     const clamped = Math.max(0, Math.min(100, peak));
-    return 8 + this.meterHeight() * (clamped / 100);
+    return 9 + this.meterHeight() * (1 - clamped / 100) - 1;
   }
 
   protected onVolumeChange(value: number): void {

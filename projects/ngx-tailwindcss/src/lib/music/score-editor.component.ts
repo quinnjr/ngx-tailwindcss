@@ -494,19 +494,22 @@ export class TwScoreEditorComponent implements OnInit {
     const semitones = Math.round(options.semitones);
     if (!Number.isFinite(semitones) || semitones === 0) return;
 
-    this.saveHistory(`Transpose ${semitones > 0 ? '+' : ''}${semitones}`);
-
     const key = this.keySignature();
-    this.parts.update(parts =>
-      parts.map(part => {
-        if (partIds && !partIds.includes(part.id)) return part;
-        return {
-          ...part,
-          notes: this.transposeNotes(part.notes, semitones, preserveEnharmonic, key),
-        };
-      })
-    );
+    const transposed: InstrumentPart[] = [];
+    for (const part of this.parts()) {
+      if (partIds && !partIds.includes(part.id)) {
+        transposed.push(part);
+        continue;
+      }
+      const notes = this.transposeNotes(part.notes, semitones, preserveEnharmonic, key);
+      // A note pushed outside the MIDI range (0-127) is not a playable pitch: refuse the
+      // whole transposition rather than distort the music
+      if (!notes) return;
+      transposed.push({ ...part, notes });
+    }
 
+    this.saveHistory(`Transpose ${semitones > 0 ? '+' : ''}${semitones}`);
+    this.parts.set(transposed);
     this.emitScoreChanged();
   }
 
@@ -517,15 +520,20 @@ export class TwScoreEditorComponent implements OnInit {
     semitones: number,
     preserveEnharmonic: boolean,
     key: KeySignature
-  ): PlacedNote[] {
+  ): PlacedNote[] | null {
     const source = createAccidentalContext(key);
     const target = createAccidentalContext(key);
     const result = [...notes];
+    let outOfRange = false;
 
     this.forEachInTimeOrder(notes, [source, target], (note, index) => {
-      if (note.isRest) return;
+      if (note.isRest || outOfRange) return;
       const alteration = source.resolve(note);
       const midi = (note.octave + 1) * 12 + NOTE_TO_CHROMATIC[note.name] + alteration + semitones;
+      if (midi < 0 || midi > 127) {
+        outOfRange = true;
+        return;
+      }
       // preserveEnharmonic keeps the sharp/flat family of altered notes; otherwise prefer the
       // key's own letters (F# in G major, Bb in F major)
       const spelled =
@@ -540,7 +548,7 @@ export class TwScoreEditorComponent implements OnInit {
       };
     });
 
-    return result;
+    return outOfRange ? null : result;
   }
 
   /**

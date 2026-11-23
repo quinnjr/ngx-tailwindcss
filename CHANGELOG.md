@@ -85,6 +85,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-table`/`tw-datatables` string sorting uses locale-aware natural order
   (`localeCompare` with `numeric: true`), so rows that differ only in case or
   in embedded numbers can appear in a different order than before
+- Music: the `tw-audio-player` 10-second seek buttons are now the transport's
+  rewind/fast-forward buttons, named "Back 10 seconds" / "Forward 10 seconds";
+  the skip previous/next buttons (which used to perform those seeks) are no
+  longer shown. `tw-transport` gains `rewindLabel` and `fastForwardLabel`
+  inputs (default `'Rewind'` / `'Fast forward'`) for the buttons' accessible
+  name and tooltip
+- Music: a `tw-volume-dial` label is laid out in flow and its height is
+  reserved in the component (20px taller when a label is shown), instead of
+  hanging below the box over the content underneath; remove any spacing you
+  added to make room for it
 
 ### 🐛 Fixed
 
@@ -523,12 +533,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has already moved it, and closing the last tab leaves focus on the tab bar
 - `tw-table` and `tw-datatables` sort string columns by locale instead of by
   code unit: lowercase and uppercase values interleave (`adam` before `Zoe`)
-  and embedded numbers sort naturally (`item9` before `item10`)
+  and embedded numbers sort naturally (`item9` before `item10`); sorting
+  reuses one `Intl.Collator`, so large tables sort quickly
 - `tw-tree` supports Home/End to move focus to the first/last visible node
 - `tw-checkbox` exposes `aria-readonly` when `readonly`
 - Music: choosing a `tw-graphic-eq` preset returns focus to the Presets button
 - Music: the sectioned `tw-mixer` layout scrolls horizontally instead of
   clipping channels that do not fit
+- `tw-accordion` item headers are headings (`role="heading"` with
+  `aria-level`), so screen-reader heading navigation reaches them; a new
+  `headingLevel` input (1–6, default 3) on `tw-accordion` or
+  `tw-accordion-item` sets the level
+- Native: the `tw-command-palette` and `tw-quick-switcher` search inputs are
+  comboboxes (`role="combobox"`, `aria-expanded`, `aria-controls`,
+  `aria-autocomplete="list"`) tied to their result list
+- Music: a disabled `tw-scrubber` no longer grows or reveals its thumb on hover
+- Music: `tw-mixer` group indicators above the channels are no longer clipped
+- Music: `tw-score-editor` transposition rounds to whole semitones and ignores
+  an empty amount
+- `tw-checkbox` shows a default cursor instead of a pointer when `readonly`
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: the README and docs quick start tell you to register an

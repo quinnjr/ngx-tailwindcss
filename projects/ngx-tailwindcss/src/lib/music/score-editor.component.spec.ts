@@ -326,6 +326,30 @@ describe('TwScoreEditorComponent', () => {
     expect(editor.parts()[0].notes.map(n => [n.name, n.accidental])).toEqual([['D', null]]);
   });
 
+  it('refuses a transposition that would push a note outside the MIDI range', () => {
+    // G9 is MIDI 127: an octave up has no pitch
+    createWith({
+      ...score([
+        placed('n1', { name: 'C', octave: 4, beat: 0 }),
+        placed('n2', { name: 'G', octave: 9, beat: 2 }),
+      ]),
+      keySignature: 'C',
+    });
+    editor.transpose({ semitones: 12 });
+    expect(editor.canUndo()).toBe(false);
+    expect(editor.parts()[0].notes.map(n => [n.name, n.octave])).toEqual([
+      ['C', 4],
+      ['G', 9],
+    ]);
+    editor.transpose({ semitones: -1000 });
+    expect(editor.canUndo()).toBe(false);
+    editor.transpose({ semitones: -12 });
+    expect(editor.parts()[0].notes.map(n => [n.name, n.octave])).toEqual([
+      ['C', 3],
+      ['G', 8],
+    ]);
+  });
+
   it('adds a natural when transposition cancels an accidental earlier in the bar', () => {
     // C major: F#4 then F4 natural, an octave up: the second F needs its natural sign
     createWith({

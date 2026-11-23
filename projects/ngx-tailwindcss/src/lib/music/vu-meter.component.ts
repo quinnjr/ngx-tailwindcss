@@ -6,10 +6,11 @@ import {
   inject,
   input,
   output,
+  PLATFORM_ID,
   signal,
   untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 
 export type VuMeterVariant = 'led' | 'gradient' | 'solid' | 'retro' | 'light' | 'highContrast';
@@ -46,6 +47,7 @@ const RMS_WINDOW_SIZE = 1024;
 })
 export class TwVuMeterComponent {
   private readonly twClass = inject(TwClassService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   // Value inputs
   readonly value = input(0);
@@ -127,9 +129,10 @@ export class TwVuMeterComponent {
       }
     });
 
-    // Peak decay timer: only runs while peaks are shown
+    // Peak decay timer: only runs while peaks are shown, and only in the browser
+    // (a never-ending interval would keep SSR rendering from becoming stable)
     effect(onCleanup => {
-      if (!this.showPeak()) return;
+      if (!this.isBrowser || !this.showPeak()) return;
       const timer = setInterval(() => {
         this.decayPeaks();
       }, 50);
@@ -141,7 +144,7 @@ export class TwVuMeterComponent {
     // RMS decay timer (slower than peak): only runs in rms/both mode
     effect(onCleanup => {
       const mode = this.meterMode();
-      if (mode !== 'rms' && mode !== 'both') return;
+      if (!this.isBrowser || (mode !== 'rms' && mode !== 'both')) return;
       const timer = setInterval(() => {
         this.decayRms();
       }, 50);

@@ -93,4 +93,30 @@ describe('TwScrubberComponent', () => {
     expect(track.querySelector('.w-px')).toBeNull();
     vi.restoreAllMocks();
   });
+  it('should scale sprite frames to the preview size', () => {
+    fixture.componentRef.setInput('showThumbnailPreview', true);
+    fixture.componentRef.setInput('thumbnailWidth', 160);
+    fixture.componentRef.setInput('thumbnailHeight', 90);
+    fixture.componentRef.setInput('thumbnailSprite', {
+      url: 'sprite.jpg',
+      frameWidth: 320,
+      frameHeight: 180,
+      columns: 5,
+      interval: 10,
+      totalFrames: 20,
+    });
+    const track = slider();
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 200, height: 8 })
+    );
+    // 140s of 200s -> frame 14 -> column 4, row 2
+    track.dispatchEvent(new MouseEvent('mousemove', { clientX: 140 }));
+    fixture.detectChanges();
+
+    const frame = track.querySelector<HTMLElement>('div[style*="background-image"]')!;
+    expect(frame.style.width).toBe('160px');
+    expect(frame.style.backgroundSize).toBe('800px 360px');
+    expect(frame.style.backgroundPosition).toBe('-640px -180px');
+    vi.restoreAllMocks();
+  });
 });

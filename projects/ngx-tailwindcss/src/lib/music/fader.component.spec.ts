@@ -119,6 +119,20 @@ describe('TwFaderComponent', () => {
       expect(hostEl.getAttribute('aria-valuenow')).toBe('0');
     });
 
+    it('should not reset the value on double-click while disabled', () => {
+      component.writeValue(-20);
+      component.setDisabledState(true);
+      fixture.detectChanges();
+      const emitted: number[] = [];
+      component.valueChange.subscribe(v => emitted.push(v));
+
+      hostEl.querySelector('[title^="Double-click"]')!.dispatchEvent(new MouseEvent('dblclick'));
+      fixture.detectChanges();
+
+      expect(hostEl.getAttribute('aria-valuenow')).toBe('-20');
+      expect(emitted).toEqual([]);
+    });
+
     it('should re-enable interaction when cleared', () => {
       component.setDisabledState(true);
       fixture.detectChanges();

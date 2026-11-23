@@ -159,6 +159,21 @@ describe('TwScoreEditorComponent', () => {
     expect(editor.parts()[0].name).toBe('Violin');
   });
 
+  it('leaves Ctrl+Z in a text field to the field instead of undoing the score', () => {
+    createWith(score([placed('n1')]));
+    editor.updatePart('violin-1', { name: 'Viola' });
+    const titleInput = fixture.nativeElement.querySelector('input.score-title') as HTMLElement;
+    const event = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      cancelable: true,
+      bubbles: true,
+    });
+    titleInput.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(editor.parts()[0].name).toBe('Viola');
+  });
+
   it('pushes the toolbar duration to the note inputs', () => {
     createWith(null);
     editor.currentDuration.set('half');

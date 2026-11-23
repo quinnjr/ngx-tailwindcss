@@ -304,6 +304,11 @@ export class TwLooperComponent implements OnDestroy {
       this.mediaRecorder.stop();
     }
 
+    // A take recorded over a playing loop leaves its layers running: the
+    // 'stopped' state must not keep playing audio behind a Play button
+    if (!wasOverdubbing) {
+      this.stopAllPlayback();
+    }
     this.setState(wasOverdubbing ? 'playing' : 'stopped');
     this.emitEvent(wasOverdubbing ? 'overdub-stop' : 'record-stop');
 

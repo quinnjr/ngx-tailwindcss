@@ -24,7 +24,7 @@
           <span>{{ segment.value }}</span>
         </div>
         @if (segment.separator) {
-          <span [class]="separatorClasses()">:</span>
+          <span [class]="separatorClasses()">{{ segment.separator }}</span>
         }
       }
     </div>

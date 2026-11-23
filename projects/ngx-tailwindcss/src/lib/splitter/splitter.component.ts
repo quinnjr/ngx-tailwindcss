@@ -63,32 +63,18 @@ const KEYBOARD_RESIZE_STEP = 2;
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './splitter.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100%;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex container itself: a static `class` attribute lands here once
+    '[class]': 'containerClasses()',
+  },
 })
 export class TwSplitterComponent implements OnDestroy {
   private readonly twClass = inject(TwClassService);
   /** Injected (not the global) so destroy on the server, where no global exists, is safe */
   private readonly document = inject(DOCUMENT);
 
-  @ViewChild('container') containerRef!: ElementRef<HTMLElement>;
+  /** The host element is the flex container holding both panes and the gutter */
+  readonly containerRef = inject<ElementRef<HTMLElement>>(ElementRef);
   @ViewChild('gutter') gutterRef!: ElementRef<HTMLElement>;
 
   /** Direction of the split */
@@ -142,7 +128,7 @@ export class TwSplitterComponent implements OnDestroy {
 
   protected readonly containerClasses = computed(() => {
     return this.twClass.merge(
-      'flex h-full w-full overflow-hidden',
+      'flex h-full overflow-hidden',
       this.direction() === 'horizontal' ? 'flex-row' : 'flex-col',
       this.class()
     );

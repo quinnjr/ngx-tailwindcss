@@ -25,6 +25,7 @@ import {
   removeEscapeLayer,
   shouldHandleEscape,
 } from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
@@ -150,9 +151,6 @@ export class TwModalComponent implements OnDestroy {
   @Output() closed = new EventEmitter<void>();
   @Output() openChange = new EventEmitter<boolean>();
 
-  private previousOverflow = '';
-  private scrollLocked = false;
-
   /** Projected title, used as the default aria-labelledby target */
   protected readonly modalTitle = contentChild<TwModalTitleComponent>(
     forwardRef(() => TwModalTitleComponent)
@@ -261,18 +259,16 @@ export class TwModalComponent implements OnDestroy {
     this.openChange.emit(true);
   }
 
+  /**
+   * The lock is shared with other modal layers: the page unlocks once the last of
+   * them closes, whatever order they close in.
+   */
   private lockScroll(): void {
-    if (this.scrollLocked) return;
-    this.previousOverflow = this.document.body.style.overflow;
-    this.document.body.style.overflow = 'hidden';
-    this.scrollLocked = true;
+    lockBodyScroll(this.document, this);
   }
 
-  /** Restores body overflow only if this modal locked it (never clobbers other locks). */
   private unlockScroll(): void {
-    if (!this.scrollLocked) return;
-    this.document.body.style.overflow = this.previousOverflow;
-    this.scrollLocked = false;
+    unlockBodyScroll(this.document, this);
   }
 }
 

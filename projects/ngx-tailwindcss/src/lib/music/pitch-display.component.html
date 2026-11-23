@@ -162,7 +162,7 @@
         @case ('vertical') {
           <!-- Vertical Pitch Wheel -->
           <div
-            class="relative w-12 h-32 mx-auto bg-slate-800 rounded-lg border border-slate-600 cursor-ns-resize overflow-hidden"
+            class="relative w-12 h-32 mx-auto bg-slate-800 rounded-lg border border-slate-600 cursor-ns-resize overflow-hidden touch-none"
             (mousedown)="onPitchWheelDragStart($event)"
             (touchstart)="onPitchWheelDragStart($event)"
             (keydown)="onPitchWheelKeydown($event)"
@@ -217,7 +217,7 @@
         @case ('horizontal') {
           <!-- Horizontal Pitch Slider -->
           <div
-            class="relative h-8 bg-slate-800 rounded-lg border border-slate-600 cursor-ew-resize overflow-hidden"
+            class="relative h-8 bg-slate-800 rounded-lg border border-slate-600 cursor-ew-resize overflow-hidden touch-none"
             (mousedown)="onPitchWheelDragStart($event)"
             (touchstart)="onPitchWheelDragStart($event)"
             (keydown)="onPitchWheelKeydown($event)"

@@ -55,4 +55,30 @@ describe('TwTimeDisplayComponent', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent?.replaceAll(/\s/g, '')).toBe('01:00');
   });
+  it('should honour the mode in the flip variant', () => {
+    const text = (): string | undefined =>
+      (fixture.nativeElement as HTMLElement).textContent?.replaceAll(/\s/g, '');
+    fixture.componentRef.setInput('variant', 'flip');
+    fixture.componentRef.setInput('mode', 'bars');
+    fixture.componentRef.setInput('bar', 12);
+    fixture.componentRef.setInput('beat', 3);
+    fixture.detectChanges();
+    expect(text()).toBe('12.3');
+
+    fixture.componentRef.setInput('mode', 'bpm');
+    fixture.componentRef.setInput('bpm', 128);
+    fixture.detectChanges();
+    expect(text()).toBe('128.0BPM');
+  });
+
+  it('should show milliseconds in the flip variant', () => {
+    fixture.componentRef.setInput('variant', 'flip');
+    fixture.componentRef.setInput('showMilliseconds', true);
+    fixture.componentRef.setInput('value', 65.25);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent?.replaceAll(/\s/g, '')).toBe(
+      '01:05.250'
+    );
+  });
 });

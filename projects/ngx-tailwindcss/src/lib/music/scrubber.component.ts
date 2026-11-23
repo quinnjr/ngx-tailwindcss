@@ -257,12 +257,20 @@ export class TwScrubberComponent implements OnDestroy {
 
     const col = frameIndex % sprite.columns;
     const row = Math.floor(frameIndex / sprite.columns);
+    const rows = Math.ceil(sprite.totalFrames / sprite.columns);
+
+    // The preview box is thumbnailWidth x thumbnailHeight, so scale the sheet so one
+    // frame fills it exactly (frames may be larger or smaller than the preview)
+    const width = this.thumbnailWidth();
+    const height = this.thumbnailHeight();
 
     return {
-      x: -col * sprite.frameWidth,
-      y: -row * sprite.frameHeight,
-      width: sprite.frameWidth,
-      height: sprite.frameHeight,
+      x: -col * width,
+      y: -row * height,
+      width,
+      height,
+      sheetWidth: sprite.columns * width,
+      sheetHeight: rows * height,
     };
   });
 

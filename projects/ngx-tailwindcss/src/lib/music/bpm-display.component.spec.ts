@@ -119,5 +119,6 @@ describe('TwBpmDisplayComponent slider', () => {
     )!;
     // [value] bound before [min]/[max] was clamped by the default 0-100 range
     expect(slider.value).toBe('150');
+    expect(slider.getAttribute('aria-label')).toBe('Tempo in BPM');
   });
 });

@@ -346,6 +346,15 @@ describe('TwClassService', () => {
         ['-mt-2 mt-4', 'mt-4'],
         ['flex-1 flex-grow-0 grow', 'flex-1 grow'],
         ['hidden table', 'table'],
+        // Layout component host defaults vs consumer display overrides
+        ['flex hidden', 'hidden'],
+        ['inline-flex inline-block', 'inline-block'],
+        ['block contents', 'contents'],
+        ['flex grid', 'grid'],
+        ['flex md:hidden', 'flex md:hidden'],
+        ['hidden md:flex', 'hidden md:flex'],
+        ['flex hover:block', 'flex hover:block'],
+        ['shrink-0 flex flex-1', 'shrink-0 flex flex-1'],
       ])('merges %s -> %s', (input, expected) => {
         expect(service.merge(input)).toBe(expected);
       });

@@ -24,6 +24,7 @@ import {
   removeEscapeLayer,
   shouldHandleEscape,
 } from '../overlay/escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from '../overlay/scroll-lock';
 
 export type SidebarPosition = 'left' | 'right' | 'top' | 'bottom';
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -110,9 +111,6 @@ export class TwSidebarComponent implements OnDestroy {
   readonly onHide = output();
 
   @ContentChild('twSidebarFooter', { read: TemplateRef }) footerTemplate?: TemplateRef<unknown>;
-
-  /** Previous body overflow value, restored on hide so underlying scroll locks survive */
-  private previousBodyOverflow: string | null = null;
 
   protected backdropClasses = computed(() => {
     return this.twClass.merge(
@@ -233,9 +231,9 @@ export class TwSidebarComponent implements OnDestroy {
           : null;
     }
 
-    if (this.modal() && this.previousBodyOverflow === null && isPlatformBrowser(this.platformId)) {
-      this.previousBodyOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+    if (this.modal() && isPlatformBrowser(this.platformId)) {
+      // Shared with other modal layers: the page unlocks once the last of them closes
+      lockBodyScroll(document, this);
     }
   }
 
@@ -268,11 +266,10 @@ export class TwSidebarComponent implements OnDestroy {
     }
   }
 
-  /** Restores body overflow only if this sidebar locked it. */
+  /** Releases this sidebar's share of the body scroll lock, if it holds one. */
   private releaseScrollLock(): void {
-    if (this.previousBodyOverflow !== null && isPlatformBrowser(this.platformId)) {
-      document.body.style.overflow = this.previousBodyOverflow;
-      this.previousBodyOverflow = null;
+    if (isPlatformBrowser(this.platformId)) {
+      unlockBodyScroll(document, this);
     }
   }
 

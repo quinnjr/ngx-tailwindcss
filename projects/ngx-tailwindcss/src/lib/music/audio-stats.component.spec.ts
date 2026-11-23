@@ -29,6 +29,21 @@ describe('TwAudioStatsComponent', () => {
     expect(el.textContent).not.toContain('Lossy');
   });
 
+  it('should rate lossless formats given without a matching codec as lossless', () => {
+    fixture.componentRef.setInput('format', 'flac');
+    fixture.componentRef.setInput('showStorageEstimate', true);
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Lossless Quality');
+    // 16-bit/44.1 kHz stereo FLAC at ~60% of 1411.2 kbps, not the 256 kbps lossy guess
+    expect(el.textContent).toContain('6.1 MB');
+
+    fixture.componentRef.setInput('format', 'aiff');
+    fixture.componentRef.setInput('codec', 'pcm');
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Lossless Quality');
+  });
+
   it('should make stat items keyboard-operable buttons that emit infoClick', () => {
     fixture.componentRef.setInput('duration', 90);
     fixture.detectChanges();

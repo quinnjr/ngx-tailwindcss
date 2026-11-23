@@ -1606,6 +1606,10 @@ export class TwScoreEditorComponent implements OnInit {
     // A focused tw-note-input already handled this key (e.g. its own Ctrl+Z); handling it
     // again here would immediately revert that edit
     if (event.defaultPrevented) return;
+    // Typing in the title, composer, lyrics or transpose fields: Ctrl+Z / Ctrl+S belong
+    // to the text field (native text undo), not to the score
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
 
     const key = event.key.toLowerCase();
 

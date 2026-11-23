@@ -213,11 +213,13 @@ export class TwAudioStatsComponent {
     const bitDepth = info.bitDepth || 16;
     const { bitrate } = info;
 
-    // Lossless formats
+    // Lossless formats (also e.g. format="flac" or codec="pcm" with format="aiff",
+    // which the codec details already report as lossless)
     if (
       info.codec?.toLowerCase().includes('flac') ||
       info.codec?.toLowerCase().includes('alac') ||
-      info.format?.toLowerCase() === 'wav'
+      info.format?.toLowerCase() === 'wav' ||
+      this.codecDetails().info?.lossy === false
     ) {
       return 'lossless';
     }
@@ -376,11 +378,12 @@ export class TwAudioStatsComponent {
     const rawBitrate = (bitDepth * sampleRate * channels) / 1000; // kbps
 
     const codec = info.codec?.toLowerCase() || '';
-    // Uncompressed PCM (WAV): the raw data rate
-    if (info.format?.toLowerCase() === 'wav' || codec === 'pcm' || codec === 'wav') {
+    const format = info.format?.toLowerCase() || '';
+    // Uncompressed PCM (WAV/AIFF): the raw data rate
+    if (['wav', 'aiff', 'pcm'].some(f => f === format || f === codec)) {
       return rawBitrate;
     }
-    if (codec.includes('flac') || codec.includes('alac')) {
+    if ([codec, format].some(c => c.includes('flac') || c.includes('alac'))) {
       return rawBitrate * 0.6; // ~60% compression for FLAC
     }
 

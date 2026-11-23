@@ -1,14 +1,17 @@
 import {
   AfterContentInit,
+  afterNextRender,
   Component,
   computed,
   ContentChildren,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   Input,
   QueryList,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -166,6 +169,22 @@ export class TwAvatarComponent {
       sizeClasses[sz],
     ].join(' ');
   });
+
+  private readonly image = viewChild<ElementRef<HTMLImageElement>>('avatarImage');
+
+  constructor() {
+    // With SSR hydration the server-rendered <img> may fail before the (error) listener
+    // is attached; pick up that state so the initials/icon fallback still shows.
+    afterNextRender(() => {
+      const img = this.image()?.nativeElement;
+      if (!img?.complete || img.naturalWidth > 0) return;
+      const src = this._src();
+      // naturalWidth is 0 both for broken images and for some SVGs: let decode() decide
+      img.decode?.().catch(() => {
+        if (this._src() === src) this.onImageError();
+      });
+    });
+  }
 
   protected onImageError(): void {
     this._imageError.set(true);

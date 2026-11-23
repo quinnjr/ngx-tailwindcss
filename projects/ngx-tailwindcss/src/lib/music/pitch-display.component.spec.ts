@@ -18,6 +18,16 @@ describe('TwPitchDisplayComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should stop touch drags on the pitch bend slider from scrolling the page', () => {
+    fixture.componentRef.setInput('showPitchWheel', true);
+    for (const style of ['vertical', 'horizontal'] as const) {
+      fixture.componentRef.setInput('pitchBendStyle', style);
+      fixture.detectChanges();
+      const slider = fixture.nativeElement.querySelector('[role="slider"]') as HTMLElement;
+      expect(slider.classList).toContain('touch-none');
+    }
+  });
+
   it('should draw the arc-style bend fill along the track from its top', () => {
     const endPoint = (): number[] =>
       (internals.pitchBendArcPath() as string).split(' ').slice(-2).map(Number);

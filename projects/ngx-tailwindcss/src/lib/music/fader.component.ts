@@ -649,6 +649,7 @@ export class TwFaderComponent implements ControlValueAccessor, OnDestroy {
   }
 
   protected resetToDefault(): void {
+    if (this.isDisabled()) return;
     this.setValue(this.defaultValue());
   }
 

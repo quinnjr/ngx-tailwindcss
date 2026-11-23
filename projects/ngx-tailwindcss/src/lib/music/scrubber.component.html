@@ -77,7 +77,7 @@
                   spritePosition()!.x + 'px ' + spritePosition()!.y + 'px'
                 "
                 [style.backgroundSize]="
-                  thumbnailSprite()!.frameWidth * thumbnailSprite()!.columns + 'px auto'
+                  spritePosition()!.sheetWidth + 'px ' + spritePosition()!.sheetHeight + 'px'
                 "
               ></div>
             }

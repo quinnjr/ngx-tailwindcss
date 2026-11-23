@@ -383,4 +383,35 @@ describe('TwModalComponent stacking and scroll lock', () => {
     expect(host.outerOpen()).toBe(false);
     expect(document.body.style.overflow).toBe('');
   });
+
+  it('should release the scroll lock when stacked modals close together', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // e.g. confirming the inner dialog also closes the outer one: the outer modal
+    // releases its lock first, while the inner one is still open
+    host.outerOpen.set(false);
+    host.innerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should keep the page locked until the last of several modals closes', () => {
+    host.outerOpen.set(true);
+    fixture.detectChanges();
+    host.innerOpen.set(true);
+    fixture.detectChanges();
+
+    // Closing the lower modal first must not unlock while the top one is open
+    host.outerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    host.innerOpen.set(false);
+    fixture.detectChanges();
+    expect(document.body.style.overflow).toBe('');
+  });
 });

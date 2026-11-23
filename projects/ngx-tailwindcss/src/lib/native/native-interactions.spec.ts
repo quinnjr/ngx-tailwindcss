@@ -13,10 +13,11 @@ import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
 import { TwAboutDialogComponent } from './about-dialog.component';
 import { TwPreferencesDialogComponent } from './preferences-dialog.component';
 import { TwSidebarNavComponent } from './sidebar.component';
+import { TwDropZoneDirective } from './drop-zone.directive';
 import { DockService } from './dock.service';
 import { SystemTrayService } from './system-tray.service';
 import { ElectronIpcRendererLike, setElectronIpcBridge } from './electron-bridge.util';
-import { FileTreeEvent, FileTreeNode, NativeMenuItem, TabItem } from './native.types';
+import { DropEvent, FileTreeEvent, FileTreeNode, NativeMenuItem, TabItem } from './native.types';
 
 @Component({
   template: `<button [twShortcut]="shortcut()" (shortcutTriggered)="count = count + 1">x</button>`,
@@ -444,5 +445,36 @@ describe('TwPreferencesDialogComponent tabs', () => {
     expect(fixture.componentInstance.selectedTab()?.id).toBe('advanced');
     expect(tab.getAttribute('type')).toBe('button');
     expect(tab.getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+@Component({
+  template: `<div twDropZone [acceptTypes]="acceptTypes" (dropped)="drops.push($event)"></div>`,
+  standalone: true,
+  imports: [TwDropZoneDirective],
+})
+class DropZoneHostComponent {
+  acceptTypes: string[] = ['text'];
+  drops: DropEvent[] = [];
+}
+
+describe('TwDropZoneDirective', () => {
+  it('reports a plain-text drop as text data', () => {
+    const fixture = TestBed.createComponent(DropZoneHostComponent);
+    fixture.detectChanges();
+    const zone = (fixture.nativeElement as HTMLElement).querySelector('div')!;
+    const store: Record<string, string> = { 'text/plain': 'hello' };
+    const drop = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', {
+      value: {
+        types: ['text/plain'],
+        files: [],
+        getData: (type: string) => store[type] ?? '',
+      },
+    });
+    zone.dispatchEvent(drop);
+
+    expect(fixture.componentInstance.drops.length).toBe(1);
+    expect(fixture.componentInstance.drops[0].data).toEqual({ type: 'text', data: 'hello' });
   });
 });

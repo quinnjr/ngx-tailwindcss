@@ -153,6 +153,34 @@ describe('TwLooperComponent', () => {
     expect(internals.pendingAutoPlay).toBe(false);
   });
 
+  it('should silence a loop that kept playing under a new take once it stops', () => {
+    // record() while playing leaves the existing layers running during the take
+    const source = { stop: vi.fn() };
+    internals.sourceNodes = [source];
+    internals.gainNodes = [{}];
+    internals.mediaRecorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
+    internals.state.set('recording');
+
+    void internals.stopRecording();
+
+    expect(internals.state()).toBe('stopped');
+    expect(source.stop).toHaveBeenCalled();
+    expect(internals.sourceNodes.length).toBe(0);
+  });
+
+  it('should keep the loop playing when an overdub stops', () => {
+    const source = { stop: vi.fn() };
+    internals.sourceNodes = [source];
+    internals.gainNodes = [{}];
+    internals.mediaRecorder = { state: 'recording', onstop: () => {}, stop: vi.fn() };
+    internals.state.set('overdubbing');
+
+    void internals.stopRecording();
+
+    expect(internals.state()).toBe('playing');
+    expect(source.stop).not.toHaveBeenCalled();
+  });
+
   it('should draw positive samples above the centre of the loop waveform', () => {
     const points: Array<[number, number]> = [];
     const ctx = new Proxy(

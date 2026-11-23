@@ -9,7 +9,8 @@ export type TimeDisplaySize = 'sm' | 'md' | 'lg' | 'xl';
 interface FlipSegment {
   id: string;
   value: string;
-  separator: boolean;
+  /** Separator rendered after this card ('' for none) */
+  separator: string;
 }
 
 /**
@@ -102,6 +103,18 @@ export class TwTimeDisplayComponent {
   });
 
   protected readonly flipSegments = computed((): FlipSegment[] => {
+    const mode = this.mode();
+    if (mode === 'bars') {
+      return [
+        { id: 'bar', value: String(this.bar()), separator: '.' },
+        { id: 'beat', value: String(this.beat()), separator: '' },
+      ];
+    }
+    if (mode !== 'time') {
+      // BPM and sample counts show as a single card with the same text as the other variants
+      return [{ id: mode, value: this.displayText(), separator: '' }];
+    }
+
     // Counts down like the other variants when showRemaining is set
     const shown = this.showRemaining() ? this.total() - this.value() : this.value();
     const time = Math.max(0, Number.isFinite(shown) ? shown : 0);
@@ -114,10 +127,16 @@ export class TwTimeDisplayComponent {
     const mins = showHrs ? Math.floor((time % 3600) / 60) : Math.floor(time / 60);
 
     if (showHrs) {
-      segments.push({ id: 'h', value: hrs.toString().padStart(2, '0'), separator: true });
+      segments.push({ id: 'h', value: hrs.toString().padStart(2, '0'), separator: ':' });
     }
-    segments.push({ id: 'm', value: mins.toString().padStart(2, '0'), separator: true });
-    segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: false });
+    segments.push({ id: 'm', value: mins.toString().padStart(2, '0'), separator: ':' });
+    if (this.showMilliseconds()) {
+      const ms = Math.floor(time * 1000 + 1e-6) % 1000;
+      segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: '.' });
+      segments.push({ id: 'ms', value: ms.toString().padStart(3, '0'), separator: '' });
+    } else {
+      segments.push({ id: 's', value: secs.toString().padStart(2, '0'), separator: '' });
+    }
 
     return segments;
   });

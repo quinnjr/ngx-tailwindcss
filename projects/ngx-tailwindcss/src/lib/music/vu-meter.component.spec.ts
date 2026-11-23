@@ -1,7 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, PLATFORM_ID, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwVuMeterComponent } from './vu-meter.component';
 import { TwClassService } from '../core/tw-class.service';
 
@@ -46,6 +46,15 @@ describe('TwVuMeterComponent', () => {
 
   it('should render an idle meter with a zero-level text alternative', () => {
     expect(meterEl().getAttribute('aria-label')).toBe('Level: 0%');
+  });
+
+  it('should place each scale mark at its level', () => {
+    const marks = [...meterEl().querySelectorAll<HTMLElement>('span[style*="bottom"]')];
+    const minus3 = marks.find(m => m.textContent?.trim() === '-3')!;
+    const minus40 = marks.find(m => m.textContent?.trim() === '-40')!;
+
+    expect(minus3.style.bottom).toBe('90%');
+    expect(minus40.style.bottom).toBe('25%');
   });
 
   it('should bridge the value input into the rendered level', () => {
@@ -194,5 +203,26 @@ describe('TwVuMeterComponent in rms mode', () => {
     meter.setValue(60);
     fixture.detectChanges();
     expect(ariaLabel()).toBe('Level meter: 60%');
+  });
+});
+
+describe('TwVuMeterComponent during SSR', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should not start decay timers on the server', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TwVuMeterComponent],
+      providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+    }).compileComponents();
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+
+    const fixture = TestBed.createComponent(TwVuMeterComponent);
+    fixture.componentRef.setInput('meterMode', 'both');
+    fixture.detectChanges();
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    fixture.destroy();
   });
 });

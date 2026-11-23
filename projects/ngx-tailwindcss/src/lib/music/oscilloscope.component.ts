@@ -148,6 +148,8 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       // caller's shared analyser (fftSize is left untouched).
       this.dataArray = new Uint8Array(analyser.fftSize);
     }
+    // A held 'single' capture belongs to the previous source: re-arm
+    this.singleFrozen = false;
   }
 
   /** Re-arm a frozen 'single' trigger sweep and resume drawing. */
@@ -211,7 +213,11 @@ export class TwOscilloscopeComponent implements AfterViewInit, OnChanges, OnDest
       this.animationFrameId = null;
       return;
     }
-    analyser.getByteTimeDomainData(this.dataArray);
+    // A held 'single' capture is redrawn (e.g. after a display input changes)
+    // from the captured samples, not replaced by live data
+    if (!(this.singleFrozen && this.triggerMode() === 'single')) {
+      analyser.getByteTimeDomainData(this.dataArray);
+    }
     const triggered = this.drawWaveform();
 
     // Draw labels

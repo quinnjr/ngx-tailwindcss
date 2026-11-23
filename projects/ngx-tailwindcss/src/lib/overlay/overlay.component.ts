@@ -13,6 +13,7 @@ import {
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
 import { pushEscapeLayer, removeEscapeLayer, shouldHandleEscape } from './escape-layer-stack';
+import { lockBodyScroll, unlockBodyScroll } from './scroll-lock';
 
 export type OverlayBlur = 'none' | 'sm' | 'md' | 'lg';
 export type OverlayOpacity = 'light' | 'medium' | 'dark' | 'solid';
@@ -104,9 +105,6 @@ export class TwOverlayComponent implements OnDestroy {
   /** Emits when overlay should close */
   readonly close = output();
 
-  private previousOverflow = '';
-  private scrollLocked = false;
-
   constructor() {
     // Visible overlays join the shared layer stack; only the topmost reacts to Escape
     effect(() => {
@@ -123,22 +121,19 @@ export class TwOverlayComponent implements OnDestroy {
 
       if (!isPlatformBrowser(this.platformId)) return;
 
-      if (shouldLock && !this.scrollLocked) {
-        this.previousOverflow = this.document.body.style.overflow;
-        this.document.body.style.overflow = 'hidden';
-        this.scrollLocked = true;
-      } else if (!shouldLock && this.scrollLocked) {
-        this.document.body.style.overflow = this.previousOverflow;
-        this.scrollLocked = false;
+      // Shared with other modal layers: the page unlocks once the last of them closes
+      if (shouldLock) {
+        lockBodyScroll(this.document, this);
+      } else {
+        unlockBodyScroll(this.document, this);
       }
     });
   }
 
   ngOnDestroy(): void {
     removeEscapeLayer(this);
-    if (this.scrollLocked && isPlatformBrowser(this.platformId)) {
-      this.document.body.style.overflow = this.previousOverflow;
-      this.scrollLocked = false;
+    if (isPlatformBrowser(this.platformId)) {
+      unlockBodyScroll(this.document, this);
     }
   }
 

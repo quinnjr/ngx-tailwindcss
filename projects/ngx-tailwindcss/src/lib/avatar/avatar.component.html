@@ -3,6 +3,7 @@
   <div [class]="innerClasses()">
     @if (srcVal()) {
       <img
+        #avatarImage
         [src]="srcVal()"
         [alt]="altVal()"
         class="w-full h-full object-cover"

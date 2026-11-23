@@ -388,3 +388,77 @@ describe('TwAvatarGroupComponent', () => {
     });
   });
 });
+
+describe('TwAvatarComponent image failed before listeners attach (SSR hydration)', () => {
+  function stubImage(props: {
+    complete: boolean;
+    naturalWidth: number;
+    decode?: () => Promise<void>;
+  }) {
+    const proto = HTMLImageElement.prototype;
+    const saved = ['complete', 'naturalWidth', 'decode'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => props.complete });
+    Object.defineProperty(proto, 'naturalWidth', {
+      configurable: true,
+      get: () => props.naturalWidth,
+    });
+    Object.defineProperty(proto, 'decode', { configurable: true, value: props.decode });
+    return () => {
+      for (const [key, descriptor] of saved) {
+        if (descriptor) {
+          Object.defineProperty(proto, key, descriptor);
+        } else {
+          Reflect.deleteProperty(proto, key);
+        }
+      }
+    };
+  }
+
+  async function render(): Promise<ComponentFixture<TestHostComponent>> {
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.componentInstance.initials.set('JD');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await Promise.resolve();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('falls back to initials when the image had already failed', async () => {
+    const restore = stubImage({
+      complete: true,
+      naturalWidth: 0,
+      decode: () => Promise.reject(new Error('broken')),
+    });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain('JD');
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps an image that had already loaded', async () => {
+    const restore = stubImage({ complete: true, naturalWidth: 64 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeTruthy();
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps an image that is still loading', async () => {
+    const restore = stubImage({ complete: false, naturalWidth: 0 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('tw-avatar img'))).toBeTruthy();
+    } finally {
+      restore();
+    }
+  });
+});

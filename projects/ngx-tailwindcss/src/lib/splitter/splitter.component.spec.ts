@@ -67,14 +67,14 @@ describe('TwSplitterComponent', () => {
     });
 
     it('should project the start pane before and the end pane after the gutter', () => {
-      const container = splitterEl.query(By.css('div')).nativeElement as HTMLElement;
+      const container = splitterEl.nativeElement as HTMLElement;
       const [firstPane, , secondPane] = [...container.children] as HTMLElement[];
       expect(firstPane.textContent).toContain('Left Panel');
       expect(secondPane.textContent).toContain('Right Panel');
     });
 
     it('should apply initial sizes to the panes', () => {
-      const container = splitterEl.query(By.css('div')).nativeElement as HTMLElement;
+      const container = splitterEl.nativeElement as HTMLElement;
       const [firstPane, , secondPane] = [...container.children] as HTMLElement[];
       expect(firstPane.style.flexBasis).toBe('30%');
       expect(secondPane.style.flexBasis).toBe('70%');
@@ -87,7 +87,7 @@ describe('TwSplitterComponent', () => {
       fixture.detectChanges();
       expect(component.onSizesChangeSpy).toHaveBeenCalledWith([40, 60]);
 
-      const container = splitterEl.query(By.css('div')).nativeElement as HTMLElement;
+      const container = splitterEl.nativeElement as HTMLElement;
       expect((container.children[0] as HTMLElement).style.flexBasis).toBe('40%');
     });
 
@@ -156,7 +156,7 @@ describe('TwSplitterComponent', () => {
     it('should follow later initialSizes changes', () => {
       component.initialSizes.set([60, 40]);
       fixture.detectChanges();
-      const container = splitterEl.query(By.css('div')).nativeElement as HTMLElement;
+      const container = splitterEl.nativeElement as HTMLElement;
       expect((container.children[0] as HTMLElement).style.flexBasis).toBe('60%');
     });
 
@@ -178,13 +178,15 @@ describe('TwSplitterComponent', () => {
   });
 });
 
-describe('TwSplitterComponent static class attribute', () => {
-  it('forwards a static class to the inner element without painting it on the host too', async () => {
+describe('TwSplitterComponent host classes', () => {
+  it('applies a static class once, on the host that is the flex container', async () => {
     @Component({
-      template: `<tw-splitter class="tw-test-box p-4 extra"
-        ><div twSplitterPaneStart>A</div>
-        <div twSplitterPaneEnd>B</div></tw-splitter
-      >`,
+      template: `<div style="width: 400px">
+        <tw-splitter class="tw-test-box w-1/2 extra"
+          ><div twSplitterPaneStart>A</div>
+          <div twSplitterPaneEnd>B</div></tw-splitter
+        >
+      </div>`,
       standalone: true,
       imports: [TwSplitterComponent],
     })
@@ -192,8 +194,7 @@ describe('TwSplitterComponent static class attribute', () => {
 
     // Stand-in for utility classes defined by the app's stylesheet
     const style = document.createElement('style');
-    style.textContent =
-      '.tw-test-box { padding: 16px; border: 2px solid red; background: red; opacity: 0.5; }';
+    style.textContent = '.tw-test-box { margin: 12px; padding: 16px; display: none; }';
     document.head.append(style);
 
     try {
@@ -206,21 +207,23 @@ describe('TwSplitterComponent static class attribute', () => {
       fixture.detectChanges();
 
       const host = fixture.debugElement.query(By.css('tw-splitter')).nativeElement as HTMLElement;
-      const inner = host.querySelector<HTMLElement>(':scope > div')!;
+      expect(host.className).toContain('flex');
+      expect(host.className).toContain('tw-test-box');
+      expect(host.className).toContain('w-1/2');
+      // No wrapper element repeats the classes (margin, width, ... applied twice)
+      const children = [...host.children] as HTMLElement[];
+      expect(children).toHaveLength(3);
+      for (const child of children) {
+        expect(child.classList.contains('tw-test-box')).toBe(false);
+        expect(child.classList.contains('w-1/2')).toBe(false);
+      }
+      expect(children[1].getAttribute('role')).toBe('separator');
 
-      // Angular keeps the static class on the host as well as passing it to the input
-      expect(host.classList.contains('tw-test-box')).toBe(true);
-      expect(inner.className).toContain('tw-test-box');
-      expect(inner.className).toContain('p-4');
-
+      // No host CSS reset overrides the consumer's utilities (e.g. `hidden md:flex`)
       const hostStyle = getComputedStyle(host);
-      expect(hostStyle.paddingTop).toBe('0px');
-      expect(hostStyle.borderTopWidth).toBe('0px');
-      expect(hostStyle.opacity).toBe('1');
-
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.paddingTop).toBe('16px');
-      expect(innerStyle.borderTopWidth).toBe('2px');
+      expect(hostStyle.marginTop).toBe('12px');
+      expect(hostStyle.paddingTop).toBe('16px');
+      expect(hostStyle.display).toBe('none');
     } finally {
       style.remove();
     }

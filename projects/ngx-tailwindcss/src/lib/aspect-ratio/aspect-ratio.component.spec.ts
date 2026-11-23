@@ -26,8 +26,8 @@ describe('TwAspectRatioComponent', () => {
   let component: TestHostComponent;
   let hostEl: HTMLElement;
 
-  function getInner(): HTMLElement {
-    return hostEl.querySelector('div') as HTMLElement;
+  function getBox(): HTMLElement {
+    return hostEl;
   }
 
   beforeEach(async () => {
@@ -53,26 +53,26 @@ describe('TwAspectRatioComponent', () => {
 
   describe('presets', () => {
     it('should apply the video preset by default', () => {
-      expect(getInner().className).toContain('aspect-video');
+      expect(getBox().className).toContain('aspect-video');
     });
 
     it('should update classes when the preset changes', () => {
       component.ratio.set('square');
       fixture.detectChanges();
-      expect(getInner().className).toContain('aspect-square');
+      expect(getBox().className).toContain('aspect-square');
 
       component.ratio.set('portrait');
       fixture.detectChanges();
-      expect(getInner().className).toContain('aspect-[3/4]');
+      expect(getBox().className).toContain('aspect-[3/4]');
 
       component.ratio.set('ultrawide');
       fixture.detectChanges();
-      expect(getInner().className).toContain('aspect-[21/9]');
+      expect(getBox().className).toContain('aspect-[21/9]');
     });
 
     it('should always apply the base positioning classes', () => {
-      expect(getInner().className).toContain('relative');
-      expect(getInner().className).toContain('overflow-hidden');
+      expect(getBox().className).toContain('relative');
+      expect(getBox().className).toContain('overflow-hidden');
     });
   });
 
@@ -82,8 +82,8 @@ describe('TwAspectRatioComponent', () => {
       component.customRatio.set(1.5);
       fixture.detectChanges();
 
-      expect(getInner().style.aspectRatio).toMatch(/^1\.5(\s*\/\s*1)?$/);
-      expect(getInner().className).not.toContain('aspect-video');
+      expect(getBox().style.aspectRatio).toMatch(/^1\.5(\s*\/\s*1)?$/);
+      expect(getBox().className).not.toContain('aspect-video');
     });
 
     it('should support a customRatio of 0', () => {
@@ -91,18 +91,18 @@ describe('TwAspectRatioComponent', () => {
       component.customRatio.set(0);
       fixture.detectChanges();
 
-      expect(getInner().style.aspectRatio).toMatch(/^0(\s*\/\s*1)?$/);
+      expect(getBox().style.aspectRatio).toMatch(/^0(\s*\/\s*1)?$/);
     });
 
     it('should fall back to the video preset when customRatio is missing', () => {
       component.ratio.set('custom');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('aspect-video');
+      expect(getBox().className).toContain('aspect-video');
     });
 
     it('should not set an inline ratio for presets', () => {
-      expect(getInner().style.aspectRatio || '').toBe('');
+      expect(getBox().style.aspectRatio || '').toBe('');
     });
   });
 
@@ -111,25 +111,23 @@ describe('TwAspectRatioComponent', () => {
       component.customClass.set('custom-ratio-class');
       fixture.detectChanges();
 
-      expect(getInner().className).toContain('custom-ratio-class');
+      expect(getBox().className).toContain('custom-ratio-class');
     });
   });
 });
 
-describe('TwAspectRatioComponent static class attribute', () => {
-  it('applies a static class to the inner box only', async () => {
+describe('AspectRatio class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
     @Component({
-      template: `<tw-aspect-ratio class="tw-test-frame"
-        ><img src="x.jpg" alt=""
-      /></tw-aspect-ratio>`,
+      template: `<tw-aspect-ratio class="tw-test-box"><img src="x.jpg" alt="" /></tw-aspect-ratio>`,
       standalone: true,
       imports: [TwAspectRatioComponent],
     })
     class StaticClassHostComponent {}
 
+    // Stand-in for utility classes such as `p-4 border-2`
     const style = document.createElement('style');
-    style.textContent =
-      '.tw-test-frame { border: 3px solid red; padding: 10px; overflow: hidden; box-shadow: 0 0 4px red; }';
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
     document.head.append(style);
 
     try {
@@ -141,57 +139,20 @@ describe('TwAspectRatioComponent static class attribute', () => {
       const fixture = TestBed.createComponent(StaticClassHostComponent);
       fixture.detectChanges();
 
-      const host = fixture.debugElement.query(By.css('tw-aspect-ratio'))
-        .nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-      expect(getComputedStyle(host).borderTopWidth).toBe('0px');
-      expect(getComputedStyle(host).paddingTop).toBe('0px');
-      expect(getComputedStyle(inner).borderTopWidth).toBe('3px');
-      // The host must not clip the inner element's shadow; the inner element clips its content
-      expect(getComputedStyle(host).overflow).toBe('visible');
-      expect(getComputedStyle(inner).overflow).toBe('hidden');
-    } finally {
-      style.remove();
-    }
-  });
-});
-
-describe('AspectRatio forwarded margins and widths', () => {
-  it('applies a static margin/width class once, on the host', async () => {
-    @Component({
-      template: `<tw-aspect-ratio class="tw-test-geom"><span>x</span></tw-aspect-ratio>`,
-      standalone: true,
-      imports: [TwAspectRatioComponent],
-    })
-    class GeometryHostComponent {}
-
-    // Stand-in for utility classes such as `my-4 w-1/2 max-w-[50%]`
-    const style = document.createElement('style');
-    style.textContent = '.tw-test-geom { margin: 16px; width: 50%; max-width: 50%; }';
-    document.head.append(style);
-
-    try {
-      await TestBed.configureTestingModule({
-        imports: [GeometryHostComponent],
-        providers: [TwClassService],
-      }).compileComponents();
-
-      const fixture = TestBed.createComponent(GeometryHostComponent);
-      fixture.detectChanges();
-
-      const host = fixture.debugElement.query(By.css('tw-aspect-ratio'))
-        .nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-      expect(inner.className).toContain('tw-test-geom');
-
-      expect(getComputedStyle(host).marginTop).toBe('16px');
-      expect(getComputedStyle(host).width).toBe('50%');
-
-      // Not doubled or compounded (25% width) by the inner element
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.marginTop).toBe('0px');
-      expect(innerStyle.width).toBe('auto');
-      expect(innerStyle.maxWidth).toBe('none');
+      {
+        const host = fixture.debugElement.query(By.css('tw-aspect-ratio'))
+          .nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(1);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+        // Projected children fill the ratio box
+        const img = host.querySelector('img') as HTMLElement;
+        expect(getComputedStyle(img).position).toBe('absolute');
+        expect(getComputedStyle(img).height).toBe('100%');
+      }
     } finally {
       style.remove();
     }

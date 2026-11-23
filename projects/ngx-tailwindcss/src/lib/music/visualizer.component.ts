@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   input,
@@ -115,6 +116,20 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
   private beatResetTimer: ReturnType<typeof setTimeout> | null = null;
   private beatPulseScale = 1;
 
+  constructor() {
+    // Only configure the analyser when smoothing was explicitly provided;
+    // otherwise adapt to the node's existing configuration. Tracking both
+    // inputs also covers nodes bound after init (an AudioContext usually
+    // needs a user gesture first) and later smoothing changes.
+    effect(() => {
+      const analyser = this.analyserNode();
+      const smoothing = this.smoothing();
+      if (analyser && smoothing !== undefined) {
+        analyser.smoothingTimeConstant = smoothing;
+      }
+    });
+  }
+
   protected readonly containerClasses = computed(() => {
     const base = 'rounded-lg overflow-hidden';
     return [base, this.classOverride()].filter(Boolean).join(' ');
@@ -126,16 +141,6 @@ export class TwVisualizerComponent implements AfterViewInit, OnDestroy {
 
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
-
-    const analyser = this.analyserNode();
-    if (analyser) {
-      // Only configure the analyser when smoothing was explicitly provided;
-      // otherwise adapt to the node's existing configuration.
-      const smoothing = this.smoothing();
-      if (smoothing !== undefined) {
-        analyser.smoothingTimeConstant = smoothing;
-      }
-    }
 
     // Draw loop never writes template state directly, so keep it out of the zone
     this.zone.runOutsideAngular(() => {

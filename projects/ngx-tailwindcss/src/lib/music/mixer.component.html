@@ -1,6 +1,6 @@
 <div [class]="rootClasses()">
   <!-- Scroll Left Button -->
-  @if (scrollable() && filteredChannels().length > effectiveMaxChannels()) {
+  @if (showScrollButtons()) {
     <button
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"
@@ -137,7 +137,7 @@
   }
 
   <!-- Scroll Right Button -->
-  @if (scrollable() && filteredChannels().length > effectiveMaxChannels()) {
+  @if (showScrollButtons()) {
     <button
       type="button"
       class="flex items-center justify-center w-6 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors self-stretch flex-shrink-0"

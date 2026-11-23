@@ -5,6 +5,7 @@ import {
   EventEmitter,
   inject,
   Input,
+  NgZone,
   OnDestroy,
   OnInit,
   Output,
@@ -33,10 +34,12 @@ export interface LazyImageEvent {
 export class TwLazyImageDirective implements OnInit, OnDestroy {
   private readonly el: ElementRef<HTMLImageElement>;
   private readonly renderer: Renderer2;
+  private readonly ngZone: NgZone;
 
   constructor() {
     this.el = inject(ElementRef);
     this.renderer = inject(Renderer2);
+    this.ngZone = inject(NgZone);
   }
 
   private observer: IntersectionObserver | null = null;
@@ -112,12 +115,16 @@ export class TwLazyImageDirective implements OnInit, OnDestroy {
 
     this.observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            this.loadImage();
-            this.observer?.disconnect();
-            this.observer = null;
-          }
+        // IntersectionObserver callbacks are not zone-patched; load (and register the
+        // preload listeners) inside the zone so `lazyLoaded` triggers change detection
+        this.ngZone.run(() => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              this.loadImage();
+              this.observer?.disconnect();
+              this.observer = null;
+            }
+          });
         });
       },
       {

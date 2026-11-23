@@ -74,32 +74,10 @@ const JUSTIFY_CLASSES: Record<StackJustify, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwStackComponent {
   private readonly twClass = inject(TwClassService);
@@ -148,32 +126,10 @@ export class TwStackComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './v-stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwVStackComponent {
   private readonly twClass = inject(TwClassService);
@@ -203,32 +159,10 @@ export class TwVStackComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './h-stack.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the flex box itself: a static `class` attribute lands here once
+    '[class]': 'stackClasses()',
+  },
 })
 export class TwHStackComponent {
   private readonly twClass = inject(TwClassService);

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwPanControlComponent } from './pan-control.component';
 
 describe('TwPanControlComponent', () => {
@@ -66,5 +66,32 @@ describe('TwPanControlComponent', () => {
     // Must not be swallowed by the host and must not drive width below 0
     expect(event.defaultPrevented).toBe(false);
     expect(received).toEqual([]);
+  });
+
+  it('should only set the slider value from presses on the slider area', () => {
+    const received: number[] = [];
+    component.registerOnChange(v => received.push(v));
+    // jsdom's AbortSignal does not mix with zone.js-patched document listeners: capture them
+    const listeners: Record<string, (e: Event) => void> = {};
+    vi.spyOn(document, 'addEventListener').mockImplementation(((
+      type: string,
+      listener: (e: Event) => void
+    ) => {
+      listeners[type] = listener;
+    }) as typeof document.addEventListener);
+    const track = hostEl.querySelector<HTMLElement>('.shadow-inner')!;
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 100, height: 12 })
+    );
+
+    // The value readout and the L/R badges sit outside the track: no jump
+    const readout = hostEl.querySelector<HTMLElement>('.font-mono.text-center')!;
+    readout.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 100 }));
+    expect(received).toEqual([]);
+
+    track.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 75 }));
+    listeners['mouseup'](new MouseEvent('mouseup'));
+    expect(received).toEqual([50]);
+    vi.restoreAllMocks();
   });
 });

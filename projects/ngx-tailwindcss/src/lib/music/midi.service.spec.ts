@@ -150,6 +150,30 @@ describe('MidiService', () => {
       expect(firstAccess.onstatechange).toBeNull();
       expect(secondAccess.onstatechange).not.toBeNull();
     });
+
+    it('should not connect when disconnect() runs while the request is pending', async () => {
+      let grant!: (access: typeof mockMidiAccess) => void;
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        value: vi.fn(
+          () =>
+            new Promise<typeof mockMidiAccess>(resolve => {
+              grant = resolve;
+            })
+        ),
+        writable: true,
+        configurable: true,
+      });
+
+      const pending = service.requestAccess();
+      service.disconnect();
+      grant(mockMidiAccess);
+
+      expect(await pending).toBe(false);
+      expect(service.connected()).toBe(false);
+      expect(service.inputs().length).toBe(0);
+      expect(mockMidiAccess.onstatechange).toBeNull();
+      expect(mockMidiAccess._mockInput.onmidimessage).toBeNull();
+    });
   });
 
   describe('disconnect', () => {

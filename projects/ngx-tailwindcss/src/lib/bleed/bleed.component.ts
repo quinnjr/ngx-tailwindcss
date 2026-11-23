@@ -65,31 +65,11 @@ function negateLength(value: string): string {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bleed.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice;
-         the bleed's own negative margins and width are inline styles and still win */
-      :host > div {
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'bleedClasses()',
+    '[style]': 'bleedStyles()',
+  },
 })
 export class TwBleedComponent {
   private readonly twClass = inject(TwClassService);
@@ -110,7 +90,7 @@ export class TwBleedComponent {
   readonly class = input('');
 
   protected readonly bleedClasses = computed(() => {
-    return this.twClass.merge('relative', this.class());
+    return this.twClass.merge('block relative', this.class());
   });
 
   protected readonly bleedStyles = computed<Record<string, string>>(() => {

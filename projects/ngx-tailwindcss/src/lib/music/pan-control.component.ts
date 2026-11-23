@@ -225,6 +225,10 @@ export class TwPanControlComponent implements ControlValueAccessor, OnDestroy {
   onMouseDown(event: MouseEvent): void {
     // Knob drags are handled by onKnobDrag; stereo-width uses its native 0-100 range input
     if (this.isDisabled() || this.variant() !== 'slider') return;
+    // Only presses on the slider area (track, thumb, ticks) set a value: presses on
+    // the label, L/R badges or value readout must not jump the pan position
+    const sliderArea = this.trackRef?.nativeElement?.parentElement;
+    if (sliderArea && !sliderArea.contains(event.target as Node | null)) return;
     this.isDragging.set(true);
 
     // Capture the track rect once for the whole gesture

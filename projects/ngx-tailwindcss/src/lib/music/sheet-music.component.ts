@@ -1009,8 +1009,15 @@ export class TwSheetMusicComponent {
     return pos !== null && Math.floor(pos) === measureIndex;
   }
 
-  protected onNoteClick(measureIndex: number, noteIndex: number, note: NoteData): void {
+  protected onNoteClick(
+    event: Event,
+    measureIndex: number,
+    noteIndex: number,
+    note: NoteData
+  ): void {
     if (!this.interactive()) return;
+    // A note click is not also a click on its measure
+    event.stopPropagation();
     // Emit the note as given in the input data (the displayed one may be re-spelled)
     const original = this.musicData().measures[measureIndex]?.notes[noteIndex] ?? note;
     this.noteClick.emit({ measure: measureIndex, noteIndex, note: original });
@@ -1019,6 +1026,22 @@ export class TwSheetMusicComponent {
   protected onMeasureClick(measureIndex: number): void {
     if (!this.interactive()) return;
     this.measureClick.emit(measureIndex);
+  }
+
+  // Click on a line's staff: emit measureClick for the measure under the pointer
+  protected onStaffClick(event: MouseEvent, lineIndex: number): void {
+    if (!this.interactive()) return;
+    const svg = (event.currentTarget as Element | null)?.querySelector('svg');
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    // Staff coordinates (the container may be scaled by the zoom transform)
+    const x = ((event.clientX - rect.left) * this.width()) / rect.width;
+    const { contentStartX, measureWidth } = this.getLineLayout(lineIndex);
+    const measureInLine = Math.floor((x - contentStartX) / measureWidth);
+    const measureCount = this.lines()[lineIndex]?.length ?? 0;
+    if (measureInLine < 0 || measureInLine >= measureCount) return;
+    this.onMeasureClick(this.getMeasureGlobalIndex(lineIndex, measureInLine));
   }
 
   protected getLineY(lineIndex: number): number {

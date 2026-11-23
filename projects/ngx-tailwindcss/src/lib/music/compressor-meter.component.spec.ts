@@ -18,6 +18,14 @@ describe('TwCompressorMeterComponent', () => {
     fixture.detectChanges();
   });
 
+  it('should size the meter gradients to the full meter height, not the fill', () => {
+    fixture.componentRef.setInput('size', 'lg');
+    fixture.detectChanges();
+
+    expect(internals.levelMeterBackground()).toContain('bottom / 100% 180px no-repeat');
+    expect(internals.grMeterBackground()).toContain('top / 100% 180px no-repeat');
+  });
+
   it('should be silent with no clip indication when no levels are bound', () => {
     let clips = 0;
     component.clipInput.subscribe(() => clips++);

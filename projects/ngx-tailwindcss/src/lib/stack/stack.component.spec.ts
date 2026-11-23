@@ -45,8 +45,7 @@ describe('TwStackComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: TestHostComponent;
 
-  const stackDiv = (): HTMLElement =>
-    fixture.debugElement.query(By.css('tw-stack div')).nativeElement;
+  const stackEl = (): HTMLElement => fixture.debugElement.query(By.css('tw-stack')).nativeElement;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -60,12 +59,12 @@ describe('TwStackComponent', () => {
   });
 
   it('should render projected content', () => {
-    expect(stackDiv().textContent).toContain('Item 1');
-    expect(stackDiv().textContent).toContain('Item 2');
+    expect(stackEl().textContent).toContain('Item 1');
+    expect(stackEl().textContent).toContain('Item 2');
   });
 
   it('should output vertical flex classes by default', () => {
-    const { className } = stackDiv();
+    const { className } = stackEl();
     expect(className).toContain('flex');
     expect(className).toContain('flex-col');
     expect(className).toContain('gap-4');
@@ -76,7 +75,7 @@ describe('TwStackComponent', () => {
   it('should react to direction changes', () => {
     component.direction.set('horizontal-reverse');
     fixture.detectChanges();
-    expect(stackDiv().className).toContain('flex-row-reverse');
+    expect(stackEl().className).toContain('flex-row-reverse');
   });
 
   it('should map spacing, align and justify to classes', () => {
@@ -85,7 +84,7 @@ describe('TwStackComponent', () => {
     component.justify.set('between');
     fixture.detectChanges();
 
-    const { className } = stackDiv();
+    const { className } = stackEl();
     expect(className).toContain('gap-8');
     expect(className).toContain('items-center');
     expect(className).toContain('justify-between');
@@ -96,7 +95,7 @@ describe('TwStackComponent', () => {
     component.fullWidth.set(true);
     fixture.detectChanges();
 
-    const { className } = stackDiv();
+    const { className } = stackEl();
     expect(className).toContain('flex-wrap');
     expect(className).toContain('w-full');
   });
@@ -104,7 +103,7 @@ describe('TwStackComponent', () => {
   it('should append custom classes', () => {
     component.classInput.set('custom-class');
     fixture.detectChanges();
-    expect(stackDiv().className).toContain('custom-class');
+    expect(stackEl().className).toContain('custom-class');
   });
 });
 
@@ -125,7 +124,7 @@ describe('TwVStackComponent', () => {
     const fixture = TestBed.createComponent(VStackHostComponent);
     fixture.detectChanges();
 
-    const div = fixture.debugElement.query(By.css('tw-vstack div')).nativeElement as HTMLElement;
+    const div = fixture.debugElement.query(By.css('tw-vstack')).nativeElement as HTMLElement;
     expect(div.className).toContain('flex-col');
     expect(div.className).toContain('gap-2');
     expect(div.className).toContain('items-stretch');
@@ -149,7 +148,7 @@ describe('TwHStackComponent', () => {
     const fixture = TestBed.createComponent(HStackHostComponent);
     fixture.detectChanges();
 
-    const div = fixture.debugElement.query(By.css('tw-hstack div')).nativeElement as HTMLElement;
+    const div = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
     expect(div.className).toContain('flex-row');
     expect(div.className).toContain('gap-6');
     expect(div.className).toContain('items-center');
@@ -177,134 +176,93 @@ describe('Stack bare boolean attributes', () => {
     const fixture = TestBed.createComponent(BareAttrHostComponent);
     fixture.detectChanges();
 
-    const stack = fixture.debugElement.query(By.css('tw-stack div')).nativeElement as HTMLElement;
+    const stack = fixture.debugElement.query(By.css('tw-stack')).nativeElement as HTMLElement;
     expect(stack.className).toContain('flex-wrap');
     expect(stack.className).toContain('w-full');
 
-    const hstack = fixture.debugElement.query(By.css('tw-hstack div')).nativeElement as HTMLElement;
+    const hstack = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
     expect(hstack.className).toContain('flex-wrap');
   });
 });
 
-describe('Stack static class attribute', () => {
-  it('forwards a static class to the inner element without painting it on the host too', async () => {
-    @Component({
-      template: `<tw-hstack class="tw-test-box p-4 extra"><div>Item</div></tw-hstack>`,
-      standalone: true,
-      imports: [TwHStackComponent],
-    })
-    class StaticClassHostComponent {}
+describe('Stack class attribute (host is the styled box)', () => {
+  @Component({
+    template: `<tw-stack class="tw-test-box gap-2" [direction]="direction()"
+        ><span>a</span><span>b</span></tw-stack
+      ><tw-vstack class="hidden md:flex"><span>x</span></tw-vstack
+      ><tw-hstack [class]="dynamic()"><span>x</span></tw-hstack>`,
+    standalone: true,
+    imports: [TwStackComponent, TwVStackComponent, TwHStackComponent],
+  })
+  class ClassHostComponent {
+    direction = signal<StackDirection>('vertical');
+    dynamic = signal('p-4');
+  }
 
-    // Stand-in for utility classes defined by the app's stylesheet
-    const style = document.createElement('style');
-    style.textContent =
-      '.tw-test-box { padding: 16px; border: 2px solid red; background: red; opacity: 0.5; }';
-    document.head.append(style);
+  let fixture: ComponentFixture<ClassHostComponent>;
+  const el = (selector: string): HTMLElement =>
+    fixture.debugElement.query(By.css(selector)).nativeElement as HTMLElement;
 
-    try {
-      await TestBed.configureTestingModule({
-        imports: [StaticClassHostComponent],
-        providers: [TwClassService],
-      }).compileComponents();
-
-      const fixture = TestBed.createComponent(StaticClassHostComponent);
-      fixture.detectChanges();
-
-      const host = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-
-      // Angular keeps the static class on the host as well as passing it to the input
-      expect(host.classList.contains('tw-test-box')).toBe(true);
-      expect(inner.className).toContain('tw-test-box');
-      expect(inner.className).toContain('p-4');
-
-      const hostStyle = getComputedStyle(host);
-      expect(hostStyle.paddingTop).toBe('0px');
-      expect(hostStyle.borderTopWidth).toBe('0px');
-      expect(hostStyle.opacity).toBe('1');
-
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.paddingTop).toBe('16px');
-      expect(innerStyle.borderTopWidth).toBe('2px');
-    } finally {
-      style.remove();
-    }
-  });
-});
-
-describe('Stack host sizing', () => {
-  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
-    @Component({
-      template: `<tw-stack><span>x</span></tw-stack
-        ><tw-vstack><span>x</span></tw-vstack
-        ><tw-hstack><span>x</span></tw-hstack>`,
-      standalone: true,
-      imports: [TwStackComponent, TwVStackComponent, TwHStackComponent],
-    })
-    class FillHostComponent {}
-
+  beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [FillHostComponent],
+      imports: [ClassHostComponent],
       providers: [TwClassService],
     }).compileComponents();
-
-    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture = TestBed.createComponent(ClassHostComponent);
     fixture.detectChanges();
-
-    {
-      const host = fixture.debugElement.query(By.css('tw-stack')).nativeElement as HTMLElement;
-      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
-    }
-
-    {
-      const host = fixture.debugElement.query(By.css('tw-vstack')).nativeElement as HTMLElement;
-      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
-    }
-
-    {
-      const host = fixture.debugElement.query(By.css('tw-hstack')).nativeElement as HTMLElement;
-      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
-    }
   });
-});
 
-describe('Stack forwarded margins and widths', () => {
-  it('applies a static margin/width class once, on the host', async () => {
-    @Component({
-      template: `<tw-stack class="tw-test-geom"><span>x</span></tw-stack>`,
-      standalone: true,
-      imports: [TwStackComponent],
-    })
-    class GeometryHostComponent {}
+  it('renders no wrapper element, so a forwarded class applies exactly once', () => {
+    const host = el('tw-stack');
+    expect(host.querySelector('div')).toBeNull();
+    expect([...host.children].map(c => c.tagName)).toEqual(['SPAN', 'SPAN']);
+    expect(host.classList.contains('tw-test-box')).toBe(true);
+    expect(host.classList.contains('flex')).toBe(true);
+  });
 
-    // Stand-in for utility classes such as `mx-4 w-1/2 max-w-[50%]`
+  it('paints utilities such as padding/border on the host itself', () => {
     const style = document.createElement('style');
-    style.textContent = '.tw-test-geom { margin: 16px; width: 50%; max-width: 50%; }';
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
     document.head.append(style);
-
     try {
-      await TestBed.configureTestingModule({
-        imports: [GeometryHostComponent],
-        providers: [TwClassService],
-      }).compileComponents();
-
-      const fixture = TestBed.createComponent(GeometryHostComponent);
-      fixture.detectChanges();
-
-      const host = fixture.debugElement.query(By.css('tw-stack')).nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-      expect(inner.className).toContain('tw-test-geom');
-
-      expect(getComputedStyle(host).marginLeft).toBe('16px');
-      expect(getComputedStyle(host).width).toBe('50%');
-
-      // Not doubled (32px inset) or compounded (25% width) by the inner element
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.marginLeft).toBe('0px');
-      expect(innerStyle.width).toBe('auto');
-      expect(innerStyle.maxWidth).toBe('none');
+      const hostStyle = getComputedStyle(el('tw-stack'));
+      expect(hostStyle.paddingTop).toBe('16px');
+      expect(hostStyle.borderTopWidth).toBe('2px');
     } finally {
       style.remove();
     }
+  });
+
+  it('lets a static class override the conflicting default class', () => {
+    const host = el('tw-stack');
+    expect(host.classList.contains('gap-2')).toBe(true);
+    expect(host.classList.contains('gap-4')).toBe(false);
+  });
+
+  it('lets a display utility replace the default flex display', () => {
+    const host = el('tw-vstack');
+    expect(host.classList.contains('hidden')).toBe(true);
+    expect(host.classList.contains('md:flex')).toBe(true);
+    expect(host.classList.contains('flex')).toBe(false);
+  });
+
+  it('keeps static classes when other inputs change', () => {
+    fixture.componentInstance.direction.set('horizontal');
+    fixture.detectChanges();
+    const host = el('tw-stack');
+    expect(host.classList.contains('flex-row')).toBe(true);
+    expect(host.classList.contains('flex-col')).toBe(false);
+    expect(host.classList.contains('tw-test-box')).toBe(true);
+    expect(host.classList.contains('gap-2')).toBe(true);
+  });
+
+  it('replaces a bound [class] value on change', () => {
+    expect(el('tw-hstack').classList.contains('p-4')).toBe(true);
+    fixture.componentInstance.dynamic.set('p-2');
+    fixture.detectChanges();
+    const host = el('tw-hstack');
+    expect(host.classList.contains('p-2')).toBe(true);
+    expect(host.classList.contains('p-4')).toBe(false);
+    expect(host.classList.contains('flex-row')).toBe(true);
   });
 });

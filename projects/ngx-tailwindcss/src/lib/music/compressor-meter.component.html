@@ -38,7 +38,7 @@
             class="absolute bottom-0 left-0 right-0 transition-all"
             [class.duration-75]="animated()"
             [style.height.%]="inputMeterPercent()"
-            [style.background]="'linear-gradient(to top, rgb(34, 197, 94), rgb(234, 179, 8) 70%, rgb(239, 68, 68) 90%)'"
+            [style.background]="levelMeterBackground()"
           ></div>
 
           <!-- Peak hold line -->
@@ -97,7 +97,7 @@
             class="absolute top-0 left-0 right-0 transition-all"
             [class.duration-75]="animated()"
             [style.height.%]="gainReductionPercent()"
-            [style.background]="'linear-gradient(to bottom, rgb(234, 179, 8), rgb(249, 115, 22) 60%, rgb(239, 68, 68) 90%)'"
+            [style.background]="grMeterBackground()"
           ></div>
 
           <!-- Scale markers -->
@@ -136,7 +136,7 @@
             class="absolute bottom-0 left-0 right-0 transition-all"
             [class.duration-75]="animated()"
             [style.height.%]="outputMeterPercent()"
-            [style.background]="'linear-gradient(to top, rgb(34, 197, 94), rgb(234, 179, 8) 70%, rgb(239, 68, 68) 90%)'"
+            [style.background]="levelMeterBackground()"
           ></div>
 
           <!-- Peak hold line -->

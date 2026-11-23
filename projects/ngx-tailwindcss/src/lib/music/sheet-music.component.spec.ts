@@ -288,3 +288,56 @@ describe('key changes', () => {
     expect(staffKeys).toEqual(['G', 'D']);
   });
 });
+
+describe('TwSheetMusicComponent interaction', () => {
+  let fixture: ComponentFixture<TwSheetMusicComponent>;
+  const music: SheetMusicData = {
+    clef: 'treble',
+    keySignature: 'C',
+    timeSignature: '4/4',
+    measures: [
+      { notes: [{ name: 'C', octave: 5, duration: 'whole', tied: true }] },
+      { notes: [{ name: 'C', octave: 5, duration: 'whole' }] },
+    ],
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [TwSheetMusicComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TwSheetMusicComponent);
+    fixture.componentRef.setInput('music', music);
+    fixture.componentRef.setInput('interactive', true);
+    fixture.componentRef.setInput('measuresPerLine', 2);
+  });
+
+  it.each(['scroll', 'pages', 'single'] as const)(
+    'emits measureClick and noteClick in the %s layout',
+    layout => {
+      fixture.componentRef.setInput('layout', layout);
+      fixture.detectChanges();
+      const measures: number[] = [];
+      const notes: number[] = [];
+      fixture.componentInstance.measureClick.subscribe(m => measures.push(m));
+      fixture.componentInstance.noteClick.subscribe(e => notes.push(e.measure));
+
+      const staff = fixture.debugElement.query(By.directive(TwStaffComponent));
+      const svg = (staff.nativeElement as HTMLElement).querySelector('svg')!;
+      const rect = new DOMRect(0, 0, 800, 120);
+      svg.getBoundingClientRect = () => rect;
+      // 800px wide, C major: measures start at x = 100 and are 345px wide
+      staff.triggerEventHandler('click', { clientX: 600, currentTarget: staff.nativeElement });
+      expect(measures).toEqual([1]);
+
+      const noteEl = fixture.debugElement.queryAll(By.directive(TwNoteComponent))[0];
+      (noteEl.nativeElement as Element).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(notes).toEqual([0]);
+      // A note click is not also reported as a measure click
+      expect(measures).toEqual([1]);
+    }
+  );
+
+  it('draws ties for tied notes', () => {
+    fixture.detectChanges();
+    const tie = (fixture.nativeElement as HTMLElement).querySelectorAll('g[twNote] path');
+    expect(tie.length).toBe(1);
+  });
+});

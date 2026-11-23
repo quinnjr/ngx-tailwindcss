@@ -109,4 +109,22 @@ describe('TwAudioPlayerComponent', () => {
     audio.dispatchEvent(new Event('error'));
     expect(errors).toEqual(['Error loading audio']);
   });
+
+  it('should clear the loading overlay once metadata is loaded or fetching is suspended', () => {
+    const spinner = () => (fixture.nativeElement as HTMLElement).querySelector('.animate-spin');
+
+    // preload="metadata": canplay need not fire before the user presses play
+    audio.dispatchEvent(new Event('loadstart'));
+    fixture.detectChanges();
+    expect(spinner()).toBeTruthy();
+    audio.dispatchEvent(new Event('loadedmetadata'));
+    fixture.detectChanges();
+    expect(spinner()).toBeNull();
+
+    // Loading deferred until playback (e.g. iOS): loadstart then suspend
+    audio.dispatchEvent(new Event('loadstart'));
+    audio.dispatchEvent(new Event('suspend'));
+    fixture.detectChanges();
+    expect(spinner()).toBeNull();
+  });
 });

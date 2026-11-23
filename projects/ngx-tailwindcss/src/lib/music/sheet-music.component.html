@@ -72,6 +72,7 @@
                   [showKeySignature]="true"
                   [showTimeSignature]="lineIndex === 0"
                   [grandStaff]="musicData().grandStaff || false"
+                  (click)="onStaffClick($event, lineIndex)"
                 >
                   <!-- Notes in this line -->
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
@@ -86,6 +87,7 @@
                         [dotted]="note.dotted || false"
                         [doubleDotted]="note.doubleDotted || false"
                         [tied]="note.tied || false"
+                        [tieDirection]="note.tied ? 'start' : null"
                         [x]="
                           getNoteX(
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
@@ -107,6 +109,7 @@
                         [class.cursor-pointer]="interactive()"
                         (click)="
                           onNoteClick(
+                            $event,
                             getMeasureGlobalIndex(lineIndex, measureInLineIndex),
                             noteIndex,
                             note
@@ -164,6 +167,7 @@
                   [showKeySignature]="true"
                   [showTimeSignature]="currentPage() === 0"
                   [grandStaff]="musicData().grandStaff || false"
+                  (click)="onStaffClick($event, currentPage())"
                 >
                   @for (measure of line; track $index; let measureInLineIndex = $index) {
                     @for (note of measure.notes; track $index; let noteIndex = $index) {
@@ -176,6 +180,8 @@
                         [isRest]="note.isRest || false"
                         [dotted]="note.dotted || false"
                         [doubleDotted]="note.doubleDotted || false"
+                        [tied]="note.tied || false"
+                        [tieDirection]="note.tied ? 'start' : null"
                         [x]="
                           getNoteX(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
@@ -192,6 +198,15 @@
                           isNoteHighlighted(
                             getMeasureGlobalIndex(currentPage(), measureInLineIndex),
                             noteIndex
+                          )
+                        "
+                        [class.cursor-pointer]="interactive()"
+                        (click)="
+                          onNoteClick(
+                            $event,
+                            getMeasureGlobalIndex(currentPage(), measureInLineIndex),
+                            noteIndex,
+                            note
                           )
                         "
                       ></svg:g>
@@ -239,6 +254,7 @@
               [lineSpacing]="lineSpacing()"
               [variant]="staffVariant()"
               [grandStaff]="musicData().grandStaff || false"
+              (click)="onStaffClick($event, 0)"
             >
               @for (measure of line; track $index; let measureInLineIndex = $index) {
                 @for (note of measure.notes; track $index; let noteIndex = $index) {
@@ -251,12 +267,16 @@
                     [isRest]="note.isRest || false"
                     [dotted]="note.dotted || false"
                     [doubleDotted]="note.doubleDotted || false"
+                    [tied]="note.tied || false"
+                    [tieDirection]="note.tied ? 'start' : null"
                     [x]="getNoteX(measureInLineIndex, noteIndex, measure.notes.length, 0)"
                     [staffTop]="noteStaffTop()"
                     [clef]="musicData().clef"
                     [lineSpacing]="lineSpacing()"
                     [size]="lineSpacing()"
                     [highlighted]="isNoteHighlighted(measureInLineIndex, noteIndex)"
+                    [class.cursor-pointer]="interactive()"
+                    (click)="onNoteClick($event, measureInLineIndex, noteIndex, note)"
                   ></svg:g>
                 }
               }

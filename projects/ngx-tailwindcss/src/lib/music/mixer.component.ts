@@ -237,14 +237,24 @@ export class TwMixerComponent {
     )
   );
 
+  // The sectioned layout renders every channel, so only the flat layout pages
+  protected readonly paged = computed(
+    () => this.scrollable() && !(this.sections().length > 0 && this.showSectionHeaders())
+  );
+
+  // Whether the scroll buttons are shown
+  protected readonly showScrollButtons = computed(
+    () => this.paged() && this.filteredChannels().length > this.effectiveMaxChannels()
+  );
+
   protected readonly canScrollLeft = computed(() => {
-    return this.scrollable() && this.effectiveScrollOffset() > 0;
+    return this.paged() && this.effectiveScrollOffset() > 0;
   });
 
   protected readonly canScrollRight = computed(() => {
     const count = this.filteredChannels().length;
     const max = this.effectiveMaxChannels();
-    return this.scrollable() && this.effectiveScrollOffset() + max < count;
+    return this.paged() && this.effectiveScrollOffset() + max < count;
   });
 
   protected readonly containerClasses = computed(() => {

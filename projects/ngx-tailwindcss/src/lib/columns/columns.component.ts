@@ -110,32 +110,11 @@ const TAILWIND_COLOR_TOKEN = /^[a-z]+-\d{2,3}$/;
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './columns.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'columnsClasses()',
+    '[style]': 'columnsStyles()',
+  },
 })
 export class TwColumnsComponent {
   private readonly twClass = inject(TwClassService);
@@ -174,7 +153,7 @@ export class TwColumnsComponent {
   readonly class = input('');
 
   protected readonly columnsClasses = computed(() => {
-    const classes = [COLUMNS_CLASSES[String(this.count())], GAP_CLASSES[this.gap()]];
+    const classes = ['block', COLUMNS_CLASSES[String(this.count())], GAP_CLASSES[this.gap()]];
 
     // Responsive columns
     const countSm = this.countSm();

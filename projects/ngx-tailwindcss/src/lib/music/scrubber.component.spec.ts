@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwScrubberComponent } from './scrubber.component';
 
 describe('TwScrubberComponent', () => {
@@ -66,5 +66,31 @@ describe('TwScrubberComponent', () => {
     expect(slider().classList).toContain('group');
     const thumb = slider().querySelector<HTMLElement>('.bg-red-600.rounded-full')!;
     expect(thumb.classList).toContain('group-hover:opacity-100');
+  });
+
+  it('should not leave a stale hover preview after a drag released off the track', () => {
+    const track = slider();
+    // jsdom's AbortSignal does not mix with zone.js-patched document listeners: capture them
+    const listeners: Record<string, (e: Event) => void> = {};
+    vi.spyOn(document, 'addEventListener').mockImplementation(((
+      type: string,
+      listener: (e: Event) => void
+    ) => {
+      listeners[type] = listener;
+    }) as typeof document.addEventListener);
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 200, height: 8 })
+    );
+    track.dispatchEvent(new MouseEvent('mousemove', { clientX: 50 }));
+    fixture.detectChanges();
+    expect(track.querySelector('.w-px')).not.toBeNull();
+    track.dispatchEvent(new MouseEvent('mousedown', { clientX: 50 }));
+    // The pointer leaves the track mid-drag and is released elsewhere
+    track.dispatchEvent(new MouseEvent('mouseleave'));
+    listeners['mouseup'](new MouseEvent('mouseup'));
+    fixture.detectChanges();
+
+    expect(track.querySelector('.w-px')).toBeNull();
+    vi.restoreAllMocks();
   });
 });

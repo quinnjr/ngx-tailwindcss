@@ -75,6 +75,7 @@
                     [id]="listboxId + '-option-' + optionIndex(option)"
                     [class]="optionClasses(option, optionIndex(option) === activeIndex())"
                     [attr.aria-selected]="isSelected(option)"
+                    [attr.aria-disabled]="option.disabled || null"
                     role="option"
                     (click)="selectOption(option)"
                   >
@@ -106,6 +107,7 @@
                 [id]="listboxId + '-option-' + $index"
                 [class]="optionClasses(option, $index === activeIndex())"
                 [attr.aria-selected]="isSelected(option)"
+                [attr.aria-disabled]="option.disabled || null"
                 role="option"
                 (click)="selectOption(option)"
               >
@@ -178,6 +180,7 @@
                 [id]="listboxId + '-option-' + optionIndex(option)"
                 [class]="optionClasses(option, optionIndex(option) === activeIndex())"
                 [attr.aria-selected]="isSelected(option)"
+                [attr.aria-disabled]="option.disabled || null"
                 role="option"
                 (click)="selectOption(option)"
               >
@@ -209,6 +212,7 @@
             [id]="listboxId + '-option-' + $index"
             [class]="optionClasses(option, $index === activeIndex())"
             [attr.aria-selected]="isSelected(option)"
+            [attr.aria-disabled]="option.disabled || null"
             role="option"
             (click)="selectOption(option)"
           >

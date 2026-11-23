@@ -41,7 +41,9 @@
       >
         @for (tab of tabs(); track tab.id) {
           <button
-            (click)="selectedTabId.set(tab.id)"
+            type="button"
+            [attr.aria-pressed]="selectedTabId() === tab.id"
+            (click)="selectTab(tab.id)"
             [class.bg-blue-100]="selectedTabId() === tab.id"
             [class.dark:bg-blue-900/40]="selectedTabId() === tab.id"
             [class.text-blue-600]="selectedTabId() === tab.id"

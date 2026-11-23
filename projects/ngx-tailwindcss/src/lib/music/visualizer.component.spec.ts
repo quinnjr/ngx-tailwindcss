@@ -169,4 +169,25 @@ describe('TwVisualizerComponent', () => {
       expect(Math.abs(mean - 128)).toBeLessThan(10);
     });
   });
+
+  describe('analyser smoothing', () => {
+    it('should apply smoothing to an analyser bound after init', () => {
+      fixture.componentRef.setInput('smoothing', 0.3);
+      fixture.detectChanges();
+      const analyser = createFakeAnalyser();
+
+      fixture.componentRef.setInput('analyserNode', analyser);
+      fixture.detectChanges();
+
+      expect(analyser.smoothingTimeConstant).toBe(0.3);
+    });
+
+    it('should leave the analyser smoothing untouched when not provided', () => {
+      const analyser = createFakeAnalyser();
+      fixture.componentRef.setInput('analyserNode', analyser);
+      fixture.detectChanges();
+
+      expect(analyser.smoothingTimeConstant).toBe(0.8);
+    });
+  });
 });

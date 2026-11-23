@@ -199,6 +199,19 @@ describe('TwStepsComponent', () => {
       expect(buttons[2].nativeElement.disabled).toBe(true);
     });
 
+    it('should keep step buttons named when labels are hidden', () => {
+      component.activeIndex.set(1);
+      component.showLabels.set(false);
+      fixture.detectChanges();
+      const buttons = stepsEl.queryAll(By.css('button[type="button"]'));
+      // The completed first step renders only a check icon
+      expect(buttons[0].nativeElement.textContent.trim()).toBe('');
+      expect(buttons[0].nativeElement.getAttribute('aria-label')).toBe('Personal Info');
+      component.showLabels.set(true);
+      fixture.detectChanges();
+      expect(buttons[0].nativeElement.getAttribute('aria-label')).toBeNull();
+    });
+
     it('should disable all steps in readonly mode', () => {
       component.readonly.set(true);
       fixture.detectChanges();

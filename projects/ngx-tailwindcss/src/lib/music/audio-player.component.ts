@@ -327,6 +327,12 @@ export class TwAudioPlayerComponent implements OnDestroy {
     this.isLoading.set(true);
   }
 
+  /**
+   * Loading is over once the element can play, has the metadata it was asked to
+   * preload, or has suspended fetching. With preload="metadata" (or where the
+   * browser defers loading until the user presses play, e.g. iOS) canplay may
+   * never fire before playback, and the overlay would block the play button.
+   */
   protected onAudioCanPlay(): void {
     this.isLoading.set(false);
   }

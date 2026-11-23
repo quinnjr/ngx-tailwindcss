@@ -598,3 +598,14 @@ describe('TwSelectComponent (round 2)', () => {
     expect(escape().defaultPrevented).toBe(false);
   });
 });
+
+describe('TwSelectComponent (round 7)', () => {
+  it('should expose disabled options as aria-disabled', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('button').click();
+    fixture.detectChanges();
+    const options = [...fixture.nativeElement.querySelectorAll('[role="option"]')] as HTMLElement[];
+    expect(options.map(o => o.getAttribute('aria-disabled'))).toEqual([null, null, null, 'true']);
+  });
+});

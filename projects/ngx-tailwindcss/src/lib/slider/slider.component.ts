@@ -114,7 +114,9 @@ export class TwSliderComponent implements ControlValueAccessor {
   /** Blur event */
   readonly onBlur = output<FocusEvent>();
 
-  protected value = signal(0);
+  /** Value written by the forms API or the user (null = not set yet: shown at min, like the native input) */
+  private readonly rawValue = signal<number | null>(null);
+  protected value = computed(() => this.rawValue() ?? this.min());
   protected isDragging = signal(false);
   private readonly _disabled = signal(false);
 
@@ -204,14 +206,14 @@ export class TwSliderComponent implements ControlValueAccessor {
   onSliderInput(event: Event): void {
     const inputEl = event.target as HTMLInputElement;
     const newValue = Number.parseFloat(inputEl.value);
-    this.value.set(newValue);
+    this.rawValue.set(newValue);
     this.onInput.emit(newValue);
   }
 
   onSliderChange(event: Event): void {
     const inputEl = event.target as HTMLInputElement;
     const newValue = Number.parseFloat(inputEl.value);
-    this.value.set(newValue);
+    this.rawValue.set(newValue);
     // `change` fires on release even when the pointer is released off the input
     this.isDragging.set(false);
     this.onChangeFn(newValue);
@@ -232,8 +234,8 @@ export class TwSliderComponent implements ControlValueAccessor {
   }
 
   // ControlValueAccessor implementation
-  writeValue(value: number): void {
-    this.value.set(value ?? this.min());
+  writeValue(value: number | null | undefined): void {
+    this.rawValue.set(value ?? null);
   }
 
   registerOnChange(fn: (value: number) => void): void {

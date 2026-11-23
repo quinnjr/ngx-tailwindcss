@@ -756,6 +756,19 @@ export class TwCompressorMeterComponent implements OnInit, OnDestroy {
     return { sm: 100, md: 140, lg: 180 }[size];
   });
 
+  // Meter gradients span the whole meter height (not the fill's), so a colour
+  // always marks the same level: a quiet signal stays green instead of the
+  // gradient being squeezed into the fill and showing red at its top.
+  protected readonly levelMeterBackground = computed(
+    () =>
+      `linear-gradient(to top, rgb(34, 197, 94), rgb(234, 179, 8) 70%, rgb(239, 68, 68) 90%) bottom / 100% ${this.meterHeight()}px no-repeat`
+  );
+
+  protected readonly grMeterBackground = computed(
+    () =>
+      `linear-gradient(to bottom, rgb(234, 179, 8), rgb(249, 115, 22) 60%, rgb(239, 68, 68) 90%) top / 100% ${this.meterHeight()}px no-repeat`
+  );
+
   protected readonly curveSize = computed(() => {
     const size = this.size();
     return {

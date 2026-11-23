@@ -149,32 +149,10 @@ const GAP_Y_CLASSES: Record<GridGap, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './grid.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'gridClasses()',
+  },
 })
 export class TwGridComponent {
   private readonly twClass = inject(TwClassService);
@@ -205,7 +183,7 @@ export class TwGridComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
   readonly class = input('');
 
@@ -266,32 +244,11 @@ export class TwGridComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './simple-grid.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'gridClasses()',
+    '[style.grid-template-columns]': 'gridTemplateColumns()',
+  },
 })
 export class TwSimpleGridComponent {
   private readonly twClass = inject(TwClassService);
@@ -304,7 +261,7 @@ export class TwSimpleGridComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
   readonly class = input('');
 

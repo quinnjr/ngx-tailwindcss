@@ -30,38 +30,9 @@ import { TwClassService } from '../core/tw-class.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './center.component.html',
   host: {
-    // An inline center must sit in the surrounding line, not on a block of its own
-    '[style.display]': "inline() ? 'inline-block' : null",
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'centerClasses()',
   },
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-        /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-        margin: 0;
-        /* 100% rather than auto so an inline-flex inner element still fills an inline host */
-        width: 100%;
-        max-width: none;
-        /* An inline-flex inner element leaves no line-box gap below it in an inline host */
-        vertical-align: top;
-      }
-    `,
-  ],
 })
 export class TwCenterComponent {
   private readonly twClass = inject(TwClassService);
@@ -110,27 +81,12 @@ export class TwCenterComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './square.component.html',
-  styles: [
-    `
-      :host {
-        display: inline-block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-        /* Don't clip the inner element's shadow/ring; it clips its own content */
-        overflow: visible;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'squareClasses()',
+    '[style.width]': 'size()',
+    '[style.height]': 'size()',
+  },
 })
 export class TwSquareComponent {
   private readonly twClass = inject(TwClassService);
@@ -146,7 +102,9 @@ export class TwSquareComponent {
 
   protected readonly squareClasses = computed(() => {
     return this.twClass.merge(
-      this.centerContent() ? 'flex items-center justify-center' : '',
+      // A fixed-size box: don't let a flex parent squeeze it below `size`
+      'shrink-0',
+      this.centerContent() ? 'inline-flex items-center justify-center' : 'inline-block',
       this.class()
     );
   });
@@ -168,27 +126,12 @@ export class TwSquareComponent {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './circle.component.html',
-  styles: [
-    `
-      :host {
-        display: inline-block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-        /* Don't clip the inner element's shadow/ring; it clips its own content */
-        overflow: visible;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'circleClasses()',
+    '[style.width]': 'size()',
+    '[style.height]': 'size()',
+  },
 })
 export class TwCircleComponent {
   private readonly twClass = inject(TwClassService);
@@ -204,8 +147,8 @@ export class TwCircleComponent {
 
   protected readonly circleClasses = computed(() => {
     return this.twClass.merge(
-      'rounded-full',
-      this.centerContent() ? 'flex items-center justify-center' : '',
+      'rounded-full shrink-0',
+      this.centerContent() ? 'inline-flex items-center justify-center' : 'inline-block',
       this.class()
     );
   });

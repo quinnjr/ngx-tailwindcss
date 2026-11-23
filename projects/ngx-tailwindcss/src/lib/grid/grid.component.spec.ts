@@ -86,48 +86,48 @@ describe('TwGridComponent', () => {
   });
 
   it('should have grid class', () => {
-    const inner = gridEl.querySelector('div');
+    const inner = gridEl;
     expect(inner?.className).toContain('grid');
   });
 
   describe('columns', () => {
     it('should apply 1 column by default', () => {
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-1');
     });
 
     it('should apply 2 columns', () => {
       component.cols.set(2);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-2');
     });
 
     it('should apply 3 columns', () => {
       component.cols.set(3);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-3');
     });
 
     it('should apply 4 columns', () => {
       component.cols.set(4);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-4');
     });
 
     it('should apply 12 columns', () => {
       component.cols.set(12);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-12');
     });
 
     it('should apply none columns', () => {
       component.cols.set('none');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-none');
     });
   });
@@ -136,77 +136,77 @@ describe('TwGridComponent', () => {
     it('should apply sm breakpoint columns', () => {
       component.colsSm.set(2);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('sm:grid-cols-2');
     });
 
     it('should apply md breakpoint columns', () => {
       component.colsMd.set(3);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('md:grid-cols-3');
     });
 
     it('should apply lg breakpoint columns', () => {
       component.colsLg.set(4);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('lg:grid-cols-4');
     });
 
     it('should apply xl breakpoint columns', () => {
       component.colsXl.set(6);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('xl:grid-cols-6');
     });
   });
 
   describe('gap', () => {
     it('should apply md gap by default', () => {
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-4');
     });
 
     it('should apply none gap', () => {
       component.gap.set('none');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-0');
     });
 
     it('should apply xs gap', () => {
       component.gap.set('xs');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-1');
     });
 
     it('should apply sm gap', () => {
       component.gap.set('sm');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-2');
     });
 
     it('should apply lg gap', () => {
       component.gap.set('lg');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-6');
     });
 
     it('should apply xl gap', () => {
       component.gap.set('xl');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-8');
     });
 
     it('should apply 2xl gap', () => {
       component.gap.set('2xl');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-12');
     });
   });
@@ -216,7 +216,7 @@ describe('TwGridComponent', () => {
       component.rowGap.set('sm');
       component.colGap.set('lg');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       // Literal axis-specific gap classes (statically analyzable by Tailwind)
       expect(inner?.className).toContain('gap-y-2');
       expect(inner?.className).toContain('gap-x-6');
@@ -225,7 +225,7 @@ describe('TwGridComponent', () => {
     it('should apply rowGap alone, keeping gap for columns', () => {
       component.rowGap.set('xl');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-y-8');
       expect(inner?.className).toContain('gap-x-4');
     });
@@ -233,7 +233,7 @@ describe('TwGridComponent', () => {
     it('should apply colGap alone, keeping gap for rows', () => {
       component.colGap.set('xs');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-x-1');
       expect(inner?.className).toContain('gap-y-4');
     });
@@ -243,11 +243,11 @@ describe('TwGridComponent', () => {
     it('should re-render classes when cols changes', () => {
       component.cols.set(2);
       fixture.detectChanges();
-      expect(gridEl.querySelector('div')?.className).toContain('grid-cols-2');
+      expect(gridEl.className).toContain('grid-cols-2');
 
       component.cols.set(6);
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('grid-cols-6');
       expect(inner?.className).not.toContain('grid-cols-2');
     });
@@ -257,7 +257,7 @@ describe('TwGridComponent', () => {
     it('should apply custom class', () => {
       component.customClass.set('custom-grid');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('custom-grid');
     });
   });
@@ -292,41 +292,41 @@ describe('TwSimpleGridComponent', () => {
   });
 
   it('should have grid class', () => {
-    const inner = gridEl.querySelector('div');
+    const inner = gridEl;
     expect(inner?.className).toContain('grid');
   });
 
   describe('minChildWidth', () => {
     it('should set grid-template-columns with default minChildWidth', () => {
-      const inner = gridEl.querySelector('div') as HTMLElement;
+      const inner = gridEl;
       expect(inner?.style.gridTemplateColumns).toContain('200px');
     });
 
     it('should set grid-template-columns with custom minChildWidth', () => {
       component.minChildWidth.set('300px');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div') as HTMLElement;
+      const inner = gridEl;
       expect(inner?.style.gridTemplateColumns).toContain('300px');
     });
 
     it('should accept rem units', () => {
       component.minChildWidth.set('15rem');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div') as HTMLElement;
+      const inner = gridEl;
       expect(inner?.style.gridTemplateColumns).toContain('15rem');
     });
   });
 
   describe('gap', () => {
     it('should apply md gap by default', () => {
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-4');
     });
 
     it('should apply lg gap', () => {
       component.gap.set('lg');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('gap-6');
     });
   });
@@ -335,120 +335,56 @@ describe('TwSimpleGridComponent', () => {
     it('should apply custom class', () => {
       component.customClass.set('custom-simple-grid');
       fixture.detectChanges();
-      const inner = gridEl.querySelector('div');
+      const inner = gridEl;
       expect(inner?.className).toContain('custom-simple-grid');
     });
   });
 });
 
-describe('Grid host sizing', () => {
-  it('fills a host that is sized by its parent (flex/grid stretch or flex-grow)', async () => {
+describe('Grid class attribute (host is the styled box)', () => {
+  it('applies a static class once, on the host, with no inner wrapper', async () => {
     @Component({
-      template: `<tw-grid><span>x</span></tw-grid
-        ><tw-simple-grid><span>x</span></tw-simple-grid>`,
+      template: `<tw-grid class="tw-test-box"><span>a</span><span>b</span></tw-grid
+        ><tw-simple-grid class="tw-test-box"><span>a</span><span>b</span></tw-simple-grid>`,
       standalone: true,
       imports: [TwGridComponent, TwSimpleGridComponent],
     })
-    class FillHostComponent {}
+    class StaticClassHostComponent {}
 
-    await TestBed.configureTestingModule({
-      imports: [FillHostComponent],
-      providers: [TwClassService],
-    }).compileComponents();
-
-    const fixture = TestBed.createComponent(FillHostComponent);
-    fixture.detectChanges();
-
-    {
-      const host = fixture.debugElement.query(By.css('tw-grid')).nativeElement as HTMLElement;
-      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
-    }
-
-    {
-      const host = fixture.debugElement.query(By.css('tw-simple-grid'))
-        .nativeElement as HTMLElement;
-      expect(getComputedStyle(host.querySelector('div') as HTMLElement).height).toBe('100%');
-    }
-  });
-});
-
-describe('Grid forwarded margins and widths', () => {
-  it('applies a static margin/width class once, on the host', async () => {
-    @Component({
-      template: `<tw-grid class="tw-test-geom"><span>x</span></tw-grid>`,
-      standalone: true,
-      imports: [TwGridComponent],
-    })
-    class GeometryHostComponent {}
-
-    // Stand-in for utility classes such as `my-4 w-1/2 max-w-[50%]`
+    // Stand-in for utility classes such as `p-4 border-2`
     const style = document.createElement('style');
-    style.textContent = '.tw-test-geom { margin: 16px; width: 50%; max-width: 50%; }';
+    style.textContent = '.tw-test-box { padding: 16px; border: 2px solid red; }';
     document.head.append(style);
 
     try {
       await TestBed.configureTestingModule({
-        imports: [GeometryHostComponent],
+        imports: [StaticClassHostComponent],
         providers: [TwClassService],
       }).compileComponents();
 
-      const fixture = TestBed.createComponent(GeometryHostComponent);
+      const fixture = TestBed.createComponent(StaticClassHostComponent);
       fixture.detectChanges();
 
-      const host = fixture.debugElement.query(By.css('tw-grid')).nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-      expect(inner.className).toContain('tw-test-geom');
+      {
+        const host = fixture.debugElement.query(By.css('tw-grid')).nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(2);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
 
-      expect(getComputedStyle(host).marginTop).toBe('16px');
-      expect(getComputedStyle(host).width).toBe('50%');
-
-      // Not doubled or compounded (25% width) by the inner element
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.marginTop).toBe('0px');
-      expect(innerStyle.width).toBe('auto');
-      expect(innerStyle.maxWidth).toBe('none');
-    } finally {
-      style.remove();
-    }
-  });
-});
-
-describe('SimpleGrid forwarded margins and widths', () => {
-  it('applies a static margin/width class once, on the host', async () => {
-    @Component({
-      template: `<tw-simple-grid class="tw-test-geom"><span>x</span></tw-simple-grid>`,
-      standalone: true,
-      imports: [TwSimpleGridComponent],
-    })
-    class GeometryHostComponent {}
-
-    // Stand-in for utility classes such as `my-4 w-1/2 max-w-[50%]`
-    const style = document.createElement('style');
-    style.textContent = '.tw-test-geom { margin: 16px; width: 50%; max-width: 50%; }';
-    document.head.append(style);
-
-    try {
-      await TestBed.configureTestingModule({
-        imports: [GeometryHostComponent],
-        providers: [TwClassService],
-      }).compileComponents();
-
-      const fixture = TestBed.createComponent(GeometryHostComponent);
-      fixture.detectChanges();
-
-      const host = fixture.debugElement.query(By.css('tw-simple-grid'))
-        .nativeElement as HTMLElement;
-      const inner = host.querySelector('div') as HTMLElement;
-      expect(inner.className).toContain('tw-test-geom');
-
-      expect(getComputedStyle(host).marginTop).toBe('16px');
-      expect(getComputedStyle(host).width).toBe('50%');
-
-      // Not doubled or compounded (25% width) by the inner element
-      const innerStyle = getComputedStyle(inner);
-      expect(innerStyle.marginTop).toBe('0px');
-      expect(innerStyle.width).toBe('auto');
-      expect(innerStyle.maxWidth).toBe('none');
+      {
+        const host = fixture.debugElement.query(By.css('tw-simple-grid'))
+          .nativeElement as HTMLElement;
+        // No wrapper element: projected content sits directly in the styled host
+        expect(host.children.length).toBe(2);
+        expect(host.querySelector('div')).toBeNull();
+        expect(host.classList.contains('tw-test-box')).toBe(true);
+        expect(getComputedStyle(host).paddingTop).toBe('16px');
+        expect(getComputedStyle(host).borderTopWidth).toBe('2px');
+      }
     } finally {
       style.remove();
     }

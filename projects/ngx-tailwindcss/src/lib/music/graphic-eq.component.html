@@ -195,6 +195,7 @@
           fill="none"
           [attr.stroke]="colors().curve"
           stroke-width="2"
+          vector-effect="non-scaling-stroke"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
@@ -209,9 +210,10 @@
     }
 
     <!-- Sliders -->
-    <div class="flex items-end justify-center gap-1">
+    <!-- Equal-width columns so each slider sits under its response-curve point -->
+    <div class="flex items-end">
       @for (band of bands(); track band.frequency; let i = $index) {
-        <div class="flex flex-col items-center">
+        <div class="flex flex-1 min-w-0 flex-col items-center">
           <!-- Slider Track -->
           <div
             class="relative rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"

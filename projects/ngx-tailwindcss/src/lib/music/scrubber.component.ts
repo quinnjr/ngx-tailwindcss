@@ -287,6 +287,9 @@ export class TwScrubberComponent implements OnDestroy {
     };
     const onMouseUp = (): void => {
       this.isDragging.set(false);
+      // The hover position froze when the drag began: drop it so a release off the
+      // track leaves no stale preview (the next mousemove over the track restores it)
+      this.hoverPosition.set(null);
       this.seekEnd.emit();
       this.dragController?.abort();
       this.dragController = null;

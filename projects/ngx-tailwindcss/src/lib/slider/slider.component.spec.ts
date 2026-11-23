@@ -427,3 +427,21 @@ describe('TwSliderComponent (round 3)', () => {
     expect(thumb().className).not.toContain('scale-110');
   });
 });
+
+@Component({
+  template: `<tw-slider [min]="10" [max]="50" [showValue]="true"></tw-slider>`,
+  standalone: true,
+  imports: [TwSliderComponent],
+})
+class UnboundSliderHostComponent {}
+
+describe('TwSliderComponent (round 7)', () => {
+  it('should show the min value (like the native input) when no value has been set', () => {
+    const fixture = TestBed.createComponent(UnboundSliderHostComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.value).toBe('10');
+    expect(input.getAttribute('aria-valuetext')).toBe('10');
+    expect(fixture.nativeElement.querySelector('.tabular-nums').textContent.trim()).toBe('10');
+  });
+});

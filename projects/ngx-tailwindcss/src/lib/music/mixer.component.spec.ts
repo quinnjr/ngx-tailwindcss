@@ -106,4 +106,25 @@ describe('TwMixerComponent layout', () => {
     expect(mixer.canScrollRight()).toBe(false);
     expect(fixture.debugElement.queryAll(By.css('button[title="Scroll Right"]')).length).toBe(0);
   });
+
+  it('should not show no-op scroll buttons when the sectioned layout shows every channel', async () => {
+    await TestBed.configureTestingModule({ imports: [SectionHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SectionHostComponent);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.queryAll(By.directive(TwChannelStripComponent)).length).toBe(4);
+    expect(fixture.debugElement.queryAll(By.css('button[title^="Scroll"]')).length).toBe(0);
+  });
 });
+
+@Component({
+  template: `<tw-mixer
+    [channels]="channels"
+    [sections]="sections"
+    [maxVisibleChannels]="2"
+    [showMasterChannel]="false"
+  ></tw-mixer>`,
+  standalone: true,
+  imports: [TwMixerComponent],
+})
+class SectionHostComponent extends ScrollHostComponent {}

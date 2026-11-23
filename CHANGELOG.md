@@ -61,19 +61,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tw-bleed` `customAmount` accepts `var(...)`/`calc(...)` values (negative
   margins are built with `calc(-1 * ...)` instead of an invalid `-` prefix)
 - `tw-progress` uses its `label` as the progressbar's accessible name
-- Layout components that forward `class` to an inner element (`tw-grid`,
-  `tw-simple-grid`, `tw-stack`, `tw-vstack`, `tw-hstack`, `tw-columns`,
-  `tw-container`, `tw-center`, `tw-square`, `tw-circle`, `tw-bleed`,
-  `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer paint a static `class`
-  twice: padding, borders, backgrounds, shadows, opacity and transforms apply
-  only to the inner element (`tw-circle` backgrounds are no longer square).
-  The inner element fills a host stretched or grown by its flex/grid parent,
-  `tw-aspect-ratio`/`tw-square`/`tw-circle` no longer clip their own shadow
-  with a forwarded `overflow-hidden`, and a forwarded `max-w-*` on
-  `tw-container` keeps the container centered.
-  Forwarded margins and widths (`mx-4`, `w-1/2`) are no longer applied twice
-  (doubled spacing, compounded percentage widths)
+- Layout components (`tw-grid`, `tw-simple-grid`, `tw-stack`, `tw-vstack`,
+  `tw-hstack`, `tw-columns`, `tw-container`, `tw-center`, `tw-square`,
+  `tw-circle`, `tw-bleed`, `tw-spacer`, `tw-wrap`, `tw-aspect-ratio`) no longer
+  apply a `class` twice. They used to forward `class` to an inner `<div>` while
+  Angular also kept the static attribute on the host, so every utility
+  (padding, borders, backgrounds, shadows, margins, widths, offsets, outlines,
+  animations, ...) landed on two nested boxes. The host element is now the
+  styled box itself and the inner wrapper `<div>` is gone: projected content
+  sits directly in the host, a `class` overrides conflicting defaults
+  (`class="hidden md:flex"`, `class="gap-2"`), and the host fills its
+  flex/grid parent like any other element. `tw-square`/`tw-circle` do not
+  shrink below `size` in a flex row. CSS that targeted the removed wrapper
+  (`tw-stack > div`) should target the host instead
 - `tw-center` with `inline` flows inline instead of rendering as a block
+- `tw-image` shows an image that finished loading (or failing) before its
+  listeners were attached, e.g. during SSR hydration, instead of keeping the
+  placeholder up and the image hidden
 - `tw-image` `width`/`height` accept CSS lengths (`10rem`, `auto`); only bare
   numbers get a `px` suffix
 - Native services, music components and audio services: many correctness and

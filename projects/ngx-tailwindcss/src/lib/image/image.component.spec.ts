@@ -404,3 +404,89 @@ describe('TwImageComponent', () => {
     });
   });
 });
+
+describe('TwImageComponent image settled before listeners attach (SSR hydration)', () => {
+  function stubImage(props: {
+    complete: boolean;
+    naturalWidth: number;
+    decode?: () => Promise<void>;
+  }) {
+    const proto = HTMLImageElement.prototype;
+    const saved = ['complete', 'naturalWidth', 'decode'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => props.complete });
+    Object.defineProperty(proto, 'naturalWidth', {
+      configurable: true,
+      get: () => props.naturalWidth,
+    });
+    Object.defineProperty(proto, 'decode', { configurable: true, value: props.decode });
+    return () => {
+      for (const [key, descriptor] of saved) {
+        if (descriptor) {
+          Object.defineProperty(proto, key, descriptor);
+        } else {
+          Reflect.deleteProperty(proto, key);
+        }
+      }
+    };
+  }
+
+  async function render(): Promise<ComponentFixture<TestHostComponent>> {
+    await TestBed.configureTestingModule({
+      imports: [TestHostComponent],
+      providers: [TwClassService],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('shows an image that had already loaded, emitting onLoad once', async () => {
+    const restore = stubImage({ complete: true, naturalWidth: 640 });
+    try {
+      const fixture = await render();
+      const img = fixture.debugElement.query(By.css('tw-image img'))
+        .nativeElement as HTMLImageElement;
+      expect(img.style.display).toBe('block');
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeNull();
+      expect(fixture.componentInstance.onLoadSpy).toHaveBeenCalledTimes(1);
+
+      // A late load event for the same image does not emit again
+      img.dispatchEvent(new Event('load'));
+      expect(fixture.componentInstance.onLoadSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it('reports an image that had already failed', async () => {
+    const restore = stubImage({
+      complete: true,
+      naturalWidth: 0,
+      decode: () => Promise.reject(new Error('broken')),
+    });
+    try {
+      const fixture = await render();
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.onErrorSpy).toHaveBeenCalledTimes(1);
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it('keeps the placeholder while the image is still loading', async () => {
+    const restore = stubImage({ complete: false, naturalWidth: 0 });
+    try {
+      const fixture = await render();
+      expect(fixture.debugElement.query(By.css('.animate-pulse'))).toBeTruthy();
+      expect(fixture.componentInstance.onLoadSpy).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+});

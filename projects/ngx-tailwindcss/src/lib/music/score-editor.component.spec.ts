@@ -73,6 +73,9 @@ interface EditorInternals {
   transpose: (options: TransposeOptions) => void;
   importABC: (abc: string) => void;
   applyLyrics: (text: string) => void;
+  addPart: (preset?: string) => void;
+  removePart: (id: string) => void;
+  addLyric: (partId: string, text: string, measure: number, beat: number) => void;
   editingLyrics: () => boolean;
   buildImagePdf: (
     jpeg: Uint8Array,
@@ -366,5 +369,30 @@ describe('TwScoreEditorComponent', () => {
     offsets.forEach((offset, i) => {
       expect(text.slice(offset, offset + 7)).toBe(`${i + 1} 0 obj`);
     });
+  });
+  it('does not reuse part or lyric ids of a loaded score', () => {
+    const loaded = score([placed('n1')]);
+    loaded.parts = [
+      {
+        ...loaded.parts[0],
+        id: 'part-0',
+        lyrics: [
+          { id: 'lyric-0', text: 'la', measure: 0, beat: 0, syllableType: 'single', verse: 1 },
+        ],
+      },
+    ];
+    createWith(loaded);
+
+    editor.addPart('flute');
+    const ids = editor.parts().map(p => p.id);
+    expect(new Set(ids).size).toBe(2);
+
+    editor.addLyric('part-0', 'di', 0, 2);
+    const lyricIds = editor.parts()[0].lyrics.map(l => l.id);
+    expect(new Set(lyricIds).size).toBe(2);
+
+    // Removing the new part keeps the loaded one
+    editor.removePart(ids[1]);
+    expect(editor.parts().map(p => p.id)).toEqual(['part-0']);
   });
 });

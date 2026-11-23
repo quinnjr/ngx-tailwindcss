@@ -11,6 +11,7 @@ import { TwResizablePanelsComponent } from './resizable-panels.component';
 import { TwFileTreeComponent } from './file-tree.component';
 import { TwNativeConfirmDialogComponent } from './confirm-dialog.component';
 import { TwAboutDialogComponent } from './about-dialog.component';
+import { TwPreferencesDialogComponent } from './preferences-dialog.component';
 import { TwSidebarNavComponent } from './sidebar.component';
 import { DockService } from './dock.service';
 import { SystemTrayService } from './system-tray.service';
@@ -418,5 +419,30 @@ describe('Native a11y semantics', () => {
     toggle.click();
     fixture.detectChanges();
     expect(toggle.getAttribute('aria-checked')).toBe('false');
+  });
+});
+
+describe('TwPreferencesDialogComponent tabs', () => {
+  it('emits tabChanged when a tab button is clicked', () => {
+    const fixture = TestBed.createComponent(TwPreferencesDialogComponent);
+    fixture.componentRef.setInput('tabs', [
+      { id: 'general', label: 'General' },
+      { id: 'advanced', label: 'Advanced' },
+    ]);
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    const changes: string[] = [];
+    fixture.componentInstance.tabChanged.subscribe(id => changes.push(id));
+
+    const tab = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+    ].find(b => b.textContent?.includes('Advanced'))!;
+    tab.click();
+    fixture.detectChanges();
+
+    expect(changes).toEqual(['advanced']);
+    expect(fixture.componentInstance.selectedTab()?.id).toBe('advanced');
+    expect(tab.getAttribute('type')).toBe('button');
+    expect(tab.getAttribute('aria-pressed')).toBe('true');
   });
 });

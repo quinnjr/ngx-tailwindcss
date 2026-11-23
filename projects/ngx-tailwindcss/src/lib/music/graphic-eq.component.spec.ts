@@ -82,4 +82,24 @@ describe('TwGraphicEQComponent', () => {
     expect(Number(start[2])).toBeCloseTo(120, 6);
     expect(Number(end[1])).toBeCloseTo(120, 6);
   });
+
+  it('should clamp preset gains to the configured range', () => {
+    fixture.componentRef.setInput('minGain', -3);
+    fixture.componentRef.setInput('maxGain', 3);
+    fixture.detectChanges();
+
+    component.applyPreset(component.getPresetById('podcast')!);
+
+    const gains: number[] = internals.bands().map((b: { gain: number }) => b.gain);
+    expect(gains[0]).toBe(-3); // preset: -6 dB at 31 Hz
+    expect(Math.max(...gains)).toBeLessThanOrEqual(3);
+    expect(Math.min(...gains)).toBeGreaterThanOrEqual(-3);
+  });
+
+  it('should lay the band columns out in equal widths matching the curve points', () => {
+    const track = fixture.nativeElement.querySelector('[role="slider"]') as HTMLElement;
+    const column = track.parentElement!;
+    expect(column.classList).toContain('flex-1');
+    expect(column.parentElement!.classList).not.toContain('gap-1');
+  });
 });

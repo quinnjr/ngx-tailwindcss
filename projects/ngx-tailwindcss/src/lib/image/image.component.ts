@@ -1,16 +1,19 @@
 import {
+  afterNextRender,
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   HostListener,
   inject,
   input,
   output,
   PLATFORM_ID,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { TwClassService } from '../core/tw-class.service';
@@ -97,6 +100,8 @@ export class TwImageComponent {
 
   private previousOverflow = '';
 
+  private readonly thumbnail = viewChild<ElementRef<HTMLImageElement>>('thumbnail');
+
   // Expose Math to template
   protected Math = Math;
 
@@ -105,6 +110,28 @@ export class TwImageComponent {
     effect(() => {
       this.src();
       this.loading.set(true);
+    });
+
+    // With SSR hydration the server-rendered <img> may finish loading (or fail) before
+    // the (load)/(error) listeners are attached; pick up that state instead of showing
+    // the placeholder (and keeping the image hidden) forever.
+    afterNextRender(() => {
+      const img = this.thumbnail()?.nativeElement;
+      if (!img?.complete || !this.loading()) return;
+      if (img.naturalWidth > 0) {
+        this.onImageLoad();
+        return;
+      }
+      const src = this.src();
+      // naturalWidth is 0 both for broken images and for some SVGs: let decode() decide
+      img.decode?.().then(
+        () => {
+          if (this.src() === src) this.onImageLoad();
+        },
+        () => {
+          if (this.src() === src) this.onImageError();
+        }
+      );
     });
 
     // Restore body scrolling if the component is destroyed while the preview is open
@@ -186,11 +213,14 @@ export class TwImageComponent {
   }
 
   onImageLoad(): void {
+    // Already settled (e.g. picked up after hydration): don't emit twice
+    if (!this.loading()) return;
     this.loading.set(false);
     this.onLoad.emit();
   }
 
   onImageError(): void {
+    if (!this.loading()) return;
     this.loading.set(false);
     this.onError.emit();
   }

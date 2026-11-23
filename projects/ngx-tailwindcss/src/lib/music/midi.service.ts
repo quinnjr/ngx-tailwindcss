@@ -222,6 +222,10 @@ export class MidiService implements OnDestroy {
   // MIDI input references
   private connectedInputs: MIDIInput[] = [];
 
+  // Incremented by disconnect() so an access request still awaiting the
+  // browser's permission prompt does not reconnect a disconnected service
+  private accessGeneration = 0;
+
   // =========================================================================
   // PUBLIC SIGNALS
   // =========================================================================
@@ -279,8 +283,12 @@ export class MidiService implements OnDestroy {
       return false;
     }
 
+    const generation = this.accessGeneration;
     try {
       const access = await navigator.requestMIDIAccess({ sysex });
+      // disconnect() (or destroy) ran while the request was pending: do not
+      // open the ports or attach handlers behind the caller's back
+      if (generation !== this.accessGeneration) return false;
       // A repeated request (e.g. two components each calling requestAccess)
       // yields a new MIDIAccess with its own port objects; release the previous
       // one's handlers or every message would be delivered once per request.
@@ -310,6 +318,7 @@ export class MidiService implements OnDestroy {
    * Disconnect from MIDI
    */
   disconnect(): void {
+    this.accessGeneration++;
     this.detachAccess();
 
     // Clear state

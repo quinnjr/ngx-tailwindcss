@@ -295,7 +295,7 @@ export class TwScoreEditorComponent implements OnInit {
     if (this.parts().length >= this.maxParts()) return;
 
     const presetData = preset ? INSTRUMENT_PRESETS[preset] : {};
-    const partId = `part-${this.partIdCounter++}`;
+    const partId = this.nextPartId();
 
     const newPart: InstrumentPart = {
       id: partId,
@@ -343,13 +343,13 @@ export class TwScoreEditorComponent implements OnInit {
     const part = this.parts().find(p => p.id === partId);
     if (!part || this.parts().length >= this.maxParts()) return;
 
-    const newPartId = `part-${this.partIdCounter++}`;
+    const newPartId = this.nextPartId();
     const duplicated: InstrumentPart = {
       ...part,
       id: newPartId,
       name: `${part.name} (Copy)`,
       notes: part.notes.map(n => ({ ...n, id: `note-${Date.now()}-${Math.random()}` })),
-      lyrics: part.lyrics.map(l => ({ ...l, id: `lyric-${this.lyricIdCounter++}` })),
+      lyrics: part.lyrics.map(l => ({ ...l, id: this.nextLyricId() })),
       color: this.getPartColor(this.parts().length),
     };
 
@@ -362,6 +362,26 @@ export class TwScoreEditorComponent implements OnInit {
 
   selectPart(partId: string): void {
     this.selectedPartId.set(partId);
+  }
+
+  // Ids not used by any part / lyric yet: a loaded or imported score may already use
+  // "part-<n>" / "lyric-<n>" ids, and a duplicate id would make edits hit both entries
+  private nextPartId(): string {
+    const used = new Set(this.parts().map(p => p.id));
+    let id: string;
+    do {
+      id = `part-${this.partIdCounter++}`;
+    } while (used.has(id));
+    return id;
+  }
+
+  private nextLyricId(): string {
+    const used = new Set(this.parts().flatMap(p => p.lyrics.map(l => l.id)));
+    let id: string;
+    do {
+      id = `lyric-${this.lyricIdCounter++}`;
+    } while (used.has(id));
+    return id;
   }
 
   private getPartColor(index: number): string {
@@ -524,7 +544,7 @@ export class TwScoreEditorComponent implements OnInit {
 
   addLyric(partId: string, text: string, measure: number, beat: number, verse = 1): void {
     const lyric: LyricEntry = {
-      id: `lyric-${this.lyricIdCounter++}`,
+      id: this.nextLyricId(),
       text,
       measure,
       beat,
@@ -613,7 +633,7 @@ export class TwScoreEditorComponent implements OnInit {
     const anchors = [...melody].sort((a, b) => a.measure - b.measure || a.beat - b.beat);
 
     const lyrics: LyricEntry[] = syllables.slice(0, anchors.length).map((syllable, i) => ({
-      id: `lyric-${this.lyricIdCounter++}`,
+      id: this.nextLyricId(),
       ...syllable,
       measure: anchors[i].measure,
       beat: anchors[i].beat,

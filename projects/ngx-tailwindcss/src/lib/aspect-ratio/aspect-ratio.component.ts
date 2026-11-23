@@ -34,31 +34,15 @@ const RATIO_CLASSES: Record<string, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './aspect-ratio.component.html',
+  host: {
+    // The host is the ratio box itself: a static `class` attribute lands here once
+    '[class]': 'containerClasses()',
+    '[style.aspect-ratio]': 'computedRatio()',
+  },
   styles: [
     `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-        /* Don't clip the inner element's shadow/ring; it clips its own content */
-        overflow: visible;
-      }
-      /* Margins and widths (mx-4, w-1/2, ...) already apply to the host: don't apply them twice */
-      :host > div {
-        margin: 0;
-        width: auto;
-        max-width: none;
-      }
-      :host ::ng-deep > div > * {
+      /* Projected children fill the ratio box */
+      :host ::ng-deep > * {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -80,7 +64,7 @@ export class TwAspectRatioComponent {
   readonly class = input('');
 
   protected readonly containerClasses = computed(() => {
-    const baseClasses = 'relative overflow-hidden';
+    const baseClasses = 'block relative overflow-hidden';
     const ratio = this.ratio();
 
     if (ratio === 'custom') {

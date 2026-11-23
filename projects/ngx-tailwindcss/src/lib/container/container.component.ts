@@ -49,33 +49,10 @@ const CONTAINER_PADDING: Record<string, string> = {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './container.component.html',
-  styles: [
-    `
-      :host {
-        display: block;
-        /* A static class attribute also stays on the host: paint it once, on the inner element */
-        padding: 0;
-        border: 0;
-        background: none;
-        box-shadow: none;
-        opacity: 1;
-        filter: none;
-        transform: none;
-        translate: none;
-        rotate: none;
-        scale: none;
-        width: 100%;
-        /* The width cap belongs to the inner element, which centers itself within the host */
-        max-width: none;
-        /* Margins also belong to the inner element (centering, spacing): don't apply them twice */
-        margin: 0;
-      }
-      /* The host may be sized from outside (flex/grid stretch, flex-grow): fill it */
-      :host > div {
-        height: 100%;
-      }
-    `,
-  ],
+  host: {
+    // The host is the styled box itself: a static `class` attribute lands here once
+    '[class]': 'containerClasses()',
+  },
 })
 export class TwContainerComponent {
   private readonly twClass = inject(TwClassService);
@@ -91,13 +68,13 @@ export class TwContainerComponent {
 
   /**
    * Additional CSS classes. Signal input so a bound `[class]` survives Angular's
-   * special class-binding handling and re-renders the inner element on change.
+   * special class-binding handling and re-renders the host classes on change.
    */
   readonly class = input('');
 
   protected readonly containerClasses = computed(() => {
     return this.twClass.merge(
-      'w-full',
+      'block w-full',
       CONTAINER_SIZES[this.size()],
       this.centered() ? 'mx-auto' : '',
       CONTAINER_PADDING[this.padding()],

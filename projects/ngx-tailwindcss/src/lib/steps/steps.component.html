@@ -2,12 +2,14 @@
   <ol [class]="listClasses()">
     @for (step of steps(); track step.id ?? $index; let i = $index; let last = $last) {
       <li [class]="itemClasses(last)">
-        <!-- Step content (indicator + label) -->
+        <!-- Step content (indicator + label). With labels hidden, a completed step shows
+             only a check icon: aria-label keeps the button named -->
         <button
           type="button"
           [class]="stepContentClasses(i)"
           [disabled]="!isStepClickable(i)"
           [attr.aria-current]="i === activeIndex() ? 'step' : null"
+          [attr.aria-label]="showLabels() ? null : step.label"
           (click)="onStepClick(i)"
         >
           <!-- Step indicator -->

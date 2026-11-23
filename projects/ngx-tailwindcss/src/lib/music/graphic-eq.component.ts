@@ -784,7 +784,9 @@ export class TwGraphicEQComponent implements ControlValueAccessor, OnDestroy {
         Math.abs(curr - freq) < Math.abs(prev - freq) ? curr : prev
       );
 
-      return preset.values[closest] ?? 0;
+      // Built-in presets go up to ±6 dB: keep them inside a narrower configured range
+      const gain = preset.values[closest] ?? 0;
+      return Math.max(this.minGain(), Math.min(this.maxGain(), gain));
     });
 
     this.bandValues.set(values);

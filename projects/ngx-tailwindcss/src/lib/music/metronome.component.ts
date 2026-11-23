@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   linkedSignal,
@@ -11,6 +12,7 @@ import {
   OnInit,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -210,6 +212,18 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
   private static readonly SCHEDULER_INTERVAL_MS = 25;
   private static readonly LOOKAHEAD_SECONDS = 0.1;
 
+  constructor() {
+    // Disabling a running metronome stops it: the Start/Stop button is disabled too, so the
+    // clicks would otherwise carry on with no way to stop them
+    effect(() => {
+      if (this.disabled() && untracked(() => this.isPlaying())) {
+        untracked(() => {
+          this.stop();
+        });
+      }
+    });
+  }
+
   protected readonly beatsPerMeasure = computed(() => {
     const sig = this.currentTimeSignature();
     return parseInt(sig.split('/')[0], 10);
@@ -371,7 +385,7 @@ export class TwMetronomeComponent implements OnInit, OnDestroy {
       } finally {
         this.starting = false;
       }
-      if (this.destroyed || this.isPlaying()) return;
+      if (this.destroyed || this.isPlaying() || this.disabled()) return;
       if ((this.audioContext.state as AudioContextState) !== 'running') {
         this.needsGesture.set(true);
         return;

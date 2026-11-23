@@ -133,8 +133,8 @@
           class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
           [class.border-blue-600]="isAllSelected() || isSomeSelected()"
           [class.bg-blue-600]="isAllSelected() || isSomeSelected()"
-          [class.border-slate-300]="!isAllSelected() && !isSomeSelected()"
-          [class.dark:border-slate-500]="!isAllSelected() && !isSomeSelected()"
+          [class.border-slate-500]="!isAllSelected() && !isSomeSelected()"
+          [class.dark:border-slate-400]="!isAllSelected() && !isSomeSelected()"
         >
           @if (isAllSelected()) {
             <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,8 +190,8 @@
                 class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
                 [class.border-blue-600]="isSelected(option)"
                 [class.bg-blue-600]="isSelected(option)"
-                [class.border-slate-300]="!isSelected(option)"
-                [class.dark:border-slate-500]="!isSelected(option)"
+                [class.border-slate-500]="!isSelected(option)"
+                [class.dark:border-slate-400]="!isSelected(option)"
               >
                 @if (isSelected(option)) {
                   <svg
@@ -251,8 +251,8 @@
             class="flex items-center justify-center w-4 h-4 border-2 rounded transition-colors"
             [class.border-blue-600]="isSelected(option)"
             [class.bg-blue-600]="isSelected(option)"
-            [class.border-slate-300]="!isSelected(option)"
-            [class.dark:border-slate-500]="!isSelected(option)"
+            [class.border-slate-500]="!isSelected(option)"
+            [class.dark:border-slate-400]="!isSelected(option)"
           >
             @if (isSelected(option)) {
               <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

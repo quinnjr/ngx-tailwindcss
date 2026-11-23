@@ -436,6 +436,37 @@ describe('TwTabBarComponent close button', () => {
     expect(closes.length).toBe(1);
     expect(selects.length).toBe(0);
   });
+
+  it('keeps keyboard focus in the tab bar when the focused close button removes its tab', () => {
+    const fixture = TestBed.createComponent(TwTabBarComponent);
+    fixture.autoDetectChanges();
+    fixture.componentRef.setInput('tabs', [
+      { id: 'one', label: 'One' },
+      { id: 'two', label: 'Two' },
+    ]);
+    fixture.componentInstance.tabClose.subscribe(e => {
+      fixture.componentRef.setInput(
+        'tabs',
+        [
+          { id: 'one', label: 'One' },
+          { id: 'two', label: 'Two' },
+        ].filter(t => t.id !== e.tab.id)
+      );
+    });
+    fixture.detectChanges();
+    document.body.append(fixture.nativeElement);
+    try {
+      const close = fixture.nativeElement.querySelector(
+        '[aria-label="Close One"]'
+      ) as HTMLButtonElement;
+      close.focus();
+      close.click();
+      fixture.detectChanges();
+      expect(document.activeElement?.getAttribute('data-tab-id')).toBe('two');
+    } finally {
+      fixture.nativeElement.remove();
+    }
+  });
 });
 
 describe('Native a11y semantics', () => {

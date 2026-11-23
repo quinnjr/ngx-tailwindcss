@@ -68,7 +68,12 @@ export class TwAnnounceDirective implements OnChanges {
     if (!changes['twAnnounce']) return;
 
     const message = this.twAnnounce;
-    if (message && message !== this.previousMessage) {
+    if (!message) {
+      // Clearing the message re-arms it, so setting the same text again is announced
+      this.previousMessage = '';
+      return;
+    }
+    if (message !== this.previousMessage) {
       if (this.announceAssertive) {
         this.ariaService.announceAssertive(message);
       } else {

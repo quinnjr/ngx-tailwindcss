@@ -416,6 +416,13 @@ describe('TwProgressCircularComponent', () => {
       const circle = progressEl.querySelectorAll('circle')[1];
       expect(circle?.getAttribute('stroke')).toBe('#e11d48');
     });
+
+    it('should apply an info stroke color with >= 3:1 against the slate-200 track', () => {
+      component.variant.set('info');
+      fixture.detectChanges();
+      const circle = progressEl.querySelectorAll('circle')[1];
+      expect(circle?.getAttribute('stroke')).toBe('#0e7490');
+    });
   });
 
   describe('value display', () => {

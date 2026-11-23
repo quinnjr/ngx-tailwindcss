@@ -173,6 +173,23 @@ describe('TwTooltipDirective', () => {
     expect(buttonEl.getAttribute('aria-describedby')).toBe('hint-1');
   });
 
+  it('should stay open while the pointer moves from the host onto the tooltip (WCAG 1.4.13)', async () => {
+    buttonEl.dispatchEvent(new Event('mouseenter'));
+    await nextTick();
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+    expect(tooltip.classList.contains('pointer-events-none')).toBe(false);
+
+    buttonEl.dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: tooltip }));
+    tooltip.dispatchEvent(new MouseEvent('mouseenter'));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBe(tooltip);
+
+    tooltip.dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: document.body }));
+    await nextTick();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    expect(buttonEl.getAttribute('aria-describedby')).toBeNull();
+  });
+
   it('should let tooltipClass override conflicting base classes', async () => {
     component.tooltipClass.set('bg-red-500 text-xs');
     fixture.detectChanges();

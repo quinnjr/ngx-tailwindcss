@@ -17,6 +17,9 @@ import { TwClassService } from '../core/tw-class.service';
 
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
 
+/** Distance in px between the host element and the tooltip */
+const TOOLTIP_GAP = 8;
+
 /**
  * Adds a tooltip to any element with customizable position and styling
  *
@@ -32,7 +35,7 @@ export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
   standalone: true,
   host: {
     '(mouseenter)': 'show()',
-    '(mouseleave)': 'hide()',
+    '(mouseleave)': 'onPointerLeave($event)',
     '(focus)': 'show()',
     '(blur)': 'hide()',
   },
@@ -104,6 +107,23 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
     this.updatePosition();
   };
 
+  // Keep the tooltip open while the pointer is over it (WCAG 1.4.13 "hoverable")
+  private readonly tooltipEnterHandler = (): void => {
+    this.clearTimeouts();
+  };
+
+  private readonly tooltipLeaveHandler = (event: MouseEvent): void => {
+    this.onPointerLeave(event);
+  };
+
+  /** Hides the tooltip unless the pointer moved between the host and the tooltip */
+  protected onPointerLeave(event: MouseEvent): void {
+    const target = event.relatedTarget as Node | null;
+    const host = this.el.nativeElement as HTMLElement;
+    if (target && (host.contains(target) || this.tooltipElement?.contains(target))) return;
+    this.hide();
+  }
+
   show(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     if (this.tooltipDisabled || !this.content) return;
@@ -145,7 +165,6 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
       'bg-slate-900',
       'rounded',
       'shadow-lg',
-      'pointer-events-none',
       'whitespace-nowrap',
       'opacity-100',
       'transition-opacity',
@@ -174,6 +193,13 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
     this.renderer.addClass(arrow, 'rotate-45');
     this.setArrowPosition(arrow);
     this.renderer.appendChild(this.tooltipElement, arrow);
+
+    // Transparent bridge over the gap so the pointer can travel from the host onto the tooltip
+    const bridge = this.renderer.createElement('div');
+    this.setBridgePosition(bridge);
+    this.renderer.appendChild(this.tooltipElement, bridge);
+    this.tooltipElement!.addEventListener('mouseenter', this.tooltipEnterHandler);
+    this.tooltipElement!.addEventListener('mouseleave', this.tooltipLeaveHandler);
 
     // Add to body
     this.renderer.appendChild(document.body, this.tooltipElement);
@@ -222,12 +248,35 @@ export class TwTooltipDirective implements OnDestroy, OnChanges {
     }
   }
 
+  private setBridgePosition(bridge: HTMLElement): void {
+    const gap = `${TOOLTIP_GAP}px`;
+    this.renderer.setStyle(bridge, 'position', 'absolute');
+    switch (this.tooltipPosition) {
+      case 'top':
+      case 'bottom': {
+        this.renderer.setStyle(bridge, this.tooltipPosition === 'top' ? 'top' : 'bottom', '100%');
+        this.renderer.setStyle(bridge, 'left', '0');
+        this.renderer.setStyle(bridge, 'right', '0');
+        this.renderer.setStyle(bridge, 'height', gap);
+        break;
+      }
+      case 'left':
+      case 'right': {
+        this.renderer.setStyle(bridge, this.tooltipPosition === 'left' ? 'left' : 'right', '100%');
+        this.renderer.setStyle(bridge, 'top', '0');
+        this.renderer.setStyle(bridge, 'bottom', '0');
+        this.renderer.setStyle(bridge, 'width', gap);
+        break;
+      }
+    }
+  }
+
   private updatePosition(): void {
     if (!this.tooltipElement) return;
 
     const hostRect = this.el.nativeElement.getBoundingClientRect();
     const tooltipRect = this.tooltipElement.getBoundingClientRect();
-    const gap = 8;
+    const gap = TOOLTIP_GAP;
 
     let top: number;
     let left: number;

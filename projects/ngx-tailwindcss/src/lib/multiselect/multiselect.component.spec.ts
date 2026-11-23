@@ -804,3 +804,24 @@ describe('TwMultiSelectComponent (round 32)', () => {
     expect(fixture.componentInstance.control.value).toEqual([]);
   });
 });
+
+describe('TwMultiSelectComponent (round 33)', () => {
+  it('should draw unchecked checkbox borders with at least 3:1 contrast (WCAG 1.4.11)', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    trigger.click();
+    fixture.detectChanges();
+
+    const boxes: HTMLElement[] = [
+      ...fixture.nativeElement.querySelectorAll('[role="option"] > div.border-2'),
+    ];
+    expect(boxes.length).toBe(4); // Select All + 3 options
+    for (const box of boxes) {
+      expect(box.classList).toContain('border-slate-500');
+      expect(box.classList).toContain('dark:border-slate-400');
+      expect(box.classList).not.toContain('border-slate-300');
+      expect(box.classList).not.toContain('dark:border-slate-500');
+    }
+  });
+});

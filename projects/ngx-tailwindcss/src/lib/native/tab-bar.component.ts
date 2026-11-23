@@ -159,7 +159,21 @@ export class TwTabBarComponent {
 
   protected closeTab(tab: TabItem, index: number, event: MouseEvent): void {
     event.stopPropagation();
+    const host = this.elementRef.nativeElement;
+    const hadFocus = host.contains(host.ownerDocument.activeElement);
     this.tabClose.emit({ tab, index, action: 'close' });
+    if (!hadFocus) return;
+
+    // Removing the closed tab drops focus with its close button; move it to the
+    // tab that took its place (or the new last tab) so keyboard users keep their place
+    afterNextRender(
+      () => {
+        if (host.contains(host.ownerDocument.activeElement)) return;
+        const remaining = host.querySelectorAll<HTMLElement>('[data-tab-id]');
+        remaining[Math.min(index, remaining.length - 1)]?.focus();
+      },
+      { injector: this.injector }
+    );
   }
 
   protected onMiddleClick(tab: TabItem, index: number, event: MouseEvent): void {

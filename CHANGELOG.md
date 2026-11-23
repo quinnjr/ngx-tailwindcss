@@ -466,6 +466,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Music: tenor-clef key signatures draw G# inside the staff; the `tw-looper`
   buttons, `tw-waveform` zoom buttons and `tw-pitch-display` semitone buttons
   keep focus when they disable or remove themselves
+- Accessible names: `tw-staff`, `tw-chord-diagram` and `tw-piano-chord` are
+  named after what they show (clef, key and time signature; chord name and
+  frets; chord name and highlighted notes) and gain
+  an `ariaLabel` input to override it; the native settings panel shortcut
+  button and labelled `tw-toolbar` buttons keep their visible text in their
+  accessible name
+- Graphics contrast (3:1): `tw-piano-chord` highlighted keys and finger
+  circles; `tw-vu-meter` lit segments and peak marker in the `light`,
+  `gradient`, `solid` and `retro` variants (in light mode the lit zones are
+  darker, e.g. the yellow zone is `amber-700`); the `spotify` `tw-scrubber`
+  progress against the buffered range; the `info` `tw-progress-circular` arc
+  uses `cyan-700`, like the linear bar
+- `tw-select` and `tw-multiselect` close, and ignore option selection, when
+  they are disabled while open
 - Native services, music components and audio services: many correctness and
   resource-cleanup fixes
 - Documentation: the README and docs quick start tell you to register an

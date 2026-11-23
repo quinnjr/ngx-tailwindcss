@@ -47,4 +47,15 @@ describe('TwAnnounceDirective', () => {
     expect(ariaService.announce).toHaveBeenCalledTimes(1);
     expect(ariaService.announceAssertive).not.toHaveBeenCalled();
   });
+
+  it('should announce the same message again after it was cleared', () => {
+    const fixture = TestBed.createComponent(TestHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.message.set('');
+    fixture.detectChanges();
+    fixture.componentInstance.message.set('Upload failed');
+    fixture.detectChanges();
+
+    expect(ariaService.announceAssertive).toHaveBeenCalledTimes(2);
+  });
 });

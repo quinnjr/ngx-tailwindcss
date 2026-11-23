@@ -269,6 +269,37 @@ describe('TwMetronomeComponent subdivisions', () => {
     expect(frequencies).not.toContain(600);
     fixture.destroy();
   });
+
+  it('should stop playing when disabled while running', async () => {
+    const fixture = TestBed.createComponent(TwMetronomeComponent);
+    fixture.detectChanges();
+    const metronome = fixture.componentInstance as unknown as {
+      start(): Promise<void>;
+      isPlaying(): boolean;
+      scheduler(): void;
+    };
+    const playing: boolean[] = [];
+    fixture.componentInstance.playingChange.subscribe(p => playing.push(p));
+
+    await metronome.start();
+    expect(metronome.isPlaying()).toBe(true);
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    expect(metronome.isPlaying()).toBe(false);
+    expect(playing).toEqual([true, false]);
+    // No further clicks are scheduled
+    const clicks = frequencies.length;
+    currentTime = 2;
+    metronome.scheduler();
+    expect(frequencies.length).toBe(clicks);
+    const toggle = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(b =>
+      b.textContent?.includes('Start')
+    );
+    expect(toggle?.disabled).toBe(true);
+    fixture.destroy();
+  });
 });
 
 describe('TwMetronomeComponent text colours', () => {

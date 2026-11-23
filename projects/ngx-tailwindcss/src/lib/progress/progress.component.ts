@@ -43,7 +43,8 @@ const CIRCULAR_STROKE_COLORS: Record<ProgressVariant, string> = {
   success: '#059669',
   warning: '#f59e0b',
   danger: '#e11d48',
-  info: '#0891b2',
+  // cyan-700 like the linear bar: cyan-600 was 2.99:1 against the slate-200 track
+  info: '#0e7490',
 };
 
 @Component({

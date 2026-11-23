@@ -70,8 +70,6 @@ export const TW_DX_DIRECTIVES = [
 ] as const;
 
 /** All directives combined */
-export const TW_DIRECTIVES = [
-  ...TW_CORE_DIRECTIVES,
-  ...TW_DX_DIRECTIVES,
-  ...TW_ARIA_DIRECTIVES,
-] as const;
+// Marked pure so bundlers can drop it when unused (array spread is not side-effect free).
+export const TW_DIRECTIVES = /* @__PURE__ */ (() =>
+  [...TW_CORE_DIRECTIVES, ...TW_DX_DIRECTIVES, ...TW_ARIA_DIRECTIVES] as const)();
